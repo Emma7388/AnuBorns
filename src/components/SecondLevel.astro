@@ -1,0 +1,67 @@
+---
+const { basePath } = Astro.props;
+import "../styles/global.css"
+---
+  <main class="level-two">
+    
+    <div class="block-group">
+      
+      <a href={`/${basePath}/productos`} class="level-block">
+        PRODUCTOS
+      </a>
+      
+      <a href={`/${basePath}/servicios`} class="level-block">
+        SERVICIOS
+      </a>
+      
+    </div>
+  </main>
+
+
+<style>
+  .level-two {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .block-group {
+    display: flex;
+    gap: 60px;
+  }
+
+  .level-block {
+    width: 320px;
+    height: 200px;
+    border-radius: 20px;
+    background: #16C784;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+    transition: 0.25s ease;
+    letter-spacing: 1px;
+  }
+
+  .level-block:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(22, 199, 132, 0.35);
+  }
+
+  @media (max-width: 900px) {
+    .block-group {
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .level-block {
+      width: 280px;
+      height: 160px;
+    }
+  }
+</style>

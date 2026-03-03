@@ -1,0 +1,77 @@
+---
+const { title } = Astro.props;
+---
+
+<main class="split-page">
+
+  <a href="javascript:history.back()" class="back-link">← Volver</a>
+
+  <h1 class="page-title">{title}</h1>
+
+  <div class="split-container">
+    
+    <div class="left-column">
+      <slot name="left" />
+    </div>
+
+    <div class="right-column">
+      <slot name="right" />
+    </div>
+
+  </div>
+
+</main>
+
+<style>
+  .split-page {
+    min-height: 100vh;
+    background: #0B0F14;
+    padding: 120px 80px 80px 80px;
+    position: relative;
+  }
+
+  .back-link {
+    position: absolute;
+    top: 40px;
+    left: 60px;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    transition: 0.2s ease;
+  }
+
+  .back-link:hover {
+    color: #16C784;
+  }
+
+  .page-title {
+    color: white;
+    margin-bottom: 60px;
+    font-size: 28px;
+    letter-spacing: 2px;
+  }
+
+  .split-container {
+    display: grid;
+    grid-template-columns: 70% 30%;
+    gap: 40px;
+  }
+
+  .left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  @media (max-width: 900px) {
+    .split-container {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

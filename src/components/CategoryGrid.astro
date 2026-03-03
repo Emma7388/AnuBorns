@@ -1,0 +1,57 @@
+---
+import {categories} from "../data/categories"
+const { basePath, type } = Astro.props;
+import "../styles/global.css"
+---
+
+  <main>
+  <h1>{type.toUpperCase()}</h1>
+  <div class="grid">
+    {categories.map((cat) => (
+      <a 
+      href={`/${basePath}/${type}/${cat.slug}`} 
+      class="category-card"
+      >
+    {cat.name}
+  </a>
+))}
+  </div>
+</main>
+
+
+<style>
+
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 30px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .category-card {
+    height: 140px;
+    background: #16C784;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: white;
+    font-weight: 600;
+    font-size: 18px;
+    transition: 0.25s ease;
+  }
+
+  .category-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(22, 199, 132, 0.35);
+  }
+
+  @media (max-width: 768px) {
+    .category-page {
+      padding: 100px 30px 40px 30px;
+    }
+  }
+</style>

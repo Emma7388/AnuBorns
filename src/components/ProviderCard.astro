@@ -1,0 +1,107 @@
+---
+const {
+  name,
+  ranking,
+  average,
+  location,
+  sponsor = false,
+
+} = Astro.props
+
+---
+
+
+<div class="provider-card">
+
+  {ranking <= 3 && (
+    <div class="ranking-badge">
+      ⭐ Ranking #{ranking}
+    </div>
+  )}
+
+  {sponsor && (
+    <div class="sponsor-badge">
+      SPONSOR
+    </div>
+  )}
+
+  <h2 class="provider-name">{name}</h2>
+
+  <p class="average">
+    Promedio 10 productos: <strong>${average}</strong>
+  </p>
+
+  <p class="location">{location}</p>
+
+  <button class="view-btn">Ver productos</button>
+
+</div>
+
+<style>
+  .provider-card {
+    background: #11161C;
+    border-radius: 18px;
+    padding: 24px;
+    position: relative;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: 0.25s ease;
+  }
+
+  .provider-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(22,199,132,0.5);
+  }
+
+  .ranking-badge {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background: #16C784;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .sponsor-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: gold;
+    color: black;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .provider-name {
+    margin-top: 20px;
+    font-size: 20px;
+  }
+
+  .average {
+    margin: 10px 0;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .location {
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .view-btn {
+    background: #16C784;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .view-btn:hover {
+    box-shadow: 0 10px 25px rgba(22,199,132,0.4);
+  }
+</style>

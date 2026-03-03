@@ -1,0 +1,33 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import "../styles/global.css";
+const isHome = Astro.url.pathname === "/"
+
+const { title } = Astro.props;
+---
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0B0F14;
+      color: yellow;
+    }
+  </style>
+
+<BaseLayout title={title}>
+  <Header />
+
+  <main>
+
+  {!isHome && (
+  <a onclick="history.back()" class="back-btn">
+    ← Volver
+  </a>
+)}
+    <slot />
+  </main>
+
+  <Footer />
+</BaseLayout>

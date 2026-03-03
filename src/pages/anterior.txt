@@ -1,0 +1,1020 @@
+---
+import ProfessionalCard from "../components/ProfessionalCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const professionals = [
+  {
+    name: "Raúl Gómez",
+    role: "Plomero matriculado",
+    rating: "4.9",
+    jobs: 128,
+    image: "https://randomuser.me/api/portraits/men/32.jpg",
+  },
+  {
+    name: "Lucía Fernández",
+    role: "Electricista certificada",
+    rating: "4.8",
+    jobs: 96,
+    image: "https://randomuser.me/api/portraits/women/44.jpg",
+  },
+  {
+    name: "Martín Rojas",
+    role: "Gasista autorizado",
+    rating: "4.7",
+    jobs: 143,
+    image: "https://randomuser.me/api/portraits/men/75.jpg",
+  },
+  {
+    name: "Sofía Morales",
+    role: "Técnica en refrigeración",
+    rating: "5.0",
+    jobs: 89,
+    image: "https://randomuser.me/api/portraits/women/68.jpg",
+  },
+];
+---
+
+<script is:inline>
+  document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("loginModal");
+    const openButtons = document.querySelectorAll(".nav-button, .primary");
+    const closeBtn = document.querySelector(".close-btn");
+    const overlay = document.querySelector(".modal-overlay");
+
+    const tabs = document.querySelectorAll(".role-tabs button");
+    const form = modal.querySelector("form");
+
+    // abrir
+    openButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        modal.classList.add("active");
+      });
+    });
+
+    // cerrar
+    const closeModal = () => modal.classList.remove("active");
+
+    closeBtn?.addEventListener("click", closeModal);
+    overlay?.addEventListener("click", closeModal);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+
+    // tabs dinámicos
+    const extraField = modal.querySelector(".extra-field");
+    const submitBtn = modal.querySelector(".primary-btn");
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        if (tab.textContent.trim() === "Profesional") {
+          submitBtn.textContent = "Ingresar como Profesional";
+        } else {
+          extraField.innerHTML = "";
+          submitBtn.textContent = "Ingresar como Cliente";
+        }
+      });
+    });
+  });
+</script>
+
+<BaseLayout title="Inicio - AnuBorns">
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="logo">
+        <img src="/logo.png" alt="Logo" />
+      </div>
+
+      <nav class="nav-links">
+        <a href="#">Cómo funciona</a>
+        <a href="#">Profesionales</a>
+        <a href="#" class="nav-button">Ingresar</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <video autoplay muted loop playsinline class="hero-video">
+      <source src="/video.mp4" type="video/mp4" />
+    </video>
+
+    <div class="hero-overlay"></div>
+
+    <div class="container hero-content">
+      <h1>¡Encontrá profesionales confiables cerca tuyo!</h1>
+      <p>Plomeros, electricistas, limpieza y más en minutos.</p>
+
+      <form class="search-box">
+        <input type="text" placeholder="¿Qué servicio necesitás?" />
+        <input type="text" placeholder="Tu ciudad" />
+        <button type="submit">Buscar</button>
+      </form>
+
+      <div class="mock-card">
+        <div class="mock-header">
+          <div class="avatar"></div>
+          <div>
+            <h3>Raúl Gómez</h3>
+            <p class="role">Plomero matriculado</p>
+          </div>
+        </div>
+        <p class="rating">⭐ 4.9 • 128 trabajos realizados</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="how-it-works">
+    <div class="section-header">
+      <h2>¿Cómo funciona?</h2>
+      <p>Conectate con el profesional ideal en solo tres pasos</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Buscá el servicio</h3>
+        <p>Ingresá qué necesitás y encontrá profesionales disponibles.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Elegí un profesional</h3>
+        <p>Revisá calificaciones, experiencia y disponibilidad.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Coordiná el trabajo</h3>
+        <p>Contactá directamente y resolvé tu necesidad rápidamente.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="featured">
+    <div class="container">
+      <section class="professionals-section">
+        <h2>Profesionales destacados</h2>
+        <p>Encontrá expertos verificados para tu próximo proyecto</p>
+
+        <div class="grid">
+          {professionals.map((pro) => <ProfessionalCard {...pro} />)}
+        </div>
+      </section>
+      <div class="grid">
+        {
+          professionals.map((pro) => (
+            <ProfessionalCard
+              name={pro.name}
+              role={pro.role}
+              rating={pro.rating}
+              jobs={pro.jobs}
+              image={pro.image}
+            />
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="testimonials">
+    <div class="container">
+      <h2>Lo que dicen nuestros clientes</h2>
+
+      <div class="testimonials-grid">
+        <div class="testimonial">
+          <p>
+            “Encontré un plomero en menos de 10 minutos. Súper profesional y
+            puntual.”
+          </p>
+          <h4>— Mariana López</h4>
+        </div>
+
+        <div class="testimonial">
+          <p>
+            “La plataforma es muy clara y rápida. Ya contraté tres servicios.”
+          </p>
+          <h4>— Diego Martínez</h4>
+        </div>
+
+        <div class="testimonial">
+          <p>
+            “Me dio mucha confianza ver las calificaciones antes de elegir.”
+          </p>
+          <h4>— Carolina Ruiz</h4>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="final-cta">
+    <div class="container">
+      <h2>¿Listo para encontrar al profesional ideal?</h2>
+      <p>Publicá tu necesidad o buscá el servicio que necesitás en minutos.</p>
+      <div class="cta-buttons">
+        <button class="primary">Buscar servicio</button>
+        <button class="secondary">Ofrecer mis servicios</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="login-modal" id="loginModal">
+    <div class="modal-overlay"></div>
+
+    <div class="modal-content">
+      <button class="close-btn">&times;</button>
+
+      <div class="role-tabs">
+        <button class="active">Cliente</button>
+        <button>Profesional</button>
+      </div>
+
+      <!-- <form>
+      <input type="email" placeholder="Correo electrónico" />
+      <input type="password" placeholder="Contraseña" />
+      <button type="submit" class="primary-btn">Ingresar</button>
+    </form> -->
+
+      <form>
+        <input type="email" placeholder="Correo electrónico" />
+        <input type="password" placeholder="Contraseña" />
+
+        <div class="extra-field"></div>
+
+        <button type="submit" class="primary-btn">
+          Ingresar como Cliente
+        </button>
+      </form>
+
+      <p class="register-link">
+        ¿No tenés cuenta? <a href="#">Crear cuenta</a>
+      </p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <h3>Buscador de Servicios</h3>
+        <p>Conectando personas con profesionales de confianza.</p>
+      </div>
+
+      <div class="footer-links">
+        <div>
+          <h4>Plataforma</h4>
+          <ul>
+            <li><a href="#">Cómo funciona</a></li>
+            <li><a href="#">Profesionales</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>Contacto</h4>
+          <ul>
+            <li><a href="#">Soporte</a></li>
+            <li><a href="#">Email</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>© 2026 RebornsLife. Todos los derechos reservados.</p>
+    </div>
+  </footer>
+</BaseLayout>
+
+<style>
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  .navbar {
+    width: 100%;
+    background: white;
+    padding: 5px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .nav-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    height: 100%;
+  }
+  .logo img {
+    height: 48px;
+    width: auto;
+    display: block;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    color: #333;
+    font-size: 14px;
+  }
+
+  .nav-button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: black;
+    color: white !important;
+  }
+
+  .hero {
+    position: relative;
+    height: 90vh;
+    display: flex;
+    align-items: center;
+    color: white;
+    overflow: hidden;
+  }
+
+  .hero-video {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(22, 163, 74, 0.85) 0%,
+      rgba(22, 163, 74, 0.75) 40%,
+      rgba(22, 163, 74, 0.55) 100%
+    );
+    z-index: 2;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 3;
+    max-width: 700px;
+    padding: 0 10px 0 10px;
+  }
+
+  .hero-content h1 {
+    font-size: 52px;
+    line-height: 1.1;
+    font-weight: 800;
+    margin-bottom: 24px;
+  }
+
+  .hero-content p {
+    font-size: 20px;
+    margin-bottom: 40px;
+  }
+
+  .search-box {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .search-box input {
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 16px;
+    flex: 1;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    color: white;
+  }
+  .search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .search-box button {
+    padding: 16px 28px;
+    border: none;
+    border-radius: 12px;
+    background: white;
+    color: #15803d;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .search-box button:hover {
+    transform: translateY(-2px);
+  }
+
+  .mock-card {
+    background: white;
+    color: #1f2937;
+    padding: 24px;
+    border-radius: 16px;
+    max-width: 320px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .mock-card {
+    background: white;
+    color: #1f2937;
+    padding: 24px;
+    border-radius: 16px;
+    max-width: 360px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  }
+
+  .mock-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card .avatar {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .role {
+    margin: 0;
+    font-size: 14px;
+    color: #6b7280;
+  }
+
+  .rating {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .hero-content {
+    animation: fadeUp 1s ease forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  @keyframes fadeUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .hero {
+      height: auto;
+      padding: 120px 0;
+    }
+
+    .search-box {
+      flex-direction: column;
+    }
+
+    .hero-content {
+      max-width: 100%;
+    }
+  }
+  .how-it-works {
+    padding: 100px 0;
+    background: #f9fafb;
+  }
+
+  .how-it-works h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: #1f2937;
+  }
+
+  .steps {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+  }
+
+  .step {
+    flex: 1;
+    background: white;
+    padding: 32px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease;
+  }
+
+  .step:hover {
+    transform: translateY(-8px);
+  }
+
+  .step-number {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 20px;
+    background: #16a34a;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+  @media (max-width: 900px) {
+    .steps {
+      flex-direction: column;
+    }
+  }
+  .featured {
+    padding: 100px 0;
+    background: white;
+  }
+
+  .featured h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: #1f2937;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 300px);
+    justify-content: center;
+    gap: 32px;
+  }
+
+  .card {
+    background: #f9fafb;
+    padding: 32px;
+    border-radius: 16px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.08);
+  }
+
+  .card .avatar {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: #16a34a;
+  }
+
+  .card h3 {
+    margin-bottom: 6px;
+  }
+
+  .card .role {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 10px;
+  }
+
+  .card .rating {
+    font-size: 14px;
+  }
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .testimonials {
+    padding: 100px 0;
+    background: #f3f4f6;
+  }
+
+  .testimonials h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: #1f2937;
+  }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+  }
+
+  .testimonial {
+    background: white;
+    padding: 32px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+    font-style: italic;
+    transition: transform 0.3s ease;
+  }
+
+  .testimonial:hover {
+    transform: translateY(-8px);
+  }
+
+  .testimonial h4 {
+    margin-top: 20px;
+    font-style: normal;
+    font-weight: 600;
+  }
+  @media (max-width: 900px) {
+    .testimonials-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .final-cta {
+    padding: 120px 0;
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: white;
+    text-align: center;
+  }
+
+  .final-cta h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+  }
+
+  .final-cta p {
+    font-size: 18px;
+    margin-bottom: 40px;
+    opacity: 0.9;
+  }
+
+  .cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .cta-buttons button {
+    padding: 14px 28px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .primary {
+    background: white;
+    color: #15803d;
+    font-weight: 600;
+  }
+
+  .primary:hover {
+    transform: translateY(-4px);
+  }
+
+  .secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    backdrop-filter: blur(6px);
+  }
+
+  .secondary:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  @media (max-width: 700px) {
+    .cta-buttons {
+      flex-direction: column;
+    }
+  }
+
+  .final-cta {
+    padding: 120px 0;
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: white;
+    text-align: center;
+  }
+
+  .final-cta h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+  }
+
+  .final-cta p {
+    font-size: 18px;
+    margin-bottom: 40px;
+    opacity: 0.9;
+  }
+
+  .cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .cta-buttons button {
+    padding: 14px 28px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .primary {
+    background: white;
+    color: #15803d;
+    font-weight: 600;
+  }
+
+  .primary:hover {
+    transform: translateY(-4px);
+  }
+
+  .secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    backdrop-filter: blur(6px);
+  }
+
+  .secondary:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  @media (max-width: 700px) {
+    .cta-buttons {
+      flex-direction: column;
+    }
+  }
+  .professionals-section {
+    padding: 80px 20px;
+    text-align: center;
+  }
+
+  .section-header {
+    margin-bottom: 48px;
+  }
+
+  .section-header h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: #1f2937;
+  }
+
+  .section-header p {
+    color: #666;
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 60px;
+  }
+  .footer {
+    background: #111;
+    color: #fff;
+    padding: 60px 20px 20px;
+  }
+
+  .footer-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 40px;
+  }
+
+  .footer-brand h3 {
+    margin-bottom: 12px;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 60px;
+  }
+
+  .footer-links h4 {
+    margin-bottom: 12px;
+    font-size: 14px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .footer-links ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .footer-links a {
+    color: #ccc;
+    text-decoration: none;
+    font-size: 14px;
+  }
+
+  .footer-links a:hover {
+    color: white;
+  }
+
+  .footer-bottom {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.6;
+  }
+
+  /* =========================
+   MODAL BASE
+========================= */
+
+  .login-modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+
+    z-index: 1000;
+  }
+
+  .login-modal.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* =========================
+   OVERLAY
+========================= */
+
+  .modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+  }
+
+  /* =========================
+   MODAL CARD (GLASS)
+========================= */
+
+  .modal-content {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    padding: 40px;
+    border-radius: 16px;
+
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+
+    transform: translateY(20px) scale(0.98);
+    transition: 0.3s ease;
+
+    z-index: 2;
+    color: white;
+  }
+
+  .login-modal.active .modal-content {
+    transform: translateY(0) scale(1);
+  }
+
+  /* =========================
+   CLOSE BUTTON
+========================= */
+
+  .close-btn {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .close-btn:hover {
+    color: white;
+  }
+
+  /* =========================
+   TABS
+========================= */
+
+  .role-tabs {
+    display: flex;
+    margin-bottom: 24px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .role-tabs button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .role-tabs .active {
+    background: #16c784; /* tu verde */
+    color: white;
+    font-weight: 600;
+  }
+
+  /* =========================
+   FORM
+========================= */
+
+  .modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .modal-content input {
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    color: white;
+    outline: none;
+    transition: 0.2s ease;
+  }
+
+  .modal-content input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .modal-content input:focus {
+    border-color: #16c784;
+    box-shadow: 0 0 0 2px rgba(22, 199, 132, 0.3);
+  }
+  /* =========================
+   PRIMARY BUTTON
+========================= */
+
+  .primary-btn {
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    background: #16c784;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(22, 199, 132, 0.3);
+  }
+
+  /* =========================
+   REGISTER LINK
+========================= */
+
+  .register-link {
+    margin-top: 20px;
+    font-size: 14px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .register-link a {
+    color: #16c784;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .register-link a:hover {
+    text-decoration: underline;
+  }
+</style>

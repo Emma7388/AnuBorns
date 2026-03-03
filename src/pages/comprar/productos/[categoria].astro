@@ -1,0 +1,51 @@
+---
+import MainLayout from "../../../layouts/MainLayout.astro";
+import { categories } from "../../../data/categories";
+import { providers } from "../../../data/providers";
+import ProviderCard from "../../../components/ProviderCard.astro";
+import "../../../styles/global.css"
+
+
+
+export async function getStaticPaths() {
+  return categories.map((cat) => ({
+    params: { categoria: cat.slug }
+  }));
+}
+
+const { categoria } = Astro.params;
+
+const currentCategory = categories.find(
+  (cat) => cat.slug === categoria
+);
+
+const categoryProviders = providers.filter(
+  (provider) => provider.category === categoria
+);
+---
+
+<MainLayout title={`Comprar ${currentCategory?.name || categoria}`}>
+  
+  <div>
+
+    <h1>
+      Proveedores de {currentCategory?.name || categoria}
+    </h1>
+    
+    
+  {categoryProviders.map((provider) => (
+    <ProviderCard
+      name={provider.name}
+      ranking={provider.ranking}
+      average={provider.average}
+      location={provider.location}
+      sponsor={provider.sponsor}
+      category={provider.category}
+      slug={provider.slug}
+    />
+  ))}
+</div>
+
+
+
+</MainLayout>

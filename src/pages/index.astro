@@ -1,0 +1,103 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+  <MainLayout title="Inicio">
+
+  <section class="hero">
+    <div class="hero-content">
+
+      <h1>Comprá. Vendé. Ofertá.</h1>
+
+      <div class="hero-buttons">
+        <a href="/comprar/" class="btn primary">
+          Comprá
+        </a>
+
+        <a href="/vender/" class="btn primary">
+          Vendé
+        </a>
+
+        <a href="/ofertar/" class="btn primary">
+          Ofertá
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+</MainLayout>
+
+  <style>
+  .hero {
+    min-height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  .hero-content {
+    max-width: 800px;
+  }
+
+  .hero h1 {
+    font-size: 56px;
+    margin-bottom: 50px;
+    letter-spacing: -1px;
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 16px 40px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: 0.25s ease;
+  }
+
+  /* Verde principal */
+  .primary {
+    background: #16C784;
+    color: #0B0F14;
+  }
+
+  .primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(22, 199, 132, 0.35);
+  }
+
+  /* Botón oscuro coherente con fondo */
+  .dark {
+    background: #151A21;
+    color: white;
+  }
+
+  .dark:hover {
+    background: #1C232C;
+  }
+
+  /* Outline verde */
+  .outline {
+    border: 2px solid #16C784;
+    color: #16C784;
+  }
+
+  .outline:hover {
+    background: #16C784;
+    color: #0B0F14;
+  }
+
+  @media (max-width: 768px) {
+    .hero h1 {
+      font-size: 38px;
+    }
+  }
+</style>
