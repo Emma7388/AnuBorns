@@ -6,7 +6,7 @@ export const providers = [
     ranking: 1,
     average: 18500,
     location: "Buenos Aires",
-    sponsor: true
+    sponsor: false
   },
   {
     name: "Electro Sur",
