@@ -1,7 +1,6 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
 import { providers } from "../../data/providers";
-import "../../styles/global.css"
 
 export async function getStaticPaths() {
   return providers.map((provider) => ({

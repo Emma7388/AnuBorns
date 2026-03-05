@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/comprar/pages/Proveedor/:slug",
+      "destination": "/proveedor/:slug/",
+      "permanent": true
+    }
+  ]
+}
