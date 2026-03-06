@@ -1,12 +1,11 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import "../styles/global.css";
 ---
 
-  <MainLayout title="Inicio">
-
+<MainLayout title="Inicio">
   <section class="hero">
     <div class="hero-content">
-
       <h1>Comprá. Vendé. Ofertá.</h1>
 
       <div class="hero-buttons">
@@ -18,17 +17,15 @@ import MainLayout from "../layouts/MainLayout.astro";
           Vendé
         </a>
 
-        <a href="/ofertar/" class="btn primary">
+        <a href="/oferta/" class="btn primary">
           Ofertá
         </a>
       </div>
-
     </div>
   </section>
-
 </MainLayout>
 
-  <style>
+<style>
   .hero {
     min-height: 90vh;
     display: flex;
@@ -63,7 +60,6 @@ import MainLayout from "../layouts/MainLayout.astro";
     transition: 0.25s ease;
   }
 
-  /* Verde principal */
   .primary {
     background: #16C784;
     color: #0B0F14;
@@ -74,7 +70,6 @@ import MainLayout from "../layouts/MainLayout.astro";
     box-shadow: 0 12px 30px rgba(22, 199, 132, 0.35);
   }
 
-  /* Botón oscuro coherente con fondo */
   .dark {
     background: #151A21;
     color: white;
@@ -84,7 +79,6 @@ import MainLayout from "../layouts/MainLayout.astro";
     background: #1C232C;
   }
 
-  /* Outline verde */
   .outline {
     border: 2px solid #16C784;
     color: #16C784;
