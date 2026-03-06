@@ -25,14 +25,10 @@ const categoryProviders = providers.filter(
 ---
 
 <MainLayout title={`Comprar ${currentCategory?.name || categoria}`}>
-  
   <div>
-
     <h1>
       Proveedores de {currentCategory?.name || categoria}
     </h1>
-    
-    
   {categoryProviders.map((provider) => (
     <ProviderCard
       name={provider.name}
@@ -45,7 +41,4 @@ const categoryProviders = providers.filter(
     />
   ))}
 </div>
-
-
-
 </MainLayout>

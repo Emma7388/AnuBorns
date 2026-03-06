@@ -1,16 +1,19 @@
 ---
-const { basePath } = Astro.props;
+const { basePath = "" } = Astro.props;
+const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toLowerCase();
 import "../styles/global.css"
 ---
   <main class="level-two">
     
     <div class="block-group">
       
-      <a href={`/${basePath}/productos`} class="level-block">
+      
+      <a href={`/${normalizedBasePath}/productos`} class="level-block">
         PRODUCTOS
       </a>
       
-      <a href={`/${basePath}/servicios`} class="level-block">
+     
+      <a href={`/${normalizedBasePath}/servicios`} class="level-block">
         SERVICIOS
       </a>
       

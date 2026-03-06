@@ -3,23 +3,16 @@ const { title } = Astro.props;
 ---
 
 <main class="split-page">
-
   <a href="javascript:history.back()" class="back-link">← Volver</a>
-
   <h1 class="page-title">{title}</h1>
-
   <div class="split-container">
-    
     <div class="left-column">
       <slot name="left" />
     </div>
-
     <div class="right-column">
       <slot name="right" />
     </div>
-
   </div>
-
 </main>
 
 <style>
