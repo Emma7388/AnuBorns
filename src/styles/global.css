@@ -54,3 +54,194 @@ a {
 .btn:hover {
   opacity: 0.9;
 }
+/* ANUBORNS: bloques compartidos de UI */
+.ab-dark-panel {
+  max-width: 760px;
+  margin: 40px auto;
+  padding: 28px;
+  background: #11161c;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.ab-eyebrow {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  font-size: 14px;
+}
+
+.ab-muted-text {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ab-back-link {
+  display: inline-block;
+  margin-top: 18px;
+  color: #9ecfff;
+  font-weight: 600;
+}
+
+.ab-cta-button {
+  display: inline-block;
+  text-decoration: none;
+  background: #16c784;
+  color: #0b0f14;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ab-cta-button:hover {
+  box-shadow: 0 10px 25px rgba(22, 199, 132, 0.4);
+}
+
+.ab-sponsor-chip {
+  height: fit-content;
+  background: gold;
+  color: #101010;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Perfil de proveedor */
+.ab-provider-profile__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ab-provider-profile__meta {
+  margin: 28px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.ab-provider-profile__bio {
+  margin: 0 0 24px;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.5;
+}
+
+.ab-provider-profile__services-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ab-provider-profile__services-list li {
+  margin-bottom: 6px;
+}
+
+.ab-provider-profile__actions {
+  margin-top: 28px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Tarjeta de proveedor */
+.ab-provider-card {
+  background: #11161c;
+  border-radius: 18px;
+  padding: 24px;
+  position: relative;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: 0.25s ease;
+}
+
+.ab-provider-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(22, 199, 132, 0.5);
+}
+
+.ab-provider-card__ranking-badge {
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  background: #16c784;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0b0f14;
+}
+
+.ab-provider-card__sponsor-badge {
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  background: gold;
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ab-provider-card__name {
+  margin-top: 20px;
+  font-size: 20px;
+}
+
+.ab-provider-card__average {
+  margin: 10px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ab-provider-card__location {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* Contratación */
+.ab-contract__subtitle {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.ab-contract__steps {
+  margin: 24px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ab-contract__steps h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+.ab-contract__steps ol {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.ab-contract__form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ab-contract__form label {
+  font-weight: 600;
+}
+
+.ab-contract__form textarea,
+.ab-contract__form input {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  padding: 10px 12px;
+  font: inherit;
+}
