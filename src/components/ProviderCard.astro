@@ -1,102 +1,23 @@
 ---
-const {
-  name,
-  ranking,
-  average,
-  location,
-  sponsor = false,
-
-  slug,
-} = Astro.props
-
+const { name, ranking, average, location, sponsor = false, slug } = Astro.props;
 ---
 
-
-<div class="provider-card">
+<div class="ab-provider-card">
   {ranking <= 3 && (
-    <div class="ranking-badge">
+    <div class="ab-provider-card__ranking-badge">
       ⭐ Ranking #{ranking}
     </div>
   )}
 
-  {sponsor && (
-    <div class="sponsor-badge">
-      SPONSOR
-    </div>
-  )}
+  {sponsor && <div class="ab-provider-card__sponsor-badge">SPONSOR</div>}
 
-  <h2 class="provider-name">{name}</h2>
+  <h2 class="ab-provider-card__name">{name}</h2>
 
-  <p class="average">
-    Promedio 10 productos: <strong>${average}</strong>
+  <p class="ab-provider-card__average">
+    Promedio publicado: <strong>${average}</strong>
   </p>
 
-  <p class="location">{location}</p>
+  <p class="ab-provider-card__location">{location}</p>
 
-  <button class="view-btn">Ver productos</button>
-  <a href={`/proveedor/${slug}`} class="view-btn">Ver perfil</a>
+  <a href={`/proveedor/${slug}`} class="ab-cta-button">Ver perfil</a>
 </div>
-
-<style>
-  .provider-card {
-    background: #11161C;
-    border-radius: 18px;
-    padding: 24px;
-    position: relative;
-    color: white;
-    border: 1px solid rgba(255,255,255,0.05);
-    transition: 0.25s ease;
-  }
-
-  .provider-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(22,199,132,0.5);
-  }
-
-  .ranking-badge {
-    position: absolute;
-    top: -12px;
-    left: 20px;
-    background: #16C784;
-    padding: 6px 12px;
-    border-radius: 12px;
-@@ -71,37 +67,39 @@ const {
-    background: gold;
-    color: black;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .provider-name {
-    margin-top: 20px;
-    font-size: 20px;
-  }
-
-  .average {
-    margin: 10px 0;
-    color: rgba(255,255,255,0.8);
-  }
-
-  .location {
-    color: rgba(255,255,255,0.6);
-    font-size: 14px;
-    margin-bottom: 20px;
-  }
-
-  .view-btn {
-    display: inline-block;
-    background: #16C784;
-    color: #0B0F14;
-    border: none;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .view-btn:hover {
-    box-shadow: 0 10px 25px rgba(22,199,132,0.4);
-  }
-</style>
