@@ -1,7 +1,7 @@
 ---
-import MainLayout from "../../layouts/MainLayout.astro";
-import { providers } from "../../data/providers";
-import { categories } from "../../data/categories";
+import MainLayout from "../../../layouts/MainLayout.astro";
+import { providers } from "../../../data/providers";
+import { categories } from "../../../data/categories";
 
 export async function getStaticPaths() {
   return providers.map((provider) => ({
@@ -12,9 +12,15 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
+const fromParam = Astro.url.searchParams.get("from");
+const backHref = fromParam && fromParam.startsWith("/")
+  ? fromParam
+  : provider
+    ? `/comprar/productos/${provider.category}`
+    : "/comprar/productos";
 ---
 
-<MainLayout title={provider ? `Proveedor: ${provider.name}` : "Proveedor"}>
+<MainLayout title={provider ? `Proveedor: ${provider.name}` : "Proveedor"} backHref={backHref}>
   {provider ? (
     <section class="ab-dark-panel">
       <header class="ab-provider-profile__header">
@@ -37,15 +43,15 @@ const categoryName = categories.find((item) => item.slug === provider?.category)
 
       <p class="ab-provider-profile__bio">{provider.bio}</p>
 
-      <div>
-        <h2>Servicios destacados</h2>
+      <div id="productos">
+        <h2>Productos/servicios destacados</h2>
         <ul class="ab-provider-profile__services-list">
           {provider.services.map((service) => <li>{service}</li>)}
         </ul>
       </div>
 
       <div class="ab-provider-profile__actions">
-        <a href={`/contratar/${provider.slug}`} class="ab-cta-button">Iniciar contratación</a>
+        <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/proveedor/${provider.slug}`)}`} class="ab-cta-button">Iniciar contratación</a>
         <a href={`/comprar/productos/${provider.category}`} class="ab-back-link">Volver a la categoría</a>
       </div>
     </section>

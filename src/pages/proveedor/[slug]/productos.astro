@@ -1,0 +1,60 @@
+---
+import MainLayout from "../../../layouts/MainLayout.astro";
+import { providers } from "../../../data/providers";
+import { categories } from "../../../data/categories";
+
+export async function getStaticPaths() {
+  return providers.map((provider) => ({
+    params: { slug: provider.slug }
+  }));
+}
+
+const { slug } = Astro.params;
+const provider = providers.find((item) => item.slug === slug);
+const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
+const products = provider?.products ?? [];
+const fromParam = Astro.url.searchParams.get("from");
+const backHref = fromParam && fromParam.startsWith("/")
+  ? fromParam
+  : provider
+    ? `/comprar/productos/${provider.category}`
+    : "/comprar/productos";
+---
+
+<MainLayout title={provider ? `Productos de ${provider.name}` : "Productos del proveedor"} backHref={backHref}>
+  {provider ? (
+    <section class="ab-dark-panel ab-provider-products-panel">
+      <p class="ab-eyebrow">Catálogo del proveedor</p>
+      <h1>{provider.name}</h1>
+      <p class="ab-muted-text">
+        Categoría: <strong>{categoryName ?? provider.category}</strong> · {provider.location}
+      </p>
+
+      {products.length > 0 ? (
+        <div class="ab-provider-products-grid">
+          {products.map((product) => (
+            <article class="ab-provider-product-card">
+              <h2>{product.name}</h2>
+              <p class="ab-provider-product-card__description">{product.description}</p>
+              <p class="ab-provider-product-card__price">
+                ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p>Este proveedor todavía no publicó productos.</p>
+      )}
+
+      <div class="ab-provider-profile__actions">
+        <a href={`/proveedor/${provider.slug}?from=${encodeURIComponent(backHref)}`} class="ab-back-link">Ver perfil</a>
+      </div>
+    </section>
+  ) : (
+    <section class="ab-dark-panel">
+      <h1>Proveedor no encontrado</h1>
+      <p>No se puede mostrar el catálogo porque el proveedor no existe.</p>
+      <a href="/comprar/productos" class="ab-back-link">Ir a categorías</a>
+    </section>
+  )}
+</MainLayout>

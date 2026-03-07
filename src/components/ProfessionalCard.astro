@@ -4,11 +4,9 @@ const { name, role, rating, jobs, image } = Astro.props;
 
 <div class="card">
   <img src={image} alt={name} class="card-image" />
-
   <div class="card-content">
     <h3>{name}</h3>
     <p class="role">{role}</p>
-
     <div class="meta">
       <span>⭐ {rating}</span>
       <span>{jobs} trabajos</span>
@@ -17,7 +15,6 @@ const { name, role, rating, jobs, image } = Astro.props;
 </div>
 
 <style>
-
 .card {
   width: 300px;
   border-radius: 18px;

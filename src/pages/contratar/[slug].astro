@@ -12,9 +12,15 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
+const fromParam = Astro.url.searchParams.get("from");
+const backHref = fromParam && fromParam.startsWith("/")
+  ? fromParam
+  : provider
+    ? `/proveedor/${provider.slug}`
+    : "/comprar/productos";
 ---
 
-<MainLayout title={provider ? `Contratar a ${provider.name}` : "Contratación"}>
+<MainLayout title={provider ? `Contratar a ${provider.name}` : "Contratación"} backHref={backHref}>
   {provider ? (
     <section class="ab-dark-panel">
       <p class="ab-eyebrow">Solicitud de contratación</p>

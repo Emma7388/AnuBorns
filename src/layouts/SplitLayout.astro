@@ -1,9 +1,9 @@
 ---
-const { title } = Astro.props;
+const { title, backHref = "/" } = Astro.props;
 ---
 
 <main class="split-page">
-  <a href="javascript:history.back()" class="back-link">← Volver</a>
+  <a href={backHref} class="back-link">← Volver</a>
   <h1 class="page-title">{title}</h1>
   <div class="split-container">
     <div class="left-column">

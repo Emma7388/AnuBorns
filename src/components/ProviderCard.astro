@@ -5,11 +5,11 @@ const {
   average,
   location,
   sponsor = false,
-
+  category,
   slug,
 } = Astro.props
 ---
-<div class="provider-card">
+<div class="ab-provider-card">
   {ranking <= 3 && (
     <div class="ab-provider-card__ranking-badge">
       ⭐ Ranking #{ranking}
@@ -26,19 +26,12 @@ const {
 
   <p class="ab-provider-card__location">{location}</p>
 
-  <a href={`/proveedor/${slug}`} class="ab-cta-button">Ver perfil</a>
-
-  {sponsor && (
-    <div class="sponsor-badge">
-      SPONSOR
-    </div>
-  )}
-  <h2 class="provider-name">{name}</h2>
-  <p class="average">
-    Promedio 10 productos: <strong>${average}</strong>
-  </p>
-  <p class="location">{location}</p>
-  <button class="view-btn">Ver productos</button>
-  <a href={`/proveedor/${slug}`} class="view-btn">Ver perfíl</a>
+  <a
+    href={`/proveedor/${slug}/productos?from=${encodeURIComponent(`/comprar/productos/${category}`)}`}
+    class="ab-cta-button"
+  >
+    Ver productos
+  </a>
+  <a href={`/proveedor/${slug}?from=${encodeURIComponent(`/comprar/productos/${category}`)}`} class="ab-cta-button">Ver perfil</a>
 
 </div>
