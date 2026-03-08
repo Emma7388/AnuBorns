@@ -31,24 +31,106 @@ const backHref = fromParam && fromParam.startsWith("/")
       </p>
 
       {products.length > 0 ? (
-        <div class="ab-provider-products-grid">
-          {products.map((product) => (
-            <article class="ab-provider-product-card">
-              <h2>{product.name}</h2>
-              <p class="ab-provider-product-card__description">{product.description}</p>
-              <p class="ab-provider-product-card__price">
-                ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
-              </p>
-              <div class="ab-provider-product-card__actions">
-                <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
-                  Agregar
-                </button>
-                <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy">
-                  Comprar
-                </button>
-              </div>
-            </article>
-          ))}
+        <div class="ab-provider-products-toolbar">
+          <label class="ab-provider-products-toolbar__search">
+            Buscar producto
+            <input id="search-query" type="search" placeholder="Nombre o SKU" />
+          </label>
+          <label>
+            Disponibilidad
+            <select id="stock-filter">
+              <option value="all">Todos</option>
+              <option value="in">Solo con stock</option>
+              <option value="out">Solo sin stock</option>
+            </select>
+          </label>
+          <label>
+            Ordenar por precio
+            <select id="price-sort">
+              <option value="default">Relevancia</option>
+              <option value="asc">Menor a mayor</option>
+              <option value="desc">Mayor a menor</option>
+            </select>
+          </label>
+          <label>
+            Items por página
+            <select id="page-size">
+              <option value="6">6</option>
+              <option value="12">12</option>
+              <option value="24">24</option>
+            </select>
+          </label>
+          <button type="button" id="clear-filters" class="ab-provider-products-toolbar__clear">
+            Limpiar filtros
+          </button>
+          <button type="button" id="copy-link" class="ab-provider-products-toolbar__copy">
+            Copiar enlace
+          </button>
+        </div>
+        <p class="ab-provider-products-share-feedback" id="share-feedback" aria-live="polite"></p>
+        <div class="ab-provider-active-filters" id="provider-active-filters"></div>
+        <p class="ab-provider-products-count" id="provider-products-count">
+          Mostrando {products.length} de {products.length} productos
+        </p>
+        <div class="ab-provider-products-grid" id="provider-products-grid">
+          {products.map((product) => {
+            const hasStock = (product.stock ?? 0) > 0;
+            return (
+              <article
+                class="ab-provider-product-card"
+                data-stock={hasStock ? "in" : "out"}
+                data-price={product.price}
+                data-name={product.name}
+                data-sku={product.sku ?? ""}
+              >
+                <img
+                  class="ab-provider-product-card__image"
+                  src={product.image ?? "/logo2.svg"}
+                  alt={product.name}
+                  loading="lazy"
+                />
+                <div class="ab-provider-product-card__header">
+                  <p class="ab-provider-product-card__sku">SKU: {product.sku ?? "N/A"}</p>
+                  <span class:list={["ab-provider-product-card__stock", !hasStock && "is-out"]}>
+                    {hasStock ? `Stock: ${product.stock}` : "Sin stock"}
+                  </span>
+                </div>
+                <h2>{product.name}</h2>
+                <p class="ab-provider-product-card__description">{product.description}</p>
+                <p class="ab-provider-product-card__price">
+                  ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
+                </p>
+                <div class="ab-provider-product-card__actions">
+                  <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
+                    Agregar
+                  </button>
+                  <button
+                    type="button"
+                    class="ab-provider-product-card__button ab-provider-product-card__button--buy"
+                    disabled={!hasStock}
+                    aria-disabled={!hasStock}
+                  >
+                    Comprar
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <div class="ab-provider-products-empty" id="provider-products-empty">
+          <p>No encontramos productos con esos filtros.</p>
+          <button type="button" id="empty-reset" class="ab-provider-products-empty__reset">
+            Restablecer filtros
+          </button>
+        </div>
+        <div class="ab-provider-products-pagination" id="provider-products-pagination">
+          <button type="button" id="pagination-prev" class="ab-provider-products-pagination__button">
+            Anterior
+          </button>
+          <span id="pagination-label">Página 1 de 1</span>
+          <button type="button" id="pagination-next" class="ab-provider-products-pagination__button">
+            Siguiente
+          </button>
         </div>
       ) : (
         <p>Este proveedor todavía no publicó productos.</p>
@@ -66,3 +148,229 @@ const backHref = fromParam && fromParam.startsWith("/")
     </section>
   )}
 </MainLayout>
+
+<script>
+  const grid = document.getElementById("provider-products-grid");
+  const stockFilter = document.getElementById("stock-filter");
+  const priceSort = document.getElementById("price-sort");
+  const pageSizeSelect = document.getElementById("page-size");
+  const searchQuery = document.getElementById("search-query");
+  const clearFilters = document.getElementById("clear-filters");
+  const copyLink = document.getElementById("copy-link");
+  const shareFeedback = document.getElementById("share-feedback");
+  const activeFilters = document.getElementById("provider-active-filters");
+  const countLabel = document.getElementById("provider-products-count");
+  const emptyState = document.getElementById("provider-products-empty");
+  const emptyReset = document.getElementById("empty-reset");
+  const paginationWrap = document.getElementById("provider-products-pagination");
+  const paginationPrev = document.getElementById("pagination-prev");
+  const paginationNext = document.getElementById("pagination-next");
+  const paginationLabel = document.getElementById("pagination-label");
+
+  if (
+    grid &&
+    stockFilter &&
+    priceSort &&
+    pageSizeSelect &&
+    searchQuery &&
+    clearFilters &&
+    copyLink &&
+    shareFeedback &&
+    activeFilters &&
+    countLabel &&
+    emptyState &&
+    emptyReset &&
+    paginationWrap &&
+    paginationPrev &&
+    paginationNext &&
+    paginationLabel
+  ) {
+    const cards = Array.from(grid.querySelectorAll(".ab-provider-product-card"));
+    const total = cards.length;
+    const allowedPageSizes = [6, 12, 24];
+    let pageSize = 6;
+    let currentPage = 1;
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+
+    const allowedStock = new Set(["all", "in", "out"]);
+    const allowedSort = new Set(["default", "asc", "desc"]);
+
+    const initialStock = params.get("stock") ?? "all";
+    const initialSort = params.get("sort") ?? "default";
+    const initialQuery = params.get("q") ?? "";
+    const initialPageSize = Number(params.get("ipp") ?? "6");
+    const initialPage = Number(params.get("p") ?? "1");
+
+    stockFilter.value = allowedStock.has(initialStock) ? initialStock : "all";
+    priceSort.value = allowedSort.has(initialSort) ? initialSort : "default";
+    searchQuery.value = initialQuery;
+    pageSize = allowedPageSizes.includes(initialPageSize) ? initialPageSize : 6;
+    pageSizeSelect.value = String(pageSize);
+    currentPage = Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1;
+
+    const syncUrl = (totalPages) => {
+      const next = new URL(window.location.href);
+      const stock = stockFilter.value;
+      const sort = priceSort.value;
+      const query = searchQuery.value.trim();
+
+      if (stock !== "all") next.searchParams.set("stock", stock);
+      else next.searchParams.delete("stock");
+
+      if (sort !== "default") next.searchParams.set("sort", sort);
+      else next.searchParams.delete("sort");
+
+      if (query) next.searchParams.set("q", query);
+      else next.searchParams.delete("q");
+
+      if (pageSize !== 6) next.searchParams.set("ipp", String(pageSize));
+      else next.searchParams.delete("ipp");
+
+      if (currentPage > 1 && totalPages > 1) next.searchParams.set("p", String(currentPage));
+      else next.searchParams.delete("p");
+
+      window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
+    };
+
+    const renderActiveFilters = () => {
+      const items = [];
+      const stock = stockFilter.value;
+      const sort = priceSort.value;
+      const query = searchQuery.value.trim();
+
+      if (query) items.push({ key: "q", label: `Búsqueda: ${query}` });
+      if (stock !== "all") items.push({ key: "stock", label: `Stock: ${stock === "in" ? "con stock" : "sin stock"}` });
+      if (sort !== "default") items.push({ key: "sort", label: `Orden: ${sort === "asc" ? "menor a mayor" : "mayor a menor"}` });
+
+      activeFilters.innerHTML = "";
+      if (items.length === 0) {
+        activeFilters.style.display = "none";
+        return;
+      }
+
+      activeFilters.style.display = "flex";
+      items.forEach((item) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "ab-provider-active-filters__chip";
+        chip.dataset.key = item.key;
+        chip.textContent = `${item.label} ×`;
+        activeFilters.appendChild(chip);
+      });
+    };
+
+    const resetFilters = () => {
+      stockFilter.value = "all";
+      priceSort.value = "default";
+      searchQuery.value = "";
+      pageSize = 6;
+      pageSizeSelect.value = "6";
+      currentPage = 1;
+      renderCards();
+    };
+
+    const renderCards = () => {
+      grid.classList.add("is-updating");
+      const stockValue = stockFilter.value;
+      const sortValue = priceSort.value;
+      const query = searchQuery.value.trim().toLowerCase();
+
+      let visible = cards.filter((card) => {
+        if (stockValue === "all") return true;
+        return card.dataset.stock === stockValue;
+      });
+
+      if (query.length > 0) {
+        visible = visible.filter((card) => {
+          const haystack = `${card.dataset.name ?? ""} ${card.dataset.sku ?? ""}`.toLowerCase();
+          return haystack.includes(query);
+        });
+      }
+
+      if (sortValue === "asc") {
+        visible.sort((a, b) => Number(a.dataset.price) - Number(b.dataset.price));
+      }
+      if (sortValue === "desc") {
+        visible.sort((a, b) => Number(b.dataset.price) - Number(a.dataset.price));
+      }
+
+      const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const start = (currentPage - 1) * pageSize;
+      const end = start + pageSize;
+      const paged = visible.slice(start, end);
+
+      cards.forEach((card) => {
+        card.style.display = "none";
+      });
+      paged.forEach((card) => {
+        card.style.display = "";
+        grid.appendChild(card);
+      });
+      countLabel.textContent = `Mostrando ${visible.length} de ${total} productos`;
+      emptyState.style.display = visible.length === 0 ? "grid" : "none";
+      paginationLabel.textContent = `Página ${currentPage} de ${totalPages}`;
+      paginationPrev.disabled = currentPage <= 1;
+      paginationNext.disabled = currentPage >= totalPages;
+      paginationWrap.style.display = visible.length > 0 ? "flex" : "none";
+      renderActiveFilters();
+      syncUrl(totalPages);
+      window.setTimeout(() => grid.classList.remove("is-updating"), 140);
+    };
+
+    const resetToFirstPageAndRender = () => {
+      currentPage = 1;
+      renderCards();
+    };
+
+    stockFilter.addEventListener("change", resetToFirstPageAndRender);
+    priceSort.addEventListener("change", resetToFirstPageAndRender);
+    searchQuery.addEventListener("input", resetToFirstPageAndRender);
+    pageSizeSelect.addEventListener("change", () => {
+      const nextSize = Number(pageSizeSelect.value);
+      pageSize = allowedPageSizes.includes(nextSize) ? nextSize : 6;
+      currentPage = 1;
+      renderCards();
+    });
+    clearFilters.addEventListener("click", resetFilters);
+    emptyReset.addEventListener("click", resetFilters);
+    paginationPrev.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage -= 1;
+        renderCards();
+      }
+    });
+    paginationNext.addEventListener("click", () => {
+      currentPage += 1;
+      renderCards();
+    });
+    copyLink.addEventListener("click", async () => {
+      const link = window.location.href;
+      try {
+        await navigator.clipboard.writeText(link);
+        shareFeedback.textContent = "Enlace copiado";
+      } catch {
+        shareFeedback.textContent = "No se pudo copiar automáticamente";
+      }
+      window.setTimeout(() => {
+        shareFeedback.textContent = "";
+      }, 1600);
+    });
+    activeFilters.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const key = target.dataset.key;
+      if (!key) return;
+
+      if (key === "q") searchQuery.value = "";
+      if (key === "stock") stockFilter.value = "all";
+      if (key === "sort") priceSort.value = "default";
+
+      currentPage = 1;
+      renderCards();
+    });
+    renderCards();
+  }
+</script>
