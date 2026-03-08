@@ -7,18 +7,28 @@
 
 /* VARIABLES */
 :root {
-  --color-primary: #111;
-  --color-accent: #0077ff;
-  --color-text: #222;
-  --color-light: #f5f5f5;
+  --font-base: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  --color-bg: #0b0f14;
+  --color-surface: #11161c;
+  --color-surface-alt: #151a21;
+  --color-surface-hover: #1c232c;
+  --color-text: #eef3f8;
+  --color-text-soft: rgba(238, 243, 248, 0.86);
+  --color-text-muted: rgba(238, 243, 248, 0.68);
+  --color-link: #9ecfff;
+  --color-accent: #16c784;
+  --color-accent-strong: #10b172;
+  --color-on-accent: #0b0f14;
+  --color-border-soft: rgba(255, 255, 255, 0.12);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
   --max-width: 1200px;
 }
 
 /* BODY */
 body {
-  font-family: Arial, Helvetica, sans-serif;
-  color: #eef3f8;
-  background-color: #0b0f14;
+  font-family: var(--font-base);
+  color: var(--color-text);
+  background-color: var(--color-bg);
   line-height: 1.6;
 }
 
@@ -46,7 +56,7 @@ a {
   display: inline-block;
   padding: 0.6rem 1.2rem;
   background: var(--color-accent);
-  color: white;
+  color: var(--color-on-accent);
   border-radius: 6px;
   transition: 0.2s ease;
 }
@@ -59,42 +69,42 @@ a {
   max-width: 760px;
   margin: 40px auto;
   padding: 28px;
-  background: #11161c;
+  background: var(--color-surface);
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #fff;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
 }
 
 .ab-eyebrow {
   margin: 0;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-muted);
   text-transform: uppercase;
   font-size: 14px;
 }
 
 .ab-muted-text {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-muted);
 }
 
 .ab-back-link {
   display: inline-block;
   margin-top: 18px;
-  color: #9ecfff;
+  color: var(--color-link);
   font-weight: 600;
 }
 
 .ab-main-back-link {
   display: inline-flex;
   margin: 18px 0 6px;
-  color: #9ecfff;
+  color: var(--color-link);
   font-weight: 700;
 }
 
 .ab-cta-button {
   display: inline-block;
   text-decoration: none;
-  background: #16c784;
-  color: #0b0f14;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
   border: none;
   border-radius: 12px;
   padding: 12px 18px;
@@ -109,7 +119,7 @@ a {
 .ab-sponsor-chip {
   height: fit-content;
   background: gold;
-  color: #101010;
+  color: var(--color-on-accent);
   border-radius: 999px;
   padding: 8px 14px;
   font-size: 12px;
@@ -131,14 +141,14 @@ a {
 
 .ab-provider-profile__bio {
   margin: 0 0 24px;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--color-text-soft);
   line-height: 1.5;
 }
 
 .ab-provider-profile__services-list {
   margin: 8px 0 0;
   padding-left: 20px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-soft);
 }
 
 .ab-provider-profile__services-list li {
@@ -166,9 +176,16 @@ a {
 
 .ab-provider-product-card {
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-border-soft);
   border-radius: 14px;
   padding: 16px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ab-provider-product-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(22, 199, 132, 0.55);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.3);
 }
 
 .ab-provider-product-card h2 {
@@ -178,30 +195,100 @@ a {
 
 .ab-provider-product-card__description {
   margin: 0 0 12px;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--color-text-muted);
 }
 
 .ab-provider-product-card__price {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: #16c784;
+  color: var(--color-accent);
 }
 
 .ab-provider-product-card__price span {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-muted);
+}
+
+.ab-provider-product-card__actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+.ab-provider-product-card__button {
+  flex: 1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.ab-provider-product-card__button:hover {
+  transform: translateY(-2px);
+}
+
+.ab-provider-product-card__button:active {
+  transform: translateY(0);
+}
+
+.ab-provider-product-card__button:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+.ab-provider-product-card__button:disabled,
+.ab-provider-product-card__button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ab-provider-product-card__button:disabled:hover,
+.ab-provider-product-card__button[aria-disabled="true"]:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.ab-provider-product-card__button--ghost {
+  border: 1px solid var(--color-border-soft);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.ab-provider-product-card__button--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ab-provider-product-card__button--buy {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.ab-provider-product-card__button--buy:hover {
+  box-shadow: 0 10px 20px rgba(22, 199, 132, 0.35);
+}
+
+.ab-provider-product-card__button--buy:disabled,
+.ab-provider-product-card__button--buy[aria-disabled="true"] {
+  border-color: rgba(22, 199, 132, 0.4);
+  background: rgba(22, 199, 132, 0.25);
+  color: rgba(11, 15, 20, 0.7);
 }
 
 /* Tarjeta de proveedor */
 .ab-provider-card {
-  background: #11161c;
+  background: var(--color-surface);
   border-radius: 18px;
   padding: 24px;
   position: relative;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-subtle);
   transition: 0.25s ease;
 }
 
@@ -214,12 +301,12 @@ a {
   position: absolute;
   top: -12px;
   left: 20px;
-  background: #16c784;
+  background: var(--color-accent);
   padding: 6px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 700;
-  color: #0b0f14;
+  color: var(--color-on-accent);
 }
 
 .ab-provider-card__sponsor-badge {
@@ -227,7 +314,7 @@ a {
   top: -12px;
   right: 20px;
   background: gold;
-  color: #000;
+  color: var(--color-on-accent);
   padding: 6px 12px;
   border-radius: 12px;
   font-size: 12px;
@@ -241,18 +328,18 @@ a {
 
 .ab-provider-card__average {
   margin: 10px 0;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-soft);
 }
 
 .ab-provider-card__location {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-muted);
   font-size: 14px;
   margin-bottom: 20px;
 }
 
 /* Contratación */
 .ab-contract__subtitle {
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--color-text-soft);
 }
 
 .ab-contract__steps {
@@ -260,7 +347,7 @@ a {
   padding: 16px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .ab-contract__steps h2 {
@@ -289,7 +376,7 @@ a {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(0, 0, 0, 0.2);
-  color: #fff;
+  color: var(--color-text);
   padding: 10px 12px;
   font: inherit;
 }

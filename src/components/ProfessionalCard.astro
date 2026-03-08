@@ -19,12 +19,13 @@ const { name, role, rating, jobs, image } = Astro.props;
   width: 300px;
   border-radius: 18px;
   overflow: hidden;
-  background: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
   padding:5px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .card:hover {
@@ -49,7 +50,7 @@ const { name, role, rating, jobs, image } = Astro.props;
 }
 
 .role {
-  color: #777;
+  color: var(--color-text-muted);
   font-size: 14px;
   margin: 0;
 }
@@ -58,6 +59,6 @@ const { name, role, rating, jobs, image } = Astro.props;
   display: flex;
   justify-content: space-between;
   font-size: 14px;
-  color: #555;
+  color: var(--color-text-soft);
 }
 </style>

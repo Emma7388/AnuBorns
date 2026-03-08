@@ -61,8 +61,8 @@ import "../styles/global.css";
   }
 
   .primary {
-    background: #16C784;
-    color: #0B0F14;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
   }
 
   .primary:hover {
@@ -71,22 +71,22 @@ import "../styles/global.css";
   }
 
   .dark {
-    background: #151A21;
-    color: white;
+    background: var(--color-surface-alt);
+    color: var(--color-text);
   }
 
   .dark:hover {
-    background: #1C232C;
+    background: var(--color-surface-hover);
   }
 
   .outline {
-    border: 2px solid #16C784;
-    color: #16C784;
+    border: 2px solid var(--color-accent);
+    color: var(--color-accent);
   }
 
   .outline:hover {
-    background: #16C784;
-    color: #0B0F14;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
   }
 
   @media (max-width: 768px) {

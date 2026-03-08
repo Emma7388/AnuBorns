@@ -18,9 +18,11 @@ const { title, backHref = "/" } = Astro.props;
 <style>
   .split-page {
     min-height: 100vh;
-    background: #0B0F14;
+    background: var(--color-bg, #0b0f14);
     padding: 120px 80px 80px 80px;
     position: relative;
+    color: var(--color-text, #eef3f8);
+    font-family: var(--font-base, "Segoe UI", system-ui, sans-serif);
   }
 
   .back-link {
@@ -28,17 +30,17 @@ const { title, backHref = "/" } = Astro.props;
     top: 40px;
     left: 60px;
     text-decoration: none;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
     font-size: 14px;
     transition: 0.2s ease;
   }
 
   .back-link:hover {
-    color: #16C784;
+    color: var(--color-accent, #16c784);
   }
 
   .page-title {
-    color: white;
+    color: var(--color-text, #eef3f8);
     margin-bottom: 60px;
     font-size: 28px;
     letter-spacing: 2px;

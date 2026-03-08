@@ -39,6 +39,14 @@ const backHref = fromParam && fromParam.startsWith("/")
               <p class="ab-provider-product-card__price">
                 ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
               </p>
+              <div class="ab-provider-product-card__actions">
+                <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
+                  Agregar
+                </button>
+                <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy">
+                  Comprar
+                </button>
+              </div>
             </article>
           ))}
         </div>
