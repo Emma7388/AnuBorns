@@ -1,8 +1,53 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
-import CategoryGrid from "../../components/CategoryGrid.astro";
 ---
 
-<MainLayout>
-  <CategoryGrid basePath="vender" type="productos" />
+<MainLayout title="Vender producto">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Publicación de producto</p>
+    <h1>Creá tu publicación</h1>
+    <p class="ab-muted-text">
+      El precio publicado incluye la comisión del 15%. Los productos se retiran en tu local.
+    </p>
+
+    <form class="ab-form">
+      <label for="title">Título</label>
+      <input id="title" name="title" type="text" placeholder="Ej: Martillo de acero 16oz" />
+
+      <label for="category">Categoría</label>
+      <select id="category" name="category">
+        <option>Plomería</option>
+        <option>Electricidad</option>
+        <option>Ferretería</option>
+        <option>Construcción</option>
+        <option>Carpintería</option>
+      </select>
+
+      <label for="description">Descripción</label>
+      <textarea id="description" name="description" rows="4" placeholder="Detalles del producto."></textarea>
+
+      <label for="price">Precio (ARS)</label>
+      <input id="price" name="price" type="number" placeholder="Ej: 18000" />
+
+      <label for="images">Imágenes</label>
+      <label class="ab-upload-button" for="images">Subir imagen</label>
+      <input id="images" name="images" type="file" accept="image/*" multiple class="ab-upload-input" />
+      <span class="ab-muted-text ab-upload-help">Podés seleccionar una o varias imágenes.</span>
+
+      <label for="location">Ubicación</label>
+      <input id="location" name="location" type="text" placeholder="Ej: Flores, CABA" />
+
+      <label for="contact">Contacto</label>
+      <input id="contact" name="contact" type="text" placeholder="Teléfono o WhatsApp" />
+
+      <a
+        class="ab-cta-button"
+        href="https://wa.me/5491137915210"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Envía tu publicación
+      </a>
+    </form>
+  </section>
 </MainLayout>

@@ -11,12 +11,7 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 ### src/layouts/MainLayout.astro
 - Bloque de imports compartidos: integra `Header`, `Footer` y estilos globales.
 - Bloque de navegacion de regreso: calcula `backHref` automatico y permite override por prop.
-- Bloque de composicion de pagina: envuelve contenido con header, boton volver y footer.
-
-### src/layouts/SplitLayout.astro
-- Bloque de props: titulo y ruta de regreso.
-- Bloque de estructura en dos columnas: `left` y `right` mediante slots nombrados.
-- Bloque de estilos locales: distribucion responsive y estilo del boton volver.
+- Bloque de composicion de pagina: envuelve contenido con header, contenido principal, footer y barra mobile.
 
 ## Componentes
 
@@ -34,19 +29,14 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 - Bloque de estilos de tarjetas grandes.
 
 ### src/components/CategoryGrid.astro
-- Bloque de datos: categorias y props de contexto (`basePath`, `type`).
-- Bloque de render dinamico: genera links de categoria segun contexto.
-- Bloque de estilos de grilla responsive.
+- Bloque de datos: categorias y props de contexto (`basePath`, `type`, `title`, `hrefBase`).
+- Bloque de render dinamico: genera links de categoria segun contexto y muestra iconos por categoria.
+- Bloque de estilos de grilla responsive con tarjetas cuadradas.
 
 ### src/components/ProviderCard.astro
 - Bloque de props del proveedor.
 - Bloque visual de badges condicionales (ranking/sponsor).
-- Bloque de acciones: `Ver productos` y `Ver perfil`, propagando `from` para conservar flujo de regreso.
-
-### src/components/ProfessionalCard.astro
-- Bloque de props de profesional.
-- Bloque de contenido de card (imagen + metadatos).
-- Bloque de estilos de card con hover.
+- Bloque de acciones: `Ver productos` y `Ver perfil` usando rutas base configurables y `from`.
 
 ## Data Layer
 
@@ -72,32 +62,50 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 ### src/pages/oferta.astro
 - Segundo nivel del flujo de oferta.
 
-### src/pages/productos.astro
-- Entrada general a grilla de categorias de productos.
+### src/pages/profesionales.astro
+- Entrada general a grilla de categorias de profesionales.
+- Panel de acceso a `Mis compras` y `Mis datos`.
+
+### src/pages/registro.astro
+- Formulario MVP de registro.
+
+### src/pages/cuenta/profesional.astro
+- Activacion del perfil profesional (MVP).
+
+### src/pages/trabajos/publicar.astro
+- Formulario MVP de publicacion de trabajos para servicios.
+
+### src/pages/publicacion-confirmada.astro
+- Confirmacion con animacion y redireccion a home.
 
 ### src/pages/comprar/productos.astro
 - Grilla de categorias para compra de productos.
 
 ### src/pages/comprar/servicios.astro
-- Grilla de categorias para compra de servicios.
+- Pantalla de flujo de servicios con CTA a publicar trabajo.
 
 ### src/pages/vender/productos.astro
-- Grilla de categorias para venta de productos.
+- Formulario MVP de publicacion de producto.
 
 ### src/pages/vender/servicios.astro
-- Grilla de categorias para venta de servicios.
+- Formulario MVP de alta de perfil profesional.
 
 ### src/pages/oferta/productos.astro
-- Grilla de categorias para oferta de productos.
+- Pantalla placeholder del flujo de ofertas de productos.
 
 ### src/pages/oferta/servicios.astro
-- Grilla de categorias para oferta de servicios.
+- Pantalla placeholder del flujo de ofertas de servicios.
 
 ### src/pages/comprar/productos/[categoria].astro
 - `getStaticPaths`: genera una pagina por categoria.
 - Bloque de seleccion de contexto: resuelve categoria actual.
 - Bloque de filtrado: reduce proveedores por categoria.
 - Bloque de render: lista de `ProviderCard`.
+
+### src/pages/profesionales/[categoria].astro
+- `getStaticPaths`: genera una pagina por categoria.
+- Bloque de filtrado/orden: filtra profesionales y ordena por promedio/reseñas.
+- Bloque de render: lista de `ProviderCard` con rutas base de profesionales.
 
 ### src/pages/proveedor/[slug]/index.astro
 - `getStaticPaths`: genera perfil por proveedor.
@@ -110,8 +118,22 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 - `getStaticPaths`: genera catalogo por proveedor.
 - Bloque de recuperacion y fallback de datos de productos.
 - Bloque de navegacion de regreso basada en `from`.
-- Bloque de grilla de productos: cards con precio, descripcion y botones de maqueta.
+- Bloque de grilla de productos con filtros, paginacion y copia de enlace.
 - Bloque de fallback de error si el proveedor no existe.
+
+### src/pages/profesionales/[slug]/index.astro
+- `getStaticPaths`: genera perfil por profesional.
+- Bloque de recuperacion de proveedor/categoria.
+- Bloque de navegacion de regreso: usa `from` y fallback seguro.
+- Bloque de render principal: datos, bio, servicios y acciones.
+- Bloque de fallback de error si el profesional no existe.
+
+### src/pages/profesionales/[slug]/productos.astro
+- `getStaticPaths`: genera catalogo por profesional.
+- Bloque de recuperacion y fallback de datos de productos.
+- Bloque de navegacion de regreso basada en `from`.
+- Bloque de grilla de productos simple.
+- Bloque de fallback de error si el profesional no existe.
 
 ### src/pages/contratar/[slug].astro
 - `getStaticPaths`: genera una pagina de contratacion por proveedor.
@@ -119,6 +141,25 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 - Bloque de navegacion de regreso basada en `from`.
 - Bloque de formulario MVP de solicitud.
 - Bloque de fallback de error.
+
+### src/pages/carrito.astro
+- Carrito simulado basado en `localStorage`.
+- Render de items con cantidades y total.
+- Acciones MVP: sumar/restar, quitar y finalizar compra.
+
+### src/pages/finalizar-compra.astro
+- Formulario simulado de entrega y pago con resumen.
+- Redirecciona a confirmacion.
+
+### src/pages/compra-confirmada.astro
+- Animacion de tilde y mensaje de cierre.
+- Limpia el carrito local y redirige a home.
+
+### src/pages/mis-compras.astro
+- Historial simulado de compras desde `localStorage`.
+
+### src/pages/mis-datos.astro
+- Ficha simulada de datos personales.
 
 ## Estilos globales
 
@@ -131,8 +172,12 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 
 ## Flujo de navegacion clave
 
-1. Categoria: `/comprar/productos/[categoria]`.
+1. Categoria (compra): `/comprar/productos/[categoria]`.
 2. Proveedor (catalogo): `/proveedor/[slug]/productos?from=...`.
-3. Volver global resuelve ruta de origen por query param o fallback.
-4. Perfil y contratacion mantienen consistencia de regreso con `from`.
+3. Profesional (catalogo): `/profesionales/[slug]/productos?from=...`.
+4. Volver global resuelve ruta de origen por query param o fallback.
+5. Carrito simulado en `/carrito` usando datos locales.
+6. Finalizacion en `/finalizar-compra`.
+7. Confirmacion en `/compra-confirmada` con redireccion.
+8. Perfil y contratacion mantienen consistencia de regreso con `from`.
 

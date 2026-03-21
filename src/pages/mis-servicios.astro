@@ -1,0 +1,156 @@
+﻿---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Mis servicios" backHref="/mis-datos">
+  <section class="ab-dark-panel ab-services-panel">
+    <p class="ab-eyebrow">Usuario base</p>
+    <h1>Mis servicios</h1>
+    <p class="ab-muted-text">
+      Historial de servicios finalizados y el servicio activo primero.
+    </p>
+    <div id="service-active"></div>
+
+    <div id="services-empty" class="ab-cart-empty" style="display: none;">
+      <p>Todavia no registraste servicios.</p>
+      <a class="ab-back-link" href="/comprar/servicios">Ir a contratar</a>
+    </div>
+
+    <h2 id="service-history-title">Servicios finalizados</h2>
+    <div class="ab-actions">
+      <button id="services-reset" type="button">Resetear datos (MVP)</button>
+    </div>
+    <div id="service-list" class="ab-service-list"></div>
+  </section>
+</MainLayout>
+
+<script>
+  const SERVICES_KEY = "ab_services_v1";
+  const activeContainer = document.getElementById("service-active");
+  const list = document.getElementById("service-list");
+  const emptyState = document.getElementById("services-empty");
+  const historyTitle = document.getElementById("service-history-title");
+  const resetButton = document.getElementById("services-reset");
+
+  const seedData = {
+    active: {
+      title: "Reparacion de aire acondicionado",
+      professional: "Martin Lozano",
+      startDate: "16 Mar 2026, 10:30",
+      location: "Palermo, CABA",
+    },
+    history: [
+      {
+        title: "Pintura de living",
+        professional: "Camila Rojas",
+        date: "02 Mar 2026",
+        rating: "4.8",
+      },
+      {
+        title: "Revision electrica",
+        professional: "Pablo Ortega",
+        date: "18 Feb 2026",
+        rating: "5.0",
+      },
+      {
+        title: "Reparacion de canieria",
+        professional: "Lucia Marquez",
+        date: "27 Ene 2026",
+        rating: "4.6",
+      },
+    ],
+  };
+
+  const loadServices = () => {
+    try {
+      const raw = window.localStorage.getItem(SERVICES_KEY);
+      if (!raw) {
+        window.localStorage.setItem(SERVICES_KEY, JSON.stringify(seedData));
+        return seedData;
+      }
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : seedData;
+    } catch {
+      return seedData;
+    }
+  };
+
+  const renderActive = (active) => {
+    if (!active) {
+      activeContainer.innerHTML = "";
+      return;
+    }
+
+    activeContainer.innerHTML = `
+      <article class="ab-service-card ab-service-card--active">
+        <div class="ab-service-card__header">
+          <div>
+            <p class="ab-service-card__meta">En progreso</p>
+            <h2 class="ab-service-card__title">${active.title ?? "Servicio en curso"}</h2>
+          </div>
+          <span class="ab-service-card__status ab-service-card__status--active">En curso</span>
+        </div>
+        <div class="ab-service-card__details">
+          <p>Profesional: ${active.professional ?? "Pendiente"}</p>
+          <p>Inicio: ${active.startDate ?? "Por confirmar"}</p>
+          <p>Direccion: ${active.location ?? "Sin definir"}</p>
+        </div>
+        <div class="ab-actions">
+          <a class="ab-cta-button" href="/profesionales">Ver profesionales</a>
+          <button type="button">Contactar (MVP)</button>
+        </div>
+      </article>
+    `;
+  };
+
+  const renderHistory = (history) => {
+    list.innerHTML = "";
+
+    if (!Array.isArray(history) || history.length === 0) {
+      historyTitle.style.display = "none";
+      return;
+    }
+
+    historyTitle.style.display = "";
+
+    history.forEach((service) => {
+      const wrapper = document.createElement("article");
+      wrapper.className = "ab-service-card";
+      wrapper.innerHTML = `
+        <div class="ab-service-card__header">
+          <div>
+            <p class="ab-service-card__meta">Finalizado</p>
+            <h3 class="ab-service-card__title">${service.title ?? "Servicio finalizado"}</h3>
+          </div>
+          <span class="ab-service-card__status ab-service-card__status--done">Finalizado</span>
+        </div>
+        <div class="ab-service-card__details">
+          <p>Profesional: ${service.professional ?? "N/A"}</p>
+          <p>Fecha: ${service.date ?? "Sin fecha"}</p>
+          <p>Calificacion: ${service.rating ?? "Sin datos"}</p>
+        </div>
+      `;
+      list.appendChild(wrapper);
+    });
+  };
+
+  const renderServices = () => {
+    const data = loadServices();
+    const active = data?.active ?? null;
+    const history = data?.history ?? [];
+
+    renderActive(active);
+    renderHistory(history);
+
+    const hasActive = Boolean(active);
+    const hasHistory = Array.isArray(history) && history.length > 0;
+    emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
+  };
+
+  renderServices();
+
+  resetButton?.addEventListener("click", () => {
+    window.localStorage.setItem(SERVICES_KEY, JSON.stringify(seedData));
+    renderServices();
+  });
+</script>

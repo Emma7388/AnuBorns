@@ -1,9 +1,9 @@
 export const categories = [
-  { name: "Plomería", slug: "plomeria" },
-  { name: "Electricidad", slug: "electricidad" },
-  { name: "Corralón", slug: "corralon" },
-  { name: "Ferretería", slug: "ferreteria" },
-  { name: "Construcción", slug: "construccion" },
-  { name: "Pinturería", slug: "pintureria" },
-  { name: "Carpintería", slug: "carpinteria" }
+  { name: "Plomería", slug: "plomeria", icon: "/icons/plomeria.svg" },
+  { name: "Electricidad", slug: "electricidad", icon: "/icons/electricidad.svg" },
+  { name: "Corralón", slug: "corralon", icon: "/icons/corralon.svg" },
+  { name: "Ferretería", slug: "ferreteria", icon: "/icons/ferreteria.svg" },
+  { name: "Construcción", slug: "construccion", icon: "/icons/construccion.svg" },
+  { name: "Pinturería", slug: "pintureria", icon: "/icons/pintureria.svg" },
+  { name: "Carpintería", slug: "carpinteria", icon: "/icons/carpinteria.svg" }
 ];

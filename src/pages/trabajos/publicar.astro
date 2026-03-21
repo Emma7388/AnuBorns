@@ -1,0 +1,51 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Publicar trabajo" backHref="/comprar/servicios">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Solicitud de servicio</p>
+    <h1>Publicá tu trabajo</h1>
+    <p class="ab-muted-text">
+      Esta publicación será visible para profesionales de la categoría seleccionada.
+    </p>
+
+    <form class="ab-form" id="job-form">
+      <label for="job-title">Título del trabajo</label>
+      <input id="job-title" name="job-title" type="text" placeholder="Ej: Reparar pérdida en cocina" />
+
+      <label for="job-category">Categoría</label>
+      <select id="job-category" name="job-category">
+        <option>Plomería</option>
+        <option>Electricidad</option>
+        <option>Carpintería</option>
+        <option>Aire acondicionado</option>
+        <option>Construcción</option>
+      </select>
+
+      <label for="job-description">Descripción</label>
+      <textarea id="job-description" name="job-description" rows="5" placeholder="Explicá el problema o trabajo a realizar."></textarea>
+
+      <label for="job-location">Ubicación</label>
+      <input id="job-location" name="job-location" type="text" placeholder="Ej: Rosario, zona norte" />
+
+      <label for="job-date">Fecha estimada</label>
+      <input id="job-date" name="job-date" type="date" />
+
+      <label for="job-contact">Contacto</label>
+      <input id="job-contact" name="job-contact" type="text" placeholder="Teléfono o WhatsApp" />
+
+      <button type="submit" class="ab-cta-button">Publicar trabajo (MVP)</button>
+    </form>
+  </section>
+</MainLayout>
+
+<script>
+  const form = document.getElementById("job-form");
+  if (form) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      window.location.href = "/publicacion-confirmada";
+    });
+  }
+</script>

@@ -1,0 +1,34 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Compra confirmada">
+  <section class="ab-dark-panel ab-confirmation-panel">
+    <div class="ab-confirmation-card">
+      <div class="ab-checkmark">
+        <svg viewBox="0 0 52 52" aria-hidden="true">
+          <circle class="ab-checkmark__circle" cx="26" cy="26" r="24" fill="none" />
+          <path class="ab-checkmark__check" fill="none" d="M14 27l7 7 16-16" />
+        </svg>
+      </div>
+      <h1>Compra confirmada</h1>
+      <p class="ab-muted-text">
+        La orden fue simulada con exito. Redirigiendo al inicio...
+      </p>
+      <a class="ab-back-link" href="/">Ir al inicio</a>
+    </div>
+  </section>
+</MainLayout>
+
+<script>
+  const CART_KEY = "ab_cart_v1";
+  try {
+    window.localStorage.setItem(CART_KEY, JSON.stringify([]));
+  } catch {
+    // noop
+  }
+
+  window.setTimeout(() => {
+    window.location.href = "/";
+  }, 4400);
+</script>

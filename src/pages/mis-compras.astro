@@ -1,0 +1,228 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Mis compras" backHref="/mis-datos">
+  <section class="ab-dark-panel ab-orders-panel">
+    <p class="ab-eyebrow">Perfil</p>
+    <h1>Mis compras</h1>
+    <p class="ab-muted-text">
+      Historial de compras realizadas con la compra activa primero.
+    </p>
+
+    <div id="order-active"></div>
+
+    <div id="orders-empty" class="ab-cart-empty" style="display: none;">
+      <p>Todavía no registraste compras.</p>
+      <a class="ab-back-link" href="/comprar/productos">Ir a comprar</a>
+    </div>
+
+    <h2 id="orders-history-title">Compras finalizadas</h2>
+    <div class="ab-actions">
+      <button id="orders-reset" type="button">Resetear datos (MVP)</button>
+    </div>
+
+    <div id="orders-list" class="ab-orders-list"></div>
+  </section>
+</MainLayout>
+
+<script>
+  const ORDERS_KEY = "ab_orders_v1";
+  const activeContainer = document.getElementById("order-active");
+  const list = document.getElementById("orders-list");
+  const emptyState = document.getElementById("orders-empty");
+  const historyTitle = document.getElementById("orders-history-title");
+  const resetButton = document.getElementById("orders-reset");
+
+  const seedOrders = {
+    active: {
+      id: "AB-10512",
+      date: "18 Mar 2026",
+      total: 76200,
+      status: "En preparación",
+      delivery: "Retiro en local - 19 Mar 2026",
+      provider: "Ferretools",
+      items: [
+        { name: "Taladro percutor", qty: 1, price: 51000 },
+        { name: "Brocas multiuso", qty: 2, price: 12600 },
+      ],
+    },
+    history: [
+      {
+        id: "AB-10021",
+        date: "08 Mar 2026",
+        total: 68500,
+        items: [
+          { name: "Kit electricidad", qty: 1, price: 24500, provider: "Electrofix" },
+          { name: "Mano de obra", qty: 1, price: 44000, provider: "Electrofix" },
+        ],
+      },
+      {
+        id: "AB-10004",
+        date: "21 Feb 2026",
+        total: 29000,
+        items: [{ name: "Inspeccion general", qty: 1, price: 29000, provider: "Hogar Plus" }],
+      },
+    ],
+  };
+
+  const normalizeOrders = (data) => {
+    if (Array.isArray(data)) {
+      return { active: null, history: data };
+    }
+    if (data && typeof data === "object") {
+      return {
+        active: data.active ?? null,
+        history: Array.isArray(data.history) ? data.history : [],
+      };
+    }
+    return seedOrders;
+  };
+
+  const persistOrders = (value) => {
+    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(value));
+  };
+
+  const loadOrders = () => {
+    try {
+      const raw = window.localStorage.getItem(ORDERS_KEY);
+      if (!raw) {
+        persistOrders(seedOrders);
+        return seedOrders;
+      }
+      const parsed = JSON.parse(raw);
+      const normalized = normalizeOrders(parsed);
+      if (Array.isArray(parsed) || parsed?.history === undefined || parsed?.active === undefined) {
+        persistOrders(normalized);
+      }
+      return normalized;
+    } catch {
+      return seedOrders;
+    }
+  };
+
+  const formatPrice = (value) => {
+    const safe = Number(value ?? 0);
+    return safe.toLocaleString("es-AR");
+  };
+
+  const renderActive = (active) => {
+    if (!active) {
+      activeContainer.innerHTML = "";
+      return;
+    }
+
+    const items = Array.isArray(active.items) ? active.items : [];
+    activeContainer.innerHTML = `
+      <article class="ab-order-card ab-order-card--active">
+        <div class="ab-order-card__header">
+          <div>
+            <p class="ab-order-card__label">Orden ${active.id ?? ""}</p>
+            <p class="ab-order-card__date">${active.date ?? ""}</p>
+          </div>
+          <div class="ab-order-card__header-actions">
+            <strong>$${formatPrice(active.total ?? 0)}</strong>
+            <span class="ab-order-card__status ab-order-card__status--active">
+              ${active.status ?? "En curso"}
+            </span>
+          </div>
+        </div>
+        <div class="ab-order-card__details">
+          <p>Vendedor: ${active.provider ?? "Pendiente"}</p>
+          <p>Entrega: ${active.delivery ?? "Por confirmar"}</p>
+        </div>
+        <ul class="ab-order-card__items">
+          ${items
+            .map((item) => {
+              const qty = item.qty ?? 1;
+              const price = Number(item.price ?? 0);
+              return `
+                <li>
+                  <div>
+                    <strong>${item.name} x ${qty}</strong>
+                  </div>
+                  <span>$${formatPrice(price * qty)}</span>
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+        <div class="ab-actions">
+          <a
+            class="ab-cta-button"
+            href="https://wa.me/5491137915210"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Contactar (MVP)
+          </a>
+        </div>
+      </article>
+    `;
+  };
+
+  const renderHistory = (history) => {
+    list.innerHTML = "";
+
+    if (!Array.isArray(history) || history.length === 0) {
+      historyTitle.style.display = "none";
+      return;
+    }
+
+    historyTitle.style.display = "";
+
+    history.forEach((order) => {
+      const wrapper = document.createElement("article");
+      wrapper.className = "ab-order-card";
+      const items = Array.isArray(order.items) ? order.items : [];
+      wrapper.innerHTML = `
+        <div class="ab-order-card__header">
+          <div>
+            <p class="ab-order-card__label">Orden ${order.id ?? ""}</p>
+            <p class="ab-order-card__date">${order.date ?? ""}</p>
+          </div>
+          <strong>$${formatPrice(order.total ?? 0)}</strong>
+        </div>
+        <ul class="ab-order-card__items">
+          ${items
+            .map((item) => {
+              const qty = item.qty ?? 1;
+              const price = Number(item.price ?? 0);
+              const provider = item.provider ?? "N/A";
+              return `
+                <li>
+                  <div>
+                    <strong>${item.name} x ${qty}</strong>
+                    <p>Proveedor: ${provider}</p>
+                  </div>
+                  <span>$${formatPrice(price * qty)}</span>
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+      `;
+      list.appendChild(wrapper);
+    });
+  };
+
+  const renderOrders = () => {
+    const data = loadOrders();
+    const active = data?.active ?? null;
+    const history = data?.history ?? [];
+
+    renderActive(active);
+    renderHistory(history);
+
+    const hasActive = Boolean(active);
+    const hasHistory = Array.isArray(history) && history.length > 0;
+    emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
+  };
+
+  renderOrders();
+
+  resetButton?.addEventListener("click", () => {
+    persistOrders(seedOrders);
+    renderOrders();
+  });
+</script>

@@ -1,8 +1,56 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
-import CategoryGrid from "../../components/CategoryGrid.astro";
 ---
 
-<MainLayout>
-  <CategoryGrid basePath="vender" type="servicios" />
+<MainLayout title="Vender servicio">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Publicación de servicio</p>
+    <h1>Creá tu publicación</h1>
+    <p class="ab-muted-text">
+      Tu servicio será visible para clientes que busquen profesionales por categoría.
+    </p>
+
+    <form class="ab-form">
+      <label for="title">Título</label>
+      <input id="title" name="title" type="text" placeholder="Ej: Instalación de aire acondicionado split" />
+
+      <label for="category">Categoría</label>
+      <select id="category" name="category">
+        <option>Plomería</option>
+        <option>Electricidad</option>
+        <option>Carpintería</option>
+        <option>Aire acondicionado</option>
+        <option>Construcción</option>
+      </select>
+
+      <label for="description">Descripción</label>
+      <textarea id="description" name="description" rows="4" placeholder="Contá el alcance del servicio y qué incluye."></textarea>
+
+      <label for="price">Tarifa (ARS)</label>
+      <input id="price" name="price" type="number" placeholder="Ej: 12000" />
+
+      <label for="images">Imágenes</label>
+      <label class="ab-upload-button" for="images">Subir imagen</label>
+      <input id="images" name="images" type="file" accept="image/*" multiple class="ab-upload-input" />
+      <span class="ab-muted-text ab-upload-help">Podés seleccionar una o varias imágenes.</span>
+
+      <label for="coverage">Zona de cobertura</label>
+      <input id="coverage" name="coverage" type="text" placeholder="Ej: CABA y GBA norte" />
+
+      <label for="availability">Disponibilidad</label>
+      <input id="availability" name="availability" type="text" placeholder="Ej: Lun a sáb de 9 a 18" />
+
+      <label for="contact">Contacto</label>
+      <input id="contact" name="contact" type="text" placeholder="Teléfono o WhatsApp" />
+
+      <a
+        class="ab-cta-button"
+        href="https://wa.me/5491137915210"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Envía tu publicación
+      </a>
+    </form>
+  </section>
 </MainLayout>

@@ -1,0 +1,66 @@
+---
+import MainLayout from "../../../layouts/MainLayout.astro";
+import { providers } from "../../../data/providers";
+import { categories } from "../../../data/categories";
+
+export async function getStaticPaths() {
+  return providers.map((provider) => ({
+    params: { slug: provider.slug }
+  }));
+}
+
+const { slug } = Astro.params;
+const provider = providers.find((item) => item.slug === slug);
+const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
+const fromParam = Astro.url.searchParams.get("from");
+const backHref = fromParam && fromParam.startsWith("/")
+  ? fromParam
+  : provider
+    ? `/profesionales/${provider.category}`
+    : "/profesionales";
+---
+
+<MainLayout title={provider ? `Profesional: ${provider.name}` : "Profesional"} backHref={backHref}>
+  {provider ? (
+    <section class="ab-dark-panel">
+      <header class="ab-provider-profile__header">
+        <div>
+          <p class="ab-eyebrow">Perfil profesional</p>
+          <h1>{provider.name}</h1>
+          <p class="ab-muted-text">{provider.location}</p>
+        </div>
+
+        {provider.sponsor && <span class="ab-sponsor-chip">SPONSOR</span>}
+      </header>
+
+      <div class="ab-provider-profile__meta">
+        <p><strong>Ranking:</strong> #{provider.ranking}</p>
+        <p><strong>Valoración:</strong> {provider.rating} ({provider.reviews} reseñas)</p>
+        <p><strong>Promedio publicado:</strong> ${provider.average}</p>
+        <p><strong>Categoría:</strong> {categoryName ?? provider.category}</p>
+        <p><strong>Tiempo de respuesta:</strong> {provider.responseTime}</p>
+      </div>
+
+      <p class="ab-provider-profile__bio">{provider.bio}</p>
+
+      <div id="servicios">
+        <h2>Servicios destacados</h2>
+        <ul class="ab-provider-profile__services-list">
+          {provider.services.map((service) => <li>{service}</li>)}
+        </ul>
+      </div>
+
+      <div class="ab-provider-profile__actions">
+        <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/profesionales/${provider.category}`)}`} class="ab-cta-button">Iniciar contratación</a>
+        <a href={`/profesionales/${provider.category}`} class="ab-back-link">Volver a la categoría</a>
+        <a href={`/profesionales/${provider.slug}/productos?from=${encodeURIComponent(`/profesionales/${provider.category}`)}`} class="ab-back-link">Ver productos</a>
+      </div>
+    </section>
+  ) : (
+    <section class="ab-dark-panel">
+      <h1>Profesional no encontrado</h1>
+      <p>Verificá el enlace o volvé al listado de categorías.</p>
+      <a href="/profesionales" class="ab-back-link">Ir a profesionales</a>
+    </section>
+  )}
+</MainLayout>

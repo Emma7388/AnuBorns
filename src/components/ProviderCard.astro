@@ -7,7 +7,16 @@ const {
   sponsor = false,
   category,
   slug,
+  profileBasePath = "/proveedor",
+  productsBasePath = "/proveedor",
+  fromPath,
+  avatar = "/avatars/provider-default.svg",
+  dailySold = 0,
 } = Astro.props
+
+const safeFromPath = fromPath ?? `/comprar/productos/${category}`;
+const profileHref = `${profileBasePath}/${slug}?from=${encodeURIComponent(safeFromPath)}`;
+const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComponent(safeFromPath)}`;
 ---
 <div class="ab-provider-card">
   {ranking <= 3 && (
@@ -18,20 +27,29 @@ const {
 
   {sponsor && <div class="ab-provider-card__sponsor-badge">SPONSOR</div>}
 
-  <h2 class="ab-provider-card__name">{name}</h2>
+  <div class="ab-provider-card__header">
+    <span class="ab-provider-card__avatar">
+      <img src={avatar} alt={`Avatar de ${name}`} loading="lazy" />
+    </span>
+    <h2 class="ab-provider-card__name">{name}</h2>
+  </div>
 
   <p class="ab-provider-card__average">
     Promedio publicado: <strong>${average}</strong>
   </p>
 
+  <p class="ab-provider-card__daily">
+    Vendidos hoy: <strong>{dailySold}</strong>
+  </p>
+
   <p class="ab-provider-card__location">{location}</p>
 
   <a
-    href={`/proveedor/${slug}/productos?from=${encodeURIComponent(`/comprar/productos/${category}`)}`}
+    href={productsHref}
     class="ab-cta-button"
   >
     Ver productos
   </a>
-  <a href={`/proveedor/${slug}?from=${encodeURIComponent(`/comprar/productos/${category}`)}`} class="ab-cta-button">Ver perfil</a>
+  <a href={profileHref} class="ab-cta-button">Ver perfil</a>
 
 </div>

@@ -1,0 +1,65 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Activar perfil profesional">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Cuenta básica</p>
+    <h1>Transformate en profesional</h1>
+    <p class="ab-muted-text">
+      Esta pantalla simula el paso de activación del perfil profesional.
+    </p>
+
+    <form class="ab-form">
+      <label for="category">Categoría</label>
+      <select id="category" name="category">
+        <option>Plomería</option>
+        <option>Electricidad</option>
+        <option>Carpintería</option>
+        <option>Aire acondicionado</option>
+        <option>Construcción</option>
+      </select>
+
+      <label for="experience">Experiencia</label>
+      <input id="experience" name="experience" type="text" placeholder="Ej: 5 años" />
+
+      <label for="portfolio-photos">Fotos de trabajos (máx. 10)</label>
+      <input
+        id="portfolio-photos"
+        name="portfolio-photos"
+        type="file"
+        accept="image/*"
+        multiple
+        class="ab-file-input"
+      />
+      <p id="portfolio-photos-help" class="ab-muted-text" aria-live="polite"></p>
+
+      <label for="portfolio-details">Detalles de trabajos</label>
+      <textarea
+        id="portfolio-details"
+        name="portfolio-details"
+        rows="4"
+        placeholder="Contá qué tipo de trabajos realizaste, materiales y resultados."
+      ></textarea>
+
+      <button type="button" class="ab-cta-button">Activar perfil (MVP)</button>
+    </form>
+  </section>
+</MainLayout>
+
+<script>
+  const photosInput = document.getElementById("portfolio-photos");
+  const photosHelp = document.getElementById("portfolio-photos-help");
+
+  photosInput?.addEventListener("change", () => {
+    if (!photosInput.files) return;
+    if (photosInput.files.length <= 10) {
+      if (photosHelp) photosHelp.textContent = "";
+      return;
+    }
+    photosInput.value = "";
+    if (photosHelp) {
+      photosHelp.textContent = "Podés subir hasta 10 fotos como máximo.";
+    }
+  });
+</script>

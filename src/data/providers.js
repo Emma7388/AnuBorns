@@ -6,6 +6,8 @@ export const providers = [
     ranking: 1,
     average: 18500,
     location: "Buenos Aires",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 12,
     sponsor: false,
     rating: 4.8,
     reviews: 126,
@@ -102,6 +104,8 @@ export const providers = [
     ranking: 2,
     average: 22300,
     location: "Córdoba",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 9,
     sponsor: false,
     rating: 4.6,
     reviews: 94,
@@ -198,6 +202,8 @@ export const providers = [
     ranking: 1,
     average: 15000,
     location: "Rosario",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 18,
     sponsor: true,
     rating: 4.9,
     reviews: 210,
@@ -284,6 +290,196 @@ export const providers = [
         stock: 210,
         image: "/logo2.svg",
         description: "Bloque estructural para cerramientos resistentes."
+      }
+    ]
+  },
+  {
+    name: "Plomería Express",
+    slug: "plomeria-express",
+    category: "plomeria",
+    ranking: 4,
+    average: 16200,
+    location: "La Plata",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 7,
+    sponsor: false,
+    rating: 4.5,
+    reviews: 58,
+    responseTime: "Responde en menos de 3 horas",
+    bio: "Atención rápida para urgencias domiciliarias, cambios de cañerías y mantenimiento general.",
+    services: ["Urgencias 24hs", "Reparación de pérdidas", "Instalación de grifería"],
+    products: [
+      {
+        id: "pe-flex-12",
+        sku: "PE-FLEX-12",
+        name: "Conexión flexible 1/2",
+        price: 6200,
+        unit: "par",
+        stock: 14,
+        image: "/logo2.svg",
+        description: "Mangueras reforzadas para cocina y baño."
+      },
+      {
+        id: "pe-llave-paso",
+        sku: "PE-LLAVE-PASO",
+        name: "Llave de paso 3/4",
+        price: 8900,
+        unit: "unidad",
+        stock: 9,
+        image: "/logo2.svg",
+        description: "Cierre metálico para instalaciones sanitarias."
+      }
+    ]
+  },
+  {
+    name: "Electro Andina",
+    slug: "electro-andina",
+    category: "electricidad",
+    ranking: 5,
+    average: 20500,
+    location: "Mendoza",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 6,
+    sponsor: true,
+    rating: 4.7,
+    reviews: 77,
+    responseTime: "Responde en el día",
+    bio: "Instalaciones eléctricas residenciales y comerciales con foco en seguridad.",
+    services: ["Tableros", "Cableado", "Iluminación"],
+    products: [
+      {
+        id: "ea-disy-25a",
+        sku: "EA-DIF-25A",
+        name: "Disyuntor diferencial 25A",
+        price: 31800,
+        unit: "unidad",
+        stock: 11,
+        image: "/logo2.svg",
+        description: "Protección para circuitos hogareños."
+      },
+      {
+        id: "ea-lampara-led",
+        sku: "EA-LED-12W",
+        name: "Lámpara LED 12W",
+        price: 4200,
+        unit: "unidad",
+        stock: 32,
+        image: "/logo2.svg",
+        description: "Luz fría de bajo consumo."
+      }
+    ]
+  },
+  {
+    name: "Carpintería Sur",
+    slug: "carpinteria-sur",
+    category: "carpinteria",
+    ranking: 6,
+    average: 27800,
+    location: "Mar del Plata",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 4,
+    sponsor: false,
+    rating: 4.6,
+    reviews: 41,
+    responseTime: "Responde en menos de 6 horas",
+    bio: "Diseño y fabricación de muebles a medida, puertas y aberturas.",
+    services: ["Muebles a medida", "Restauración", "Aberturas"],
+    products: [
+      {
+        id: "cs-madera-pino",
+        sku: "CS-PINO-18",
+        name: "Placa de pino 18mm",
+        price: 21400,
+        unit: "unidad",
+        stock: 6,
+        image: "/logo2.svg",
+        description: "Ideal para muebles y estanterías."
+      },
+      {
+        id: "cs-bisagra",
+        sku: "CS-BIS-35",
+        name: "Bisagra cazoleta 35mm",
+        price: 1800,
+        unit: "unidad",
+        stock: 90,
+        image: "/logo2.svg",
+        description: "Bisagra estándar para muebles de cocina."
+      }
+    ]
+  },
+  {
+    name: "Pinturería ColorMax",
+    slug: "pintureria-colormax",
+    category: "pintureria",
+    ranking: 3,
+    average: 14600,
+    location: "Santa Fe",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 11,
+    sponsor: false,
+    rating: 4.4,
+    reviews: 64,
+    responseTime: "Responde en el día",
+    bio: "Asesoramiento en pinturas interiores/exteriores y efectos decorativos.",
+    services: ["Pintura interior", "Impermeabilización", "Colorimetría"],
+    products: [
+      {
+        id: "pcx-latex-20",
+        sku: "PCX-LTX-20",
+        name: "Látex interior 20L",
+        price: 35600,
+        unit: "balde",
+        stock: 12,
+        image: "/logo2.svg",
+        description: "Acabado mate lavable."
+      },
+      {
+        id: "pcx-imper-10",
+        sku: "PCX-IMP-10",
+        name: "Impermeabilizante 10L",
+        price: 49800,
+        unit: "balde",
+        stock: 4,
+        image: "/logo2.svg",
+        description: "Protección para terrazas y paredes."
+      }
+    ]
+  },
+  {
+    name: "Ferretería Norte",
+    slug: "ferreteria-norte",
+    category: "ferreteria",
+    ranking: 7,
+    average: 13200,
+    location: "San Juan",
+    avatar: "/avatars/provider-default.svg",
+    dailySold: 5,
+    sponsor: false,
+    rating: 4.3,
+    reviews: 29,
+    responseTime: "Responde en menos de 4 horas",
+    bio: "Atención de ferretería general, herramientas y accesorios.",
+    services: ["Venta de herramientas", "Asesoramiento técnico", "Entrega local"],
+    products: [
+      {
+        id: "fn-taladro",
+        sku: "FN-TAL-600",
+        name: "Taladro percutor 600W",
+        price: 68000,
+        unit: "unidad",
+        stock: 3,
+        image: "/logo2.svg",
+        description: "Incluye maletín y brocas."
+      },
+      {
+        id: "fn-cinta",
+        sku: "FN-CINT-5M",
+        name: "Cinta métrica 5m",
+        price: 4200,
+        unit: "unidad",
+        stock: 40,
+        image: "/logo2.svg",
+        description: "Cinta reforzada con traba."
       }
     ]
   }

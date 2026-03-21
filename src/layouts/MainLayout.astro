@@ -16,12 +16,46 @@ const showBack = pathname !== "/";
 
   <main>
     {showBack && (
-      <div class="container">
-        <a class="ab-main-back-link" href={backHref}>← Volver</a>
+      <div class="ab-desktop-back">
+        <a class="ab-back-link" href={backHref} data-ab-back>Volver</a>
       </div>
     )}
     <slot />
   </main>
 
   <Footer />
+  <nav class="ab-mobile-footer" aria-label="Navegación inferior">
+    <a class="ab-mobile-footer__item" href={backHref} aria-label="Volver" data-ab-back>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Volver</span>
+    </a>
+    <a class="ab-mobile-footer__item" href="/" aria-label="Inicio">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 12l8-7 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6 11v8h12v-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Inicio</span>
+    </a>
+    <a class="ab-mobile-footer__item" href="/mis-datos" aria-label="Perfil">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M4 20c1.6-3.5 5-5 8-5s6.4 1.5 8 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>Perfil</span>
+    </a>
+  </nav>
+
+  <script is:inline>
+    const backLinks = document.querySelectorAll("[data-ab-back]");
+    if (backLinks.length && window.history.length > 1) {
+      backLinks.forEach((link) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          window.history.back();
+        });
+      });
+    }
+  </script>
 </BaseLayout>

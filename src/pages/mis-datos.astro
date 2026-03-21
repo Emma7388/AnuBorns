@@ -1,0 +1,61 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Mis datos">
+  <section class="ab-dark-panel ab-profile-data">
+    <p class="ab-eyebrow">Perfil</p>
+    <div class="ab-profile-avatar" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M4 20c1.6-3.5 5-5 8-5s6.4 1.5 8 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <p class="ab-muted-text">
+      Información personal del usuario común (simulada).
+    </p>
+
+    <div class="ab-profile-data__card">
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Tipo de usuario</span>
+        <span class="ab-profile-data__value">Básico</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Nombre completo</span>
+        <span class="ab-profile-data__value">María López</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Email</span>
+        <span class="ab-profile-data__value">maria.lopez@email.com</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Teléfono</span>
+        <span class="ab-profile-data__value">+54 341 555 1234</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Ciudad</span>
+        <span class="ab-profile-data__value">Rosario, Santa Fe</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Dirección</span>
+        <span class="ab-profile-data__value">Av. Siempreviva 742</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Documento</span>
+        <span class="ab-profile-data__value">DNI 31.234.567</span>
+      </div>
+      <div class="ab-profile-data__row">
+        <span class="ab-profile-data__label">Preferencias</span>
+        <span class="ab-profile-data__value">Notificaciones por email</span>
+      </div>
+    </div>
+
+    <div class="ab-actions">
+      <a class="ab-cta-button" href="/mis-compras">Ver mis compras</a>
+      <a class="ab-cta-button" href="/mis-ventas">Ver mis ventas</a>
+      <a class="ab-cta-button" href="/mis-servicios">Ver mis servicios</a>
+      <a class="ab-cta-button" href="/cuenta/profesional">Convertite en profesional</a>
+      <a class="ab-back-link" href="/">Volver al inicio</a>
+    </div>
+  </section>
+</MainLayout>

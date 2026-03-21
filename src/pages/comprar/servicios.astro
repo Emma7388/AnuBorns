@@ -1,8 +1,28 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
-import CategoryGrid from "../../components/CategoryGrid.astro";
 ---
 
-<MainLayout>
-  <CategoryGrid basePath="comprar" type="servicios" />
+<MainLayout title="Comprar servicios">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Flujo de servicios</p>
+    <h1>Publicá un trabajo y recibí ofertas</h1>
+    <p class="ab-muted-text">
+      En el MVP mostramos el recorrido completo sin lógica real. El objetivo es que
+      puedas entender el proceso y navegar entre pantallas.
+    </p>
+
+    <div class="ab-steps">
+      <ol>
+        <li>Publicás tu trabajo con detalles básicos.</li>
+        <li>Profesionales de la categoría lo ven.</li>
+        <li>Recibís ofertas y elegís una.</li>
+        <li>Se realiza el trabajo y dejan valoraciones.</li>
+      </ol>
+    </div>
+
+    <div class="ab-actions">
+      <a class="ab-cta-button" href="/trabajos/publicar">Publicar trabajo</a>
+      <a class="ab-back-link" href="/profesionales">Buscar profesionales</a>
+    </div>
+  </section>
 </MainLayout>

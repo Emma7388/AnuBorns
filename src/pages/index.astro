@@ -9,15 +9,15 @@ import "../styles/global.css";
       <h1>Comprá. Vendé. Ofertá.</h1>
 
       <div class="hero-buttons">
-        <a href="/comprar/" class="btn primary">
+        <a href="/comprar/" class="ab-cta-button">
           Comprá
         </a>
 
-        <a href="/vender/" class="btn primary">
+        <a href="/vender/" class="ab-cta-button">
           Vendé
         </a>
 
-        <a href="/oferta/" class="btn primary">
+        <a href="/oferta/" class="ab-cta-button">
           Ofertá
         </a>
       </div>
@@ -27,7 +27,7 @@ import "../styles/global.css";
 
 <style>
   .hero {
-    min-height: 90vh;
+    min-height: calc(100vh - 160px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -52,41 +52,16 @@ import "../styles/global.css";
     flex-wrap: wrap;
   }
 
-  .btn {
+
+  .hero-buttons .ab-cta-button {
     padding: 16px 40px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-weight: 700;
+    border-radius: 14px;
     transition: 0.25s ease;
   }
 
-  .primary {
-    background: var(--color-accent);
-    color: var(--color-on-accent);
-  }
-
-  .primary:hover {
+  .hero-buttons .ab-cta-button:hover {
     transform: translateY(-3px);
     box-shadow: 0 12px 30px rgba(22, 199, 132, 0.35);
-  }
-
-  .dark {
-    background: var(--color-surface-alt);
-    color: var(--color-text);
-  }
-
-  .dark:hover {
-    background: var(--color-surface-hover);
-  }
-
-  .outline {
-    border: 2px solid var(--color-accent);
-    color: var(--color-accent);
-  }
-
-  .outline:hover {
-    background: var(--color-accent);
-    color: var(--color-on-accent);
   }
 
   @media (max-width: 768px) {

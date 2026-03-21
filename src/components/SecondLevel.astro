@@ -1,20 +1,27 @@
 ---
-const { basePath = "" } = Astro.props;
+const {
+  basePath = "",
+  title,
+  productLabel = "PRODUCTOS",
+  serviceLabel = "SERVICIOS",
+  productHref,
+  serviceHref,
+} = Astro.props;
 const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toLowerCase();
 import "../styles/global.css"
 ---
   <main class="level-two">
+    {title && <h1 class="level-two__title">{title}</h1>}
     
     <div class="block-group">
-      
-      
-      <a href={`/${normalizedBasePath}/productos`} class="level-block">
-        PRODUCTOS
+
+      <a href={productHref ?? `/${normalizedBasePath}/productos`} class="level-block">
+        {productLabel}
       </a>
       
      
-      <a href={`/${normalizedBasePath}/servicios`} class="level-block">
-        SERVICIOS
+      <a href={serviceHref ?? `/${normalizedBasePath}/servicios`} class="level-block">
+        {serviceLabel}
       </a>
       
     </div>
@@ -23,11 +30,21 @@ import "../styles/global.css"
 
 <style>
   .level-two {
-    height: 100vh;
+    min-height: calc(100vh - var(--header-height) - var(--footer-height));
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
+    gap: 28px;
+    padding: 0 20px;
+  }
+
+  .level-two__title {
+    margin: 0;
+    font-size: 28px;
+    text-align: center;
+    letter-spacing: 1px;
   }
 
   .block-group {
@@ -39,16 +56,19 @@ import "../styles/global.css"
     width: 320px;
     height: 200px;
     border-radius: 20px;
-    background: var(--color-accent);
+    background: var(--glass-green-bg);
     display: flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: var(--color-on-accent);
+    color: var(--color-text);
     font-size: 20px;
     font-weight: 600;
     transition: 0.25s ease;
     letter-spacing: 1px;
+    border: 1px solid var(--glass-green-border);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
   .level-block:hover {

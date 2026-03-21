@@ -1,18 +1,21 @@
 ---
 import {categories} from "../data/categories"
-const { basePath, type } = Astro.props;
+const { basePath, type, title, hrefBase } = Astro.props;
 import "../styles/global.css"
 ---
 
   <main>
-  <h1>{type.toUpperCase()}</h1>
+  <h1>{title ?? type?.toUpperCase()}</h1>
   <div class="grid">
     {categories.map((cat) => (
       <a 
-      href={`/${basePath}/${type}/${cat.slug}`} 
+      href={hrefBase ? `/${hrefBase}/${cat.slug}` : `/${basePath}/${type}/${cat.slug}`} 
       class="category-card"
       >
-    {cat.name}
+      <span class="category-card__icon">
+        <img src={cat.icon} alt="" loading="lazy" />
+      </span>
+      <span class="category-card__label">{cat.name}</span>
   </a>
 ))}
   </div>
@@ -24,24 +27,63 @@ import "../styles/global.css"
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
     gap: 30px;
     max-width: 1000px;
     margin: 0 auto;
+    padding: 0 6px;
+  }
+
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 18px;
+    }
   }
 
   .category-card {
-    height: 140px;
-    background: var(--color-accent);
+    aspect-ratio: 1 / 1;
+    height: auto;
+    background: rgba(22, 199, 132, 0.18);
     border-radius: 18px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     text-decoration: none;
     color: var(--color-on-accent);
     font-weight: 600;
     font-size: 18px;
     transition: 0.25s ease;
+    border: 1px solid rgba(22, 199, 132, 0.5);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .category-card__icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .category-card__icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.2));
+  }
+
+  .category-card__label {
+    text-align: center;
   }
 
   .category-card:hover {

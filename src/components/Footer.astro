@@ -3,7 +3,13 @@
 
 <footer class="footer">
   <div class="container">
-    <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
+    <div class="footer-content">
+      <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
+      <div class="footer-actions">
+        <a class="footer-action" href="/carrito">Ir al carrito</a>
+        <a class="footer-action footer-action--profile" href="/mis-datos">Perfil</a>
+      </div>
+    </div>
   </div>
 </footer>
 
@@ -11,9 +17,68 @@
 .footer {
   background: var(--color-surface);
   color: var(--color-text-muted);
-  padding: 2rem 0;
-  margin-top: 4rem;
+  padding: 0;
+  margin-top: 0;
   text-align: center;
   border-top: 1px solid var(--color-border-subtle);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  min-height: var(--footer-height);
+  display: flex;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.footer-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--glass-green-border);
+  background: var(--glass-green-bg);
+  color: var(--color-text);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.footer-action:hover {
+  background: rgba(22, 199, 132, 0.2);
+  box-shadow: 0 8px 16px rgba(22, 199, 132, 0.2);
+}
+
+@media (max-width: 720px) {
+  .footer-action--profile {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .footer-actions {
+    justify-content: center;
+  }
 }
 </style>

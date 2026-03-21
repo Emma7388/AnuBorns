@@ -66,8 +66,12 @@ const backHref = fromParam && fromParam.startsWith("/")
           <button type="button" id="copy-link" class="ab-provider-products-toolbar__copy">
             Copiar enlace
           </button>
+          <a class="ab-provider-products-toolbar__cart" href="/carrito">
+            Carrito <span id="cart-count">0</span>
+          </a>
         </div>
         <p class="ab-provider-products-share-feedback" id="share-feedback" aria-live="polite"></p>
+        <p class="ab-provider-products-share-feedback" id="cart-feedback" aria-live="polite"></p>
         <div class="ab-provider-active-filters" id="provider-active-filters"></div>
         <p class="ab-provider-products-count" id="provider-products-count">
           Mostrando {products.length} de {products.length} productos
@@ -82,6 +86,10 @@ const backHref = fromParam && fromParam.startsWith("/")
                 data-price={product.price}
                 data-name={product.name}
                 data-sku={product.sku ?? ""}
+                data-unit={product.unit}
+                data-image={product.image ?? "/logo2.svg"}
+                data-provider={provider.name}
+                data-provider-slug={provider.slug}
               >
                 <img
                   class="ab-provider-product-card__image"
@@ -91,9 +99,6 @@ const backHref = fromParam && fromParam.startsWith("/")
                 />
                 <div class="ab-provider-product-card__header">
                   <p class="ab-provider-product-card__sku">SKU: {product.sku ?? "N/A"}</p>
-                  <span class:list={["ab-provider-product-card__stock", !hasStock && "is-out"]}>
-                    {hasStock ? `Stock: ${product.stock}` : "Sin stock"}
-                  </span>
                 </div>
                 <h2>{product.name}</h2>
                 <p class="ab-provider-product-card__description">{product.description}</p>
@@ -101,7 +106,11 @@ const backHref = fromParam && fromParam.startsWith("/")
                   ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
                 </p>
                 <div class="ab-provider-product-card__actions">
-                  <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
+                  <button
+                    type="button"
+                    class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
+                    data-action="add"
+                  >
                     Agregar
                   </button>
                   <button
@@ -109,6 +118,7 @@ const backHref = fromParam && fromParam.startsWith("/")
                     class="ab-provider-product-card__button ab-provider-product-card__button--buy"
                     disabled={!hasStock}
                     aria-disabled={!hasStock}
+                    data-action="buy"
                   >
                     Comprar
                   </button>
@@ -158,6 +168,8 @@ const backHref = fromParam && fromParam.startsWith("/")
   const clearFilters = document.getElementById("clear-filters");
   const copyLink = document.getElementById("copy-link");
   const shareFeedback = document.getElementById("share-feedback");
+  const cartFeedback = document.getElementById("cart-feedback");
+  const cartCount = document.getElementById("cart-count");
   const activeFilters = document.getElementById("provider-active-filters");
   const countLabel = document.getElementById("provider-products-count");
   const emptyState = document.getElementById("provider-products-empty");
@@ -176,6 +188,8 @@ const backHref = fromParam && fromParam.startsWith("/")
     clearFilters &&
     copyLink &&
     shareFeedback &&
+    cartFeedback &&
+    cartCount &&
     activeFilters &&
     countLabel &&
     emptyState &&
@@ -187,6 +201,7 @@ const backHref = fromParam && fromParam.startsWith("/")
   ) {
     const cards = Array.from(grid.querySelectorAll(".ab-provider-product-card"));
     const total = cards.length;
+    const CART_KEY = "ab_cart_v1";
     const allowedPageSizes = [6, 12, 24];
     let pageSize = 6;
     let currentPage = 1;
@@ -208,6 +223,57 @@ const backHref = fromParam && fromParam.startsWith("/")
     pageSize = allowedPageSizes.includes(initialPageSize) ? initialPageSize : 6;
     pageSizeSelect.value = String(pageSize);
     currentPage = Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1;
+
+    const loadCart = () => {
+      try {
+        const raw = window.localStorage.getItem(CART_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const saveCart = (items) => {
+      window.localStorage.setItem(CART_KEY, JSON.stringify(items));
+    };
+
+    const updateCartCount = () => {
+      const items = loadCart();
+      const totalQty = items.reduce((sum, item) => sum + (item.qty ?? 0), 0);
+      cartCount.textContent = String(totalQty);
+    };
+
+    const showCartFeedback = (message) => {
+      cartFeedback.textContent = message;
+      window.setTimeout(() => {
+        cartFeedback.textContent = "";
+      }, 1600);
+    };
+
+    const addToCart = (card) => {
+      const sku = card.dataset.sku ?? "";
+      const id = `${card.dataset.providerSlug ?? "proveedor"}:${sku || card.dataset.name}`;
+      const price = Number(card.dataset.price ?? 0);
+      const items = loadCart();
+      const existing = items.find((item) => item.id === id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        items.push({
+          id,
+          name: card.dataset.name,
+          price,
+          unit: card.dataset.unit,
+          image: card.dataset.image,
+          provider: card.dataset.provider,
+          providerSlug: card.dataset.providerSlug,
+          qty: 1,
+        });
+      }
+      saveCart(items);
+      updateCartCount();
+    };
 
     const syncUrl = (totalPages) => {
       const next = new URL(window.location.href);
@@ -358,6 +424,23 @@ const backHref = fromParam && fromParam.startsWith("/")
         shareFeedback.textContent = "";
       }, 1600);
     });
+
+    grid.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const action = target.dataset.action;
+      if (!action) return;
+      const card = target.closest(".ab-provider-product-card");
+      if (!card) return;
+      if (target.disabled) return;
+
+      addToCart(card);
+      if (action === "buy") {
+        window.location.href = "/carrito";
+        return;
+      }
+      showCartFeedback("Producto agregado al carrito");
+    });
     activeFilters.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLButtonElement)) return;
@@ -371,6 +454,7 @@ const backHref = fromParam && fromParam.startsWith("/")
       currentPage = 1;
       renderCards();
     });
+    updateCartCount();
     renderCards();
   }
 </script>

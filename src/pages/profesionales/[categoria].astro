@@ -1,11 +1,9 @@
 ---
-import MainLayout from "../../../layouts/MainLayout.astro";
-import { categories } from "../../../data/categories";
-import { providers } from "../../../data/providers";
-import ProviderCard from "../../../components/ProviderCard.astro";
-import "../../../styles/global.css"
-
-
+import MainLayout from "../../layouts/MainLayout.astro";
+import { categories } from "../../data/categories";
+import { providers } from "../../data/providers";
+import ProviderCard from "../../components/ProviderCard.astro";
+import "../../styles/global.css";
 
 export async function getStaticPaths() {
   return categories.map((cat) => ({
@@ -14,11 +12,7 @@ export async function getStaticPaths() {
 }
 
 const { categoria } = Astro.params;
-
-const currentCategory = categories.find(
-  (cat) => cat.slug === categoria
-);
-
+const currentCategory = categories.find((cat) => cat.slug === categoria);
 const categoryProviders = providers
   .filter((provider) => provider.category === categoria)
   .sort((a, b) => {
@@ -28,12 +22,12 @@ const categoryProviders = providers
   });
 ---
 
-<MainLayout title={`Comprar ${currentCategory?.name || categoria}`}>
+<MainLayout title={`Profesionales en ${currentCategory?.name || categoria}`}>
   <section class="ab-dark-panel ab-list-panel">
-    <p class="ab-eyebrow">Proveedores por categoría</p>
-    <h1>Proveedores de {currentCategory?.name || categoria}</h1>
+    <p class="ab-eyebrow">Búsqueda por categoría</p>
+    <h1>{currentCategory?.name || categoria}</h1>
     <p class="ab-muted-text">
-      Mostrando {categoryProviders.length} proveedores disponibles.
+      Mostrando {categoryProviders.length} profesionales disponibles.
     </p>
 
     <div class="ab-card-grid">
@@ -48,6 +42,9 @@ const categoryProviders = providers
           sponsor={provider.sponsor}
           category={provider.category}
           slug={provider.slug}
+          profileBasePath="/profesionales"
+          productsBasePath="/profesionales"
+          fromPath={`/profesionales/${categoria}`}
         />
       ))}
     </div>

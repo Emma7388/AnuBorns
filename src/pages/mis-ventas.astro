@@ -1,0 +1,222 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Mis ventas" backHref="/vender">
+  <section class="ab-dark-panel ab-orders-panel">
+    <p class="ab-eyebrow">Perfil profesional</p>
+    <h1>Mis ventas</h1>
+    <p class="ab-muted-text">
+      Historial de ventas realizadas con la venta activa primero.
+    </p>
+
+    <div id="sale-active"></div>
+
+    <div id="sales-empty" class="ab-cart-empty" style="display: none;">
+      <p>Todavía no registraste ventas.</p>
+      <a class="ab-back-link" href="/vender/productos">Ir a vender</a>
+    </div>
+
+    <h2 id="sales-history-title">Ventas finalizadas</h2>
+    <div class="ab-actions">
+      <button id="sales-reset" type="button">Resetear datos (MVP)</button>
+    </div>
+
+    <div id="sales-list" class="ab-orders-list"></div>
+  </section>
+</MainLayout>
+
+<script>
+  const SALES_KEY = "ab_sales_v1";
+  const activeContainer = document.getElementById("sale-active");
+  const list = document.getElementById("sales-list");
+  const emptyState = document.getElementById("sales-empty");
+  const historyTitle = document.getElementById("sales-history-title");
+  const resetButton = document.getElementById("sales-reset");
+
+  const seedSales = {
+    active: {
+      id: "VE-2309",
+      date: "18 Mar 2026",
+      total: 98000,
+      status: "Esperando retiro",
+      delivery: "Retiro en local - 19 Mar 2026",
+      customer: "Carlos Vega",
+      items: [
+        { name: "Martillo de acero 16oz", qty: 1, price: 22000 },
+        { name: "Kit tornillos", qty: 3, price: 6000 },
+      ],
+    },
+    history: [
+      {
+        id: "VE-2251",
+        date: "07 Mar 2026",
+        total: 45500,
+        items: [
+          { name: "Sierra circular", qty: 1, price: 45500, customer: "Lucia Peralta" },
+        ],
+      },
+      {
+        id: "VE-2219",
+        date: "19 Feb 2026",
+        total: 31000,
+        items: [
+          { name: "Caja herramientas", qty: 1, price: 31000, customer: "Diego Suárez" },
+        ],
+      },
+    ],
+  };
+
+  const normalizeSales = (data) => {
+    if (Array.isArray(data)) {
+      return { active: null, history: data };
+    }
+    if (data && typeof data === "object") {
+      return {
+        active: data.active ?? null,
+        history: Array.isArray(data.history) ? data.history : [],
+      };
+    }
+    return seedSales;
+  };
+
+  const persistSales = (value) => {
+    window.localStorage.setItem(SALES_KEY, JSON.stringify(value));
+  };
+
+  const loadSales = () => {
+    try {
+      const raw = window.localStorage.getItem(SALES_KEY);
+      if (!raw) {
+        persistSales(seedSales);
+        return seedSales;
+      }
+      const parsed = JSON.parse(raw);
+      const normalized = normalizeSales(parsed);
+      if (Array.isArray(parsed) || parsed?.history === undefined || parsed?.active === undefined) {
+        persistSales(normalized);
+      }
+      return normalized;
+    } catch {
+      return seedSales;
+    }
+  };
+
+  const formatPrice = (value) => {
+    const safe = Number(value ?? 0);
+    return safe.toLocaleString("es-AR");
+  };
+
+  const renderActive = (active) => {
+    if (!active) {
+      activeContainer.innerHTML = "";
+      return;
+    }
+
+    const items = Array.isArray(active.items) ? active.items : [];
+    activeContainer.innerHTML = `
+      <article class="ab-order-card ab-order-card--active">
+        <div class="ab-order-card__header">
+          <div>
+            <p class="ab-order-card__label">Venta ${active.id ?? ""}</p>
+            <p class="ab-order-card__date">${active.date ?? ""}</p>
+          </div>
+          <div class="ab-order-card__header-actions">
+            <strong>$${formatPrice(active.total ?? 0)}</strong>
+            <span class="ab-order-card__status ab-order-card__status--active">
+              ${active.status ?? "En curso"}
+            </span>
+          </div>
+        </div>
+        <div class="ab-order-card__details">
+          <p>Cliente: ${active.customer ?? "Pendiente"}</p>
+          <p>Entrega: ${active.delivery ?? "Por confirmar"}</p>
+        </div>
+        <ul class="ab-order-card__items">
+          ${items
+            .map((item) => {
+              const qty = item.qty ?? 1;
+              const price = Number(item.price ?? 0);
+              return `
+                <li>
+                  <div>
+                    <strong>${item.name} x ${qty}</strong>
+                  </div>
+                  <span>$${formatPrice(price * qty)}</span>
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+        <div class="ab-actions">
+          <button type="button">Contactar (MVP)</button>
+        </div>
+      </article>
+    `;
+  };
+
+  const renderHistory = (history) => {
+    list.innerHTML = "";
+
+    if (!Array.isArray(history) || history.length === 0) {
+      historyTitle.style.display = "none";
+      return;
+    }
+
+    historyTitle.style.display = "";
+
+    history.forEach((sale) => {
+      const wrapper = document.createElement("article");
+      wrapper.className = "ab-order-card";
+      const items = Array.isArray(sale.items) ? sale.items : [];
+      wrapper.innerHTML = `
+        <div class="ab-order-card__header">
+          <div>
+            <p class="ab-order-card__label">Venta ${sale.id ?? ""}</p>
+            <p class="ab-order-card__date">${sale.date ?? ""}</p>
+          </div>
+          <strong>$${formatPrice(sale.total ?? 0)}</strong>
+        </div>
+        <ul class="ab-order-card__items">
+          ${items
+            .map((item) => {
+              const qty = item.qty ?? 1;
+              const price = Number(item.price ?? 0);
+              const customer = item.customer ?? "N/A";
+              return `
+                <li>
+                  <div>
+                    <strong>${item.name} x ${qty}</strong>
+                    <p>Cliente: ${customer}</p>
+                  </div>
+                  <span>$${formatPrice(price * qty)}</span>
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+      `;
+      list.appendChild(wrapper);
+    });
+  };
+
+  const renderSales = () => {
+    const data = loadSales();
+    const active = data?.active ?? null;
+    const history = data?.history ?? [];
+
+    renderActive(active);
+    renderHistory(history);
+
+    const hasActive = Boolean(active);
+    const hasHistory = Array.isArray(history) && history.length > 0;
+    emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
+  };
+
+  renderSales();
+
+  resetButton?.addEventListener("click", () => {
+    persistSales(seedSales);
+    renderSales();
+  });
+</script>
