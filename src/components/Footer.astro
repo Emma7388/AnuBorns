@@ -1,14 +1,11 @@
 ---
+const { showBack = false } = Astro.props;
 ---
 
 <footer class="footer">
   <div class="container">
     <div class="footer-content">
       <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
-      <div class="footer-actions">
-        <a class="footer-action" href="/carrito">Ir al carrito</a>
-        <a class="footer-action footer-action--profile" href="/mis-datos">Perfil</a>
-      </div>
     </div>
   </div>
 </footer>
@@ -34,41 +31,18 @@
 .footer-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 16px;
 }
 
-.footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.footer-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--glass-green-border);
-  background: var(--glass-green-bg);
-  color: var(--color-text);
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.footer-action:hover {
-  background: rgba(22, 199, 132, 0.2);
-  box-shadow: 0 8px 16px rgba(22, 199, 132, 0.2);
-}
-
-@media (max-width: 720px) {
-  .footer-action--profile {
-    display: none;
+@media (max-width: 1024px) {
+  .footer {
+    position: static;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--color-bg);
   }
+
 }
 
 @media (max-width: 720px) {

@@ -29,8 +29,16 @@ import MainLayout from "../../layouts/MainLayout.astro";
       <label for="job-location">Ubicación</label>
       <input id="job-location" name="job-location" type="text" placeholder="Ej: Rosario, zona norte" />
 
-      <label for="job-date">Fecha estimada</label>
+      <label for="job-date">Fecha para visita</label>
       <input id="job-date" name="job-date" type="date" />
+
+      <label for="job-time">Horario para visita</label>
+      <input id="job-time" name="job-time" type="time" />
+
+      <label for="job-image">Imágenes</label>
+      <label class="ab-upload-button" for="job-image">Subir imagen</label>
+      <input id="job-image" name="job-image" type="file" accept="image/*" class="ab-upload-input" />
+      <span class="ab-muted-text ab-upload-help">Podés seleccionar una imagen.</span>
 
       <label for="job-contact">Contacto</label>
       <input id="job-contact" name="job-contact" type="text" placeholder="Teléfono o WhatsApp" />

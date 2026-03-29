@@ -24,14 +24,16 @@ import MainLayout from "../../layouts/MainLayout.astro";
       <input id="experience" name="experience" type="text" placeholder="Ej: 5 años" />
 
       <label for="portfolio-photos">Fotos de trabajos (máx. 10)</label>
+      <label class="ab-upload-button" for="portfolio-photos">Subir imagen</label>
       <input
         id="portfolio-photos"
         name="portfolio-photos"
         type="file"
         accept="image/*"
         multiple
-        class="ab-file-input"
+        class="ab-upload-input"
       />
+      <span class="ab-muted-text ab-upload-help">Podés seleccionar una o varias imágenes.</span>
       <p id="portfolio-photos-help" class="ab-muted-text" aria-live="polite"></p>
 
       <label for="portfolio-details">Detalles de trabajos</label>

@@ -1,0 +1,36 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Iniciar sesión">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Acceso</p>
+    <h1>Ingresá a tu cuenta</h1>
+    <p class="ab-muted-text">Accedé con tu usuario o con Google (MVP).</p>
+
+    <form class="ab-form" id="login-form">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" placeholder="tu@email.com" />
+
+      <label for="password">Contraseña</label>
+      <input id="password" name="password" type="password" placeholder="••••••••" />
+
+      <div class="ab-actions">
+        <button type="submit" class="ab-cta-button">Ingresar</button>
+        <button type="button" class="ab-cta-button ab-cta-button--ghost">
+          Continuar con Google
+        </button>
+      </div>
+    </form>
+  </section>
+</MainLayout>
+
+<script is:inline>
+  const AUTH_KEY = "ab_auth_v1";
+  const loginForm = document.getElementById("login-form");
+  loginForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    window.localStorage.setItem(AUTH_KEY, "true");
+    window.location.href = "/mis-datos";
+  });
+</script>

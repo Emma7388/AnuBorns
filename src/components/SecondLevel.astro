@@ -8,9 +8,9 @@ const {
   serviceHref,
 } = Astro.props;
 const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toLowerCase();
-import "../styles/global.css"
+import "../styles/global.css";
 ---
-  <main class="level-two">
+  <section class="level-two">
     {title && <h1 class="level-two__title">{title}</h1>}
     
     <div class="block-group">
@@ -25,66 +25,4 @@ import "../styles/global.css"
       </a>
       
     </div>
-  </main>
-
-
-<style>
-  .level-two {
-    min-height: calc(100vh - var(--header-height) - var(--footer-height));
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    gap: 28px;
-    padding: 0 20px;
-  }
-
-  .level-two__title {
-    margin: 0;
-    font-size: 28px;
-    text-align: center;
-    letter-spacing: 1px;
-  }
-
-  .block-group {
-    display: flex;
-    gap: 60px;
-  }
-
-  .level-block {
-    width: 320px;
-    height: 200px;
-    border-radius: 20px;
-    background: var(--glass-green-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    color: var(--color-text);
-    font-size: 20px;
-    font-weight: 600;
-    transition: 0.25s ease;
-    letter-spacing: 1px;
-    border: 1px solid var(--glass-green-border);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-  }
-
-  .level-block:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 40px rgba(22, 199, 132, 0.35);
-  }
-
-  @media (max-width: 900px) {
-    .block-group {
-      flex-direction: column;
-      gap: 30px;
-    }
-
-    .level-block {
-      width: 280px;
-      height: 160px;
-    }
-  }
-</style>
+  </section>

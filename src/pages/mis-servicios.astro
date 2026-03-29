@@ -12,7 +12,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     <div id="service-active"></div>
 
     <div id="services-empty" class="ab-cart-empty" style="display: none;">
-      <p>Todavia no registraste servicios.</p>
+      <p>Todavía no registraste servicios.</p>
       <a class="ab-back-link" href="/comprar/servicios">Ir a contratar</a>
     </div>
 
@@ -34,7 +34,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 
   const seedData = {
     active: {
-      title: "Reparacion de aire acondicionado",
+      title: "Reparación de aire acondicionado",
       professional: "Martin Lozano",
       startDate: "16 Mar 2026, 10:30",
       location: "Palermo, CABA",
@@ -47,13 +47,13 @@ import MainLayout from "../layouts/MainLayout.astro";
         rating: "4.8",
       },
       {
-        title: "Revision electrica",
+        title: "Revisión eléctrica",
         professional: "Pablo Ortega",
         date: "18 Feb 2026",
         rating: "5.0",
       },
       {
-        title: "Reparacion de canieria",
+        title: "Reparación de cañería",
         professional: "Lucia Marquez",
         date: "27 Ene 2026",
         rating: "4.6",
@@ -93,11 +93,17 @@ import MainLayout from "../layouts/MainLayout.astro";
         <div class="ab-service-card__details">
           <p>Profesional: ${active.professional ?? "Pendiente"}</p>
           <p>Inicio: ${active.startDate ?? "Por confirmar"}</p>
-          <p>Direccion: ${active.location ?? "Sin definir"}</p>
+          <p>Dirección: ${active.location ?? "Sin definir"}</p>
         </div>
         <div class="ab-actions">
-          <a class="ab-cta-button" href="/profesionales">Ver profesionales</a>
-          <button type="button">Contactar (MVP)</button>
+          <a
+            class="ab-cta-button"
+            href="https://wa.me/5491137915210"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Contactar (MVP)
+          </a>
         </div>
       </article>
     `;
@@ -127,7 +133,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         <div class="ab-service-card__details">
           <p>Profesional: ${service.professional ?? "N/A"}</p>
           <p>Fecha: ${service.date ?? "Sin fecha"}</p>
-          <p>Calificacion: ${service.rating ?? "Sin datos"}</p>
+          <p>Calificación: ${service.rating ?? "Sin datos"}</p>
         </div>
       `;
       list.appendChild(wrapper);
