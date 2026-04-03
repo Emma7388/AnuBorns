@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { postAudit } from "./audit.js";
 
 const guest = document.querySelector('[data-auth="guest"]');
 const user = document.querySelector('[data-auth="user"]');
@@ -9,6 +10,7 @@ const logoutModal = document.getElementById("logout-modal");
 const modalCancel = document.querySelector("[data-modal-cancel]");
 const modalConfirm = document.querySelector("[data-modal-confirm]");
 const modalClose = document.querySelector("[data-modal-close]");
+let isSigningOut = false;
 
 const openModal = () => {
   if (!logoutModal) return;
@@ -94,8 +96,25 @@ modalClose?.addEventListener("click", () => {
 });
 
 modalConfirm?.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  window.location.href = "/";
+  if (isSigningOut) return;
+  isSigningOut = true;
+  if (modalConfirm instanceof HTMLButtonElement) {
+    modalConfirm.disabled = true;
+    modalConfirm.setAttribute("aria-busy", "true");
+  }
+  try {
+    await postAudit("logout");
+    await supabase.auth.signOut();
+    window.location.replace("/");
+  } catch {
+    closeModal();
+  } finally {
+    if (modalConfirm instanceof HTMLButtonElement) {
+      modalConfirm.disabled = false;
+      modalConfirm.removeAttribute("aria-busy");
+    }
+    isSigningOut = false;
+  }
 });
 
 document.addEventListener("keydown", (event) => {

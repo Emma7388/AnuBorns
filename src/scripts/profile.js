@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { postAudit } from "./audit.js";
 
 const status = document.getElementById("profile-status");
 const card = document.getElementById("profile-card");
@@ -225,6 +226,7 @@ profileForm?.addEventListener("submit", async (event) => {
   }
 
   if (profileFeedback) profileFeedback.textContent = "Datos actualizados.";
+  postAudit("profile_update").catch(() => {});
   setFormVisible(false);
   loadProfile();
 });
@@ -275,6 +277,7 @@ avatarInput?.addEventListener("change", async () => {
         avatarImg.src = avatarUrl;
         avatarImg.style.display = "block";
       }
+      postAudit("avatar_update").catch(() => {});
       if (avatarFeedback) avatarFeedback.textContent = "Avatar actualizado.";
     } else if (avatarFeedback) {
       avatarFeedback.textContent = "No se pudo obtener URL del avatar.";

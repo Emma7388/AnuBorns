@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { createHmac, timingSafeEqual } from "crypto";
-import { supabaseAdmin } from "../../lib/supabaseServer";
+import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
@@ -68,6 +68,10 @@ const verifySignature = (signatureHeader: string | null, requestId: string | nul
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return new Response("Service unavailable", { status: 503 });
+    }
     const url = new URL(request.url);
     const queryTopic = url.searchParams.get("topic") || url.searchParams.get("type");
     const queryId = url.searchParams.get("id");

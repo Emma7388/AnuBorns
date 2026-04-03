@@ -16,7 +16,7 @@ const fromParam = Astro.url.searchParams.get("from");
 const backHref = fromParam && fromParam.startsWith("/")
   ? fromParam
   : provider
-    ? `/profesionales/${provider.category}`
+    ? `/profesionales/categoria/${provider.category}`
     : "/profesionales";
 ---
 
@@ -51,9 +51,9 @@ const backHref = fromParam && fromParam.startsWith("/")
       </div>
 
       <div class="ab-provider-profile__actions">
-        <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/profesionales/${provider.category}`)}`} class="ab-cta-button">Iniciar contratación</a>
-        <a href={`/profesionales/${provider.category}`} class="ab-back-link">Volver a la categoría</a>
-        <a href={`/profesionales/${provider.slug}/productos?from=${encodeURIComponent(`/profesionales/${provider.category}`)}`} class="ab-back-link">Ver productos</a>
+        <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/profesionales/categoria/${provider.category}`)}`} class="ab-cta-button">Iniciar contratación</a>
+        <a href={`/profesionales/categoria/${provider.category}`} class="ab-back-link">Volver a la categoría</a>
+        <a href={`/profesionales/${provider.slug}/productos?from=${encodeURIComponent(`/profesionales/categoria/${provider.category}`)}`} class="ab-back-link">Ver productos</a>
       </div>
     </section>
   ) : (

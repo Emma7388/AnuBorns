@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { MercadoPagoConfig, Preference } from "mercadopago";
-import { supabaseAdmin } from "../../lib/supabaseServer";
+import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
@@ -25,6 +25,10 @@ const sanitizeItems = (items: any[]) =>
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+    }
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });

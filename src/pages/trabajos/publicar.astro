@@ -1,5 +1,6 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import { categories } from "../../data/categories";
 ---
 
 <MainLayout title="Publicar trabajo" backHref="/comprar/servicios">
@@ -16,11 +17,9 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
       <label for="job-category">Categoría</label>
       <select id="job-category" name="job-category">
-        <option>Plomería</option>
-        <option>Electricidad</option>
-        <option>Carpintería</option>
-        <option>Aire acondicionado</option>
-        <option>Construcción</option>
+        {categories.map((category) => (
+          <option value={category.slug}>{category.name}</option>
+        ))}
       </select>
 
       <label for="job-description">Descripción</label>

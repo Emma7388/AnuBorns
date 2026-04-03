@@ -17,7 +17,7 @@ const fromParam = Astro.url.searchParams.get("from");
 const backHref = fromParam && fromParam.startsWith("/")
   ? fromParam
   : provider
-    ? `/profesionales/${provider.category}`
+    ? `/profesionales/categoria/${provider.category}`
     : "/profesionales";
 ---
 

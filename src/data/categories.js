@@ -5,5 +5,6 @@ export const categories = [
   { name: "Ferretería", slug: "ferreteria", icon: "/icons/ferreteria.svg" },
   { name: "Construcción", slug: "construccion", icon: "/icons/construccion.svg" },
   { name: "Pinturería", slug: "pintureria", icon: "/icons/pintureria.svg" },
-  { name: "Carpintería", slug: "carpinteria", icon: "/icons/carpinteria.svg" }
+  { name: "Carpintería", slug: "carpinteria", icon: "/icons/carpinteria.svg" },
+  { name: "Hogar", slug: "hogar", icon: "/icons/hogar.svg" }
 ];

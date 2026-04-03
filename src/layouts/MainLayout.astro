@@ -17,7 +17,14 @@ const showBack = pathname !== "/";
   <main>
     {showBack && (
       <div class="ab-desktop-back">
-        <a class="ab-back-link" href={backHref} data-ab-back>Volver</a>
+        <a
+          class="ab-back-link"
+          href={backHref}
+          data-ab-back
+          {...(backHref === "/mis-datos" ? { "data-astro-reload": true } : {})}
+        >
+          Volver
+        </a>
       </div>
     )}
     <slot />
@@ -29,6 +36,7 @@ const showBack = pathname !== "/";
     const backLinks = document.querySelectorAll("[data-ab-back]");
     if (backLinks.length && window.history.length > 1) {
       backLinks.forEach((link) => {
+        if (link.getAttribute("data-ab-back") !== "history") return;
         link.addEventListener("click", (event) => {
           event.preventDefault();
           window.history.back();
