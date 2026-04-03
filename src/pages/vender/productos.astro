@@ -1,6 +1,7 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
-import { categories } from "../../data/categories";
+// @ts-ignore - handled by Vite at runtime
+import productCreateScriptUrl from "../../scripts/product-create.js?url";
 ---
 
 <MainLayout title="Vender producto">
@@ -11,16 +12,12 @@ import { categories } from "../../data/categories";
       El precio publicado incluye la comisión del 15%. Los productos se retiran en tu local.
     </p>
 
-    <form class="ab-form">
+    <form class="ab-form" id="product-form">
       <label for="title">Título</label>
       <input id="title" name="title" type="text" placeholder="Ej: Martillo de acero 16oz" />
 
       <label for="category">Categoría</label>
-      <select id="category" name="category">
-        {categories.map((category) => (
-          <option value={category.slug}>{category.name}</option>
-        ))}
-      </select>
+      <select id="category" name="category"></select>
 
       <label for="description">Descripción</label>
       <textarea id="description" name="description" rows="4" placeholder="Detalles del producto."></textarea>
@@ -30,8 +27,11 @@ import { categories } from "../../data/categories";
 
       <label for="images">Imágenes</label>
       <label class="ab-upload-button" for="images">Subir imagen</label>
-      <input id="images" name="images" type="file" accept="image/*" multiple class="ab-upload-input" />
-      <span class="ab-muted-text ab-upload-help">Podés seleccionar una o varias imágenes.</span>
+      <input id="images" name="images" type="file" accept="image/*" class="ab-upload-input" />
+      <span class="ab-muted-text ab-upload-help">
+        Podés subir 1 foto (máximo 5MB).
+      </span>
+      <div class="ab-upload-previews" id="image-previews" aria-live="polite"></div>
 
       <label for="location">Ubicación</label>
       <input id="location" name="location" type="text" placeholder="Ej: Flores, CABA" />
@@ -39,14 +39,12 @@ import { categories } from "../../data/categories";
       <label for="contact">Contacto</label>
       <input id="contact" name="contact" type="text" placeholder="Teléfono o WhatsApp" />
 
-      <a
-        class="ab-cta-button"
-        href="https://wa.me/5491137915210"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Envía tu publicación
-      </a>
+      <button type="submit" class="ab-cta-button" id="product-submit">
+        Enviar publicación
+      </button>
+      <p id="product-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
   </section>
 </MainLayout>
+
+<script type="module" src={productCreateScriptUrl}></script>
