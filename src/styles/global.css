@@ -63,6 +63,27 @@ body {
   flex-direction: column;
 }
 
+@keyframes ab-profile-fade {
+  from {
+    opacity: 0.6;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html.ab-profile-enter main {
+  animation: ab-profile-fade 0.32s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.ab-profile-enter main {
+    animation: none;
+  }
+}
+
 /* CONTENEDOR GLOBAL */
 .container {
   width: 100%;
@@ -1416,6 +1437,14 @@ input[type="submit"] {
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+#profile-form {
+  display: none;
+}
+
+body.is-profile-editing #profile-form {
+  display: grid;
 }
 
 .ab-profile-data__row {

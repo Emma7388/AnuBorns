@@ -1,4 +1,6 @@
 ---
+import { ViewTransitions } from "astro:transitions";
+
 const { title = "DeSoluciones.com" } = Astro.props;
 ---
 
@@ -7,9 +9,64 @@ const { title = "DeSoluciones.com" } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      try {
+        if (sessionStorage.getItem("ab_profile_enter") === "1") {
+          document.documentElement.classList.add("ab-profile-enter");
+        }
+      } catch {
+        // ignore
+      }
+    </script>
     <title>{title}</title>
+    <ViewTransitions fallback="animate" />
   </head>
   <body>
     <slot />
+    <script>
+      const PROFILE_ENTER_KEY = "ab_profile_enter";
+
+      const markProfileEnter = (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const link = target.closest("[data-ab-profile-link]");
+        if (link) {
+          try {
+            sessionStorage.setItem(PROFILE_ENTER_KEY, "1");
+          } catch {
+            // ignore
+          }
+        }
+      };
+
+      document.addEventListener("click", markProfileEnter);
+
+      try {
+        if (sessionStorage.getItem(PROFILE_ENTER_KEY) === "1") {
+          sessionStorage.removeItem(PROFILE_ENTER_KEY);
+          window.setTimeout(() => {
+            document.documentElement.classList.remove("ab-profile-enter");
+          }, 280);
+        }
+      } catch {
+        // ignore
+      }
+
+      const isInternalLink = (link) => {
+        const href = link.getAttribute("href");
+        if (!href) return false;
+        if (href.startsWith("http") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+          return false;
+        }
+        if (href.startsWith("#")) return false;
+        return true;
+      };
+
+      document.querySelectorAll("a[href]").forEach((link) => {
+        if (isInternalLink(link)) {
+          link.setAttribute("data-astro-prefetch", "hover");
+        }
+      });
+    </script>
   </body>
 </html>

@@ -38,12 +38,43 @@ const formatRow = (label, value) => `
   </div>
 `;
 
+let loadRunId = 0;
+
+const withTimeout = (promise, ms) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), ms)
+    ),
+  ]);
+
 const loadProfile = async () => {
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+  const runId = (loadRunId += 1);
+  if (status) status.textContent = "Cargando información del usuario...";
+
+  let session = null;
+  try {
+    const { data } = await withTimeout(supabase.auth.getSession(), 8000);
+    session = data?.session ?? null;
+  } catch {
+    session = null;
+  }
 
   if (!session?.user) {
-    if (status) status.textContent = "Tenés que iniciar sesión para ver tus datos.";
+    try {
+      const { data: userData } = await withTimeout(supabase.auth.getUser(), 8000);
+      if (userData?.user) {
+        session = { user: userData.user };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!session?.user) {
+    if (status && runId === loadRunId) {
+      status.textContent = "Tenés que iniciar sesión para ver tus datos.";
+    }
     window.location.href = "/login?returnTo=/mis-datos";
     return;
   }
@@ -62,7 +93,6 @@ const loadProfile = async () => {
     }
   }
 
-  if (status) status.textContent = "Información actualizada.";
   if (card) {
     card.innerHTML = [
       formatRow("Email", user.email ?? ""),
@@ -88,6 +118,9 @@ const loadProfile = async () => {
   if (postalInput) postalInput.value = metadata.postal_code ?? "";
 
   await uploadPendingAvatar(session);
+  if (runId === loadRunId && status) {
+    status.textContent = "Información actualizada.";
+  }
 };
 
 const uploadPendingAvatar = async (session) => {
@@ -127,19 +160,39 @@ const uploadPendingAvatar = async (session) => {
   }
 };
 
-loadProfile();
-
 const setFormVisible = (isVisible) => {
-  if (!profileForm || !profileToggle) return;
-  profileForm.style.display = isVisible ? "grid" : "none";
+  if (!profileToggle) return;
+  document.body.classList.toggle("is-profile-editing", isVisible);
   profileToggle.textContent = isVisible ? "Cancelar edición" : "Editar perfil";
+  profileToggle.setAttribute("aria-expanded", String(isVisible));
 };
 
 setFormVisible(false);
 
+const resetProfileView = () => {
+  setFormVisible(false);
+};
+
+document.addEventListener("astro:page-load", () => {
+  resetProfileView();
+  loadProfile();
+});
+document.addEventListener("astro:after-swap", () => {
+  resetProfileView();
+  loadProfile();
+});
+document.addEventListener("astro:before-swap", () => {
+  loadRunId += 1;
+  resetProfileView();
+});
+window.addEventListener("pageshow", () => {
+  resetProfileView();
+  loadProfile();
+});
+
 profileToggle?.addEventListener("click", () => {
-  const isHidden = profileForm?.style.display === "none";
-  setFormVisible(isHidden);
+  const isEditing = document.body.classList.contains("is-profile-editing");
+  setFormVisible(!isEditing);
 });
 
 profileForm?.addEventListener("submit", async (event) => {
