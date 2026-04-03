@@ -1,36 +1,33 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import loginScriptUrl from "../scripts/login.js?url";
 ---
 
 <MainLayout title="Iniciar sesión">
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Acceso</p>
     <h1>Ingresá a tu cuenta</h1>
-    <p class="ab-muted-text">Accedé con tu usuario o con Google (MVP).</p>
+    <p class="ab-muted-text">Accedé con tu email y contraseña.</p>
 
     <form class="ab-form" id="login-form">
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" placeholder="tu@email.com" />
+      <input
+        id="email"
+        name="email"
+        type="email"
+        placeholder="tu@email.com"
+        required
+      />
 
       <label for="password">Contraseña</label>
-      <input id="password" name="password" type="password" placeholder="••••••••" />
+      <input id="password" name="password" type="password" placeholder="••••••••" required />
 
       <div class="ab-actions">
-        <button type="submit" class="ab-cta-button">Ingresar</button>
-        <button type="button" class="ab-cta-button ab-cta-button--ghost">
-          Continuar con Google
-        </button>
+        <button type="submit" class="ab-cta-button" id="login-submit">Ingresar</button>
       </div>
+      <p id="login-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
   </section>
 </MainLayout>
 
-<script is:inline>
-  const AUTH_KEY = "ab_auth_v1";
-  const loginForm = document.getElementById("login-form");
-  loginForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    window.localStorage.setItem(AUTH_KEY, "true");
-    window.location.href = "/mis-datos";
-  });
-</script>
+<script type="module" src={loginScriptUrl}></script>

@@ -45,8 +45,16 @@ body {
   color: var(--color-text);
   background:
     radial-gradient(circle at top, rgba(22, 199, 132, 0.12), transparent 40%),
-    radial-gradient(circle at 20% 20%, rgba(158, 207, 255, 0.14), transparent 45%),
-    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.08), transparent 40%),
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(158, 207, 255, 0.14),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 80% 10%,
+      rgba(255, 255, 255, 0.08),
+      transparent 40%
+    ),
     var(--color-bg);
   line-height: 1.6;
   min-height: 100vh;
@@ -64,7 +72,9 @@ body {
 }
 
 /* TITULOS */
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   margin-bottom: 1rem;
   text-align: center;
 }
@@ -119,6 +129,9 @@ a {
   padding: 0 var(--app-gutter);
 }
 
+.ab-is-hidden {
+  display: none !important;
+}
 
 @media (max-width: 768px) {
   main {
@@ -133,7 +146,6 @@ a {
   .ab-desktop-back {
     display: none;
   }
-
 }
 
 .ab-cta-button {
@@ -281,9 +293,34 @@ input[type="submit"] {
   background-position:
     calc(100% - 18px) calc(50% - 2px),
     calc(100% - 12px) calc(50% - 2px);
-  background-size: 6px 6px, 6px 6px;
+  background-size:
+    6px 6px,
+    6px 6px;
   background-repeat: no-repeat;
   padding-right: 32px;
+}
+
+.ab-form input[type="file"] {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.ab-form input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 20px rgba(22, 199, 132, 0.25);
+}
+
+.ab-form input[type="file"]::file-selector-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(22, 199, 132, 0.3);
 }
 
 /* Home */
@@ -515,7 +552,9 @@ input[type="submit"] {
   color: #1b1b1b;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .ab-upload-button:hover {
@@ -582,7 +621,10 @@ input[type="submit"] {
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-text);
   padding: 8px 10px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -616,11 +658,16 @@ input[type="submit"] {
   background-position:
     calc(100% - 18px) calc(50% - 2px),
     calc(100% - 12px) calc(50% - 2px);
-  background-size: 6px 6px, 6px 6px;
+  background-size:
+    6px 6px,
+    6px 6px;
   background-repeat: no-repeat;
   color: var(--color-text);
   padding: 8px 32px 8px 10px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -649,7 +696,9 @@ input[type="submit"] {
   padding: 8px 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -673,7 +722,9 @@ input[type="submit"] {
   padding: 8px 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -745,7 +796,9 @@ input[type="submit"] {
   padding: 8px 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -821,7 +874,10 @@ input[type="submit"] {
   border-radius: 14px;
   padding: 16px;
   animation: ab-card-fade-in 0.22s ease both;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
@@ -869,7 +925,6 @@ input[type="submit"] {
   color: var(--color-text-muted);
 }
 
-
 .ab-provider-product-card__description {
   margin: 0 0 12px;
   color: var(--color-text-muted);
@@ -901,7 +956,10 @@ input[type="submit"] {
   font-weight: 700;
   cursor: pointer;
   font-size: var(--button-font-size);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .ab-provider-product-card__button:hover {
@@ -1293,7 +1351,9 @@ input[type="submit"] {
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .ab-provider-products-toolbar__cart:hover {
@@ -1336,11 +1396,14 @@ input[type="submit"] {
   align-items: center;
   justify-content: center;
   margin: 4px 0 12px;
+  overflow: hidden;
 }
 
-.ab-profile-avatar svg {
-  width: 32px;
-  height: 32px;
+.ab-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
 }
 
 .ab-profile-data__card {

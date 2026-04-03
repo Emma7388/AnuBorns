@@ -1,147 +1,19 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import ordersScriptUrl from "../scripts/orders.js?url";
 ---
 
 <MainLayout title="Mis compras" backHref="/mis-datos">
   <section class="ab-dark-panel ab-orders-panel">
     <p class="ab-eyebrow">Perfil</p>
     <h1>Mis compras</h1>
-    <div id="orders-empty" class="ab-cart-empty" style="display: none;">  
+    <p id="orders-status" class="ab-muted-text">Cargando órdenes...</p>
+    <div id="orders-empty" class="ab-cart-empty ab-is-hidden">
+      <p>No hay compras registradas.</p>
       <a class="ab-back-link" href="/comprar/productos">Ir a comprar</a>
     </div>
-    <div id="orders-history-title" class="ab-actions">
-      <button id="orders-reset" type="button">Resetear datos (MVP)</button>
-    </div>
-
     <div id="orders-list" class="ab-orders-list"></div>
   </section>
 </MainLayout>
 
-<script>
-  const ORDERS_KEY = "ab_orders_v1";
-  const list = document.getElementById("orders-list");
-  const emptyState = document.getElementById("orders-empty");
-  const historyTitle = document.getElementById("orders-history-title");
-  const resetButton = document.getElementById("orders-reset");
-
-  const seedOrders = {
-    history: [
-      {
-        id: "AB-10021",
-        date: "08 Mar 2026",
-        total: 68500,
-        items: [
-          { name: "Kit electricidad", qty: 1, price: 24500, provider: "Electrofix" },
-          { name: "Mano de obra", qty: 1, price: 44000, provider: "Electrofix" },
-        ],
-      },
-      {
-        id: "AB-10004",
-        date: "21 Feb 2026",
-        total: 29000,
-        items: [{ name: "Inspección general", qty: 1, price: 29000, provider: "Hogar Plus" }],
-      },
-    ],
-  };
-
-  const normalizeOrders = (data) => {
-    if (Array.isArray(data)) {
-      return { history: data };
-    }
-    if (data && typeof data === "object") {
-      return {
-        history: Array.isArray(data.history) ? data.history : [],
-      };
-    }
-    return seedOrders;
-  };
-
-  const persistOrders = (value) => {
-    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(value));
-  };
-
-  const loadOrders = () => {
-    try {
-      const raw = window.localStorage.getItem(ORDERS_KEY);
-      if (!raw) {
-        persistOrders(seedOrders);
-        return seedOrders;
-      }
-      const parsed = JSON.parse(raw);
-      const normalized = normalizeOrders(parsed);
-      if (Array.isArray(parsed) || parsed?.history === undefined || parsed?.active === undefined) {
-        persistOrders(normalized);
-      }
-      return normalized;
-    } catch {
-      return seedOrders;
-    }
-  };
-
-  const formatPrice = (value) => {
-    const safe = Number(value ?? 0);
-    return safe.toLocaleString("es-AR");
-  };
-
-  const renderHistory = (history) => {
-    list.innerHTML = "";
-
-    if (!Array.isArray(history) || history.length === 0) {
-      historyTitle.style.display = "none";
-      return;
-    }
-
-    historyTitle.style.display = "";
-
-    history.forEach((order) => {
-      const wrapper = document.createElement("article");
-      wrapper.className = "ab-order-card";
-      const items = Array.isArray(order.items) ? order.items : [];
-      wrapper.innerHTML = `
-        <div class="ab-order-card__header">
-          <div>
-            <p class="ab-order-card__label">Orden ${order.id ?? ""}</p>
-            <p class="ab-order-card__date">${order.date ?? ""}</p>
-          </div>
-          <strong>$${formatPrice(order.total ?? 0)}</strong>
-        </div>
-        <ul class="ab-order-card__items">
-          ${items
-            .map((item) => {
-              const qty = item.qty ?? 1;
-              const price = Number(item.price ?? 0);
-              const provider = item.provider ?? "N/A";
-              return `
-                <li>
-                  <div>
-                    <strong>${item.name} x ${qty}</strong>
-                    <p>Proveedor: ${provider}</p>
-                  </div>
-                  <span>$${formatPrice(price * qty)}</span>
-                </li>
-              `;
-            })
-            .join("")}
-        </ul>
-      `;
-      list.appendChild(wrapper);
-    });
-  };
-
-  const renderOrders = () => {
-    const data = loadOrders();
-    const history = data?.history ?? [];
-
-    renderHistory(history);
-
-    const hasHistory = Array.isArray(history) && history.length > 0;
-    emptyState.style.display = hasHistory ? "none" : "grid";
-  };
-
-  renderOrders();
-
-  resetButton?.addEventListener("click", () => {
-    persistOrders(seedOrders);
-    renderOrders();
-  });
-</script>
+<script type="module" src={ordersScriptUrl}></script>

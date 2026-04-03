@@ -1,5 +1,6 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import confirmationScriptUrl from "../scripts/confirmation.js?url";
 ---
 
 <MainLayout title="Compra confirmada">
@@ -11,24 +12,14 @@ import MainLayout from "../layouts/MainLayout.astro";
           <path class="ab-checkmark__check" fill="none" d="M14 27l7 7 16-16" />
         </svg>
       </div>
-      <h1>Compra confirmada</h1>
-      <p class="ab-muted-text">
-        La orden fue simulada con exito. Redirigiendo al inicio...
+      <h1 id="confirmation-title">Pago recibido</h1>
+      <p class="ab-muted-text" id="confirmation-message">
+        Estamos validando el estado de la compra.
       </p>
+      <p class="ab-muted-text" id="confirmation-order"></p>
       <a class="ab-back-link" href="/">Ir al inicio</a>
     </div>
   </section>
 </MainLayout>
 
-<script>
-  const CART_KEY = "ab_cart_v1";
-  try {
-    window.localStorage.setItem(CART_KEY, JSON.stringify([]));
-  } catch {
-    // noop
-  }
-
-  window.setTimeout(() => {
-    window.location.href = "/";
-  }, 4400);
-</script>
+<script type="module" src={confirmationScriptUrl}></script>

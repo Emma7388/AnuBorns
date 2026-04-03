@@ -1,14 +1,18 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import registerScriptUrl from "../scripts/register.js?url";
 ---
 
 <MainLayout title="Crear cuenta">
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Registro</p>
     <h1>Creá tu cuenta</h1>
-    <p class="ab-muted-text">Maqueta del registro inicial para el MVP.</p>
+    <p class="ab-muted-text">Registrate con tu email y contraseña.</p>
 
     <form class="ab-form" id="register-form">
+      <label for="avatar">Avatar (opcional)</label>
+      <input id="avatar" name="avatar" type="file" accept="image/*" />
+
       <label for="first-name">Nombre</label>
       <input id="first-name" name="first-name" type="text" placeholder="Ej: María" />
 
@@ -16,7 +20,7 @@ import MainLayout from "../layouts/MainLayout.astro";
       <input id="last-name" name="last-name" type="text" placeholder="Ej: López" />
 
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" placeholder="tu@email.com" />
+      <input id="email" name="email" type="email" placeholder="tu@email.com" required />
 
       <label for="phone">Teléfono</label>
       <input id="phone" name="phone" type="tel" placeholder="Ej: 11 2345 6789" />
@@ -37,7 +41,7 @@ import MainLayout from "../layouts/MainLayout.astro";
       <input id="postal-code" name="postal-code" type="text" placeholder="Ej: B1675" />
 
       <label for="password">Contraseña</label>
-      <input id="password" name="password" type="password" placeholder="••••••••" />
+      <input id="password" name="password" type="password" placeholder="••••••••" minlength="6" required />
 
       <label for="password-confirm">Confirmar contraseña</label>
       <input
@@ -45,19 +49,14 @@ import MainLayout from "../layouts/MainLayout.astro";
         name="password-confirm"
         type="password"
         placeholder="••••••••"
+        minlength="6"
+        required
       />
 
-      <button type="submit" class="ab-cta-button">Crear cuenta (MVP)</button>
+      <button type="submit" class="ab-cta-button">Crear cuenta</button>
+      <p id="register-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
   </section>
 </MainLayout>
 
-<script is:inline>
-  const AUTH_KEY = "ab_auth_v1";
-  const registerForm = document.getElementById("register-form");
-  registerForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    window.localStorage.setItem(AUTH_KEY, "true");
-    window.location.href = "/mis-datos";
-  });
-</script>
+<script type="module" src={registerScriptUrl}></script>

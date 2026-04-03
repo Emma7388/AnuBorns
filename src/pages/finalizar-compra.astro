@@ -1,13 +1,14 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import checkoutScriptUrl from "../scripts/checkout.js?url";
 ---
 
 <MainLayout title="Finalizar compra">
   <section class="ab-dark-panel ab-checkout-panel">
-    <p class="ab-eyebrow">Compra simulada</p>
+    <p class="ab-eyebrow">Checkout</p>
     <h1>Finalizar compra</h1>
     <p class="ab-muted-text">
-      Esta pantalla completa el flujo con un formulario ficticio.
+      Confirmá tus datos y continuá el pago con Mercado Pago.
     </p>
 
     <div id="checkout-empty" class="ab-cart-empty">
@@ -37,96 +38,12 @@ import MainLayout from "../layouts/MainLayout.astro";
       <label for="phone">Telefono</label>
       <input id="phone" name="phone" type="tel" placeholder="Ej: 341 555 1234" required />
 
-      <h2>Pago (simulado)</h2>
-      <label for="card-number">Numero de tarjeta</label>
-      <input id="card-number" name="card-number" type="text" placeholder="0000 0000 0000 0000" required />
-
-      <div class="ab-checkout-row">
-        <div>
-          <label for="card-exp">Vencimiento</label>
-          <input id="card-exp" name="card-exp" type="text" placeholder="MM/AA" required />
-        </div>
-        <div>
-          <label for="card-cvv">CVV</label>
-          <input id="card-cvv" name="card-cvv" type="text" placeholder="123" required />
-        </div>
-      </div>
-
       <button class="ab-cta-button" type="submit">
-        Confirmar compra (MVP)
+        Pagar con Mercado Pago
       </button>
       <p id="checkout-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
   </section>
 </MainLayout>
 
-<script>
-  const CART_KEY = "ab_cart_v1";
-  const emptyState = document.getElementById("checkout-empty");
-  const summary = document.getElementById("checkout-summary");
-  const itemsWrap = document.getElementById("checkout-items");
-  const totalLabel = document.getElementById("checkout-total");
-  const form = document.getElementById("checkout-form");
-  const feedback = document.getElementById("checkout-feedback");
-
-  const loadCart = () => {
-    try {
-      const raw = window.localStorage.getItem(CART_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const formatPrice = (value) => {
-    const safe = Number(value ?? 0);
-    return safe.toLocaleString("es-AR");
-  };
-
-  const renderSummary = () => {
-    const items = loadCart();
-    itemsWrap.innerHTML = "";
-
-    if (items.length === 0) {
-      emptyState.style.display = "grid";
-      summary.style.display = "none";
-      form.style.display = "none";
-      totalLabel.textContent = "$0";
-      return;
-    }
-
-    emptyState.style.display = "none";
-    summary.style.display = "grid";
-    form.style.display = "grid";
-
-    let total = 0;
-    items.forEach((item) => {
-      const qty = item.qty ?? 1;
-      const price = Number(item.price ?? 0);
-      total += price * qty;
-
-      const row = document.createElement("div");
-      row.className = "ab-checkout-item";
-      row.innerHTML = `
-        <span>${item.name} x ${qty}</span>
-        <strong>$${formatPrice(price * qty)}</strong>
-      `;
-      itemsWrap.appendChild(row);
-    });
-
-    totalLabel.textContent = `$${formatPrice(total)}`;
-  };
-
-  if (form && feedback) {
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      feedback.textContent = "Procesando compra simulada...";
-      window.setTimeout(() => {
-        window.location.href = "/compra-confirmada";
-      }, 600);
-    });
-  }
-
-  renderSummary();
-</script>
+<script type="module" src={checkoutScriptUrl}></script>

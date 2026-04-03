@@ -1,54 +1,63 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+import profileScriptUrl from "../scripts/profile.js?url";
 ---
 
 <MainLayout title="Mis datos">
   <section class="ab-dark-panel ab-profile-data">
     <p class="ab-eyebrow">Perfil</p>
-    <div class="ab-profile-avatar" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M4 20c1.6-3.5 5-5 8-5s6.4 1.5 8 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
+    <div class="ab-profile-avatar">
+      <img id="profile-avatar" alt="Avatar" />
     </div>
-    <p class="ab-muted-text">
-      Información personal del usuario común (simulada).
+    <p class="ab-muted-text" id="profile-status">
+      Cargando información del usuario...
     </p>
 
-    <div class="ab-profile-data__card">
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Tipo de usuario</span>
-        <span class="ab-profile-data__value">Básico</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Nombre completo</span>
-        <span class="ab-profile-data__value">María López</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Email</span>
-        <span class="ab-profile-data__value">maria.lopez@email.com</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Teléfono</span>
-        <span class="ab-profile-data__value">+54 341 555 1234</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Ciudad</span>
-        <span class="ab-profile-data__value">Rosario, Santa Fe</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Dirección</span>
-        <span class="ab-profile-data__value">Av. Siempreviva 742</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Documento</span>
-        <span class="ab-profile-data__value">DNI 31.234.567</span>
-      </div>
-      <div class="ab-profile-data__row">
-        <span class="ab-profile-data__label">Preferencias</span>
-        <span class="ab-profile-data__value">Notificaciones por email</span>
-      </div>
+    <form class="ab-form" id="avatar-form">
+      <label for="avatar-upload">Actualizar avatar</label>
+      <input id="avatar-upload" name="avatar-upload" type="file" accept="image/*" />
+      <p class="ab-muted-text" id="avatar-feedback" aria-live="polite"></p>
+    </form>
+
+    <div class="ab-actions">
+      <button type="button" class="ab-cta-button" id="profile-edit-toggle">
+        Editar perfil
+      </button>
     </div>
+
+    <form class="ab-form" id="profile-form">
+      <label for="profile-email">Email</label>
+      <input id="profile-email" name="profile-email" type="email" readonly />
+
+      <label for="profile-first-name">Nombre</label>
+      <input id="profile-first-name" name="profile-first-name" type="text" />
+
+      <label for="profile-last-name">Apellido</label>
+      <input id="profile-last-name" name="profile-last-name" type="text" />
+
+      <label for="profile-phone">Teléfono</label>
+      <input id="profile-phone" name="profile-phone" type="tel" />
+
+      <label for="profile-dni">DNI</label>
+      <input id="profile-dni" name="profile-dni" type="text" />
+
+      <label for="profile-address">Dirección</label>
+      <input id="profile-address" name="profile-address" type="text" />
+
+      <label for="profile-city">Ciudad</label>
+      <input id="profile-city" name="profile-city" type="text" />
+
+      <label for="profile-province">Provincia</label>
+      <input id="profile-province" name="profile-province" type="text" />
+
+      <label for="profile-postal-code">Código postal</label>
+      <input id="profile-postal-code" name="profile-postal-code" type="text" />
+
+      <button type="submit" class="ab-cta-button">Guardar cambios</button>
+      <p class="ab-muted-text" id="profile-feedback" aria-live="polite"></p>
+    </form>
+
+    <div class="ab-profile-data__card" id="profile-card"></div>
 
     <div class="ab-actions">
       <a class="ab-cta-button" href="/mis-compras">Ver mis compras</a>
@@ -59,3 +68,5 @@ import MainLayout from "../layouts/MainLayout.astro";
     </div>
   </section>
 </MainLayout>
+
+<script type="module" src={profileScriptUrl}></script>

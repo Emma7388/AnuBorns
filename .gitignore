@@ -1,10 +1,13 @@
 # build output
 dist/
-# generated types
 .astro/
 
 # dependencies
 node_modules/
+
+# vite cache
+.vite
+node_modules/.vite
 
 # logs
 npm-debug.log*
@@ -12,14 +15,16 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-
-# environment variables
+# environment variables (CRÍTICO)
 .env
-.env.production
+.env.*
+.env.local
 
-# macOS-specific files
+# OS
 .DS_Store
 
-# jetbrains setting folder
+# IDEs
 .idea/
+
+# deploy
 .vercel
