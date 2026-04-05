@@ -31,9 +31,6 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
       <label for="address">Dirección</label>
       <input id="address" name="address" type="text" placeholder="Ej: Av. Siempreviva 742" required />
 
-      <label for="city">Ciudad</label>
-      <input id="city" name="city" type="text" placeholder="Ej: Rosario" required />
-
       <label for="phone">Telefono</label>
       <input id="phone" name="phone" type="tel" placeholder="Ej: 341 555 1234" required />
 
@@ -42,6 +39,11 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
       </button>
       <p id="checkout-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
+
+    <div id="checkout-success" class="ab-checkout-success ab-is-hidden" aria-live="polite">
+      <div class="ab-checkout-success__icon">✓</div>
+      <p>Pago iniciado. Te estamos redirigiendo…</p>
+    </div>
   </section>
 </MainLayout>
 

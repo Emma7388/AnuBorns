@@ -1,11 +1,16 @@
 import { supabase } from "../lib/supabaseClient";
+import { getCart, removeFromCart } from "../lib/cart";
 
-const CART_KEY = "ab_cart_v1";
-try {
-  window.localStorage.setItem(CART_KEY, JSON.stringify([]));
-} catch {
-  // noop
-}
+const clearCart = async () => {
+  try {
+    const items = await getCart();
+    for (const item of items) {
+      await removeFromCart(item.product_id);
+    }
+  } catch {
+    // noop
+  }
+};
 
 const title = document.getElementById("confirmation-title");
 const message = document.getElementById("confirmation-message");
@@ -65,3 +70,4 @@ const loadOrder = async () => {
 };
 
 loadOrder();
+clearCart();

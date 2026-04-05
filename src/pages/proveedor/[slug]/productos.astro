@@ -96,6 +96,7 @@ const shortId = (value) => {
                 data-price={product.price}
                 data-name={product.name}
                 data-sku={shortId(product.id)}
+                data-product-id={product.id}
                 data-unit={product.unit}
                 data-image={product.image ?? "/logo2.svg"}
                 data-provider={provider.name}
@@ -177,7 +178,9 @@ const shortId = (value) => {
   )}
 </MainLayout>
 
-<script>
+<script type="module">
+  import { addToCart, getCart } from "../../../lib/cart";
+
   const grid = document.getElementById("provider-products-grid");
   const stockFilter = document.getElementById("stock-filter");
   const priceSort = document.getElementById("price-sort");
@@ -219,7 +222,6 @@ const shortId = (value) => {
   ) {
     const cards = Array.from(grid.querySelectorAll(".ab-provider-product-card"));
     const total = cards.length;
-    const CART_KEY = "ab_cart_v1";
     const allowedPageSizes = [6, 12, 24];
     let pageSize = 6;
     let currentPage = 1;
@@ -242,23 +244,9 @@ const shortId = (value) => {
     pageSizeSelect.value = String(pageSize);
     currentPage = Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1;
 
-    const loadCart = () => {
-      try {
-        const raw = window.localStorage.getItem(CART_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    };
-
-    const saveCart = (items) => {
-      window.localStorage.setItem(CART_KEY, JSON.stringify(items));
-    };
-
-    const updateCartCount = () => {
-      const items = loadCart();
-      const totalQty = items.reduce((sum, item) => sum + (item.qty ?? 0), 0);
+    const updateCartCount = async () => {
+      const items = await getCart();
+      const totalQty = items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
       cartCount.textContent = String(totalQty);
     };
 
@@ -269,28 +257,12 @@ const shortId = (value) => {
       }, 1600);
     };
 
-    const addToCart = (card) => {
-      const sku = card.dataset.sku ?? "";
-      const id = `${card.dataset.providerSlug ?? "proveedor"}:${sku || card.dataset.name}`;
-      const price = Number(card.dataset.price ?? 0);
-      const items = loadCart();
-      const existing = items.find((item) => item.id === id);
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        items.push({
-          id,
-          name: card.dataset.name,
-          price,
-          unit: card.dataset.unit,
-          image: card.dataset.image,
-          provider: card.dataset.provider,
-          providerSlug: card.dataset.providerSlug,
-          qty: 1,
-        });
-      }
-      saveCart(items);
-      updateCartCount();
+    const addCardToCart = async (card) => {
+      await addToCart({
+        id: card.dataset.productId,
+        price: card.dataset.price,
+      });
+      await updateCartCount();
     };
 
     const syncUrl = (totalPages) => {
@@ -443,7 +415,7 @@ const shortId = (value) => {
       }, 1600);
     });
 
-    grid.addEventListener("click", (event) => {
+    grid.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLButtonElement)) return;
       const action = target.dataset.action;
@@ -452,7 +424,7 @@ const shortId = (value) => {
       if (!card) return;
       if (target.disabled) return;
 
-      addToCart(card);
+      await addCardToCart(card);
       if (action === "buy") {
         window.location.href = "/carrito";
         return;

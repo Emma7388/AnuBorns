@@ -7,6 +7,10 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
     <a href="/" class="logo">Desoluciones</a>
 
     <nav class="nav">
+      <a class="nav-cart" href="/carrito" aria-label="Ir al carrito">
+        Carrito <span id="cart-count">0</span>
+      </a>
+      <span id="cart-sync" class="nav-cart-sync ab-is-hidden">Sincronizando</span>
       <div class="nav-auth nav-auth--guest ab-is-hidden" data-auth="guest">
         <a class="nav-login" href="/login">Iniciar sesión</a>
         <a class="nav-login nav-login--ghost" href="/registro">Registrarse</a>
@@ -79,6 +83,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 .nav {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .nav-auth {
@@ -237,6 +242,37 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
   display: grid;
   place-items: center;
   overflow: hidden;
+}
+
+.nav-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-green-border);
+  background: var(--glass-green-bg);
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.nav-cart span {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.nav-cart-sync {
+  font-size: 11px;
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  padding: 4px 8px;
 }
 
 .nav-avatar img {

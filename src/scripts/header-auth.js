@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
+import { getCart, syncCartOnLogin } from "../lib/cart";
 
 let guest = document.querySelector('[data-auth="guest"]');
 let user = document.querySelector('[data-auth="user"]');
@@ -10,7 +11,10 @@ let logoutModal = document.getElementById("logout-modal");
 let modalCancel = document.querySelector("[data-modal-cancel]");
 let modalConfirm = document.querySelector("[data-modal-confirm]");
 let modalClose = document.querySelector("[data-modal-close]");
+let cartCount = document.getElementById("cart-count");
+let cartSync = document.getElementById("cart-sync");
 let isSigningOut = false;
+let lastSyncedUserId = "";
 
 const openModal = () => {
   if (!logoutModal) return;
@@ -73,6 +77,8 @@ const bindElements = () => {
   modalCancel = document.querySelector("[data-modal-cancel]");
   modalConfirm = document.querySelector("[data-modal-confirm]");
   modalClose = document.querySelector("[data-modal-close]");
+  cartCount = document.getElementById("cart-count");
+  cartSync = document.getElementById("cart-sync");
 };
 
 const bindOnce = (element, key, eventName, handler) => {
@@ -83,20 +89,48 @@ const bindOnce = (element, key, eventName, handler) => {
   element.dataset[flag] = "true";
 };
 
+const renderCartCount = async () => {
+  if (!cartCount) return;
+  try {
+    const items = await getCart();
+    const totalQty = items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+    cartCount.textContent = String(totalQty);
+  } catch {
+    cartCount.textContent = "0";
+  }
+};
+
 const resolveSession = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session) {
     setView(sessionData.session);
+    const userId = sessionData.session.user?.id ?? "";
+    if (userId && userId !== lastSyncedUserId) {
+      lastSyncedUserId = userId;
+      if (cartSync) cartSync.classList.remove("ab-is-hidden");
+      await syncCartOnLogin(userId);
+      if (cartSync) cartSync.classList.add("ab-is-hidden");
+    }
+    renderCartCount();
     return;
   }
 
   const { data: userData } = await supabase.auth.getUser();
   if (userData?.user) {
     setView({ user: userData.user });
+    const userId = userData.user?.id ?? "";
+    if (userId && userId !== lastSyncedUserId) {
+      lastSyncedUserId = userId;
+      if (cartSync) cartSync.classList.remove("ab-is-hidden");
+      await syncCartOnLogin(userId);
+      if (cartSync) cartSync.classList.add("ab-is-hidden");
+    }
+    renderCartCount();
     return;
   }
 
   setView(null);
+  renderCartCount();
 };
 
 const initHeaderAuth = () => {
@@ -135,10 +169,22 @@ const initHeaderAuth = () => {
   });
 
   resolveSession();
+  renderCartCount();
 };
 
 supabase.auth.onAuthStateChange((_event, session) => {
   setView(session);
+  const userId = session?.user?.id ?? "";
+  if (userId && userId !== lastSyncedUserId) {
+    lastSyncedUserId = userId;
+    if (cartSync) cartSync.classList.remove("ab-is-hidden");
+    syncCartOnLogin(userId).finally(() => {
+      if (cartSync) cartSync.classList.add("ab-is-hidden");
+      renderCartCount();
+    });
+  } else {
+    renderCartCount();
+  }
 });
 
 document.addEventListener("keydown", (event) => {
@@ -151,3 +197,6 @@ initHeaderAuth();
 document.addEventListener("astro:page-load", initHeaderAuth);
 document.addEventListener("astro:after-swap", initHeaderAuth);
 window.addEventListener("pageshow", initHeaderAuth);
+document.addEventListener("ab-cart-updated", () => {
+  renderCartCount();
+});

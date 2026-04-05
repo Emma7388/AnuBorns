@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 
+const ORDERS_KEY = "ab_orders_v1";
+
 const list = document.getElementById("orders-list");
 const emptyState = document.getElementById("orders-empty");
 const status = document.getElementById("orders-status");
@@ -74,6 +76,21 @@ const loadOrders = async () => {
     if (status) status.textContent = "Tenés que iniciar sesión para ver tus compras.";
     window.location.href = "/login?returnTo=/mis-compras";
     return;
+  }
+
+  const userId = sessionData.session.user.id;
+  try {
+    const raw = window.localStorage.getItem(ORDERS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
+    if (localOrders.length > 0) {
+      if (status) status.textContent = "";
+      renderHistory(localOrders);
+      renderOrders();
+      return;
+    }
+  } catch {
+    // fall through to remote
   }
 
   const { data, error } = await supabase

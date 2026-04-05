@@ -3,6 +3,8 @@ export const prerender = false;
 
 import MainLayout from "../../../layouts/MainLayout.astro";
 import "../../../styles/global.css";
+// @ts-ignore - handled by Vite at runtime
+import buyProductsUrl from "../../../scripts/comprar-productos.js?url";
 
 Astro.response.headers.set("Cache-Control", "no-store");
 Astro.response.headers.set("Pragma", "no-cache");
@@ -146,6 +148,12 @@ const resolveCategoryName = (product) => {
                   role="listitem"
                   data-search={`${product.title ?? ""} ${shortId(product.id)} ${product.description ?? ""}`.toLowerCase()}
                   data-location={`${product.location ?? ""}`.toLowerCase()}
+                  data-user-id={product.user_id || ""}
+                  data-title={product.title || ""}
+                  data-price={product.price ?? 0}
+                  data-image={product.image_url || "/logo2.svg"}
+                  data-provider={product.seller_name || "Vendedor"}
+                  data-cart-id={product.id || ""}
                 >
                   <img
                     class="ab-provider-product-card__image"
@@ -174,6 +182,14 @@ const resolveCategoryName = (product) => {
                     ) : null}
                     <li>Entrega: <strong>{formatDelivery(product.delivery_methods)}</strong></li>
                   </ul>
+                  <button
+                    type="button"
+                    class="ab-provider-product-card__add"
+                    aria-label="Agregar al carrito"
+                    title="Agregar al carrito"
+                  >
+                    +
+                  </button>
                 </article>
               ))}
             </div>
@@ -183,6 +199,8 @@ const resolveCategoryName = (product) => {
     )}
   </section>
 </MainLayout>
+
+<script type="module" src={buyProductsUrl}></script>
 
 <script>
   const initProductSearch = () => {

@@ -1,31 +1,24 @@
 import { supabase } from "../lib/supabaseClient";
+import { getCart } from "../lib/cart";
+import { removeFromCart } from "../lib/cart";
 
-const CART_KEY = "ab_cart_v1";
+const ORDERS_KEY = "ab_orders_v1";
 const emptyState = document.getElementById("checkout-empty");
 const summary = document.getElementById("checkout-summary");
 const itemsWrap = document.getElementById("checkout-items");
 const totalLabel = document.getElementById("checkout-total");
 const form = document.getElementById("checkout-form");
 const feedback = document.getElementById("checkout-feedback");
-
-const loadCart = () => {
-  try {
-    const raw = window.localStorage.getItem(CART_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
+const successNotice = document.getElementById("checkout-success");
 
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");
 };
 
-const renderSummary = () => {
+const renderSummary = async () => {
   if (!itemsWrap || !emptyState || !summary || !form || !totalLabel) return;
-  const items = loadCart();
+  const items = await getCart();
   itemsWrap.innerHTML = "";
 
   if (items.length === 0) {
@@ -42,14 +35,15 @@ const renderSummary = () => {
 
   let total = 0;
   items.forEach((item) => {
-    const qty = item.qty ?? 1;
-    const price = Number(item.price ?? 0);
+    const qty = item.quantity ?? 1;
+    const price = Number(item.price_snapshot ?? 0);
     total += price * qty;
+    const title = item.product?.title ?? item.product_id ?? "Producto";
 
     const row = document.createElement("div");
     row.className = "ab-checkout-item";
     row.innerHTML = `
-      <span>${item.name} x ${qty}</span>
+      <span>${title} x ${qty}</span>
       <strong>$${formatPrice(price * qty)}</strong>
     `;
     itemsWrap.appendChild(row);
@@ -61,7 +55,7 @@ const renderSummary = () => {
 if (form && feedback) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const items = loadCart();
+    const items = await getCart();
     if (items.length === 0) {
       feedback.textContent = "No hay productos para procesar.";
       return;
@@ -73,44 +67,39 @@ if (form && feedback) {
       return;
     }
 
-    feedback.textContent = "Creando orden y redirigiendo a Mercado Pago...";
+    feedback.textContent = "Procesando compra...";
 
-    const payload = {
-      items,
-      shipping: {
-        fullName: document.getElementById("full-name")?.value ?? "",
-        address: document.getElementById("address")?.value ?? "",
-        city: document.getElementById("city")?.value ?? "",
-        phone: document.getElementById("phone")?.value ?? "",
-      },
+    const orderItems = items.map((item) => ({
+      name: item.product?.title ?? "Producto",
+      qty: item.quantity ?? 1,
+      unit_price: item.price_snapshot ?? 0,
+      provider: item.product?.seller_name ?? "N/A",
+    }));
+
+    const total = orderItems.reduce((sum, item) => sum + (item.unit_price ?? 0) * (item.qty ?? 1), 0);
+
+    const rawOrders = window.localStorage.getItem(ORDERS_KEY);
+    const parsed = rawOrders ? JSON.parse(rawOrders) : {};
+    const userId = data.session.user.id;
+    const userOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
+    const newOrder = {
+      id: `LOCAL-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      total_amount: total,
+      order_items: orderItems,
     };
+    parsed[userId] = [newOrder, ...userOrders];
+    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
 
-    try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.session.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        feedback.textContent = result?.error || "No se pudo crear la orden.";
-        return;
-      }
-
-      if (result?.init_point) {
-        window.location.href = result.init_point;
-        return;
-      }
-
-      feedback.textContent = "No se recibió link de pago.";
-    } catch (error) {
-      feedback.textContent = "Ocurrió un error al procesar el pago.";
-      console.error(error);
+    for (const item of items) {
+      await removeFromCart(item.product_id);
     }
+
+    if (form) form.classList.add("ab-is-hidden");
+    if (successNotice) successNotice.classList.remove("ab-is-hidden");
+    window.setTimeout(() => {
+      window.location.href = "/mis-compras";
+    }, 900);
   });
 }
 
@@ -125,12 +114,10 @@ const preloadUser = async () => {
   const fullName = `${metadata.first_name ?? ""} ${metadata.last_name ?? ""}`.trim();
   const fullNameInput = document.getElementById("full-name");
   const addressInput = document.getElementById("address");
-  const cityInput = document.getElementById("city");
   const phoneInput = document.getElementById("phone");
 
   if (fullName && fullNameInput) fullNameInput.value = fullName;
   if (metadata.address && addressInput) addressInput.value = metadata.address;
-  if (metadata.city && cityInput) cityInput.value = metadata.city;
   if (metadata.phone && phoneInput) phoneInput.value = metadata.phone;
 };
 
