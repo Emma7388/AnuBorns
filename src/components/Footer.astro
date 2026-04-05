@@ -1,11 +1,21 @@
 ---
-const { showBack = false } = Astro.props;
+const { showBack = false, backHref = "/" } = Astro.props;
 ---
 
 <footer class="footer">
   <div class="container">
     <div class="footer-content">
       <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
+      {showBack && (
+        <a
+          class="ab-cta-button footer-back"
+          href={backHref}
+          data-ab-back
+          {...(backHref === "/mis-datos" ? { "data-astro-reload": true } : {})}
+        >
+          Volver
+        </a>
+      )}
     </div>
   </div>
 </footer>
@@ -31,8 +41,13 @@ const { showBack = false } = Astro.props;
 .footer-content {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 16px;
+  width: 100%;
+}
+
+.footer-back {
+  white-space: nowrap;
 }
 
 @media (max-width: 1024px) {

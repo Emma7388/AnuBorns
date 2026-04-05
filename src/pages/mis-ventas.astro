@@ -1,38 +1,40 @@
 ---
 import MainLayout from "../layouts/MainLayout.astro";
+// @ts-ignore - handled by Vite at runtime
+import salesScriptUrl from "../scripts/mis-ventas.js?url";
 ---
 
 <MainLayout title="Mis ventas" backHref="/mis-datos">
   <section class="ab-dark-panel ab-orders-panel">
-    <p class="ab-eyebrow">Perfil profesional</p>
+    <p class="ab-eyebrow"></p>
     <h1>Mis ventas</h1>
-    <p class="ab-muted-text">
-      Historial de ventas realizadas con la venta activa primero.
-    </p>
+    <p class="ab-muted-text"></p>
 
-    <div id="sale-active"></div>
-
-    <div id="sales-empty" class="ab-cart-empty ab-is-hidden">
-      <p>Todavía no registraste ventas.</p>
-      <a class="ab-back-link" href="/vender/productos">Ir a vender</a>
+    <h2>Productos publicados</h2>
+    <div id="my-products-grid" class="ab-provider-products-grid"></div>
+    <div id="my-products-empty" class="ab-cart-empty ab-is-hidden">
+      <p>Todavía no publicaste productos.</p>
     </div>
 
-    <h2 id="sales-history-title">Ventas finalizadas</h2>
-    <div class="ab-actions">
-      <button id="sales-reset" type="button">Resetear datos (MVP)</button>
-    </div>
-
-    <div id="sales-list" class="ab-orders-list"></div>
+    <div id="sale-active" class="ab-is-hidden"></div>
+    <div id="sales-empty" class="ab-cart-empty ab-is-hidden"></div>
+    <h2 id="sales-history-title" class="ab-is-hidden"></h2>
+    <div class="ab-actions ab-is-hidden"></div>
+    <div id="sales-list" class="ab-orders-list ab-is-hidden"></div>
   </section>
 </MainLayout>
 
-<script>
+<script type="module" src={salesScriptUrl}></script>
+
+<script type="module">
   const SALES_KEY = "ab_sales_v1";
   const activeContainer = document.getElementById("sale-active");
   const list = document.getElementById("sales-list");
   const emptyState = document.getElementById("sales-empty");
   const historyTitle = document.getElementById("sales-history-title");
   const resetButton = document.getElementById("sales-reset");
+  const productsGrid = document.getElementById("my-products-grid");
+  const productsEmpty = document.getElementById("my-products-empty");
 
   const seedSales = {
     active: {
@@ -221,6 +223,7 @@ import MainLayout from "../layouts/MainLayout.astro";
   };
 
   renderSales();
+  // products grid handled in src/scripts/mis-ventas.js
 
   resetButton?.addEventListener("click", () => {
     persistSales(seedSales);

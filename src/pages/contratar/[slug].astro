@@ -53,13 +53,11 @@ const backHref = fromParam && fromParam.startsWith("/")
         <button class="ab-cta-button" type="button">Enviar solicitud (MVP)</button>
       </form>
 
-      <a class="ab-back-link" href={`/proveedor/${provider.slug}`}>Volver al perfil</a>
     </section>
   ) : (
     <section class="ab-dark-panel">
       <h1>Proveedor no encontrado</h1>
       <p>La contratación no puede iniciarse porque el proveedor no existe.</p>
-      <a class="ab-back-link" href="/comprar/productos">Ir a categorías</a>
     </section>
   )}
 </MainLayout>

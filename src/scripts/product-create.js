@@ -1,25 +1,44 @@
 import { supabase } from "../lib/supabaseClient";
 
-const form = document.getElementById("product-form");
-const feedback = document.getElementById("product-feedback");
-const submitButton = document.getElementById("product-submit");
-const titleInput = document.getElementById("title");
-const categorySelect = document.getElementById("category");
-const descriptionInput = document.getElementById("description");
-const priceInput = document.getElementById("price");
-const locationInput = document.getElementById("location");
-const contactInput = document.getElementById("contact");
-const imagesInput = document.getElementById("images");
-const previewsWrap = document.getElementById("image-previews");
+let form = document.getElementById("product-form");
+let feedback = document.getElementById("product-feedback");
+let submitButton = document.getElementById("product-submit");
+let titleInput = document.getElementById("title");
+let categorySelect = document.getElementById("category");
+let descriptionInput = document.getElementById("description");
+let priceInput = document.getElementById("price");
+let locationInput = document.getElementById("location");
+let deliveryInputs = Array.from(document.querySelectorAll('input[name="delivery"]'));
+let pickupAddressWrap = document.getElementById("pickup-address-wrap");
+let pickupAddressInput = document.getElementById("pickup-address");
+let imagesInput = document.getElementById("images");
+let previewsWrap = document.getElementById("image-previews");
 
 const MAX_FILES = 1;
 const MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_BUCKET = "product-images";
 const MAX_DIMENSION = 1600;
+let previewUrls = [];
 
 const setFeedback = (message) => {
   if (feedback) feedback.textContent = message;
+};
+
+const bindFormElements = () => {
+  form = document.getElementById("product-form");
+  feedback = document.getElementById("product-feedback");
+  submitButton = document.getElementById("product-submit");
+  titleInput = document.getElementById("title");
+  categorySelect = document.getElementById("category");
+  descriptionInput = document.getElementById("description");
+  priceInput = document.getElementById("price");
+  locationInput = document.getElementById("location");
+  deliveryInputs = Array.from(document.querySelectorAll('input[name="delivery"]'));
+  pickupAddressWrap = document.getElementById("pickup-address-wrap");
+  pickupAddressInput = document.getElementById("pickup-address");
+  imagesInput = document.getElementById("images");
+  previewsWrap = document.getElementById("image-previews");
 };
 
 const loadCategories = async () => {
@@ -56,10 +75,76 @@ const ensureSession = async () => {
   return null;
 };
 
+const resolveSellerName = (session) => {
+  const meta = session?.user?.user_metadata ?? {};
+  const firstName = String(meta.first_name ?? "").trim();
+  if (firstName) return firstName;
+  const email = String(session?.user?.email ?? "").trim();
+  if (!email) return null;
+  return email.split("@")[0] || email;
+};
+
 const parsePrice = (value) => {
   const parsed = Number(value ?? 0);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed;
+};
+
+const collectDeliveryMethods = () =>
+  deliveryInputs.filter((input) => input.checked).map((input) => input.value);
+
+const hasPickupSelected = () =>
+  deliveryInputs.some((input) => input.checked && input.value === "retiro");
+
+const updatePickupAddressVisibility = () => {
+  if (!pickupAddressWrap || !pickupAddressInput) return;
+  if (hasPickupSelected()) {
+    pickupAddressWrap.classList.remove("ab-is-hidden");
+    pickupAddressInput.required = true;
+  } else {
+    pickupAddressWrap.classList.add("ab-is-hidden");
+    pickupAddressInput.required = false;
+    pickupAddressInput.value = "";
+  }
+};
+
+const bindOnce = (element, key, eventName, handler) => {
+  if (!element) return;
+  const flag = `abBound${key}`;
+  if (element.dataset[flag]) return;
+  element.addEventListener(eventName, handler);
+  element.dataset[flag] = "true";
+};
+
+const onImagesChange = () => {
+  const files = collectImages();
+  const error = validateImages(files);
+  if (error) {
+    clearPreviews();
+    setFeedback(error);
+    return;
+  }
+  setFeedback("");
+  renderPreviews(files);
+};
+
+const onDeliveryChange = () => {
+  updatePickupAddressVisibility();
+};
+
+const onSubmit = (event) => {
+  event.preventDefault();
+  submitProduct();
+};
+
+const initProductForm = () => {
+  bindFormElements();
+  if (!form || !categorySelect) return;
+  loadCategories();
+  updatePickupAddressVisibility();
+  bindOnce(imagesInput, "ImagesChange", "change", onImagesChange);
+  deliveryInputs.forEach((input) => bindOnce(input, "DeliveryChange", "change", onDeliveryChange));
+  bindOnce(form, "Submit", "submit", onSubmit);
 };
 
 const collectImages = () => {
@@ -83,20 +168,22 @@ const validateImages = (files) => {
 };
 
 const clearPreviews = () => {
+  previewUrls.forEach((url) => URL.revokeObjectURL(url));
+  previewUrls = [];
   if (previewsWrap) previewsWrap.innerHTML = "";
 };
 
 const renderPreviews = (files) => {
   if (!previewsWrap) return;
-  previewsWrap.innerHTML = "";
+  clearPreviews();
   files.forEach((file) => {
     const url = URL.createObjectURL(file);
+    previewUrls.push(url);
     const item = document.createElement("div");
     item.className = "ab-upload-preview";
     const img = document.createElement("img");
     img.src = url;
     img.alt = file.name || "Imagen";
-    img.onload = () => URL.revokeObjectURL(url);
     item.appendChild(img);
     previewsWrap.appendChild(item);
   });
@@ -177,7 +264,8 @@ const submitProduct = async () => {
   const description = String(descriptionInput?.value ?? "").trim();
   const price = parsePrice(priceInput.value);
   const location = String(locationInput?.value ?? "").trim();
-  const contact = String(contactInput?.value ?? "").trim();
+  const deliveryMethods = collectDeliveryMethods();
+  const pickupAddress = String(pickupAddressInput?.value ?? "").trim();
   const images = collectImages();
   const imageError = validateImages(images);
 
@@ -189,8 +277,28 @@ const submitProduct = async () => {
     setFeedback("Seleccioná una categoría.");
     return;
   }
+  if (!description) {
+    setFeedback("La descripción es obligatoria.");
+    return;
+  }
   if (!price) {
     setFeedback("Ingresá un precio válido.");
+    return;
+  }
+  if (!location) {
+    setFeedback("Seleccioná una ubicación.");
+    return;
+  }
+  if (deliveryMethods.length === 0) {
+    setFeedback("Seleccioná al menos una opción de entrega.");
+    return;
+  }
+  if (hasPickupSelected() && !pickupAddress) {
+    setFeedback("Ingresá la dirección de retiro.");
+    return;
+  }
+  if (images.length === 0) {
+    setFeedback("Subí una imagen del producto.");
     return;
   }
   if (imageError) {
@@ -213,13 +321,20 @@ const submitProduct = async () => {
       description: description || null,
       price,
       currency: "ARS",
-      location: location || null,
-      contact: contact || null,
+      location,
+      delivery_methods: deliveryMethods,
+      pickup_address: pickupAddress || null,
+      seller_name: resolveSellerName(session),
       image_url: null,
     }).select("id").single();
 
     if (error) {
-      setFeedback("No se pudo publicar el producto.");
+      const message = String(error.message || "");
+      if (message.includes("column") || message.includes("schema")) {
+        setFeedback("No se pudo publicar. Ejecutá el SQL incremental en Supabase.");
+      } else {
+        setFeedback("No se pudo publicar el producto.");
+      }
       return;
     }
 
@@ -241,7 +356,13 @@ const submitProduct = async () => {
     }
 
     form.reset();
+    clearPreviews();
+    deliveryInputs.forEach((input) => {
+      input.checked = false;
+    });
+    updatePickupAddressVisibility();
     setFeedback("Producto publicado.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   } catch {
     setFeedback("No se pudo publicar el producto.");
   } finally {
@@ -249,21 +370,8 @@ const submitProduct = async () => {
   }
 };
 
-loadCategories();
+initProductForm();
 
-imagesInput?.addEventListener("change", () => {
-  const files = collectImages();
-  const error = validateImages(files);
-  if (error) {
-    clearPreviews();
-    setFeedback(error);
-    return;
-  }
-  setFeedback("");
-  renderPreviews(files);
-});
-
-form?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  submitProduct();
-});
+document.addEventListener("astro:page-load", initProductForm);
+document.addEventListener("astro:after-swap", initProductForm);
+window.addEventListener("pageshow", initProductForm);

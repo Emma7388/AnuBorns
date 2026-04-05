@@ -1,7 +1,36 @@
 ---
-import {categories} from "../data/categories"
+import { categories as localCategories } from "../data/categories";
 const { basePath, type, title, hrefBase } = Astro.props;
 import "../styles/global.css";
+
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+const fetchJson = async (url) => {
+  const response = await fetch(url, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return response.json();
+};
+
+let categories = localCategories;
+if (supabaseUrl && supabaseAnonKey) {
+  try {
+    const data = await fetchJson(
+      `${supabaseUrl}/rest/v1/categories?select=name,slug,icon&order=name.asc`
+    );
+    if (Array.isArray(data) && data.length > 0) {
+      categories = data;
+    }
+  } catch {
+    categories = localCategories;
+  }
+}
 ---
 
   <section class="category-page">

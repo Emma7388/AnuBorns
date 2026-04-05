@@ -1,15 +1,15 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 
-const guest = document.querySelector('[data-auth="guest"]');
-const user = document.querySelector('[data-auth="user"]');
-const avatarImg = document.getElementById("auth-avatar");
-const nameLabel = document.getElementById("auth-name");
-const logoutButton = document.getElementById("auth-logout");
-const logoutModal = document.getElementById("logout-modal");
-const modalCancel = document.querySelector("[data-modal-cancel]");
-const modalConfirm = document.querySelector("[data-modal-confirm]");
-const modalClose = document.querySelector("[data-modal-close]");
+let guest = document.querySelector('[data-auth="guest"]');
+let user = document.querySelector('[data-auth="user"]');
+let avatarImg = document.getElementById("auth-avatar");
+let nameLabel = document.getElementById("auth-name");
+let logoutButton = document.getElementById("auth-logout");
+let logoutModal = document.getElementById("logout-modal");
+let modalCancel = document.querySelector("[data-modal-cancel]");
+let modalConfirm = document.querySelector("[data-modal-confirm]");
+let modalClose = document.querySelector("[data-modal-close]");
 let isSigningOut = false;
 
 const openModal = () => {
@@ -63,6 +63,26 @@ const setView = (session) => {
   }
 };
 
+const bindElements = () => {
+  guest = document.querySelector('[data-auth="guest"]');
+  user = document.querySelector('[data-auth="user"]');
+  avatarImg = document.getElementById("auth-avatar");
+  nameLabel = document.getElementById("auth-name");
+  logoutButton = document.getElementById("auth-logout");
+  logoutModal = document.getElementById("logout-modal");
+  modalCancel = document.querySelector("[data-modal-cancel]");
+  modalConfirm = document.querySelector("[data-modal-confirm]");
+  modalClose = document.querySelector("[data-modal-close]");
+};
+
+const bindOnce = (element, key, eventName, handler) => {
+  if (!element) return;
+  const flag = `abBound${key}`;
+  if (element.dataset[flag]) return;
+  element.addEventListener(eventName, handler);
+  element.dataset[flag] = "true";
+};
+
 const resolveSession = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session) {
@@ -79,42 +99,46 @@ const resolveSession = async () => {
   setView(null);
 };
 
+const initHeaderAuth = () => {
+  bindElements();
+  if (!guest || !user) return;
+
+  bindOnce(logoutButton, "LogoutClick", "click", () => {
+    openModal();
+  });
+  bindOnce(modalCancel, "ModalCancel", "click", () => {
+    closeModal();
+  });
+  bindOnce(modalClose, "ModalClose", "click", () => {
+    closeModal();
+  });
+  bindOnce(modalConfirm, "ModalConfirm", "click", async () => {
+    if (isSigningOut) return;
+    isSigningOut = true;
+    if (modalConfirm instanceof HTMLButtonElement) {
+      modalConfirm.disabled = true;
+      modalConfirm.setAttribute("aria-busy", "true");
+    }
+    try {
+      await postAudit("logout");
+      await supabase.auth.signOut();
+      window.location.replace("/");
+    } catch {
+      closeModal();
+    } finally {
+      if (modalConfirm instanceof HTMLButtonElement) {
+        modalConfirm.disabled = false;
+        modalConfirm.removeAttribute("aria-busy");
+      }
+      isSigningOut = false;
+    }
+  });
+
+  resolveSession();
+};
+
 supabase.auth.onAuthStateChange((_event, session) => {
   setView(session);
-});
-
-logoutButton?.addEventListener("click", () => {
-  openModal();
-});
-
-modalCancel?.addEventListener("click", () => {
-  closeModal();
-});
-
-modalClose?.addEventListener("click", () => {
-  closeModal();
-});
-
-modalConfirm?.addEventListener("click", async () => {
-  if (isSigningOut) return;
-  isSigningOut = true;
-  if (modalConfirm instanceof HTMLButtonElement) {
-    modalConfirm.disabled = true;
-    modalConfirm.setAttribute("aria-busy", "true");
-  }
-  try {
-    await postAudit("logout");
-    await supabase.auth.signOut();
-    window.location.replace("/");
-  } catch {
-    closeModal();
-  } finally {
-    if (modalConfirm instanceof HTMLButtonElement) {
-      modalConfirm.disabled = false;
-      modalConfirm.removeAttribute("aria-busy");
-    }
-    isSigningOut = false;
-  }
 });
 
 document.addEventListener("keydown", (event) => {
@@ -123,4 +147,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-resolveSession();
+initHeaderAuth();
+document.addEventListener("astro:page-load", initHeaderAuth);
+document.addEventListener("astro:after-swap", initHeaderAuth);
+window.addEventListener("pageshow", initHeaderAuth);

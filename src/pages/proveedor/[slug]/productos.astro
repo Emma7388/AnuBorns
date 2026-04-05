@@ -19,6 +19,16 @@ const backHref = fromParam && fromParam.startsWith("/")
   : provider
     ? `/comprar/productos/${provider.category}`
     : "/comprar/productos";
+const formatDate = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+const shortId = (value) => {
+  const raw = String(value ?? "").replace(/-/g, "");
+  return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
+};
 ---
 
 <MainLayout title={provider ? `Productos de ${provider.name}` : "Productos del proveedor"} backHref={backHref}>
@@ -34,7 +44,7 @@ const backHref = fromParam && fromParam.startsWith("/")
         <div class="ab-provider-products-toolbar">
           <label class="ab-provider-products-toolbar__search">
             Buscar producto
-            <input id="search-query" type="search" placeholder="Nombre o SKU" />
+            <input id="search-query" type="search" placeholder="Nombre o ID" />
           </label>
           <label>
             Disponibilidad
@@ -85,7 +95,7 @@ const backHref = fromParam && fromParam.startsWith("/")
                 data-stock={hasStock ? "in" : "out"}
                 data-price={product.price}
                 data-name={product.name}
-                data-sku={product.sku ?? ""}
+                data-sku={shortId(product.id)}
                 data-unit={product.unit}
                 data-image={product.image ?? "/logo2.svg"}
                 data-provider={provider.name}
@@ -97,14 +107,26 @@ const backHref = fromParam && fromParam.startsWith("/")
                   alt={product.name}
                   loading="lazy"
                 />
-                <div class="ab-provider-product-card__header">
-                  <p class="ab-provider-product-card__sku">SKU: {product.sku ?? "N/A"}</p>
+                <div class="ab-provider-product-card__meta">
+                  <div>
+                    <p class="ab-provider-product-card__label">Vendedor</p>
+                    <p class="ab-provider-product-card__seller-name">{provider.name}</p>
+                  </div>
+                  <p class="ab-provider-product-card__price">
+                    ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
+                  </p>
                 </div>
+                <p class="ab-provider-product-card__code">ID {shortId(product.id)}</p>
                 <h2>{product.name}</h2>
                 <p class="ab-provider-product-card__description">{product.description}</p>
-                <p class="ab-provider-product-card__price">
-                  ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
-                </p>
+                <ul class="ab-provider-product-card__details">
+                  <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                  <li>Ubicación: <strong>{provider.location}</strong></li>
+                  {product.pickup_address ? (
+                    <li>Dirección: <strong>{product.pickup_address}</strong></li>
+                  ) : null}
+                  <li>Entrega: <strong>No especificada</strong></li>
+                </ul>
                 <div class="ab-provider-product-card__actions">
                   <button
                     type="button"
@@ -146,15 +168,11 @@ const backHref = fromParam && fromParam.startsWith("/")
         <p>Este proveedor todavía no publicó productos.</p>
       )}
 
-      <div class="ab-provider-profile__actions">
-        <a href={`/proveedor/${provider.slug}?from=${encodeURIComponent(backHref)}`} class="ab-back-link">Ver perfil</a>
-      </div>
     </section>
   ) : (
     <section class="ab-dark-panel">
       <h1>Proveedor no encontrado</h1>
       <p>No se puede mostrar el catálogo porque el proveedor no existe.</p>
-      <a href="/comprar/productos" class="ab-back-link">Ir a categorías</a>
     </section>
   )}
 </MainLayout>

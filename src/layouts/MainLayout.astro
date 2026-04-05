@@ -15,22 +15,10 @@ const showBack = pathname !== "/";
   <Header />
 
   <main>
-    {showBack && (
-      <div class="ab-desktop-back">
-        <a
-          class="ab-back-link"
-          href={backHref}
-          data-ab-back
-          {...(backHref === "/mis-datos" ? { "data-astro-reload": true } : {})}
-        >
-          Volver
-        </a>
-      </div>
-    )}
     <slot />
   </main>
 
-  <Footer showBack={showBack} />
+  <Footer showBack={showBack} backHref={backHref} />
 
   <script is:inline>
     const backLinks = document.querySelectorAll("[data-ab-back]");

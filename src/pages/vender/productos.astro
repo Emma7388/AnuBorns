@@ -8,36 +8,78 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Publicación de producto</p>
     <h1>Creá tu publicación</h1>
-    <p class="ab-muted-text">
-      El precio publicado incluye la comisión del 15%. Los productos se retiran en tu local.
-    </p>
+    <p class="ab-muted-text"></p>
 
     <form class="ab-form" id="product-form">
-      <label for="title">Título</label>
-      <input id="title" name="title" type="text" placeholder="Ej: Martillo de acero 16oz" />
+      <label for="title" class="ab-required-label">Título</label>
+      <input
+        id="title"
+        name="title"
+        type="text"
+        placeholder="Ej: Martillo de acero 16oz"
+        required
+        class="ab-highlight-field"
+      />
 
       <label for="category">Categoría</label>
       <select id="category" name="category"></select>
 
       <label for="description">Descripción</label>
-      <textarea id="description" name="description" rows="4" placeholder="Detalles del producto."></textarea>
+      <textarea
+        id="description"
+        name="description"
+        rows="4"
+        placeholder="Detalles del producto."
+        required
+      ></textarea>
 
       <label for="price">Precio (ARS)</label>
-      <input id="price" name="price" type="number" placeholder="Ej: 18000" />
+      <input id="price" name="price" type="number" placeholder="Ej: 18000" required />
 
       <label for="images">Imágenes</label>
       <label class="ab-upload-button" for="images">Subir imagen</label>
-      <input id="images" name="images" type="file" accept="image/*" class="ab-upload-input" />
+      <input
+        id="images"
+        name="images"
+        type="file"
+        accept="image/*"
+        class="ab-upload-input"
+        required
+      />
       <span class="ab-muted-text ab-upload-help">
         Podés subir 1 foto (máximo 5MB).
       </span>
       <div class="ab-upload-previews" id="image-previews" aria-live="polite"></div>
 
       <label for="location">Ubicación</label>
-      <input id="location" name="location" type="text" placeholder="Ej: Flores, CABA" />
+      <select id="location" name="location" required>
+        <option value="">Elegí una ubicación</option>
+        <option value="CAMPANA">CAMPANA</option>
+        <option value="ZARATE">ZARATE</option>
+        <option value="LIMA">LIMA</option>
+      </select>
 
-      <label for="contact">Contacto</label>
-      <input id="contact" name="contact" type="text" placeholder="Teléfono o WhatsApp" />
+      <label>Entrega</label>
+      <div class="ab-option-group" role="group" aria-label="Opciones de entrega">
+        <label class="ab-option">
+          <input type="checkbox" name="delivery" value="retiro" />
+          Retiro en local
+        </label>
+        <label class="ab-option">
+          <input type="checkbox" name="delivery" value="envio" />
+          Envío
+        </label>
+      </div>
+      <span class="ab-muted-text">Podés elegir una o ambas.</span>
+      <div id="pickup-address-wrap" class="ab-is-hidden">
+        <label for="pickup-address">Dirección de retiro</label>
+        <input
+          id="pickup-address"
+          name="pickupAddress"
+          type="text"
+          placeholder="Ej: Av. San Martín 123, Local 4"
+        />
+      </div>
 
       <button type="submit" class="ab-cta-button" id="product-submit">
         Enviar publicación

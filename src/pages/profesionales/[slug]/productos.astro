@@ -19,6 +19,16 @@ const backHref = fromParam && fromParam.startsWith("/")
   : provider
     ? `/profesionales/categoria/${provider.category}`
     : "/profesionales";
+const formatDate = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+const shortId = (value) => {
+  const raw = String(value ?? "").replace(/-/g, "");
+  return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
+};
 ---
 
 <MainLayout title={provider ? `Productos de ${provider.name}` : "Productos del profesional"} backHref={backHref}>
@@ -40,14 +50,26 @@ const backHref = fromParam && fromParam.startsWith("/")
                 alt={product.name}
                 loading="lazy"
               />
-              <div class="ab-provider-product-card__header">
-                <p class="ab-provider-product-card__sku">SKU: {product.sku ?? "N/A"}</p>
+              <div class="ab-provider-product-card__meta">
+                <div>
+                  <p class="ab-provider-product-card__label">Vendedor</p>
+                  <p class="ab-provider-product-card__seller-name">{provider.name}</p>
+                </div>
+                <p class="ab-provider-product-card__price">
+                  ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
+                </p>
               </div>
+              <p class="ab-provider-product-card__code">ID {shortId(product.id)}</p>
               <h2>{product.name}</h2>
               <p class="ab-provider-product-card__description">{product.description}</p>
-              <p class="ab-provider-product-card__price">
-                ${product.price.toLocaleString("es-AR")} <span>/ {product.unit}</span>
-              </p>
+              <ul class="ab-provider-product-card__details">
+                <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                <li>Ubicación: <strong>{provider.location}</strong></li>
+                {product.pickup_address ? (
+                  <li>Dirección: <strong>{product.pickup_address}</strong></li>
+                ) : null}
+                <li>Entrega: <strong>No especificada</strong></li>
+              </ul>
               <div class="ab-provider-product-card__actions">
                 <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
                   Consultar
@@ -63,15 +85,11 @@ const backHref = fromParam && fromParam.startsWith("/")
         <p>Este profesional todavía no publicó productos.</p>
       )}
 
-      <div class="ab-provider-profile__actions">
-        <a href={`/profesionales/${provider.slug}?from=${encodeURIComponent(backHref)}`} class="ab-back-link">Ver perfil</a>
-      </div>
     </section>
   ) : (
     <section class="ab-dark-panel">
       <h1>Profesional no encontrado</h1>
       <p>No se puede mostrar el catálogo porque el profesional no existe.</p>
-      <a href="/profesionales" class="ab-back-link">Ir a profesionales</a>
     </section>
   )}
 </MainLayout>

@@ -54,20 +54,29 @@ create table if not exists public.products (
   category_id uuid not null references public.categories (id) on delete restrict,
   title text not null,
   description text,
-  price numeric(12,2) not null default 0,
+  price numeric(14,2) not null default 0,
   currency text not null default 'ARS',
   location text,
+  delivery_methods text[],
+  pickup_address text,
   contact text,
   image_url text,
   image_urls jsonb,
+  seller_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 alter table public.products
   add column if not exists location text,
+  add column if not exists delivery_methods text[],
+  add column if not exists pickup_address text,
   add column if not exists contact text,
-  add column if not exists image_urls jsonb;
+  add column if not exists image_urls jsonb,
+  add column if not exists seller_name text;
+
+alter table public.products
+  alter column price type numeric(14,2);
 
 create index if not exists products_user_id_idx on public.products (user_id);
 create index if not exists products_category_id_idx on public.products (category_id);

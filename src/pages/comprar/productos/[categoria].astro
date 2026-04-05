@@ -1,55 +1,311 @@
 ---
+export const prerender = false;
+
 import MainLayout from "../../../layouts/MainLayout.astro";
-import { categories } from "../../../data/categories";
-import { providers } from "../../../data/providers";
-import ProviderCard from "../../../components/ProviderCard.astro";
-import "../../../styles/global.css"
+import "../../../styles/global.css";
 
-
-
-export async function getStaticPaths() {
-  return categories.map((cat) => ({
-    params: { categoria: cat.slug }
-  }));
-}
+Astro.response.headers.set("Cache-Control", "no-store");
+Astro.response.headers.set("Pragma", "no-cache");
 
 const { categoria } = Astro.params;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
-const currentCategory = categories.find(
-  (cat) => cat.slug === categoria
-);
-
-const categoryProviders = providers
-  .filter((provider) => provider.category === categoria)
-  .sort((a, b) => {
-    const avgDelta = (a.average ?? 0) - (b.average ?? 0);
-    if (avgDelta !== 0) return avgDelta;
-    return (b.reviews ?? 0) - (a.reviews ?? 0);
+const fetchJson = async (url) => {
+  const response = await fetch(url, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      "Cache-Control": "no-store",
+    },
+    cache: "no-store",
   });
+  if (!response.ok) return null;
+  return response.json();
+};
+
+const safeCategoria = encodeURIComponent(categoria ?? "");
+const categoryRow = supabaseUrl && supabaseAnonKey
+  ? await fetchJson(
+      `${supabaseUrl}/rest/v1/categories?select=name,slug&slug=eq.${safeCategoria}&limit=1`
+    )
+  : null;
+
+const currentCategoryName = Array.isArray(categoryRow) && categoryRow[0]?.name
+  ? categoryRow[0].name
+  : categoria;
+
+const products = supabaseUrl && supabaseAnonKey
+  ? await fetchJson(
+      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,created_at,seller_name,user_id,categories!inner(slug,name)&categories.slug=eq.${safeCategoria}&order=created_at.desc`
+    )
+  : [];
+
+const safeProducts = Array.isArray(products) ? products : [];
+const groupBySeller = safeProducts.reduce((acc, product) => {
+  const key = product.seller_name || product.user_id || "Vendedor";
+  if (!acc[key]) acc[key] = [];
+  acc[key].push(product);
+  return acc;
+}, {});
+const sellerEntries = Object.entries(groupBySeller);
+const formatPrice = (value) => {
+  const safe = Number(value ?? 0);
+  return safe.toLocaleString("es-AR");
+};
+const formatDate = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+const formatDelivery = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return "No especificada";
+  const labels = value.map((item) => {
+    if (item === "retiro") return "Retiro";
+    if (item === "envio") return "Envío";
+    return item;
+  });
+  return labels.join(" + ");
+};
+const shortId = (value) => {
+  const raw = String(value ?? "").replace(/-/g, "");
+  return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
+};
+const resolveCategoryName = (product) => {
+  if (Array.isArray(product?.categories) && product.categories[0]?.name) {
+    return product.categories[0].name;
+  }
+  return product?.categories?.name || currentCategoryName || "Sin categoría";
+};
 ---
 
-<MainLayout title={`Comprar ${currentCategory?.name || categoria}`}>
+<MainLayout title={`Comprar ${currentCategoryName || categoria}`}>
   <section class="ab-dark-panel ab-list-panel">
-    <p class="ab-eyebrow">Proveedores por categoría</p>
-    <h1>Proveedores de {currentCategory?.name || categoria}</h1>
+    <div class="ab-search-inline">
+      <label class="ab-provider-products-toolbar__search">
+        Buscar producto
+        <input id="product-search" type="search" placeholder="Nombre o ID" />
+      </label>
+      <div class="ab-location-filter">
+        <button
+          type="button"
+          class="ab-location-filter__toggle"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-label="Filtrar por ubicación"
+          title="Filtrar por ubicación"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="ab-location-filter__label">Todas</span>
+        </button>
+        <div class="ab-location-filter__menu" role="listbox">
+          <button type="button" class="ab-location-filter__option is-active" data-location="">
+            Todas
+          </button>
+          <button type="button" class="ab-location-filter__option" data-location="campana">
+            Campana
+          </button>
+          <button type="button" class="ab-location-filter__option" data-location="zarate">
+            Zarate
+          </button>
+          <button type="button" class="ab-location-filter__option" data-location="lima">
+            Lima
+          </button>
+        </div>
+      </div>
+    </div>
+    <h1>Productos de {currentCategoryName || categoria}</h1>
     <p class="ab-muted-text">
-      Mostrando {categoryProviders.length} proveedores disponibles.
+      Mostrando {safeProducts.length} productos disponibles.
     </p>
 
-    <div class="ab-card-grid">
-      {categoryProviders.map((provider, index) => (
-        <ProviderCard
-          name={provider.name}
-          ranking={index + 1}
-          average={provider.average}
-          location={provider.location}
-          avatar={provider.avatar}
-          dailySold={provider.dailySold}
-          sponsor={provider.sponsor}
-          category={provider.category}
-          slug={provider.slug}
-        />
-      ))}
-    </div>
+    {safeProducts.length === 0 ? (
+      <div class="ab-cart-empty">
+        <p>No hay productos publicados todavía.</p>
+      </div>
+    ) : (
+      <div class="ab-seller-rows">
+        {sellerEntries.map(([sellerName, items]) => (
+          <article class="ab-order-card">
+            <div class="ab-order-card__header">
+              <div>
+                <p class="ab-order-card__label">Vendedor</p>
+                <p class="ab-order-card__date ab-order-card__seller-name">{sellerName}</p>
+              </div>
+            </div>
+            <div class="ab-card-row" role="list">
+              {items.map((product) => (
+                <article
+                  class="ab-provider-product-card"
+                  role="listitem"
+                  data-search={`${product.title ?? ""} ${shortId(product.id)} ${product.description ?? ""}`.toLowerCase()}
+                  data-location={`${product.location ?? ""}`.toLowerCase()}
+                >
+                  <img
+                    class="ab-provider-product-card__image"
+                    src={product.image_url || "/logo2.svg"}
+                    alt={product.title}
+                    loading="lazy"
+                  />
+                  <div class="ab-provider-product-card__meta">
+                    <div>
+                      <p class="ab-provider-product-card__label">Producto</p>
+                      <p class="ab-provider-product-card__code">ID {shortId(product.id)}</p>
+                    </div>
+                    <p class="ab-provider-product-card__price">
+                      ${formatPrice(product.price)} <span>{product.currency || "ARS"}</span>
+                    </p>
+                  </div>
+                  <h2>{product.title}</h2>
+                  <p class="ab-provider-product-card__description">
+                    {product.description || "Sin descripción"}
+                  </p>
+                  <ul class="ab-provider-product-card__details">
+                    <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                    <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
+                    {product.pickup_address ? (
+                      <li>Dirección: <strong>{product.pickup_address}</strong></li>
+                    ) : null}
+                    <li>Entrega: <strong>{formatDelivery(product.delivery_methods)}</strong></li>
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    )}
   </section>
 </MainLayout>
+
+<script>
+  const initProductSearch = () => {
+    const input = document.getElementById("product-search");
+    if (!input) return;
+    const rows = Array.from(document.querySelectorAll(".ab-card-row"));
+    if (rows.length === 0) return;
+    let activeLocation = "";
+
+    rows.forEach((row) => {
+      const cards = Array.from(row.querySelectorAll(".ab-provider-product-card"));
+      cards.forEach((card, index) => {
+        if (!card.dataset.order) {
+          card.dataset.order = String(index);
+        }
+      });
+    });
+
+    const resizeInput = () => {
+      const base = 140;
+      const max = 420;
+      const content = input.value || input.placeholder || "";
+      const next = Math.min(max, Math.max(base, 14 + content.length * 8));
+      input.style.width = `${next}px`;
+    };
+
+    const applySearch = () => {
+      const query = input.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        const cards = Array.from(row.querySelectorAll(".ab-provider-product-card"));
+        cards.forEach((card) => {
+          const cardLocation = (card.dataset.location || "").trim();
+          const locationMatch = !activeLocation || cardLocation === activeLocation;
+          card.style.display = locationMatch ? "" : "none";
+        });
+        const visibleCards = cards.filter((card) => card.style.display !== "none");
+        const ordered = visibleCards.slice().sort((a, b) => {
+          if (!query) {
+            return Number(a.dataset.order || 0) - Number(b.dataset.order || 0);
+          }
+          const aMatch = (a.dataset.search || "").includes(query);
+          const bMatch = (b.dataset.search || "").includes(query);
+          if (aMatch === bMatch) {
+            return Number(a.dataset.order || 0) - Number(b.dataset.order || 0);
+          }
+          return aMatch ? -1 : 1;
+        });
+        const currentOrder = visibleCards.map((card) => card.dataset.order).join("|");
+        const nextOrder = ordered.map((card) => card.dataset.order).join("|");
+        if (currentOrder !== nextOrder) {
+          const fragment = document.createDocumentFragment();
+          ordered.forEach((card) => fragment.appendChild(card));
+          row.classList.add("is-updating");
+          row.appendChild(fragment);
+          window.requestAnimationFrame(() => {
+            window.setTimeout(() => row.classList.remove("is-updating"), 140);
+          });
+        }
+        row.scrollTo({ left: 0, behavior: "smooth" });
+        row.closest(".ab-order-card").style.display = ordered.length ? "" : "none";
+        visibleCards.forEach((card) => {
+          const match = query.length > 0 && (card.dataset.search || "").includes(query);
+          card.classList.toggle("is-match", match);
+        });
+      });
+    };
+
+    const bindLocationMenu = () => {
+      const toggle = document.querySelector(".ab-location-filter__toggle");
+      const label = document.querySelector(".ab-location-filter__label");
+      const menu = document.querySelector(".ab-location-filter__menu");
+      const options = Array.from(document.querySelectorAll(".ab-location-filter__option"));
+      if (!toggle || !menu) return;
+
+      const closeMenu = () => {
+        menu.classList.remove("is-open");
+        toggle.setAttribute("aria-expanded", "false");
+      };
+
+      toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const isOpen = menu.classList.contains("is-open");
+        if (isOpen) {
+          closeMenu();
+          return;
+        }
+        menu.classList.add("is-open");
+        toggle.setAttribute("aria-expanded", "true");
+      });
+
+      options.forEach((option) => {
+        option.addEventListener("click", (event) => {
+          event.stopPropagation();
+          activeLocation = String(option.dataset.location || "");
+          options.forEach((item) => item.classList.remove("is-active"));
+          options
+            .filter((item) => item.dataset.location === activeLocation)
+            .forEach((item) => item.classList.add("is-active"));
+          const pretty = activeLocation
+            ? activeLocation.charAt(0).toUpperCase() + activeLocation.slice(1)
+            : "Todas";
+          toggle.title = activeLocation
+            ? `Ubicación: ${pretty}`
+            : "Filtrar por ubicación";
+          if (label) label.textContent = pretty;
+          closeMenu();
+          applySearch();
+        });
+      });
+
+      document.addEventListener("click", closeMenu);
+    };
+
+    input.addEventListener("input", () => {
+      resizeInput();
+      applySearch();
+    });
+    bindLocationMenu();
+    resizeInput();
+    applySearch();
+  };
+
+  document.addEventListener("astro:page-load", initProductSearch);
+  document.addEventListener("astro:after-swap", initProductSearch);
+  window.addEventListener("pageshow", initProductSearch);
+</script>

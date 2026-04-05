@@ -52,14 +52,12 @@ const backHref = fromParam && fromParam.startsWith("/")
 
       <div class="ab-provider-profile__actions">
         <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/proveedor/${provider.slug}`)}`} class="ab-cta-button">Iniciar contratación</a>
-        <a href={`/comprar/productos/${provider.category}`} class="ab-back-link">Volver a la categoría</a>
       </div>
     </section>
   ) : (
     <section class="ab-dark-panel">
       <h1>Proveedor no encontrado</h1>
       <p>Verificá el enlace o volvé al listado de categorías.</p>
-      <a href="/comprar/productos" class="ab-back-link">Ir a categorías</a>
     </section>
   )}
 </MainLayout>

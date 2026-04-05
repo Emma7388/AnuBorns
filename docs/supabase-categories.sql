@@ -61,9 +61,11 @@ create table if not exists public.products (
   price numeric(12,2) not null default 0,
   currency text not null default 'ARS',
   location text,
+  delivery_methods text[],
   contact text,
   image_url text,
   image_urls jsonb,
+  seller_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
