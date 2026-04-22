@@ -1,14 +1,17 @@
 ---
+// Página: catálogo del proveedor con filtros.
 import MainLayout from "../../../layouts/MainLayout.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
 
+// Rutas estáticas por proveedor.
 export async function getStaticPaths() {
   return providers.map((provider) => ({
     params: { slug: provider.slug }
   }));
 }
 
+// Datos y helpers de render.
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
@@ -33,6 +36,7 @@ const shortId = (value) => {
 
 <MainLayout title={provider ? `Productos de ${provider.name}` : "Productos del proveedor"} backHref={backHref}>
   {provider ? (
+    <!-- Panel de catálogo -->
     <section class="ab-dark-panel ab-provider-products-panel">
       <p class="ab-eyebrow">Catálogo del proveedor</p>
       <h1>{provider.name}</h1>
@@ -40,6 +44,7 @@ const shortId = (value) => {
         Categoría: <strong>{categoryName ?? provider.category}</strong> · {provider.location}
       </p>
 
+      <!-- Toolbar y grilla -->
       {products.length > 0 ? (
         <div class="ab-provider-products-toolbar">
           <label class="ab-provider-products-toolbar__search">

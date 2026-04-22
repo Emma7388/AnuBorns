@@ -1,20 +1,26 @@
 ---
+// Componente: header con auth, carrito y modal de logout.
 import headerAuthUrl from "../scripts/header-auth.js?url";
 ---
 
 <header class="header" transition:persist>
   <div class="container header-inner">
+    <!-- Marca / logo -->
     <a href="/" class="logo">Desoluciones</a>
 
+    <!-- Navegación superior -->
     <nav class="nav">
+      <!-- Acceso rápido al carrito -->
       <a class="nav-cart" href="/carrito" aria-label="Ir al carrito">
         Carrito <span id="cart-count">0</span>
       </a>
       <span id="cart-sync" class="nav-cart-sync ab-is-hidden">Sincronizando</span>
+      <!-- Estado: usuario invitado -->
       <div class="nav-auth nav-auth--guest ab-is-hidden" data-auth="guest">
         <a class="nav-login" href="/login">Iniciar sesión</a>
         <a class="nav-login nav-login--ghost" href="/registro">Registrarse</a>
       </div>
+      <!-- Estado: usuario autenticado -->
       <div class="nav-auth nav-auth--user ab-is-hidden" data-auth="user">
         <span class="nav-user nav-user--plain" id="auth-name"></span>
         <a
@@ -32,6 +38,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
   </div>
 </header>
 
+<!-- Modal de confirmación para cerrar sesión -->
 <div class="ab-modal ab-is-hidden" id="logout-modal" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="ab-modal__backdrop" data-modal-close></div>
   <div class="ab-modal__panel" role="document" aria-labelledby="logout-title">
@@ -49,6 +56,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 </div>
 
 <style>
+/* Layout general del header */
 .header {
   background: var(--color-surface);
   color: var(--color-text);
@@ -151,6 +159,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
   background: transparent;
 }
 
+/* Modal: estilos y animaciones */
 .ab-modal {
   position: fixed;
   inset: 0;
@@ -233,6 +242,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
   }
 }
 
+/* Avatar de usuario */
 .nav-avatar {
   width: 36px;
   height: 36px;
@@ -282,6 +292,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
   display: none;
 }
 
+/* Responsive: ajustes de layout */
 @media (max-width: 380px) {
   .nav {
     display: flex;

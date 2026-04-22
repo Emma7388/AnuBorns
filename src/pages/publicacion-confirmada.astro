@@ -1,16 +1,20 @@
 ---
+// Página: confirmación de publicación.
 import MainLayout from "../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Publicación confirmada">
+  <!-- Panel principal -->
   <section class="ab-dark-panel ab-confirmation-panel">
     <div class="ab-confirmation-card">
+      <!-- Ícono de confirmación -->
       <div class="ab-checkmark">
         <svg viewBox="0 0 52 52" aria-hidden="true">
           <circle class="ab-checkmark__circle" cx="26" cy="26" r="24" fill="none" />
           <path class="ab-checkmark__check" fill="none" d="M14 27l7 7 16-16" />
         </svg>
       </div>
+      <!-- Texto de confirmación -->
       <h1>Publicación enviada</h1>
       <p class="ab-muted-text">
         Tu trabajo se publicó correctamente en el MVP.
@@ -20,6 +24,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 </MainLayout>
 
 <script>
+  // Redirección automática a home.
   window.setTimeout(() => {
     window.location.href = "/";
   }, 4400);

@@ -1,14 +1,17 @@
 ---
+// Página: login de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
 import loginScriptUrl from "../scripts/login.js?url";
 ---
 
 <MainLayout title="Iniciar sesión">
+  <!-- Panel de acceso -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Acceso</p>
     <h1>Ingresá a tu cuenta</h1>
     <p class="ab-muted-text">Accedé con tu email y contraseña.</p>
 
+    <!-- Formulario de login -->
     <form class="ab-form" id="login-form" method="post">
       <label for="email">Email</label>
       <input
@@ -38,4 +41,5 @@ import loginScriptUrl from "../scripts/login.js?url";
   </section>
 </MainLayout>
 
+<!-- Script de login -->
 <script type="module" src={loginScriptUrl}></script>

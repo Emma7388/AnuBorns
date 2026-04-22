@@ -1,4 +1,5 @@
 ---
+// Layout base: HTML, metas, transiciones y utilidades globales.
 import { ViewTransitions } from "astro:transitions";
 
 const { title = "DeSoluciones.com" } = Astro.props;
@@ -9,6 +10,7 @@ const { title = "DeSoluciones.com" } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Marca transiciones al volver del perfil -->
     <script>
       try {
         if (sessionStorage.getItem("ab_profile_enter") === "1") {
@@ -23,9 +25,11 @@ const { title = "DeSoluciones.com" } = Astro.props;
   </head>
   <body>
     <slot />
+    <!-- Script global: transiciones y prefetch interno -->
     <script>
       const PROFILE_ENTER_KEY = "ab_profile_enter";
 
+      /* Detecta clicks que van al perfil para animación de entrada. */
       const markProfileEnter = (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
@@ -41,6 +45,7 @@ const { title = "DeSoluciones.com" } = Astro.props;
 
       document.addEventListener("click", markProfileEnter);
 
+      /* Limpia la clase luego de la animación. */
       try {
         if (sessionStorage.getItem(PROFILE_ENTER_KEY) === "1") {
           sessionStorage.removeItem(PROFILE_ENTER_KEY);
@@ -52,6 +57,7 @@ const { title = "DeSoluciones.com" } = Astro.props;
         // ignore
       }
 
+      /* Determina si un link es interno (para prefetch). */
       const isInternalLink = (link) => {
         const href = link.getAttribute("href");
         if (!href) return false;
@@ -62,6 +68,7 @@ const { title = "DeSoluciones.com" } = Astro.props;
         return true;
       };
 
+      /* Habilita prefetch en hover para navegación interna. */
       document.querySelectorAll("a[href]").forEach((link) => {
         if (isInternalLink(link)) {
           link.setAttribute("data-astro-prefetch", "hover");

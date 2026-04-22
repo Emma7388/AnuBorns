@@ -1,14 +1,17 @@
 ---
+// Página: catálogo de productos del profesional.
 import MainLayout from "../../../layouts/MainLayout.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
 
+// Rutas estáticas por profesional.
 export async function getStaticPaths() {
   return providers.map((provider) => ({
     params: { slug: provider.slug }
   }));
 }
 
+// Datos y helpers de render.
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
@@ -33,6 +36,7 @@ const shortId = (value) => {
 
 <MainLayout title={provider ? `Productos de ${provider.name}` : "Productos del profesional"} backHref={backHref}>
   {provider ? (
+    <!-- Panel de catálogo -->
     <section class="ab-dark-panel ab-provider-products-panel">
       <p class="ab-eyebrow">Catálogo del profesional</p>
       <h1>{provider.name}</h1>
@@ -40,6 +44,7 @@ const shortId = (value) => {
         Categoría: <strong>{categoryName ?? provider.category}</strong> · {provider.location}
       </p>
 
+      <!-- Grilla o estado vacío -->
       {products.length > 0 ? (
         <div class="ab-provider-products-grid">
           {products.map((product) => (
@@ -87,6 +92,7 @@ const shortId = (value) => {
 
     </section>
   ) : (
+    <!-- Fallback si no existe -->
     <section class="ab-dark-panel">
       <h1>Profesional no encontrado</h1>
       <p>No se puede mostrar el catálogo porque el profesional no existe.</p>

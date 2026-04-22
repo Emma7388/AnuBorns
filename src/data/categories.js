@@ -1,3 +1,4 @@
+/* Catálogo de categorías visibles en el home y filtros. */
 export const categories = [
   { name: "Plomería", slug: "plomeria", icon: "/icons/plomeria.svg" },
   { name: "Electricidad", slug: "electricidad", icon: "/icons/electricidad.svg" },

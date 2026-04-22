@@ -1,9 +1,11 @@
 ---
+// Página: activación de perfil profesional (MVP).
 import MainLayout from "../../layouts/MainLayout.astro";
 import { categories } from "../../data/categories";
 ---
 
 <MainLayout title="Activar perfil profesional" backHref="/mis-datos">
+  <!-- Panel principal -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Cuenta básica</p>
     <h1>Transformate en profesional</h1>
@@ -11,6 +13,7 @@ import { categories } from "../../data/categories";
       Esta pantalla simula el paso de activación del perfil profesional.
     </p>
 
+    <!-- Formulario de activación -->
     <form class="ab-form">
       <label for="category">Categoría</label>
       <select id="category" name="category">
@@ -49,6 +52,7 @@ import { categories } from "../../data/categories";
 </MainLayout>
 
 <script>
+  // Validación simple del límite de fotos.
   const photosInput = document.getElementById("portfolio-photos");
   const photosHelp = document.getElementById("portfolio-photos-help");
 

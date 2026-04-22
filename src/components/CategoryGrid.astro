@@ -1,11 +1,15 @@
 ---
+// Componente: grilla de categorías con fallback local.
 import { categories as localCategories } from "../data/categories";
+// Props para construir rutas y título.
 const { basePath, type, title, hrefBase } = Astro.props;
 import "../styles/global.css";
 
+// Config de Supabase para intentar leer categorías remotas.
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
+// Helper para fetch con headers requeridos.
 const fetchJson = async (url) => {
   const response = await fetch(url, {
     headers: {
@@ -18,6 +22,7 @@ const fetchJson = async (url) => {
   return response.json();
 };
 
+// Default: dataset local; si hay Supabase, intenta actualizar.
 let categories = localCategories;
 if (supabaseUrl && supabaseAnonKey) {
   try {
@@ -33,19 +38,24 @@ if (supabaseUrl && supabaseAnonKey) {
 }
 ---
 
-  <section class="category-page">
+<!-- Sección principal de categorías -->
+<section class="category-page">
+  <!-- Título configurable por props -->
   <h1>{title ?? type?.toUpperCase()}</h1>
+  <!-- Grilla de tarjetas -->
   <div class="grid">
     {categories.map((cat) => (
-      <a 
-      href={hrefBase ? `/${hrefBase}/${cat.slug}` : `/${basePath}/${type}/${cat.slug}`} 
-      class="category-card"
+      <a
+        href={hrefBase ? `/${hrefBase}/${cat.slug}` : `/${basePath}/${type}/${cat.slug}`}
+        class="category-card"
       >
-      <span class="category-card__icon">
-        <img src={cat.icon} alt="" loading="lazy" />
-      </span>
-      <span class="category-card__label">{cat.name}</span>
-  </a>
+        <!-- Icono -->
+        <span class="category-card__icon">
+          <img src={cat.icon} alt="" loading="lazy" />
+        </span>
+        <!-- Nombre -->
+        <span class="category-card__label">{cat.name}</span>
+      </a>
 ))}
   </div>
 </section>

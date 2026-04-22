@@ -1,30 +1,37 @@
 ---
+// Página: perfil del usuario.
 import MainLayout from "../layouts/MainLayout.astro";
 import profileScriptUrl from "../scripts/profile.js?url";
 ---
 
 <MainLayout title="Mis datos">
+  <!-- Panel de perfil -->
   <section class="ab-dark-panel ab-profile-data">
     <p class="ab-eyebrow">Perfil</p>
+    <!-- Avatar -->
     <div class="ab-profile-avatar">
       <img id="profile-avatar" alt="Avatar" />
     </div>
+    <!-- Estado de carga -->
     <p class="ab-muted-text" id="profile-status">
       Cargando información del usuario...
     </p>
 
+    <!-- Form de avatar -->
     <form class="ab-form" id="avatar-form">
       <label for="avatar-upload">Actualizar avatar</label>
       <input id="avatar-upload" name="avatar-upload" type="file" accept="image/*" />
       <p class="ab-muted-text" id="avatar-feedback" aria-live="polite"></p>
     </form>
 
+    <!-- CTA de edición -->
     <div class="ab-actions">
       <button type="button" class="ab-cta-button" id="profile-edit-toggle">
         Editar perfil
       </button>
     </div>
 
+    <!-- Form de datos del perfil -->
     <form class="ab-form" id="profile-form">
       <label for="profile-email">Email</label>
       <input id="profile-email" name="profile-email" type="email" readonly />
@@ -57,8 +64,10 @@ import profileScriptUrl from "../scripts/profile.js?url";
       <p class="ab-muted-text" id="profile-feedback" aria-live="polite"></p>
     </form>
 
+    <!-- Resumen en tarjeta -->
     <div class="ab-profile-data__card" id="profile-card"></div>
 
+    <!-- Accesos a secciones relacionadas -->
     <div class="ab-actions">
       <a class="ab-cta-button" href="/mis-compras">Ver mis compras</a>
       <a class="ab-cta-button" href="/mis-ventas">Ver mis ventas</a>

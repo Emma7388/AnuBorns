@@ -1,12 +1,15 @@
+/* Formulario de login con Supabase y feedback de UI. */
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 
+/* Referencias DOM. */
 const loginForm = document.getElementById("login-form");
 const feedback = document.getElementById("login-feedback");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const submitButton = document.getElementById("login-submit");
 
+/* Sanitiza returnTo para evitar redirecciones externas. */
 const params = new URLSearchParams(window.location.search);
 const sanitizeReturnTo = (value) => {
   if (!value || typeof value !== "string") return "/mis-datos";
@@ -16,6 +19,7 @@ const sanitizeReturnTo = (value) => {
 };
 const returnTo = sanitizeReturnTo(params.get("returnTo"));
 
+/* Wrapper con timeout para evitar esperas infinitas. */
 const withTimeout = (promise, ms) =>
   Promise.race([
     promise,
@@ -24,6 +28,7 @@ const withTimeout = (promise, ms) =>
     ),
   ]);
 
+/* Submit del formulario: valida, autentica y redirige. */
 loginForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!emailInput || !passwordInput || !feedback) return;
@@ -31,6 +36,7 @@ loginForm?.addEventListener("submit", async (event) => {
   feedback.textContent = "Ingresando...";
 
   try {
+    /* Auth con timeout por resiliencia. */
     const { error } = await withTimeout(
       supabase.auth.signInWithPassword({
         email: emailInput.value,
@@ -44,6 +50,7 @@ loginForm?.addEventListener("submit", async (event) => {
       return;
     }
 
+    /* Log de auditoría y navegación post-login. */
     postAudit("login_success").catch(() => {});
     feedback.textContent = "Listo. Redirigiendo...";
     window.location.replace(returnTo);

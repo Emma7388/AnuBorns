@@ -1,32 +1,63 @@
 ---
+// Página: ventas del usuario (MVP local + productos propios).
 import MainLayout from "../layouts/MainLayout.astro";
-// @ts-ignore - handled by Vite at runtime
+// URL del script de ventas (cliente).
 import salesScriptUrl from "../scripts/mis-ventas.js?url";
 ---
 
 <MainLayout title="Mis ventas" backHref="/mis-datos">
+  <!-- Panel principal -->
   <section class="ab-dark-panel ab-orders-panel">
     <p class="ab-eyebrow"></p>
     <h1>Mis ventas</h1>
     <p class="ab-muted-text"></p>
 
+    <!-- Productos publicados -->
     <h2>Productos publicados</h2>
     <div id="my-products-grid" class="ab-provider-products-grid"></div>
     <div id="my-products-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no publicaste productos.</p>
     </div>
 
+    <!-- Sección de ventas (MVP) -->
     <div id="sale-active" class="ab-is-hidden"></div>
-    <div id="sales-empty" class="ab-cart-empty ab-is-hidden"></div>
+    <div id="sales-empty" class="ab-cart-empty ab-is-hidden">
+      <p>Aún no tenés ventas registradas.</p>
+    </div>
     <h2 id="sales-history-title" class="ab-is-hidden"></h2>
     <div class="ab-actions ab-is-hidden"></div>
     <div id="sales-list" class="ab-orders-list ab-is-hidden"></div>
   </section>
+
+  <!-- Modal de confirmación para borrar producto publicado -->
+  <div
+    id="sales-delete-modal"
+    class="ab-orders-modal ab-is-hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="sales-delete-title"
+  >
+    <div class="ab-orders-modal__backdrop" data-sales-modal-close></div>
+    <div class="ab-orders-modal__panel" role="document">
+      <h2 id="sales-delete-title">Borrar producto</h2>
+      <p>¿Seguro que querés borrar este producto publicado?</p>
+      <div class="ab-orders-modal__actions">
+        <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-sales-modal-cancel>
+          Cancelar
+        </button>
+        <button type="button" class="ab-orders-delete-btn" data-sales-modal-confirm>
+          Sí, borrar
+        </button>
+      </div>
+    </div>
+  </div>
 </MainLayout>
 
 <script type="module" src={salesScriptUrl}></script>
 
 <script type="module">
+  // MVP local: seed y render de ventas.
   const SALES_KEY = "ab_sales_v1";
   const activeContainer = document.getElementById("sale-active");
   const list = document.getElementById("sales-list");
@@ -36,6 +67,7 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
   const productsGrid = document.getElementById("my-products-grid");
   const productsEmpty = document.getElementById("my-products-empty");
 
+  // Seed de ventas de ejemplo.
   const seedSales = {
     active: {
       id: "VE-2309",
@@ -69,6 +101,7 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
     ],
   };
 
+  // Normaliza estructuras antiguas.
   const normalizeSales = (data) => {
     if (Array.isArray(data)) {
       return { active: null, history: data };
@@ -82,10 +115,12 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
     return seedSales;
   };
 
+  // Persiste en localStorage.
   const persistSales = (value) => {
     window.localStorage.setItem(SALES_KEY, JSON.stringify(value));
   };
 
+  // Lee storage o inicializa seed.
   const loadSales = () => {
     try {
       const raw = window.localStorage.getItem(SALES_KEY);
@@ -104,11 +139,13 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
     }
   };
 
+  // Formatea precios ARS.
   const formatPrice = (value) => {
     const safe = Number(value ?? 0);
     return safe.toLocaleString("es-AR");
   };
 
+  // Render de venta activa.
   const renderActive = (active) => {
     if (!active) {
       activeContainer.innerHTML = "";
@@ -164,6 +201,7 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
     `;
   };
 
+  // Render de historial de ventas.
   const renderHistory = (history) => {
     list.innerHTML = "";
 
@@ -209,6 +247,7 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
     });
   };
 
+  // Render total de ventas.
   const renderSales = () => {
     const data = loadSales();
     const active = data?.active ?? null;
@@ -219,9 +258,16 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
 
     const hasActive = Boolean(active);
     const hasHistory = Array.isArray(history) && history.length > 0;
-    emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
+    if (hasActive || hasHistory) {
+      emptyState.classList.add("ab-is-hidden");
+      emptyState.style.display = "none";
+      return;
+    }
+    emptyState.classList.remove("ab-is-hidden");
+    emptyState.style.display = "grid";
   };
 
+  // Inicialización.
   renderSales();
   // products grid handled in src/scripts/mis-ventas.js
 

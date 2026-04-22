@@ -1,9 +1,11 @@
 ---
+// Página: publicación de servicio (MVP).
 import MainLayout from "../../layouts/MainLayout.astro";
 import { categories } from "../../data/categories";
 ---
 
 <MainLayout title="Vender servicio">
+  <!-- Panel principal -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Publicación de servicio</p>
     <h1>Creá tu publicación</h1>
@@ -11,6 +13,7 @@ import { categories } from "../../data/categories";
       Tu servicio será visible para clientes que busquen profesionales por categoría.
     </p>
 
+    <!-- Formulario de servicio -->
     <form class="ab-form">
       <label for="title">Título</label>
       <input id="title" name="title" type="text" placeholder="Ej: Instalación de aire acondicionado split" />

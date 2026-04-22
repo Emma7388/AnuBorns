@@ -1,7 +1,8 @@
-import type { APIRoute } from "astro";
+/* API: crea orden y preferencia de pago en Mercado Pago. */
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
+/* Configuración de Mercado Pago desde variables de entorno. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
 if (!accessToken) {
@@ -10,7 +11,8 @@ if (!accessToken) {
 
 const mpClient = new MercadoPagoConfig({ accessToken });
 
-const sanitizeItems = (items: any[]) =>
+/* Normaliza items del carrito y descarta inválidos. */
+const sanitizeItems = (items) =>
   items
     .map((item) => ({
       id: String(item.id ?? ""),
@@ -23,8 +25,9 @@ const sanitizeItems = (items: any[]) =>
     }))
     .filter((item) => item.id && item.name && item.price > 0);
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST = async ({ request }) => {
   try {
+    /* Autenticación y disponibilidad de Supabase. */
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
@@ -40,6 +43,7 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response(JSON.stringify({ error: "Sesión inválida." }), { status: 401 });
     }
 
+    /* Parseo y validación del payload. */
     const payload = await request.json();
     const items = sanitizeItems(Array.isArray(payload?.items) ? payload.items : []);
 
@@ -47,6 +51,7 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response(JSON.stringify({ error: "El carrito está vacío." }), { status: 400 });
     }
 
+    /* Crea orden en base de datos para referencia interna. */
     const shipping = payload?.shipping ?? {};
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
@@ -69,6 +74,7 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudo crear la orden." }), { status: 500 });
     }
 
+    /* Inserta los items de la orden. */
     const orderItems = items.map((item) => ({
       order_id: order.id,
       product_id: item.id,
@@ -86,12 +92,14 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudieron guardar los items." }), { status: 500 });
     }
 
+    /* Resuelve URLs de retorno y webhook. */
     const siteUrl = process.env.SITE_URL ?? request.headers.get("origin") ?? "";
     if (!siteUrl) {
       return new Response(JSON.stringify({ error: "Falta configurar SITE_URL." }), { status: 500 });
     }
     const notificationUrl = siteUrl ? `${siteUrl}/api/mercadopago-webhook` : undefined;
 
+    /* Crea preferencia de pago en Mercado Pago. */
     const preference = new Preference(mpClient);
     const mpResponse = await preference.create({
       body: {
@@ -116,6 +124,7 @@ export const POST: APIRoute = async ({ request }) => {
       },
     });
 
+    /* Guarda el id de preferencia para trazabilidad. */
     await supabaseAdmin
       .from("orders")
       .update({
@@ -123,6 +132,7 @@ export const POST: APIRoute = async ({ request }) => {
       })
       .eq("id", order.id);
 
+    /* Responde con el init_point para redirección del cliente. */
     return new Response(
       JSON.stringify({
         init_point: mpResponse.init_point,

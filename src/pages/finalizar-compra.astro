@@ -1,9 +1,11 @@
 ---
+// Página: checkout y datos de entrega.
 import MainLayout from "../layouts/MainLayout.astro";
 import checkoutScriptUrl from "../scripts/checkout.js?url";
 ---
 
 <MainLayout title="Finalizar compra">
+  <!-- Panel principal de checkout -->
   <section class="ab-dark-panel ab-checkout-panel">
     <p class="ab-eyebrow">Checkout</p>
     <h1>Finalizar compra</h1>
@@ -11,10 +13,12 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
       Confirmá tus datos y continuá el pago con Mercado Pago.
     </p>
 
+    <!-- Estado vacío -->
     <div id="checkout-empty" class="ab-cart-empty">
       <p>No hay productos para finalizar.</p>
     </div>
 
+    <!-- Resumen del pedido -->
     <div id="checkout-summary" class="ab-checkout-summary">
       <h2>Resumen</h2>
       <div id="checkout-items" class="ab-checkout-items"></div>
@@ -23,16 +27,20 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
       </p>
     </div>
 
+    <!-- Formulario de entrega -->
     <form id="checkout-form" class="ab-form ab-checkout-form">
       <h2>Datos de entrega</h2>
       <label for="full-name">Nombre completo</label>
       <input id="full-name" name="full-name" type="text" placeholder="Ej: Maria Lopez" required />
 
-      <label for="address">Dirección</label>
-      <input id="address" name="address" type="text" placeholder="Ej: Av. Siempreviva 742" required />
+      <label for="email">Email (opcional)</label>
+      <input id="email" name="email" type="email" placeholder="Ej: maria@email.com" />
 
       <label for="phone">Telefono</label>
       <input id="phone" name="phone" type="tel" placeholder="Ej: 341 555 1234" required />
+
+      <label for="notes">Nota/Comentario (opcional)</label>
+      <textarea id="notes" name="notes" rows="3" placeholder="Ej: Dejar en porteria por la tarde."></textarea>
 
       <button class="ab-cta-button" type="submit">
         Pagar con Mercado Pago
@@ -40,6 +48,7 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
       <p id="checkout-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
 
+    <!-- Mensaje de éxito -->
     <div id="checkout-success" class="ab-checkout-success ab-is-hidden" aria-live="polite">
       <div class="ab-checkout-success__icon">✓</div>
       <p>Pago iniciado. Te estamos redirigiendo…</p>
@@ -47,4 +56,5 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
   </section>
 </MainLayout>
 
+<!-- Script de checkout -->
 <script type="module" src={checkoutScriptUrl}></script>

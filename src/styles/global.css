@@ -339,7 +339,9 @@ input[type="submit"] {
   color: var(--color-on-accent);
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 10px 20px rgba(22, 199, 132, 0.25);
 }
 
@@ -1005,6 +1007,14 @@ input[type="submit"] {
     animation: none;
     transition: none;
   }
+
+  .ab-provider-product-card__add {
+    transition: none;
+  }
+
+  .ab-provider-product-card__add.is-adding {
+    animation: none;
+  }
 }
 
 .ab-provider-product-card {
@@ -1134,24 +1144,53 @@ input[type="submit"] {
 .ab-provider-product-card__add {
   align-self: flex-end;
   margin-top: 4px;
-  width: 28px;
-  height: 28px;
+  width: 60px;
+  height: 60px;
   border-radius: 999px;
   border: 1px solid var(--glass-green-border);
   background: var(--glass-green-bg);
   color: var(--color-text);
-  font-size: 18px;
-  font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .ab-provider-product-card__add:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 16px rgba(22, 199, 132, 0.25);
+}
+
+.ab-provider-product-card__add svg {
+  width: 25px;
+  height: 25px;
+}
+
+.ab-provider-product-card__add.is-adding {
+  animation: ab-cart-button-pop 0.22s ease;
+}
+
+.ab-provider-product-card__add.is-added {
+  background: rgba(22, 199, 132, 0.35);
+  border-color: rgba(22, 199, 132, 0.75);
+  box-shadow: 0 0 0 3px rgba(22, 199, 132, 0.2);
+}
+
+@keyframes ab-cart-button-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .ab-provider-product-card__seller-name {
@@ -1170,7 +1209,6 @@ input[type="submit"] {
 .ab-provider-product-card__button {
   flex: 1;
   border-radius: var(--button-radius);
-  padding: var(--button-padding);
   font-weight: 700;
   cursor: pointer;
   font-size: var(--button-font-size);
@@ -1903,6 +1941,167 @@ body.is-profile-editing #profile-form {
   margin: 4px 0 0;
   color: var(--color-text-muted);
   font-size: 13px;
+}
+
+.ab-order-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.ab-orders-delete-btn {
+  border: 1px solid rgba(255, 107, 107, 0.45);
+  background: rgba(255, 107, 107, 0.22);
+  color: #ffd6d6;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ab-orders-delete-btn:hover {
+  background: rgba(255, 107, 107, 0.3);
+}
+
+.ab-orders-delete-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+}
+
+.ab-orders-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 120;
+}
+
+.ab-orders-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 8, 12, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.ab-orders-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 420px);
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 12px;
+}
+
+.ab-orders-modal__panel h2 {
+  margin: 0;
+}
+
+.ab-orders-modal__panel p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.ab-orders-modal__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.ab-order-card__provider-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+  transform-origin: center;
+  border-radius: 999px;
+  padding: 2px 6px;
+}
+
+.ab-order-card__provider-link:hover {
+  text-decoration: underline;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ab-order-card__provider-link:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 0 2px rgba(22, 199, 132, 0.2) inset;
+}
+
+.ab-order-card__provider-link--disabled {
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.ab-order-card__provider-link--disabled:hover {
+  text-decoration: none;
+  background: transparent;
+}
+
+.ab-order-card__provider-link--disabled:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.ab-order-card__provider-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+}
+
+.ab-order-card__provider-phone-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.14s ease;
+}
+
+.ab-order-card__provider-phone-link:active {
+  transform: scale(0.92);
+}
+
+.ab-order-card__provider-phone-link--disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.ab-order-card__provider-phone-link--disabled:active {
+  transform: none;
+}
+
+.ab-order-card__provider-wa-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 900;
+  color: #fff;
+  background: #25d366;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.14s ease;
+}
+
+.ab-order-card__provider-link:active .ab-order-card__provider-wa-icon {
+  transform: scale(1.08);
 }
 
 /* Mis servicios */

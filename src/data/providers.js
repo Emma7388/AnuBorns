@@ -1,3 +1,4 @@
+/* Seed/local data de proveedores, productos y servicios mostrados en la UI. */
 export const providers = [
   {
     name: "Hidráulica Norte",

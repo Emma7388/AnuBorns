@@ -1,15 +1,18 @@
 ---
+// Página: publicación de producto.
 import MainLayout from "../../layouts/MainLayout.astro";
-// @ts-ignore - handled by Vite at runtime
+// URL del script de publicación (cliente).
 import productCreateScriptUrl from "../../scripts/product-create.js?url";
 ---
 
 <MainLayout title="Vender producto">
+  <!-- Panel principal -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Publicación de producto</p>
     <h1>Creá tu publicación</h1>
     <p class="ab-muted-text"></p>
 
+    <!-- Formulario de producto -->
     <form class="ab-form" id="product-form">
       <label for="title" class="ab-required-label">Título</label>
       <input
@@ -59,6 +62,24 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
         <option value="LIMA">LIMA</option>
       </select>
 
+      <label for="public-phone">Teléfono público</label>
+      <input
+        id="public-phone"
+        name="publicPhone"
+        type="tel"
+        placeholder="Ej: 11 2345 6789"
+        required
+      />
+
+      <label for="public-email">Email público</label>
+      <input
+        id="public-email"
+        name="publicEmail"
+        type="email"
+        placeholder="Ej: vendedor@email.com"
+        required
+      />
+
       <label>Entrega</label>
       <div class="ab-option-group" role="group" aria-label="Opciones de entrega">
         <label class="ab-option">
@@ -71,13 +92,14 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
         </label>
       </div>
       <span class="ab-muted-text">Podés elegir una o ambas.</span>
-      <div id="pickup-address-wrap" class="ab-is-hidden">
-        <label for="pickup-address">Dirección de retiro</label>
+      <div id="pickup-address-wrap">
+        <label for="pickup-address">Dirección pública</label>
         <input
           id="pickup-address"
           name="pickupAddress"
           type="text"
           placeholder="Ej: Av. San Martín 123, Local 4"
+          required
         />
       </div>
 
@@ -89,4 +111,5 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
   </section>
 </MainLayout>
 
+<!-- Script de creación de producto -->
 <script type="module" src={productCreateScriptUrl}></script>

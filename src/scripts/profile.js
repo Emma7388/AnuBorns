@@ -1,6 +1,8 @@
+/* Perfil de usuario: lectura, edición y avatar. */
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 
+/* Referencias DOM principales. */
 const status = document.getElementById("profile-status");
 const card = document.getElementById("profile-card");
 const avatarImg = document.getElementById("profile-avatar");
@@ -19,6 +21,7 @@ const cityInput = document.getElementById("profile-city");
 const provinceInput = document.getElementById("profile-province");
 const postalInput = document.getElementById("profile-postal-code");
 
+/* Convierte dataURL a Blob para subir a storage. */
 const dataUrlToBlob = (dataUrl) => {
   const parts = dataUrl.split(",");
   const match = parts[0].match(/data:(.*);base64/);
@@ -32,6 +35,7 @@ const dataUrlToBlob = (dataUrl) => {
   return new Blob([buffer], { type: contentType });
 };
 
+/* Render de filas del resumen en la tarjeta. */
 const formatRow = (label, value) => `
   <div class="ab-profile-data__row">
     <span class="ab-profile-data__label">${label}</span>
@@ -39,8 +43,10 @@ const formatRow = (label, value) => `
   </div>
 `;
 
+/* Controla que solo la última carga actualice la UI. */
 let loadRunId = 0;
 
+/* Timeout utilitario para requests de auth. */
 const withTimeout = (promise, ms) =>
   Promise.race([
     promise,
@@ -49,6 +55,7 @@ const withTimeout = (promise, ms) =>
     ),
   ]);
 
+/* Carga datos del usuario y actualiza la UI. */
 const loadProfile = async () => {
   const runId = (loadRunId += 1);
   if (status) status.textContent = "Cargando información del usuario...";
@@ -80,6 +87,7 @@ const loadProfile = async () => {
     return;
   }
 
+  /* Datos base y metadata de perfil. */
   const user = session.user;
   const metadata = user.user_metadata ?? {};
   const avatarUrl = metadata.avatar_url;
@@ -118,12 +126,14 @@ const loadProfile = async () => {
   if (provinceInput) provinceInput.value = metadata.province ?? "";
   if (postalInput) postalInput.value = metadata.postal_code ?? "";
 
+  /* Sube avatar pendiente si fue guardado en registro. */
   await uploadPendingAvatar(session);
   if (runId === loadRunId && status) {
     status.textContent = "Información actualizada.";
   }
 };
 
+/* Sube avatar que quedó pendiente en localStorage. */
 const uploadPendingAvatar = async (session) => {
   try {
     const raw = window.localStorage.getItem("ab_pending_avatar");
@@ -161,6 +171,7 @@ const uploadPendingAvatar = async (session) => {
   }
 };
 
+/* Alterna entre modo lectura y edición. */
 const setFormVisible = (isVisible) => {
   if (!profileToggle) return;
   document.body.classList.toggle("is-profile-editing", isVisible);
@@ -168,12 +179,14 @@ const setFormVisible = (isVisible) => {
   profileToggle.setAttribute("aria-expanded", String(isVisible));
 };
 
+/* Estado inicial del formulario. */
 setFormVisible(false);
 
 const resetProfileView = () => {
   setFormVisible(false);
 };
 
+/* Re-carga en navegación Astro. */
 document.addEventListener("astro:page-load", () => {
   resetProfileView();
   loadProfile();
@@ -191,11 +204,13 @@ window.addEventListener("pageshow", () => {
   loadProfile();
 });
 
+/* Toggle de edición. */
 profileToggle?.addEventListener("click", () => {
   const isEditing = document.body.classList.contains("is-profile-editing");
   setFormVisible(!isEditing);
 });
 
+/* Submit del formulario de perfil. */
 profileForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (profileFeedback) profileFeedback.textContent = "Guardando...";
@@ -231,6 +246,7 @@ profileForm?.addEventListener("submit", async (event) => {
   loadProfile();
 });
 
+/* Upload de avatar desde el formulario. */
 avatarInput?.addEventListener("change", async () => {
   const file = avatarInput.files?.[0];
   if (!file) return;

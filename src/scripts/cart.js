@@ -1,5 +1,8 @@
+/* UI del carrito: render, acciones y navegación. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, updateQuantity, removeFromCart } from "../lib/cart";
+
+/* Referencias DOM principales. */
 const itemsWrap = document.getElementById("cart-items");
 const emptyState = document.getElementById("cart-empty");
 const totalLabel = document.getElementById("cart-total");
@@ -7,16 +10,19 @@ const clearButton = document.getElementById("cart-clear");
 const checkoutButton = document.getElementById("cart-checkout");
 const feedback = document.getElementById("cart-feedback");
 
+/* Formatea precios para ARS. */
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");
 };
 
+/* Renderiza el carrito completo en el DOM. */
 const renderCart = async () => {
   if (!itemsWrap || !emptyState || !totalLabel) return;
   const items = await getCart();
   itemsWrap.innerHTML = "";
 
+  /* Estado vacío. */
   if (items.length === 0) {
     emptyState.style.display = "grid";
     totalLabel.textContent = "$0";
@@ -25,6 +31,7 @@ const renderCart = async () => {
 
   emptyState.style.display = "none";
 
+  /* Lista de items y total. */
   let total = 0;
   items.forEach((item) => {
     const qty = item.quantity ?? 1;
@@ -63,6 +70,7 @@ const renderCart = async () => {
 };
 
 if (itemsWrap && clearButton && checkoutButton && feedback) {
+  /* Delegación de eventos para incrementar, decrementar o quitar. */
   itemsWrap.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) return;
@@ -91,6 +99,7 @@ if (itemsWrap && clearButton && checkoutButton && feedback) {
     await renderCart();
   });
 
+  /* Vaciar carrito completo. */
   clearButton.addEventListener("click", async () => {
     const items = await getCart();
     for (const item of items) {
@@ -100,6 +109,7 @@ if (itemsWrap && clearButton && checkoutButton && feedback) {
     renderCart();
   });
 
+  /* Validar sesión antes de pasar a checkout. */
   checkoutButton.addEventListener("click", async () => {
     const items = await getCart();
     if (items.length === 0) {
@@ -115,4 +125,5 @@ if (itemsWrap && clearButton && checkoutButton && feedback) {
   });
 }
 
+/* Render inicial. */
 renderCart();

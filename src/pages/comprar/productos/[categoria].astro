@@ -1,18 +1,22 @@
 ---
+// Página: productos por categoría con búsqueda y filtros.
 export const prerender = false;
 
 import MainLayout from "../../../layouts/MainLayout.astro";
 import "../../../styles/global.css";
-// @ts-ignore - handled by Vite at runtime
+// URL del script de interacción de productos (cliente).
 import buyProductsUrl from "../../../scripts/comprar-productos.js?url";
 
+// Evita cache para reflejar cambios en tiempo real.
 Astro.response.headers.set("Cache-Control", "no-store");
 Astro.response.headers.set("Pragma", "no-cache");
 
+// Parámetros y configuración de Supabase.
 const { categoria } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
+// Helper para fetch con headers de Supabase.
 const fetchJson = async (url) => {
   const response = await fetch(url, {
     headers: {
@@ -26,6 +30,7 @@ const fetchJson = async (url) => {
   return response.json();
 };
 
+// Consulta de categoría y productos.
 const safeCategoria = encodeURIComponent(categoria ?? "");
 const categoryRow = supabaseUrl && supabaseAnonKey
   ? await fetchJson(
@@ -43,6 +48,7 @@ const products = supabaseUrl && supabaseAnonKey
     )
   : [];
 
+// Agrupa productos por vendedor y helpers de formato.
 const safeProducts = Array.isArray(products) ? products : [];
 const groupBySeller = safeProducts.reduce((acc, product) => {
   const key = product.seller_name || product.user_id || "Vendedor";
@@ -83,7 +89,9 @@ const resolveCategoryName = (product) => {
 ---
 
 <MainLayout title={`Comprar ${currentCategoryName || categoria}`}>
+  <!-- Panel de listado con herramientas de búsqueda y filtros -->
   <section class="ab-dark-panel ab-list-panel">
+    <!-- Barra de búsqueda y filtro de ubicación -->
     <div class="ab-search-inline">
       <label class="ab-provider-products-toolbar__search">
         Buscar producto
@@ -188,7 +196,12 @@ const resolveCategoryName = (product) => {
                     aria-label="Agregar al carrito"
                     title="Agregar al carrito"
                   >
-                    +
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
+                        fill="currentColor"
+                      ></path>
+                    </svg>
                   </button>
                 </article>
               ))}

@@ -1,14 +1,17 @@
 ---
+// Página: registro de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
 import registerScriptUrl from "../scripts/register.js?url";
 ---
 
 <MainLayout title="Crear cuenta">
+  <!-- Panel de registro -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Registro</p>
     <h1>Creá tu cuenta</h1>
     <p class="ab-muted-text">Registrate con tu email y contraseña.</p>
 
+    <!-- Formulario de registro -->
     <form class="ab-form" id="register-form">
       <label for="avatar">Avatar (opcional)</label>
       <input id="avatar" name="avatar" type="file" accept="image/*" />
@@ -59,4 +62,5 @@ import registerScriptUrl from "../scripts/register.js?url";
   </section>
 </MainLayout>
 
+<!-- Script de registro -->
 <script type="module" src={registerScriptUrl}></script>

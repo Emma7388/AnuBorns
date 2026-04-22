@@ -1,24 +1,32 @@
+/* Dependencias: cliente Supabase para persistir carrito cuando hay sesión. */
 import { supabase } from "./supabaseClient";
 
+/* Clave localStorage para carrito anónimo. */
 const CART_KEY = "ab_cart_v1";
 
+/* Dispara un evento global para que la UI reaccione a cambios de carrito. */
 const emitCartUpdate = () => {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("ab-cart-updated"));
+  const event = new CustomEvent("ab-cart-updated");
+  window.dispatchEvent(event);
+  document.dispatchEvent(new CustomEvent("ab-cart-updated"));
 };
 
+/* Normaliza cantidades a enteros válidos. */
 const normalizeQuantity = (value) => {
   const qty = Number(value ?? 0);
   if (!Number.isFinite(qty) || qty <= 0) return 0;
   return Math.round(qty);
 };
 
+/* Normaliza precios a números positivos. */
 const normalizePrice = (value) => {
   const price = Number(value ?? 0);
   if (!Number.isFinite(price) || price < 0) return 0;
   return price;
 };
 
+/* Lee el carrito local y lo limpia de datos inválidos. */
 const loadLocalCart = () => {
   try {
     const raw = window.localStorage.getItem(CART_KEY);
@@ -36,11 +44,13 @@ const loadLocalCart = () => {
   }
 };
 
+/* Guarda el carrito local y notifica a la UI. */
 const saveLocalCart = (items) => {
   window.localStorage.setItem(CART_KEY, JSON.stringify(items));
   emitCartUpdate();
 };
 
+/* Obtiene el usuario actual si existe sesión. */
 const getSessionUserId = async () => {
   try {
     const { data } = await supabase.auth.getSession();
@@ -50,6 +60,7 @@ const getSessionUserId = async () => {
   }
 };
 
+/* Busca o crea el carrito persistente asociado al usuario. */
 const getOrCreateCart = async (userId) => {
   const { data: existing } = await supabase
     .from("carts")
@@ -73,6 +84,7 @@ const getOrCreateCart = async (userId) => {
   return created.id;
 };
 
+/* Une items locales con el carrito en base de datos. */
 const mergeLocalIntoDb = async (cartId, localItems) => {
   if (localItems.length === 0) return;
   const { data: existingItems } = await supabase
@@ -113,6 +125,7 @@ const mergeLocalIntoDb = async (cartId, localItems) => {
   }
 };
 
+/* Sincroniza el carrito local al iniciar sesión. */
 export const syncCartOnLogin = async (userId) => {
   if (!userId) return;
   const localItems = loadLocalCart();
@@ -127,11 +140,13 @@ export const syncCartOnLogin = async (userId) => {
   }
 };
 
+/* Agrega un producto al carrito (local o persistente). */
 export const addToCart = async (product) => {
   const productId = String(product?.id ?? "");
   if (!productId) return;
   const priceSnapshot = normalizePrice(product?.price);
 
+  /* Si no hay sesión, se guarda en localStorage. */
   const userId = await getSessionUserId();
   if (!userId) {
     const items = loadLocalCart();
@@ -145,6 +160,7 @@ export const addToCart = async (product) => {
     return;
   }
 
+  /* Si hay sesión, se actualiza el carrito en base de datos. */
   const cartId = await getOrCreateCart(userId);
   const { data: existing } = await supabase
     .from("cart_items")
@@ -169,10 +185,12 @@ export const addToCart = async (product) => {
   emitCartUpdate();
 };
 
+/* Actualiza la cantidad de un producto en el carrito. */
 export const updateQuantity = async (productId, quantity) => {
   const normalized = normalizeQuantity(quantity);
   const userId = await getSessionUserId();
 
+  /* Sin sesión: operar sobre localStorage. */
   if (!userId) {
     const items = loadLocalCart();
     const item = items.find((entry) => entry.product_id === productId);
@@ -188,6 +206,7 @@ export const updateQuantity = async (productId, quantity) => {
     return;
   }
 
+  /* Con sesión: operar sobre la base de datos. */
   const cartId = await getOrCreateCart(userId);
   if (normalized <= 0) {
     await supabase
@@ -206,16 +225,18 @@ export const updateQuantity = async (productId, quantity) => {
   emitCartUpdate();
 };
 
+/* API de conveniencia para eliminar un producto. */
 export const removeFromCart = async (productId) => {
   await updateQuantity(productId, 0);
 };
 
+/* Trae info de productos para enriquecer items locales. */
 const enrichWithProducts = async (items) => {
   const ids = items.map((item) => item.product_id).filter(Boolean);
   if (ids.length === 0) return items;
   const { data: products } = await supabase
     .from("products")
-    .select("id,title,image_url,currency,seller_name")
+    .select("id,title,image_url,currency,seller_name,contact,user_id")
     .in("id", ids);
   const map = new Map((products ?? []).map((product) => [product.id, product]));
   return items.map((item) => ({
@@ -224,6 +245,7 @@ const enrichWithProducts = async (items) => {
   }));
 };
 
+/* Devuelve el carrito normalizado según estado de sesión. */
 export const getCart = async () => {
   const userId = await getSessionUserId();
   if (!userId) {
@@ -238,7 +260,7 @@ export const getCart = async () => {
   const cartId = await getOrCreateCart(userId);
   const { data } = await supabase
     .from("cart_items")
-    .select("product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name)")
+    .select("product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id)")
     .eq("cart_id", cartId);
   const normalized = (data ?? []).map((item) => ({
     product_id: item.product_id,

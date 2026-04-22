@@ -1,0 +1,106 @@
+---
+// Página pública de proveedor por user_id.
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+
+const { userId } = Astro.params;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+const safeUserId = encodeURIComponent(userId ?? "");
+
+const fetchJson = async (url) => {
+  const response = await fetch(url, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      "Cache-Control": "no-store",
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return response.json();
+};
+
+const products = supabaseUrl && supabaseAnonKey && safeUserId
+  ? await fetchJson(
+      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,pickup_address,contact,seller_name,created_at&user_id=eq.${safeUserId}&order=created_at.desc`
+    )
+  : [];
+
+const safeProducts = Array.isArray(products) ? products : [];
+const first = safeProducts[0] ?? null;
+
+const sellerName = first?.seller_name || "Proveedor";
+const rawContact = String(first?.contact ?? "").trim();
+const emailMatch = rawContact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+const publicEmail = emailMatch?.[0] ?? "";
+const phoneDigits = rawContact.replace(/\D+/g, "");
+const publicPhone = phoneDigits ? rawContact : "";
+const publicAddress = String(first?.pickup_address ?? "").trim();
+const publicLocation = String(first?.location ?? "").trim();
+---
+
+<MainLayout title={`Proveedor: ${sellerName}`} backHref="/mis-compras">
+  {first ? (
+    <section class="ab-dark-panel">
+      <p class="ab-eyebrow">Perfil público</p>
+      <h1>{sellerName}</h1>
+      <p class="ab-muted-text">Datos públicos del proveedor.</p>
+
+      <div class="ab-provider-profile__meta">
+        <p>
+          <strong>Teléfono:</strong>{" "}
+          {publicPhone ? (
+            <a
+              href={`https://wa.me/${phoneDigits}?text=${encodeURIComponent(`Hola ${sellerName}, te contacto por AnuBorns.`)}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {publicPhone}
+            </a>
+          ) : "No publicado"}
+        </p>
+        <p><strong>Email:</strong> {publicEmail || "No publicado"}</p>
+        <p><strong>Dirección:</strong> {publicAddress || "No publicada"}</p>
+        <p><strong>Ubicación:</strong> {publicLocation || "No publicada"}</p>
+      </div>
+
+      <h2>Productos publicados</h2>
+      {safeProducts.length === 0 ? (
+        <div class="ab-cart-empty">
+          <p>Este proveedor todavía no publicó productos.</p>
+        </div>
+      ) : (
+        <div class="ab-provider-products-grid">
+          {safeProducts.map((product) => (
+            <article class="ab-provider-product-card">
+              <img
+                class="ab-provider-product-card__image"
+                src={product.image_url || "/logo2.svg"}
+                alt={product.title || "Producto"}
+                loading="lazy"
+              />
+              <div class="ab-provider-product-card__meta">
+                <div>
+                  <p class="ab-provider-product-card__label">Producto</p>
+                </div>
+                <p class="ab-provider-product-card__price">
+                  ${Number(product.price ?? 0).toLocaleString("es-AR")} <span>{product.currency || "ARS"}</span>
+                </p>
+              </div>
+              <h2>{product.title || "Sin título"}</h2>
+              <p class="ab-provider-product-card__description">{product.description || "Sin descripción"}</p>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  ) : (
+    <section class="ab-dark-panel">
+      <h1>Proveedor no encontrado</h1>
+      <p>Este proveedor no tiene datos públicos cargados todavía.</p>
+    </section>
+  )}
+</MainLayout>

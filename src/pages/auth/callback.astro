@@ -1,0 +1,19 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import authCallbackScriptUrl from "../../scripts/auth-callback.js?url";
+---
+
+<MainLayout title="Verificando cuenta">
+  <section class="ab-dark-panel">
+    <p class="ab-eyebrow">Verificación</p>
+    <h1>Estamos verificando tu cuenta</h1>
+    <p id="auth-callback-feedback" class="ab-muted-text" aria-live="polite">
+      Un momento, por favor...
+    </p>
+    <div class="ab-actions">
+      <a class="ab-cta-button" href="/login">Ir a login</a>
+    </div>
+  </section>
+</MainLayout>
+
+<script type="module" src={authCallbackScriptUrl}></script>

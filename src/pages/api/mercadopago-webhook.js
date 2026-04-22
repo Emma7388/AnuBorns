@@ -1,7 +1,8 @@
-import type { APIRoute } from "astro";
+/* API: webhook de Mercado Pago con validación de firma y actualización de órdenes. */
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
+/* Tokens requeridos para consultar la API y validar firma. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
 
@@ -13,7 +14,8 @@ if (!webhookSecret) {
   throw new Error("Missing MERCADOPAGO_WEBHOOK_SECRET.");
 }
 
-const statusMap: Record<string, string> = {
+/* Mapeo de estados de MP a estados internos. */
+const statusMap = {
   approved: "approved",
   pending: "pending",
   in_process: "pending",
@@ -23,12 +25,14 @@ const statusMap: Record<string, string> = {
   charged_back: "refunded",
 };
 
+/* Estados finales que no deberían re-procesarse. */
 const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded"]);
 
-const parseSignatureHeader = (header: string | null) => {
+/* Parsea el header x-signature en { ts, v1 }. */
+const parseSignatureHeader = (header) => {
   if (!header) return null;
   const parts = header.split(",").map((value) => value.trim());
-  const data: Record<string, string> = {};
+  const data = {};
   for (const part of parts) {
     const [key, value] = part.split("=");
     if (key && value) data[key.trim()] = value.trim();
@@ -37,15 +41,18 @@ const parseSignatureHeader = (header: string | null) => {
   return { ts: data.ts, v1: data.v1 };
 };
 
-const normalizeId = (value: string | null) => (value ?? "").toString().toLowerCase();
+/* Normaliza ids para la validación de firma. */
+const normalizeId = (value) => (value ?? "").toString().toLowerCase();
 
-const toTimestampMs = (ts: string) => {
+/* Convierte timestamps en segundos o ms a ms. */
+const toTimestampMs = (ts) => {
   const numeric = Number(ts);
   if (!Number.isFinite(numeric)) return null;
   return ts.length <= 10 ? numeric * 1000 : numeric;
 };
 
-const verifySignature = (signatureHeader: string | null, requestId: string | null, dataId: string | null) => {
+/* Verifica la firma del webhook usando HMAC SHA-256. */
+const verifySignature = (signatureHeader, requestId, dataId) => {
   const signature = parseSignatureHeader(signatureHeader);
   if (!signature || !requestId || !dataId) return false;
 
@@ -66,18 +73,20 @@ const verifySignature = (signatureHeader: string | null, requestId: string | nul
   }
 };
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST = async ({ request }) => {
   try {
+    /* Cliente Supabase admin disponible. */
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return new Response("Service unavailable", { status: 503 });
     }
+    /* Se aceptan query params o body según formato de MP. */
     const url = new URL(request.url);
     const queryTopic = url.searchParams.get("topic") || url.searchParams.get("type");
     const queryId = url.searchParams.get("id");
     const queryDataId = url.searchParams.get("data.id") || url.searchParams.get("data_id");
 
-    let payload: any = {};
+    let payload = {};
     try {
       payload = await request.json();
     } catch {
@@ -94,6 +103,7 @@ export const POST: APIRoute = async ({ request }) => {
     const requestId = request.headers.get("x-request-id");
     const dataIdForSignature = queryDataId || bodyId || paymentId;
 
+    /* Verificación de firma para seguridad del webhook. */
     if (!verifySignature(signatureHeader, requestId, dataIdForSignature)) {
       console.warn("[mp-webhook] Invalid signature", {
         topic,
@@ -111,6 +121,7 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response("Ignored", { status: 200 });
     }
 
+    /* Consulta la API de MP para obtener el pago completo. */
     const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -128,6 +139,7 @@ export const POST: APIRoute = async ({ request }) => {
     const paidAmount = Number(paymentData?.transaction_amount ?? 0);
     const currencyId = String(paymentData?.currency_id ?? "").toUpperCase();
 
+    /* Referencia externa debe mapear a una orden local. */
     if (!externalReference) {
       console.error("[mp-webhook] Missing external_reference");
       return new Response("Missing external_reference", { status: 400 });
@@ -144,6 +156,7 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response("Order not found", { status: 404 });
     }
 
+    /* Verifica consistencia de monto y moneda para evitar fraude. */
     const expectedAmount = Number(order.total_amount ?? 0);
     const amountMatches = Number.isFinite(paidAmount) && Math.abs(paidAmount - expectedAmount) < 0.01;
     const currencyMatches = !order.currency || currencyId === String(order.currency).toUpperCase();
@@ -171,8 +184,10 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response("Payment mismatch", { status: 200 });
     }
 
+    /* Estado traducido a la semántica interna. */
     const mappedStatus = statusMap[paymentStatus] ?? "pending";
 
+    /* Evita doble procesamiento si ya está finalizado. */
     if (terminalStatuses.has(order.status)) {
       if (order.status === "approved" && mappedStatus === "refunded") {
         // Allow chargeback/refund updates.
@@ -185,6 +200,7 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response("Idempotent", { status: 200 });
     }
 
+    /* Actualiza la orden con el estado más reciente. */
     await supabaseAdmin
       .from("orders")
       .update({
@@ -208,4 +224,5 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const GET: APIRoute = POST;
+/* Permite validar el endpoint por GET si MP lo solicita. */
+export const GET = POST;

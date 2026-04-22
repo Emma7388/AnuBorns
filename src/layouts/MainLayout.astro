@@ -1,9 +1,11 @@
 ---
+// Layout principal: header, footer y navegación de regreso.
 import BaseLayout from "./BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import "../styles/global.css";
 
+// Calcula el "volver" según ruta.
 const { title, backHref: customBackHref } = Astro.props;
 const pathname = Astro.url.pathname;
 const segments = pathname.split("/").filter(Boolean);
@@ -12,14 +14,18 @@ const showBack = pathname !== "/";
 ---
 
 <BaseLayout title={title}>
+  <!-- Header global -->
   <Header />
 
+  <!-- Contenido de página -->
   <main>
     <slot />
   </main>
 
+  <!-- Footer con CTA volver -->
   <Footer showBack={showBack} backHref={backHref} />
 
+  <!-- Intercepta botón volver cuando se pide volver por history -->
   <script is:inline>
     const backLinks = document.querySelectorAll("[data-ab-back]");
     if (backLinks.length && window.history.length > 1) {

@@ -1,17 +1,21 @@
 ---
+// Página: confirmación de pago.
 import MainLayout from "../layouts/MainLayout.astro";
 import confirmationScriptUrl from "../scripts/confirmation.js?url";
 ---
 
 <MainLayout title="Compra confirmada">
+  <!-- Panel principal -->
   <section class="ab-dark-panel ab-confirmation-panel">
     <div class="ab-confirmation-card">
+      <!-- Animación check -->
       <div class="ab-checkmark">
         <svg viewBox="0 0 52 52" aria-hidden="true">
           <circle class="ab-checkmark__circle" cx="26" cy="26" r="24" fill="none" />
           <path class="ab-checkmark__check" fill="none" d="M14 27l7 7 16-16" />
         </svg>
       </div>
+      <!-- Textos que se actualizan por JS -->
       <h1 id="confirmation-title">Pago recibido</h1>
       <p class="ab-muted-text" id="confirmation-message">
         Estamos validando el estado de la compra.
@@ -21,4 +25,5 @@ import confirmationScriptUrl from "../scripts/confirmation.js?url";
   </section>
 </MainLayout>
 
+<!-- Script de estado de pago -->
 <script type="module" src={confirmationScriptUrl}></script>

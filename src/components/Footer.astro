@@ -1,11 +1,14 @@
 ---
+// Componente: footer con CTA opcional de regreso.
 const { showBack = false, backHref = "/" } = Astro.props;
 ---
 
+<!-- Pie de página principal -->
 <footer class="footer">
   <div class="container">
     <div class="footer-content">
       <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
+      <!-- Botón volver opcional -->
       {showBack && (
         <a
           class="ab-cta-button footer-back"
@@ -21,6 +24,7 @@ const { showBack = false, backHref = "/" } = Astro.props;
 </footer>
 
 <style>
+/* Layout y estilo del footer */
 .footer {
   background: var(--color-surface);
   color: var(--color-text-muted);
@@ -50,6 +54,7 @@ const { showBack = false, backHref = "/" } = Astro.props;
   white-space: nowrap;
 }
 
+/* Ajustes responsive */
 @media (max-width: 1024px) {
   .footer {
     position: static;

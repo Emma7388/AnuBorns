@@ -1,5 +1,7 @@
+/* Formulario de publicación de producto con imágenes y validaciones. */
 import { supabase } from "../lib/supabaseClient";
 
+/* Referencias DOM principales. */
 let form = document.getElementById("product-form");
 let feedback = document.getElementById("product-feedback");
 let submitButton = document.getElementById("product-submit");
@@ -8,12 +10,15 @@ let categorySelect = document.getElementById("category");
 let descriptionInput = document.getElementById("description");
 let priceInput = document.getElementById("price");
 let locationInput = document.getElementById("location");
+let publicPhoneInput = document.getElementById("public-phone");
+let publicEmailInput = document.getElementById("public-email");
 let deliveryInputs = Array.from(document.querySelectorAll('input[name="delivery"]'));
 let pickupAddressWrap = document.getElementById("pickup-address-wrap");
 let pickupAddressInput = document.getElementById("pickup-address");
 let imagesInput = document.getElementById("images");
 let previewsWrap = document.getElementById("image-previews");
 
+/* Límites y configuración de imágenes. */
 const MAX_FILES = 1;
 const MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -21,10 +26,24 @@ const IMAGE_BUCKET = "product-images";
 const MAX_DIMENSION = 1600;
 let previewUrls = [];
 
+/* Feedback visual centralizado. */
 const setFeedback = (message) => {
   if (feedback) feedback.textContent = message;
 };
 
+/* Habilita/deshabilita todos los campos del formulario de publicación. */
+const setFormDisabled = (isDisabled) => {
+  if (!form) return;
+  const elements = form.querySelectorAll("input, select, textarea, button");
+  elements.forEach((element) => {
+    if (!(element instanceof HTMLElement)) return;
+    if ("disabled" in element) {
+      element.disabled = isDisabled;
+    }
+  });
+};
+
+/* Re-bindea elementos tras navegación SPA. */
 const bindFormElements = () => {
   form = document.getElementById("product-form");
   feedback = document.getElementById("product-feedback");
@@ -34,6 +53,8 @@ const bindFormElements = () => {
   descriptionInput = document.getElementById("description");
   priceInput = document.getElementById("price");
   locationInput = document.getElementById("location");
+  publicPhoneInput = document.getElementById("public-phone");
+  publicEmailInput = document.getElementById("public-email");
   deliveryInputs = Array.from(document.querySelectorAll('input[name="delivery"]'));
   pickupAddressWrap = document.getElementById("pickup-address-wrap");
   pickupAddressInput = document.getElementById("pickup-address");
@@ -41,6 +62,7 @@ const bindFormElements = () => {
   previewsWrap = document.getElementById("image-previews");
 };
 
+/* Carga categorías desde Supabase. */
 const loadCategories = async () => {
   if (!categorySelect) return;
   categorySelect.innerHTML = "";
@@ -68,13 +90,17 @@ const loadCategories = async () => {
   }
 };
 
+/* Requiere sesión activa para publicar. */
 const ensureSession = async () => {
   const { data } = await supabase.auth.getSession();
   if (data?.session?.user) return data.session;
+  const { data: userData } = await supabase.auth.getUser();
+  if (userData?.user) return { user: userData.user };
   window.location.href = "/login?returnTo=/vender/productos";
   return null;
 };
 
+/* Resuelve un nombre visible para el vendedor. */
 const resolveSellerName = (session) => {
   const meta = session?.user?.user_metadata ?? {};
   const firstName = String(meta.first_name ?? "").trim();
@@ -84,30 +110,29 @@ const resolveSellerName = (session) => {
   return email.split("@")[0] || email;
 };
 
+/* Parsea el precio a número válido. */
 const parsePrice = (value) => {
   const parsed = Number(value ?? 0);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed;
 };
 
+/* Recolecta métodos de entrega seleccionados. */
 const collectDeliveryMethods = () =>
   deliveryInputs.filter((input) => input.checked).map((input) => input.value);
 
+/* Detecta si se eligió retiro. */
 const hasPickupSelected = () =>
   deliveryInputs.some((input) => input.checked && input.value === "retiro");
 
+/* Muestra/oculta dirección de retiro según selección. */
 const updatePickupAddressVisibility = () => {
   if (!pickupAddressWrap || !pickupAddressInput) return;
-  if (hasPickupSelected()) {
-    pickupAddressWrap.classList.remove("ab-is-hidden");
-    pickupAddressInput.required = true;
-  } else {
-    pickupAddressWrap.classList.add("ab-is-hidden");
-    pickupAddressInput.required = false;
-    pickupAddressInput.value = "";
-  }
+  pickupAddressWrap.classList.remove("ab-is-hidden");
+  pickupAddressInput.required = true;
 };
 
+/* Evita listeners duplicados. */
 const bindOnce = (element, key, eventName, handler) => {
   if (!element) return;
   const flag = `abBound${key}`;
@@ -116,6 +141,7 @@ const bindOnce = (element, key, eventName, handler) => {
   element.dataset[flag] = "true";
 };
 
+/* Handler de imágenes: valida y genera previews. */
 const onImagesChange = () => {
   const files = collectImages();
   const error = validateImages(files);
@@ -128,31 +154,43 @@ const onImagesChange = () => {
   renderPreviews(files);
 };
 
+/* Handler de entrega. */
 const onDeliveryChange = () => {
   updatePickupAddressVisibility();
 };
 
+/* Handler de submit. */
 const onSubmit = (event) => {
   event.preventDefault();
   submitProduct();
 };
 
+/* Inicializa el formulario y sus listeners. */
 const initProductForm = () => {
   bindFormElements();
   if (!form || !categorySelect) return;
-  loadCategories();
-  updatePickupAddressVisibility();
-  bindOnce(imagesInput, "ImagesChange", "change", onImagesChange);
-  deliveryInputs.forEach((input) => bindOnce(input, "DeliveryChange", "change", onDeliveryChange));
-  bindOnce(form, "Submit", "submit", onSubmit);
+  setFormDisabled(true);
+  setFeedback("Validando sesión...");
+  ensureSession().then((session) => {
+    if (!session) return;
+    setFormDisabled(false);
+    loadCategories();
+    updatePickupAddressVisibility();
+    bindOnce(imagesInput, "ImagesChange", "change", onImagesChange);
+    deliveryInputs.forEach((input) => bindOnce(input, "DeliveryChange", "change", onDeliveryChange));
+    bindOnce(form, "Submit", "submit", onSubmit);
+    setFeedback("");
+  });
 };
 
+/* Obtiene solo imágenes válidas del input. */
 const collectImages = () => {
   const files = Array.from(imagesInput?.files ?? []);
   if (files.length === 0) return [];
   return files.filter((file) => file && file.type.startsWith("image/"));
 };
 
+/* Valida cantidad y tamaño de imágenes. */
 const validateImages = (files) => {
   if (files.length > MAX_FILES) {
     return "Podés subir solo 1 foto.";
@@ -167,12 +205,14 @@ const validateImages = (files) => {
   return "";
 };
 
+/* Limpia previews previos. */
 const clearPreviews = () => {
   previewUrls.forEach((url) => URL.revokeObjectURL(url));
   previewUrls = [];
   if (previewsWrap) previewsWrap.innerHTML = "";
 };
 
+/* Renderiza previews de imágenes. */
 const renderPreviews = (files) => {
   if (!previewsWrap) return;
   clearPreviews();
@@ -189,6 +229,7 @@ const renderPreviews = (files) => {
   });
 };
 
+/* Carga bitmap para optimizar tamaño. */
 const loadImageBitmap = async (file) => {
   try {
     return await createImageBitmap(file);
@@ -197,6 +238,7 @@ const loadImageBitmap = async (file) => {
   }
 };
 
+/* Redimensiona la imagen si supera el máximo. */
 const resizeImage = async (file) => {
   const bitmap = await loadImageBitmap(file);
   if (!bitmap) return file;
@@ -230,6 +272,7 @@ const resizeImage = async (file) => {
   });
 };
 
+/* Aplica optimización a todas las imágenes. */
 const optimizeImages = async (files) => {
   const optimized = [];
   for (const file of files) {
@@ -239,6 +282,7 @@ const optimizeImages = async (files) => {
   return optimized;
 };
 
+/* Sube imágenes a storage y devuelve URLs públicas. */
 const uploadImages = async (userId, productId, files) => {
   if (files.length === 0) return [];
   const uploads = files.map(async (file, index) => {
@@ -257,6 +301,7 @@ const uploadImages = async (userId, productId, files) => {
   return results.filter(Boolean);
 };
 
+/* Crea el producto, sube imágenes y actualiza el registro. */
 const submitProduct = async () => {
   if (!form || !titleInput || !categorySelect || !priceInput) return;
   const title = String(titleInput.value ?? "").trim();
@@ -264,6 +309,8 @@ const submitProduct = async () => {
   const description = String(descriptionInput?.value ?? "").trim();
   const price = parsePrice(priceInput.value);
   const location = String(locationInput?.value ?? "").trim();
+  const publicPhone = String(publicPhoneInput?.value ?? "").trim();
+  const publicEmail = String(publicEmailInput?.value ?? "").trim();
   const deliveryMethods = collectDeliveryMethods();
   const pickupAddress = String(pickupAddressInput?.value ?? "").trim();
   const images = collectImages();
@@ -289,12 +336,20 @@ const submitProduct = async () => {
     setFeedback("Seleccioná una ubicación.");
     return;
   }
+  if (!publicPhone) {
+    setFeedback("Ingresá un teléfono público.");
+    return;
+  }
+  if (!publicEmail) {
+    setFeedback("Ingresá un email público.");
+    return;
+  }
   if (deliveryMethods.length === 0) {
     setFeedback("Seleccioná al menos una opción de entrega.");
     return;
   }
-  if (hasPickupSelected() && !pickupAddress) {
-    setFeedback("Ingresá la dirección de retiro.");
+  if (!pickupAddress) {
+    setFeedback("Ingresá la dirección pública.");
     return;
   }
   if (images.length === 0) {
@@ -306,6 +361,7 @@ const submitProduct = async () => {
     return;
   }
 
+  /* Requiere sesión válida. */
   const session = await ensureSession();
   if (!session) return;
 
@@ -313,6 +369,7 @@ const submitProduct = async () => {
   setFeedback("Publicando...");
 
   try {
+    /* Optimiza imágenes antes de subir. */
     const optimizedImages = await optimizeImages(images);
     const { data, error } = await supabase.from("products").insert({
       user_id: session.user.id,
@@ -324,6 +381,7 @@ const submitProduct = async () => {
       location,
       delivery_methods: deliveryMethods,
       pickup_address: pickupAddress || null,
+      contact: `${publicPhone} | ${publicEmail}`,
       seller_name: resolveSellerName(session),
       image_url: null,
     }).select("id").single();
@@ -355,6 +413,7 @@ const submitProduct = async () => {
         .eq("id", productId);
     }
 
+    /* Reset de UI luego de publicar. */
     form.reset();
     clearPreviews();
     deliveryInputs.forEach((input) => {
@@ -370,6 +429,7 @@ const submitProduct = async () => {
   }
 };
 
+/* Inicialización y eventos de navegación Astro. */
 initProductForm();
 
 document.addEventListener("astro:page-load", initProductForm);

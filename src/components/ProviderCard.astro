@@ -1,4 +1,5 @@
 ---
+// Componente: tarjeta resumida de proveedor.
 const {
   name,
   ranking,
@@ -12,21 +13,26 @@ const {
   fromPath,
   avatar = "/avatars/provider-default.svg",
   dailySold = 0,
-} = Astro.props
+} = Astro.props;
 
+// Rutas con parámetro "from" para volver atrás.
 const safeFromPath = fromPath ?? `/comprar/productos/${category}`;
 const profileHref = `${profileBasePath}/${slug}?from=${encodeURIComponent(safeFromPath)}`;
 const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComponent(safeFromPath)}`;
 ---
+<!-- Card de proveedor -->
 <div class="ab-provider-card">
+  <!-- Badge de ranking -->
   {ranking <= 3 && (
     <div class="ab-provider-card__ranking-badge">
       ⭐ Ranking #{ranking}
     </div>
   )}
 
+  <!-- Badge de sponsor -->
   {sponsor && <div class="ab-provider-card__sponsor-badge">SPONSOR</div>}
 
+  <!-- Encabezado con avatar y nombre -->
   <div class="ab-provider-card__header">
     <span class="ab-provider-card__avatar">
       <img src={avatar} alt={`Avatar de ${name}`} loading="lazy" />
@@ -44,6 +50,7 @@ const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComp
 
   <p class="ab-provider-card__location">{location}</p>
 
+  <!-- CTAs principales -->
   <a
     href={productsHref}
     class="ab-cta-button"

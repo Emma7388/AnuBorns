@@ -1,13 +1,26 @@
+/* Mis ventas: render de productos publicados por el usuario. */
 import { supabase } from "../lib/supabaseClient";
 
+/* Referencias DOM. */
 const productsGrid = document.getElementById("my-products-grid");
 const productsEmpty = document.getElementById("my-products-empty");
+const deleteModal = document.getElementById("sales-delete-modal");
+const deleteModalClose = document.querySelector("[data-sales-modal-close]");
+const deleteModalCancel = document.querySelector("[data-sales-modal-cancel]");
+const deleteModalConfirm = document.querySelector("[data-sales-modal-confirm]");
+let currentUserId = "";
+let productsEventsBound = false;
+let modalEventsBound = false;
+let pendingDeleteProductId = "";
+let pendingDeleteTrigger = null;
 
+/* Formateo de precios ARS. */
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");
 };
 
+/* Formateo de fecha legible. */
 const formatDate = (value) => {
   if (!value) return "Sin fecha";
   const date = new Date(value);
@@ -15,6 +28,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+/* Formateo de métodos de entrega. */
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
   const labels = value.map((item) => {
@@ -25,6 +39,15 @@ const formatDelivery = (value) => {
   return labels.join(" + ");
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+/* Renderiza tarjetas de productos del usuario. */
 const renderMyProducts = (products) => {
   if (!productsGrid || !productsEmpty) return;
   productsGrid.innerHTML = "";
@@ -63,24 +86,80 @@ const renderMyProducts = (products) => {
         ${product.pickup_address ? `<li>Dirección: <strong>${product.pickup_address}</strong></li>` : ""}
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
       </ul>
+      <div class="ab-provider-product-card__actions">
+        <button
+          type="button"
+          class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
+          data-delete-product="${escapeHtml(product.id)}"
+        >
+          Borrar
+        </button>
+      </div>
     `;
     productsGrid.appendChild(card);
   });
 };
 
+const deletePublishedProduct = async (productId, triggerButton) => {
+  if (!productId || !currentUserId) return;
+  if (triggerButton instanceof HTMLButtonElement) {
+    triggerButton.disabled = true;
+    triggerButton.setAttribute("aria-busy", "true");
+  }
+
+  try {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productId)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      return;
+    }
+
+    await loadMyProducts();
+  } finally {
+    if (triggerButton instanceof HTMLButtonElement) {
+      triggerButton.disabled = false;
+      triggerButton.removeAttribute("aria-busy");
+    }
+  }
+};
+
+const openDeleteModal = (productId, triggerButton) => {
+  if (!deleteModal || !productId) return;
+  pendingDeleteProductId = productId;
+  pendingDeleteTrigger = triggerButton ?? null;
+  deleteModal.classList.remove("ab-is-hidden");
+  deleteModal.setAttribute("aria-hidden", "false");
+  deleteModalConfirm?.focus();
+};
+
+const closeDeleteModal = () => {
+  if (!deleteModal) return;
+  pendingDeleteProductId = "";
+  pendingDeleteTrigger = null;
+  deleteModal.classList.add("ab-is-hidden");
+  deleteModal.setAttribute("aria-hidden", "true");
+};
+
+/* Carga productos del usuario autenticado. */
 const loadMyProducts = async () => {
   if (!productsGrid || !productsEmpty) return;
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData?.session;
     if (!session?.user) {
+      currentUserId = "";
       productsEmpty.classList.remove("ab-is-hidden");
       return;
     }
+    currentUserId = session.user.id;
     const { data, error } = await supabase
       .from("products")
       .select("id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,created_at")
-      .eq("user_id", session.user.id)
+      .eq("user_id", currentUserId)
       .order("created_at", { ascending: false });
     if (error) {
       productsEmpty.classList.remove("ab-is-hidden");
@@ -92,7 +171,46 @@ const loadMyProducts = async () => {
   }
 };
 
+/* Inicialización y hooks de navegación. */
 const initMySalesProducts = () => {
+  if (productsGrid && !productsEventsBound) {
+    productsGrid.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-delete-product]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const productId = button.dataset.deleteProduct ?? "";
+      if (!productId) return;
+      openDeleteModal(productId, button);
+    });
+    productsEventsBound = true;
+  }
+
+  if (!modalEventsBound) {
+    deleteModalCancel?.addEventListener("click", closeDeleteModal);
+    deleteModalClose?.addEventListener("click", closeDeleteModal);
+    deleteModalConfirm?.addEventListener("click", async () => {
+      const productId = pendingDeleteProductId;
+      if (!productId) return;
+      if (deleteModalConfirm instanceof HTMLButtonElement) {
+        deleteModalConfirm.disabled = true;
+        deleteModalConfirm.setAttribute("aria-busy", "true");
+      }
+      await deletePublishedProduct(productId, pendingDeleteTrigger);
+      if (deleteModalConfirm instanceof HTMLButtonElement) {
+        deleteModalConfirm.disabled = false;
+        deleteModalConfirm.removeAttribute("aria-busy");
+      }
+      closeDeleteModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (deleteModal?.classList.contains("ab-is-hidden")) return;
+      closeDeleteModal();
+    });
+    modalEventsBound = true;
+  }
+
   loadMyProducts();
 };
 

@@ -1,9 +1,11 @@
 ---
+// Página: publicación de trabajo (MVP).
 import MainLayout from "../../layouts/MainLayout.astro";
 import { categories } from "../../data/categories";
 ---
 
 <MainLayout title="Publicar trabajo" backHref="/comprar/servicios">
+  <!-- Panel principal -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Solicitud de servicio</p>
     <h1>Publicá tu trabajo</h1>
@@ -11,6 +13,7 @@ import { categories } from "../../data/categories";
       Esta publicación será visible para profesionales de la categoría seleccionada.
     </p>
 
+    <!-- Formulario de solicitud -->
     <form class="ab-form" id="job-form">
       <label for="job-title">Título del trabajo</label>
       <input id="job-title" name="job-title" type="text" placeholder="Ej: Reparar pérdida en cocina" />
@@ -48,6 +51,7 @@ import { categories } from "../../data/categories";
 </MainLayout>
 
 <script>
+  // Submit MVP: redirige a confirmación.
   const form = document.getElementById("job-form");
   if (form) {
     form.addEventListener("submit", (event) => {

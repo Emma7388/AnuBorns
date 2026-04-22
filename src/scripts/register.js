@@ -1,5 +1,7 @@
+/* Formulario de registro: validaciones y alta de usuario. */
 import { supabase } from "../lib/supabaseClient";
 
+/* Referencias DOM. */
 const registerForm = document.getElementById("register-form");
 const feedback = document.getElementById("register-feedback");
 const emailInput = document.getElementById("email");
@@ -15,11 +17,20 @@ const city = document.getElementById("city");
 const province = document.getElementById("province");
 const postal = document.getElementById("postal-code");
 
+/* Si el usuario ya quedó autenticado (por ejemplo desde otra pestaña), avanza al perfil. */
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session?.user) {
+    window.location.replace("/mis-datos");
+  }
+});
+
+/* Submit del formulario de registro. */
 registerForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!emailInput || !passwordInput || !passwordConfirm || !feedback) return;
   feedback.textContent = "Creando cuenta...";
 
+  /* Captura y valida inputs. */
   const email = emailInput.value.trim();
   const password = passwordInput.value;
   const confirm = passwordConfirm.value;
@@ -40,6 +51,7 @@ registerForm?.addEventListener("submit", async (event) => {
     return;
   }
 
+  /* Validación de avatar si se adjunta. */
   if (avatarFile) {
     const isImage = avatarFile.type.startsWith("image/");
     const maxSize = 2 * 1024 * 1024;
@@ -53,7 +65,8 @@ registerForm?.addEventListener("submit", async (event) => {
     }
   }
 
-  const emailRedirectTo = `${window.location.origin}/mis-datos`;
+  /* Registro en Supabase. */
+  const emailRedirectTo = `${window.location.origin}/auth/callback?returnTo=/mis-datos`;
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -77,6 +90,7 @@ registerForm?.addEventListener("submit", async (event) => {
     return;
   }
 
+  /* Si hay sesión, sube avatar y actualiza perfil. */
   if (data?.session) {
     const userId = data.session.user.id;
     if (avatarFile) {
@@ -108,6 +122,7 @@ registerForm?.addEventListener("submit", async (event) => {
     return;
   }
 
+  /* Si no hay sesión inmediata, guarda avatar para subir luego. */
   if (avatarFile) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -126,6 +141,7 @@ registerForm?.addEventListener("submit", async (event) => {
     reader.readAsDataURL(avatarFile);
   }
 
+  /* Mensaje final cuando requiere confirmación por email. */
   feedback.textContent =
     "Cuenta creada. Revisá tu email para confirmar el acceso. El avatar se subirá cuando inicies sesión.";
 });

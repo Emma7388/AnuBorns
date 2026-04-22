@@ -1,4 +1,5 @@
 ---
+// Componente: acceso rápido a productos y servicios.
 const {
   basePath = "",
   title,
@@ -7,22 +8,23 @@ const {
   productHref,
   serviceHref,
 } = Astro.props;
+// Normaliza basePath para generar rutas.
 const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toLowerCase();
 import "../styles/global.css";
 ---
-  <section class="level-two">
-    {title && <h1 class="level-two__title">{title}</h1>}
-    
-    <div class="block-group">
+<!-- Sección con accesos de segundo nivel -->
+<section class="level-two">
+  <!-- Título opcional -->
+  {title && <h1 class="level-two__title">{title}</h1>}
 
-      <a href={productHref ?? `/${normalizedBasePath}/productos`} class="level-block">
-        {productLabel}
-      </a>
-      
-     
-      <a href={serviceHref ?? `/${normalizedBasePath}/servicios`} class="level-block">
-        {serviceLabel}
-      </a>
-      
-    </div>
-  </section>
+  <!-- Bloques de navegación -->
+  <div class="block-group">
+    <a href={productHref ?? `/${normalizedBasePath}/productos`} class="level-block">
+      {productLabel}
+    </a>
+
+    <a href={serviceHref ?? `/${normalizedBasePath}/servicios`} class="level-block">
+      {serviceLabel}
+    </a>
+  </div>
+</section>

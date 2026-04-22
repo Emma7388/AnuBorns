@@ -1,20 +1,25 @@
 ﻿---
+// Página: historial de servicios (MVP local).
 import MainLayout from "../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Mis servicios" backHref="/mis-datos">
+  <!-- Panel principal -->
   <section class="ab-dark-panel ab-services-panel">
     <p class="ab-eyebrow">Usuario base</p>
     <h1>Mis servicios</h1>
     <p class="ab-muted-text">
       Historial de servicios finalizados y el servicio activo primero.
     </p>
+    <!-- Servicio activo -->
     <div id="service-active"></div>
 
+    <!-- Estado vacío -->
     <div id="services-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no registraste servicios.</p>
     </div>
 
+    <!-- Historial -->
     <h2 id="service-history-title">Servicios finalizados</h2>
     <div class="ab-actions">
       <button id="services-reset" type="button">Resetear datos (MVP)</button>
@@ -24,6 +29,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 </MainLayout>
 
 <script>
+  // MVP local: storage y render de servicios.
   const SERVICES_KEY = "ab_services_v1";
   const activeContainer = document.getElementById("service-active");
   const list = document.getElementById("service-list");
@@ -31,6 +37,7 @@ import MainLayout from "../layouts/MainLayout.astro";
   const historyTitle = document.getElementById("service-history-title");
   const resetButton = document.getElementById("services-reset");
 
+  // Seed de ejemplo para experiencia inicial.
   const seedData = {
     active: {
       title: "Reparación de aire acondicionado",
@@ -60,6 +67,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     ],
   };
 
+  // Lee del storage o inicializa con seed.
   const loadServices = () => {
     try {
       const raw = window.localStorage.getItem(SERVICES_KEY);
@@ -74,6 +82,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     }
   };
 
+  // Render del servicio activo.
   const renderActive = (active) => {
     if (!active) {
       activeContainer.innerHTML = "";
@@ -108,6 +117,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     `;
   };
 
+  // Render del historial de servicios.
   const renderHistory = (history) => {
     list.innerHTML = "";
 
@@ -139,6 +149,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     });
   };
 
+  // Render total con control de estados.
   const renderServices = () => {
     const data = loadServices();
     const active = data?.active ?? null;
@@ -152,8 +163,10 @@ import MainLayout from "../layouts/MainLayout.astro";
     emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
   };
 
+  // Inicialización.
   renderServices();
 
+  // Reset rápido para demo.
   resetButton?.addEventListener("click", () => {
     window.localStorage.setItem(SERVICES_KEY, JSON.stringify(seedData));
     renderServices();

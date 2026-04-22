@@ -1,9 +1,11 @@
 ---
+// Página: carrito con listado y resumen.
 import MainLayout from "../layouts/MainLayout.astro";
 import cartScriptUrl from "../scripts/cart.js?url";
 ---
 
 <MainLayout title="Carrito">
+  <!-- Panel principal del carrito -->
   <section class="ab-dark-panel ab-cart-panel">
     <p class="ab-eyebrow">Carrito</p>
     <h1>Tu carrito</h1>
@@ -11,12 +13,15 @@ import cartScriptUrl from "../scripts/cart.js?url";
       Revisá tus productos antes de continuar al checkout.
     </p>
 
+    <!-- Estado vacío -->
     <div id="cart-empty" class="ab-cart-empty">
       <p>No hay productos en el carrito.</p>
     </div>
 
+    <!-- Items renderizados por JS -->
     <div id="cart-items" class="ab-cart-items" aria-live="polite"></div>
 
+    <!-- Resumen y acciones -->
     <div class="ab-cart-summary">
       <p class="ab-cart-summary__total">
         Total: <strong id="cart-total">$0</strong>
@@ -33,4 +38,5 @@ import cartScriptUrl from "../scripts/cart.js?url";
   </section>
 </MainLayout>
 
+<!-- Script de interacción del carrito -->
 <script type="module" src={cartScriptUrl}></script>

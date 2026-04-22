@@ -1,14 +1,17 @@
 ---
+// Página: flujo de contratación de proveedor.
 import MainLayout from "../../layouts/MainLayout.astro";
 import { providers } from "../../data/providers";
 import { categories } from "../../data/categories";
 
+// Rutas estáticas a partir del dataset local.
 export async function getStaticPaths() {
   return providers.map((provider) => ({
     params: { slug: provider.slug }
   }));
 }
 
+// Resolución de proveedor y back link.
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
@@ -22,6 +25,7 @@ const backHref = fromParam && fromParam.startsWith("/")
 
 <MainLayout title={provider ? `Contratar a ${provider.name}` : "Contratación"} backHref={backHref}>
   {provider ? (
+    <!-- Panel de contratación -->
     <section class="ab-dark-panel">
       <p class="ab-eyebrow">Solicitud de contratación</p>
       <h1>{provider.name}</h1>
@@ -29,6 +33,7 @@ const backHref = fromParam && fromParam.startsWith("/")
         Categoría: <strong>{categoryName ?? provider.category}</strong> · {provider.location}
       </p>
 
+      <!-- Pasos del proceso -->
       <div class="ab-contract__steps">
         <h2>Cómo sigue el proceso</h2>
         <ol>
@@ -38,6 +43,7 @@ const backHref = fromParam && fromParam.startsWith("/")
         </ol>
       </div>
 
+      <!-- Formulario de solicitud -->
       <form class="ab-contract__form">
         <label for="job-description">Descripción del trabajo</label>
         <textarea
@@ -55,6 +61,7 @@ const backHref = fromParam && fromParam.startsWith("/")
 
     </section>
   ) : (
+    <!-- Fallback cuando no existe el proveedor -->
     <section class="ab-dark-panel">
       <h1>Proveedor no encontrado</h1>
       <p>La contratación no puede iniciarse porque el proveedor no existe.</p>

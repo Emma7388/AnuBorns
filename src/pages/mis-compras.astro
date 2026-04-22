@@ -1,18 +1,48 @@
 ---
+// Página: historial de compras.
 import MainLayout from "../layouts/MainLayout.astro";
 import ordersScriptUrl from "../scripts/orders.js?url";
 ---
 
 <MainLayout title="Mis compras" backHref="/mis-datos">
+  <!-- Panel de historial -->
   <section class="ab-dark-panel ab-orders-panel">
     <p class="ab-eyebrow">Perfil</p>
     <h1>Mis compras</h1>
+    <!-- Estado de carga -->
     <p id="orders-status" class="ab-muted-text">Cargando órdenes...</p>
+    <!-- Estado vacío -->
     <div id="orders-empty" class="ab-cart-empty ab-is-hidden">
       <p>No hay compras registradas.</p>
     </div>
+    <!-- Lista renderizada por JS -->
     <div id="orders-list" class="ab-orders-list"></div>
   </section>
+
+  <!-- Modal de confirmación para borrar una compra -->
+  <div
+    id="orders-delete-modal"
+    class="ab-orders-modal ab-is-hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="orders-delete-title"
+  >
+    <div class="ab-orders-modal__backdrop" data-orders-modal-close></div>
+    <div class="ab-orders-modal__panel" role="document">
+      <h2 id="orders-delete-title">Borrar compra</h2>
+      <p>¿Seguro que querés borrar esta compra? Esta acción no se puede deshacer.</p>
+      <div class="ab-orders-modal__actions">
+        <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-orders-modal-cancel>
+          Cancelar
+        </button>
+        <button type="button" class="ab-orders-delete-btn" data-orders-modal-confirm>
+          Sí, borrar
+        </button>
+      </div>
+    </div>
+  </div>
 </MainLayout>
 
+<!-- Script de órdenes -->
 <script type="module" src={ordersScriptUrl}></script>

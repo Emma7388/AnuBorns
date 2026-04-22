@@ -1,6 +1,8 @@
+/* UI de confirmación de compra y limpieza de carrito. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
 
+/* Limpia el carrito local/persistente tras la confirmación. */
 const clearCart = async () => {
   try {
     const items = await getCart();
@@ -12,6 +14,7 @@ const clearCart = async () => {
   }
 };
 
+/* Referencias DOM y parámetros de URL. */
 const title = document.getElementById("confirmation-title");
 const message = document.getElementById("confirmation-message");
 const orderLabel = document.getElementById("confirmation-order");
@@ -20,6 +23,7 @@ const params = new URLSearchParams(window.location.search);
 const orderId = params.get("orderId");
 const status = params.get("status");
 
+/* Mapeo de estados a textos de UI. */
 const statusMap = {
   approved: {
     title: "Pago aprobado",
@@ -47,6 +51,7 @@ const statusMap = {
   },
 };
 
+/* Renderiza la UI según estado. */
 const renderStatus = (value) => {
   const info = statusMap[value ?? ""] ?? {
     title: "Estado del pago",
@@ -56,6 +61,7 @@ const renderStatus = (value) => {
   if (message) message.textContent = info.message;
 };
 
+/* Carga y muestra información resumida de la orden. */
 const loadOrder = async () => {
   renderStatus(status);
   if (!orderId) return;
@@ -69,5 +75,6 @@ const loadOrder = async () => {
   }
 };
 
+/* Inicialización. */
 loadOrder();
 clearCart();

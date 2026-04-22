@@ -1,14 +1,17 @@
 ---
+// Página: perfil de proveedor (comprar).
 import MainLayout from "../../../layouts/MainLayout.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
 
+// Rutas estáticas por proveedor.
 export async function getStaticPaths() {
   return providers.map((provider) => ({
     params: { slug: provider.slug }
   }));
 }
 
+// Resuelve proveedor y back link.
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
@@ -22,7 +25,9 @@ const backHref = fromParam && fromParam.startsWith("/")
 
 <MainLayout title={provider ? `Proveedor: ${provider.name}` : "Proveedor"} backHref={backHref}>
   {provider ? (
+    <!-- Perfil del proveedor -->
     <section class="ab-dark-panel">
+      <!-- Encabezado -->
       <header class="ab-provider-profile__header">
         <div>
           <p class="ab-eyebrow">Perfil de proveedor</p>
@@ -33,6 +38,7 @@ const backHref = fromParam && fromParam.startsWith("/")
         {provider.sponsor && <span class="ab-sponsor-chip">SPONSOR</span>}
       </header>
 
+      <!-- Datos clave -->
       <div class="ab-provider-profile__meta">
         <p><strong>Ranking:</strong> #{provider.ranking}</p>
         <p><strong>Valoración:</strong> {provider.rating} ({provider.reviews} reseñas)</p>
@@ -43,6 +49,7 @@ const backHref = fromParam && fromParam.startsWith("/")
 
       <p class="ab-provider-profile__bio">{provider.bio}</p>
 
+      <!-- Productos/servicios destacados -->
       <div id="productos">
         <h2>Productos/servicios destacados</h2>
         <ul class="ab-provider-profile__services-list">
@@ -50,11 +57,13 @@ const backHref = fromParam && fromParam.startsWith("/")
         </ul>
       </div>
 
+      <!-- CTA principal -->
       <div class="ab-provider-profile__actions">
         <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/proveedor/${provider.slug}`)}`} class="ab-cta-button">Iniciar contratación</a>
       </div>
     </section>
   ) : (
+    <!-- Fallback si no existe -->
     <section class="ab-dark-panel">
       <h1>Proveedor no encontrado</h1>
       <p>Verificá el enlace o volvé al listado de categorías.</p>
