@@ -4,13 +4,6 @@ import MainLayout from "../../layouts/MainLayout.astro";
 import { providers } from "../../data/providers";
 import { categories } from "../../data/categories";
 
-// Rutas estáticas a partir del dataset local.
-export async function getStaticPaths() {
-  return providers.map((provider) => ({
-    params: { slug: provider.slug }
-  }));
-}
-
 // Resolución de proveedor y back link.
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);

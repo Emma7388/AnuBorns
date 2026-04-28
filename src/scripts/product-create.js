@@ -31,6 +31,19 @@ const setFeedback = (message) => {
   if (feedback) feedback.textContent = message;
 };
 
+/* Completa y fija teléfono/email usando datos reales del usuario. */
+const hydrateContactFields = (session) => {
+  if (!publicPhoneInput || !publicEmailInput || !pickupAddressInput) return;
+  const metadata = session?.user?.user_metadata ?? {};
+  const phone = String(metadata.phone ?? "").trim();
+  const email = String(session?.user?.email ?? "").trim();
+  const address = String(metadata.address ?? "").trim();
+
+  publicPhoneInput.value = phone;
+  publicEmailInput.value = email;
+  pickupAddressInput.value = address;
+};
+
 /* Habilita/deshabilita todos los campos del formulario de publicación. */
 const setFormDisabled = (isDisabled) => {
   if (!form) return;
@@ -173,7 +186,21 @@ const initProductForm = () => {
   setFeedback("Validando sesión...");
   ensureSession().then((session) => {
     if (!session) return;
+    hydrateContactFields(session);
     setFormDisabled(false);
+    const hasPhone = String(publicPhoneInput?.value ?? "").trim().length > 0;
+    const hasEmail = String(publicEmailInput?.value ?? "").trim().length > 0;
+    const hasAddress = String(pickupAddressInput?.value ?? "").trim().length > 0;
+    if (!hasPhone || !hasEmail || !hasAddress) {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = true;
+      }
+      setFeedback("Completá teléfono, email y dirección en Mis datos para poder publicar.");
+      return;
+    }
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = false;
+    }
     loadCategories();
     updatePickupAddressVisibility();
     bindOnce(imagesInput, "ImagesChange", "change", onImagesChange);
@@ -349,7 +376,7 @@ const submitProduct = async () => {
     return;
   }
   if (!pickupAddress) {
-    setFeedback("Ingresá la dirección pública.");
+    setFeedback("Ingresá la dirección.");
     return;
   }
   if (images.length === 0) {

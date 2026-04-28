@@ -8,6 +8,9 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
     <!-- Marca / logo -->
     <a href="/" class="logo">Desoluciones</a>
 
+    <!-- Título de página (inyectado desde MainLayout) -->
+    <div id="ab-header-page-title" class="ab-header-page-title" aria-live="polite"></div>
+
     <!-- Navegación superior -->
     <nav class="nav">
       <!-- Acceso rápido al carrito -->
@@ -73,11 +76,36 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 }
 
 .header-inner {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.ab-header-page-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(52vw, 640px);
+  text-align: center;
+  width: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ab-header-page-title:empty {
+  display: none;
+}
+
+.ab-header-page-title h1 {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1.2;
+  text-wrap: balance;
 }
 
 .logo {
@@ -125,8 +153,11 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 }
 
 .nav-login:hover {
-  transform: translateY(-1px);
   box-shadow: 0 14px 24px rgba(22, 199, 132, 0.3);
+}
+
+.nav-login:active {
+  transform: translateY(1px);
 }
 
 .nav-login--ghost {
@@ -140,7 +171,10 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 .nav-login--ghost:hover {
   color: var(--color-text);
   border-color: var(--color-accent);
-  transform: translateY(-1px);
+}
+
+.nav-login--ghost:active {
+  transform: translateY(1px);
 }
 
 .nav-user {
@@ -306,12 +340,35 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 
 @media (max-width: 520px) {
   .header-inner {
-    flex-direction: column;
-    align-items: flex-start;
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .logo,
+  .ab-header-page-title,
+  .nav-auth {
+    width: 100%;
+  }
+
+  .ab-header-page-title {
+    position: static;
+    transform: none;
+    max-width: none;
+  }
+
+  .ab-header-page-title h1 {
+    font-size: clamp(1rem, 5.2vw, 1.25rem);
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
   }
 
   .nav-auth {
-    width: 100%;
     justify-content: flex-start;
   }
 

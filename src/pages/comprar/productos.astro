@@ -3,7 +3,30 @@
 import CategoryGrid from "../../components/CategoryGrid.astro";
 import MainLayout from "../../layouts/MainLayout.astro";
 ---
-<MainLayout>
+<MainLayout title="Productos">
   <!-- Grilla de categorías -->
-  <CategoryGrid basePath="comprar" type="productos" title="Productos" />
+  <section class="ab-buy-products-categories">
+    <CategoryGrid basePath="comprar" type="productos" title="Productos" />
+  </section>
 </MainLayout>
+
+<style>
+  .ab-buy-products-categories :global(.grid) {
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: 22px;
+    max-width: 900px;
+  }
+
+  .ab-buy-products-categories :global(.category-card) {
+    max-width: 230px;
+    font-size: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .ab-buy-products-categories :global(.grid) {
+      grid-template-columns: repeat(2, minmax(110px, 1fr));
+      gap: 16px;
+      max-width: 640px;
+    }
+  }
+</style>

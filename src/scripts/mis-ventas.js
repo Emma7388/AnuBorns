@@ -2,6 +2,9 @@
 import { supabase } from "../lib/supabaseClient";
 
 /* Referencias DOM. */
+const soldProductsList = document.getElementById("my-sold-products-list");
+const soldProductsEmpty = document.getElementById("my-sold-products-empty");
+const soldProductsStatus = document.getElementById("my-sold-products-status");
 const productsGrid = document.getElementById("my-products-grid");
 const productsEmpty = document.getElementById("my-products-empty");
 const deleteModal = document.getElementById("sales-delete-modal");
@@ -46,6 +49,41 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+/* Renderiza resumen de productos vendidos. */
+const renderSoldProducts = (products) => {
+  if (!soldProductsList || !soldProductsEmpty) return;
+  soldProductsList.innerHTML = "";
+  if (!Array.isArray(products) || products.length === 0) {
+    soldProductsEmpty.classList.remove("ab-is-hidden");
+    return;
+  }
+
+  soldProductsEmpty.classList.add("ab-is-hidden");
+  products.forEach((product) => {
+    const card = document.createElement("article");
+    card.className = "ab-order-card";
+    card.innerHTML = `
+      <div class="ab-order-card__header">
+        <div>
+          <p class="ab-order-card__label">Producto vendido</p>
+          <p class="ab-order-card__date">Última venta: ${formatDate(product.lastSoldAt)}</p>
+        </div>
+        <strong>$${formatPrice(product.revenue)} ${escapeHtml(product.currency || "ARS")}</strong>
+      </div>
+      <ul class="ab-order-card__items">
+        <li>
+          <div>
+            <strong>${escapeHtml(product.title || "Producto sin título")}</strong>
+            <p>Órdenes: ${product.ordersCount}</p>
+          </div>
+          <span>Unidades: ${product.quantity}</span>
+        </li>
+      </ul>
+    `;
+    soldProductsList.appendChild(card);
+  });
+};
 
 /* Renderiza tarjetas de productos del usuario. */
 const renderMyProducts = (products) => {
@@ -144,6 +182,117 @@ const closeDeleteModal = () => {
   deleteModal.setAttribute("aria-hidden", "true");
 };
 
+/* Carga y resume ventas de productos del usuario autenticado. */
+const loadSoldProducts = async () => {
+  if (!soldProductsList || !soldProductsEmpty || !soldProductsStatus) return;
+  soldProductsStatus.textContent = "Cargando productos vendidos...";
+
+  if (!currentUserId) {
+    soldProductsStatus.textContent = "";
+    renderSoldProducts([]);
+    return;
+  }
+
+  try {
+    const { data: ordersData, error: ordersError } = await supabase
+      .from("orders")
+      .select("id, created_at, order_items (product_id, name, qty, unit_price)")
+      .order("created_at", { ascending: false });
+
+    if (ordersError) {
+      soldProductsStatus.textContent = "";
+      renderSoldProducts([]);
+      return;
+    }
+
+    const orderItems = (ordersData ?? [])
+      .flatMap((order) =>
+        (Array.isArray(order?.order_items) ? order.order_items : []).map((item) => ({
+          ...item,
+          order_id: order?.id ?? null,
+          created_at: order?.created_at ?? null,
+        }))
+      )
+      .filter((item) => String(item?.product_id ?? "").trim());
+
+    if (orderItems.length === 0) {
+      soldProductsStatus.textContent = "";
+      renderSoldProducts([]);
+      return;
+    }
+
+    const uniqueProductIds = [...new Set(orderItems.map((item) => String(item.product_id).trim()))];
+    const { data: ownProducts, error: productsError } = await supabase
+      .from("products")
+      .select("id, title, currency, user_id")
+      .in("id", uniqueProductIds)
+      .eq("user_id", currentUserId);
+
+    if (productsError) {
+      soldProductsStatus.textContent = "";
+      renderSoldProducts([]);
+      return;
+    }
+
+    const ownMap = new Map((ownProducts ?? []).map((product) => [String(product.id), product]));
+    if (ownMap.size === 0) {
+      soldProductsStatus.textContent = "";
+      renderSoldProducts([]);
+      return;
+    }
+
+    const soldMap = new Map();
+    orderItems.forEach((item) => {
+      const productId = String(item.product_id).trim();
+      const ownProduct = ownMap.get(productId);
+      if (!ownProduct) return;
+
+      const qty = Number(item.qty ?? 1);
+      const unitPrice = Number(item.unit_price ?? 0);
+      const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+      const safePrice = Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : 0;
+      const createdAt = item.created_at ? new Date(item.created_at) : null;
+      const entry = soldMap.get(productId) ?? {
+        productId,
+        title: ownProduct.title || item.name || "Producto",
+        currency: ownProduct.currency || "ARS",
+        quantity: 0,
+        revenue: 0,
+        ordersSet: new Set(),
+        lastSoldAt: null,
+      };
+
+      entry.quantity += safeQty;
+      entry.revenue += safePrice * safeQty;
+      if (item.order_id) entry.ordersSet.add(String(item.order_id));
+      if (createdAt && !Number.isNaN(createdAt.getTime())) {
+        if (!entry.lastSoldAt || createdAt > entry.lastSoldAt) {
+          entry.lastSoldAt = createdAt;
+        }
+      }
+      soldMap.set(productId, entry);
+    });
+
+    const soldProducts = Array.from(soldMap.values())
+      .map((entry) => ({
+        productId: entry.productId,
+        title: entry.title,
+        currency: entry.currency,
+        quantity: entry.quantity,
+        revenue: entry.revenue,
+        ordersCount: entry.ordersSet.size,
+        lastSoldAt: entry.lastSoldAt ? entry.lastSoldAt.toISOString() : null,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    soldProductsStatus.textContent = "";
+    renderSoldProducts(soldProducts);
+  } catch {
+    soldProductsStatus.textContent = "";
+    renderSoldProducts([]);
+  }
+};
+
 /* Carga productos del usuario autenticado. */
 const loadMyProducts = async () => {
   if (!productsGrid || !productsEmpty) return;
@@ -153,6 +302,8 @@ const loadMyProducts = async () => {
     if (!session?.user) {
       currentUserId = "";
       productsEmpty.classList.remove("ab-is-hidden");
+      renderSoldProducts([]);
+      if (soldProductsStatus) soldProductsStatus.textContent = "";
       return;
     }
     currentUserId = session.user.id;
@@ -163,11 +314,15 @@ const loadMyProducts = async () => {
       .order("created_at", { ascending: false });
     if (error) {
       productsEmpty.classList.remove("ab-is-hidden");
+      await loadSoldProducts();
       return;
     }
     renderMyProducts(data ?? []);
+    await loadSoldProducts();
   } catch {
     productsEmpty.classList.remove("ab-is-hidden");
+    renderSoldProducts([]);
+    if (soldProductsStatus) soldProductsStatus.textContent = "";
   }
 };
 

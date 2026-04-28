@@ -18,7 +18,7 @@ const showBack = pathname !== "/";
   <Header />
 
   <!-- Contenido de página -->
-  <main>
+  <main data-ab-page-title={title ?? ""}>
     <slot />
   </main>
 
@@ -27,15 +27,56 @@ const showBack = pathname !== "/";
 
   <!-- Intercepta botón volver cuando se pide volver por history -->
   <script is:inline>
-    const backLinks = document.querySelectorAll("[data-ab-back]");
-    if (backLinks.length && window.history.length > 1) {
-      backLinks.forEach((link) => {
-        if (link.getAttribute("data-ab-back") !== "history") return;
-        link.addEventListener("click", (event) => {
-          event.preventDefault();
-          window.history.back();
+    const bindBackLinks = () => {
+      const backLinks = document.querySelectorAll("[data-ab-back]");
+      if (backLinks.length && window.history.length > 1) {
+        backLinks.forEach((link) => {
+          if (link.getAttribute("data-ab-back") !== "history") return;
+          if (link.dataset.abBackBound === "true") return;
+          link.addEventListener("click", (event) => {
+            event.preventDefault();
+            window.history.back();
+          });
+          link.dataset.abBackBound = "true";
         });
+      }
+    };
+
+    const mountHeaderTitle = () => {
+      const headerTitle = document.getElementById("ab-header-page-title");
+      const main = document.querySelector("main");
+      if (!headerTitle || !main) return;
+
+      headerTitle.innerHTML = "";
+      const firstH1 = main.querySelector("h1");
+      if (firstH1) {
+        headerTitle.appendChild(firstH1);
+        return;
+      }
+
+      const fallbackTitle = (main.dataset.abPageTitle || "").trim();
+      if (!fallbackTitle) return;
+      const h1 = document.createElement("h1");
+      h1.textContent = fallbackTitle;
+      headerTitle.appendChild(h1);
+    };
+
+    const runLayoutEnhancements = () => {
+      bindBackLinks();
+      mountHeaderTitle();
+    };
+
+    runLayoutEnhancements();
+
+    if (!window.__abLayoutEnhancementsBound) {
+      document.addEventListener("astro:page-load", runLayoutEnhancements);
+      document.addEventListener("astro:after-swap", runLayoutEnhancements);
+      document.addEventListener("astro:before-swap", () => {
+        const headerTitle = document.getElementById("ab-header-page-title");
+        if (headerTitle) headerTitle.innerHTML = "";
       });
+      window.addEventListener("pageshow", runLayoutEnhancements);
+      window.__abLayoutEnhancementsBound = true;
     }
   </script>
 </BaseLayout>

@@ -1,6 +1,7 @@
 /* UI de tarjetas de productos: botón de carrito con animación. */
 import { supabase } from "../lib/supabaseClient";
 import { addToCart } from "../lib/cart";
+import { confirmAddToCart } from "../lib/cartConfirm";
 
 /* Convierte la tarjeta DOM a item de carrito. */
 const addCardToCart = async (card) => {
@@ -58,6 +59,8 @@ const initBuyButtons = async () => {
       if (button.dataset.abLoading === "true") return;
       button.dataset.abLoading = "true";
       try {
+        const accepted = await confirmAddToCart();
+        if (!accepted) return;
         await addCardToCart(card);
         animateAddButton(button);
       } finally {

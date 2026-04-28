@@ -187,8 +187,14 @@ a {
 
 .ab-cta-button:hover,
 button:hover {
-  transform: translateY(-2px);
   box-shadow: var(--button-shadow);
+}
+
+.ab-cta-button:active,
+button:active,
+input[type="button"]:active,
+input[type="submit"]:active {
+  transform: translateY(1px);
 }
 
 button,
@@ -346,8 +352,11 @@ input[type="submit"] {
 }
 
 .ab-form input[type="file"]::file-selector-button:hover {
-  transform: translateY(-1px);
   box-shadow: 0 14px 24px rgba(22, 199, 132, 0.3);
+}
+
+.ab-form input[type="file"]::file-selector-button:active {
+  transform: translateY(1px);
 }
 
 /* Home */
@@ -383,7 +392,6 @@ input[type="submit"] {
 }
 
 .hero-buttons .ab-cta-button:hover {
-  transform: translateY(-3px);
   box-shadow: 0 12px 30px rgba(22, 199, 132, 0.35);
 }
 
@@ -436,8 +444,11 @@ input[type="submit"] {
 }
 
 .level-block:hover {
-  transform: translateY(-6px);
   box-shadow: 0 20px 40px rgba(22, 199, 132, 0.35);
+}
+
+.level-block:active {
+  transform: translateY(2px);
 }
 
 @media (max-width: 900px) {
@@ -521,8 +532,11 @@ input[type="submit"] {
 }
 
 .category-card:hover {
-  transform: translateY(-6px);
   box-shadow: 0 20px 40px rgba(22, 199, 132, 0.35);
+}
+
+.category-card:active {
+  transform: translateY(2px);
 }
 
 .ab-form select option {
@@ -587,8 +601,11 @@ input[type="submit"] {
 }
 
 .ab-upload-button:hover {
-  transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(242, 140, 40, 0.35);
+}
+
+.ab-upload-button:active {
+  transform: translateY(1px);
 }
 
 .ab-upload-help {
@@ -1042,9 +1059,12 @@ input[type="submit"] {
 }
 
 .ab-provider-product-card:hover {
-  transform: translateY(-4px);
   border-color: rgba(22, 199, 132, 0.55);
   box-shadow: 0 16px 28px rgba(0, 0, 0, 0.3);
+}
+
+.ab-provider-product-card:active {
+  transform: translateY(2px);
 }
 
 .ab-provider-product-card.is-match {
@@ -1162,8 +1182,11 @@ input[type="submit"] {
 }
 
 .ab-provider-product-card__add:hover {
-  transform: translateY(-1px);
   box-shadow: 0 8px 16px rgba(22, 199, 132, 0.25);
+}
+
+.ab-provider-product-card__add:active {
+  transform: translateY(1px);
 }
 
 .ab-provider-product-card__add svg {
@@ -1219,11 +1242,11 @@ input[type="submit"] {
 }
 
 .ab-provider-product-card__button:hover {
-  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(22, 199, 132, 0.2);
 }
 
 .ab-provider-product-card__button:active {
-  transform: translateY(0);
+  transform: translateY(1px);
 }
 
 .ab-provider-product-card__button:focus-visible {
@@ -1291,8 +1314,12 @@ input[type="submit"] {
 }
 
 .ab-provider-card:hover {
-  transform: translateY(-4px);
   border-color: rgba(22, 199, 132, 0.5);
+  box-shadow: 0 22px 40px rgba(22, 199, 132, 0.2);
+}
+
+.ab-provider-card:active {
+  transform: translateY(2px);
 }
 
 .ab-provider-card__ranking-badge {

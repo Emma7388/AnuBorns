@@ -12,12 +12,52 @@ const submitButton = document.getElementById("login-submit");
 /* Sanitiza returnTo para evitar redirecciones externas. */
 const params = new URLSearchParams(window.location.search);
 const sanitizeReturnTo = (value) => {
-  if (!value || typeof value !== "string") return "/mis-datos";
-  if (!value.startsWith("/")) return "/mis-datos";
-  if (value.includes("://")) return "/mis-datos";
+  if (!value || typeof value !== "string") return "/";
+  if (!value.startsWith("/")) return "/";
+  if (value.includes("://")) return "/";
   return value;
 };
 const returnTo = sanitizeReturnTo(params.get("returnTo"));
+
+/* Obtiene nombre visible desde metadata o email. */
+const resolveDisplayName = (user) => {
+  const meta = user?.user_metadata ?? {};
+  const firstName = String(meta.first_name ?? "").trim();
+  if (firstName) return firstName;
+  const email = String(user?.email ?? "").trim();
+  if (!email) return "usuario";
+  return email.split("@")[0] || "usuario";
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+/* Muestra modal de bienvenida por 4 segundos. */
+const showWelcomeModal = (name) =>
+  new Promise((resolve) => {
+    const safeName = escapeHtml(name);
+    const modal = document.createElement("div");
+    modal.className = "ab-orders-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.innerHTML = `
+      <div class="ab-orders-modal__backdrop"></div>
+      <div class="ab-orders-modal__panel" role="document">
+        <h2 style="font-size: 1.65rem;">Bienvenido</h2>
+        <p style="font-size: 1.65rem; font-weight: 700; color: var(--color-text);">Bienvenido, ${safeName}</p>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    window.setTimeout(() => {
+      modal.remove();
+      resolve();
+    }, 4000);
+  });
 
 /* Wrapper con timeout para evitar esperas infinitas. */
 const withTimeout = (promise, ms) =>
@@ -37,7 +77,7 @@ loginForm?.addEventListener("submit", async (event) => {
 
   try {
     /* Auth con timeout por resiliencia. */
-    const { error } = await withTimeout(
+    const { data, error } = await withTimeout(
       supabase.auth.signInWithPassword({
         email: emailInput.value,
         password: passwordInput.value,
@@ -52,7 +92,9 @@ loginForm?.addEventListener("submit", async (event) => {
 
     /* Log de auditoría y navegación post-login. */
     postAudit("login_success").catch(() => {});
-    feedback.textContent = "Listo. Redirigiendo...";
+    const displayName = resolveDisplayName(data?.user);
+    feedback.textContent = `Listo. Bienvenido, ${displayName}.`;
+    await showWelcomeModal(displayName);
     window.location.replace(returnTo);
   } catch (err) {
     const message =

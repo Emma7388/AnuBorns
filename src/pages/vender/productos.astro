@@ -62,21 +62,23 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
         <option value="LIMA">LIMA</option>
       </select>
 
-      <label for="public-phone">Teléfono público</label>
+      <label for="public-phone">Teléfono</label>
       <input
         id="public-phone"
         name="publicPhone"
         type="tel"
-        placeholder="Ej: 11 2345 6789"
+        placeholder="Sin teléfono en perfil"
+        readonly
         required
       />
 
-      <label for="public-email">Email público</label>
+      <label for="public-email">Email</label>
       <input
         id="public-email"
         name="publicEmail"
         type="email"
-        placeholder="Ej: vendedor@email.com"
+        placeholder="Sin email en cuenta"
+        readonly
         required
       />
 
@@ -93,12 +95,13 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
       </div>
       <span class="ab-muted-text">Podés elegir una o ambas.</span>
       <div id="pickup-address-wrap">
-        <label for="pickup-address">Dirección pública</label>
+        <label for="pickup-address">Dirección</label>
         <input
           id="pickup-address"
           name="pickupAddress"
           type="text"
-          placeholder="Ej: Av. San Martín 123, Local 4"
+          placeholder="Sin dirección en perfil"
+          readonly
           required
         />
       </div>

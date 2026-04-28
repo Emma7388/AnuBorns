@@ -4,13 +4,6 @@ import MainLayout from "../../../layouts/MainLayout.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
 
-// Rutas estáticas por proveedor.
-export async function getStaticPaths() {
-  return providers.map((provider) => ({
-    params: { slug: provider.slug }
-  }));
-}
-
 // Datos y helpers de render.
 const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
@@ -185,6 +178,7 @@ const shortId = (value) => {
 
 <script type="module">
   import { addToCart, getCart } from "../../../lib/cart";
+  import { confirmAddToCart } from "../../../lib/cartConfirm";
 
   const grid = document.getElementById("provider-products-grid");
   const stockFilter = document.getElementById("stock-filter");
@@ -428,6 +422,15 @@ const shortId = (value) => {
       const card = target.closest(".ab-provider-product-card");
       if (!card) return;
       if (target.disabled) return;
+
+      const accepted = await confirmAddToCart({
+        message:
+          action === "buy"
+            ? "Deseas agregar este producto al carrito y continuar?"
+            : "Deseas agregar este producto al carrito?",
+        confirmLabel: action === "buy" ? "Si, continuar" : "Si, agregar",
+      });
+      if (!accepted) return;
 
       await addCardToCart(card);
       if (action === "buy") {
