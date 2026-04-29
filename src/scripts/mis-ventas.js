@@ -76,6 +76,11 @@ const renderSoldProducts = (products) => {
           <div>
             <strong>${escapeHtml(product.title || "Producto sin título")}</strong>
             <p>Órdenes: ${product.ordersCount}</p>
+            ${
+              product.lastBuyerNote
+                ? `<p>Nota: ${escapeHtml(product.lastBuyerNote)}</p>`
+                : ""
+            }
           </div>
           <span>Unidades: ${product.quantity}</span>
         </li>
@@ -98,11 +103,17 @@ const renderMyProducts = (products) => {
     const card = document.createElement("article");
     card.className = "ab-provider-product-card";
     const shortId = (product.id || "").toString().replace(/-/g, "").slice(0, 6).toUpperCase() || "N/A";
+    const safeImageUrl = escapeHtml(product.image_url || "/logo2.svg");
+    const safeTitle = escapeHtml(product.title || "Sin título");
+    const safeDescription = escapeHtml(product.description || "Sin descripción");
+    const safeCurrency = escapeHtml(product.currency || "ARS");
+    const safeLocation = escapeHtml(product.location || "Sin especificar");
+    const safePickupAddress = escapeHtml(product.pickup_address || "");
     card.innerHTML = `
       <img
         class="ab-provider-product-card__image"
-        src="${product.image_url || "/logo2.svg"}"
-        alt="${product.title || "Producto"}"
+        src="${safeImageUrl}"
+        alt="${safeTitle}"
         loading="lazy"
       />
       <div class="ab-provider-product-card__meta">
@@ -111,17 +122,17 @@ const renderMyProducts = (products) => {
           <p class="ab-provider-product-card__code">ID ${shortId}</p>
         </div>
         <p class="ab-provider-product-card__price">
-          $${formatPrice(product.price)} <span>${product.currency || "ARS"}</span>
+          $${formatPrice(product.price)} <span>${safeCurrency}</span>
         </p>
       </div>
-      <h2>${product.title || "Sin título"}</h2>
+      <h2>${safeTitle}</h2>
       <p class="ab-provider-product-card__description">
-        ${product.description || "Sin descripción"}
+        ${safeDescription}
       </p>
       <ul class="ab-provider-product-card__details">
         <li>Publicada el <strong>${formatDate(product.created_at)}</strong></li>
-        <li>Ubicación: <strong>${product.location || "Sin especificar"}</strong></li>
-        ${product.pickup_address ? `<li>Dirección: <strong>${product.pickup_address}</strong></li>` : ""}
+        <li>Ubicación: <strong>${safeLocation}</strong></li>
+        ${safePickupAddress ? `<li>Dirección: <strong>${safePickupAddress}</strong></li>` : ""}
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
       </ul>
       <div class="ab-provider-product-card__actions">
@@ -182,6 +193,30 @@ const closeDeleteModal = () => {
   deleteModal.setAttribute("aria-hidden", "true");
 };
 
+/* Trae el resumen de productos vendidos desde backend autenticado. */
+const fetchSoldProductsSummary = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) return { items: [], error: "" };
+
+  const response = await fetch("/api/my-sales-products", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { items: [], error: String(payload?.error ?? "No se pudieron cargar las ventas.") };
+  }
+
+  return {
+    items: Array.isArray(payload?.items) ? payload.items : [],
+    error: "",
+  };
+};
+
 /* Carga y resume ventas de productos del usuario autenticado. */
 const loadSoldProducts = async () => {
   if (!soldProductsList || !soldProductsEmpty || !soldProductsStatus) return;
@@ -194,99 +229,14 @@ const loadSoldProducts = async () => {
   }
 
   try {
-    const { data: ordersData, error: ordersError } = await supabase
-      .from("orders")
-      .select("id, created_at, order_items (product_id, name, qty, unit_price)")
-      .order("created_at", { ascending: false });
-
-    if (ordersError) {
-      soldProductsStatus.textContent = "";
+    const { items, error } = await fetchSoldProductsSummary();
+    if (error) {
+      soldProductsStatus.textContent = error;
       renderSoldProducts([]);
       return;
     }
-
-    const orderItems = (ordersData ?? [])
-      .flatMap((order) =>
-        (Array.isArray(order?.order_items) ? order.order_items : []).map((item) => ({
-          ...item,
-          order_id: order?.id ?? null,
-          created_at: order?.created_at ?? null,
-        }))
-      )
-      .filter((item) => String(item?.product_id ?? "").trim());
-
-    if (orderItems.length === 0) {
-      soldProductsStatus.textContent = "";
-      renderSoldProducts([]);
-      return;
-    }
-
-    const uniqueProductIds = [...new Set(orderItems.map((item) => String(item.product_id).trim()))];
-    const { data: ownProducts, error: productsError } = await supabase
-      .from("products")
-      .select("id, title, currency, user_id")
-      .in("id", uniqueProductIds)
-      .eq("user_id", currentUserId);
-
-    if (productsError) {
-      soldProductsStatus.textContent = "";
-      renderSoldProducts([]);
-      return;
-    }
-
-    const ownMap = new Map((ownProducts ?? []).map((product) => [String(product.id), product]));
-    if (ownMap.size === 0) {
-      soldProductsStatus.textContent = "";
-      renderSoldProducts([]);
-      return;
-    }
-
-    const soldMap = new Map();
-    orderItems.forEach((item) => {
-      const productId = String(item.product_id).trim();
-      const ownProduct = ownMap.get(productId);
-      if (!ownProduct) return;
-
-      const qty = Number(item.qty ?? 1);
-      const unitPrice = Number(item.unit_price ?? 0);
-      const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
-      const safePrice = Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : 0;
-      const createdAt = item.created_at ? new Date(item.created_at) : null;
-      const entry = soldMap.get(productId) ?? {
-        productId,
-        title: ownProduct.title || item.name || "Producto",
-        currency: ownProduct.currency || "ARS",
-        quantity: 0,
-        revenue: 0,
-        ordersSet: new Set(),
-        lastSoldAt: null,
-      };
-
-      entry.quantity += safeQty;
-      entry.revenue += safePrice * safeQty;
-      if (item.order_id) entry.ordersSet.add(String(item.order_id));
-      if (createdAt && !Number.isNaN(createdAt.getTime())) {
-        if (!entry.lastSoldAt || createdAt > entry.lastSoldAt) {
-          entry.lastSoldAt = createdAt;
-        }
-      }
-      soldMap.set(productId, entry);
-    });
-
-    const soldProducts = Array.from(soldMap.values())
-      .map((entry) => ({
-        productId: entry.productId,
-        title: entry.title,
-        currency: entry.currency,
-        quantity: entry.quantity,
-        revenue: entry.revenue,
-        ordersCount: entry.ordersSet.size,
-        lastSoldAt: entry.lastSoldAt ? entry.lastSoldAt.toISOString() : null,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
-
     soldProductsStatus.textContent = "";
-    renderSoldProducts(soldProducts);
+    renderSoldProducts(items);
   } catch {
     soldProductsStatus.textContent = "";
     renderSoldProducts([]);

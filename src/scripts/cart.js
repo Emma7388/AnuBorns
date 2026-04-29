@@ -10,6 +10,15 @@ const clearButton = document.getElementById("cart-clear");
 const checkoutButton = document.getElementById("cart-checkout");
 const feedback = document.getElementById("cart-feedback");
 
+/* Escapa texto para evitar inyección HTML en templates del carrito. */
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
 /* Formatea precios para ARS. */
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
@@ -42,16 +51,20 @@ const renderCart = async () => {
     const image = product?.image_url ?? "/logo2.svg";
     const provider = product?.seller_name ?? "N/A";
     const currency = product?.currency ?? "ARS";
+    const safeTitle = escapeHtml(title);
+    const safeImage = escapeHtml(image);
+    const safeProvider = escapeHtml(provider);
+    const safeCurrency = escapeHtml(currency);
 
     const row = document.createElement("article");
     row.className = "ab-cart-item";
     row.dataset.id = item.product_id;
     row.innerHTML = `
-      <img class="ab-cart-item__image" src="${image}" alt="${title}" loading="lazy" />
+      <img class="ab-cart-item__image" src="${safeImage}" alt="${safeTitle}" loading="lazy" />
       <div class="ab-cart-item__info">
-        <h2 class="ab-cart-item__title">${title}</h2>
-        <p class="ab-cart-item__meta">Proveedor: ${provider}</p>
-        <p class="ab-cart-item__meta">Precio: $${formatPrice(price)} ${currency}</p>
+        <h2 class="ab-cart-item__title">${safeTitle}</h2>
+        <p class="ab-cart-item__meta">Proveedor: ${safeProvider}</p>
+        <p class="ab-cart-item__meta">Precio: $${formatPrice(price)} ${safeCurrency}</p>
       </div>
       <div class="ab-cart-item__actions">
         <div class="ab-cart-item__qty">

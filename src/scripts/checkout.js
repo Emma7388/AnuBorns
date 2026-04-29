@@ -14,6 +14,15 @@ const form = document.getElementById("checkout-form");
 const feedback = document.getElementById("checkout-feedback");
 const successNotice = document.getElementById("checkout-success");
 
+/* Escapa texto para evitar inyección HTML en render dinámico. */
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
 /* Obtiene el usuario más actualizado disponible en auth. */
 const resolveCheckoutUser = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
@@ -56,11 +65,12 @@ const renderSummary = async () => {
     const price = Number(item.price_snapshot ?? 0);
     total += price * qty;
     const title = item.product?.title ?? item.product_id ?? "Producto";
+    const safeTitle = escapeHtml(title);
 
     const row = document.createElement("div");
     row.className = "ab-checkout-item";
     row.innerHTML = `
-      <span>${title} x ${qty}</span>
+      <span>${safeTitle} x ${qty}</span>
       <strong>$${formatPrice(price * qty)}</strong>
     `;
     itemsWrap.appendChild(row);
@@ -88,7 +98,7 @@ if (form && feedback) {
     /* Feedback UI inmediato. */
     feedback.textContent = "Procesando compra...";
 
-    /* Normaliza items para el resumen local. */
+    /* Normaliza items para persistir orden y fallback local. */
     const orderItems = items.map((item) => ({
       product_id: item.product_id ?? "",
       name: item.product?.title ?? "Producto",
@@ -100,20 +110,48 @@ if (form && feedback) {
     }));
 
     const total = orderItems.reduce((sum, item) => sum + (item.unit_price ?? 0) * (item.qty ?? 1), 0);
-
-    /* Guarda un "pedido" local para UX sin backend. */
-    const rawOrders = window.localStorage.getItem(ORDERS_KEY);
-    const parsed = rawOrders ? JSON.parse(rawOrders) : {};
-    const userId = data.session.user.id;
-    const userOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
-    const newOrder = {
-      id: `LOCAL-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      total_amount: total,
-      order_items: orderItems,
+    const shipping = {
+      fullName: String(document.getElementById("full-name")?.value ?? "").trim(),
+      address: String(document.getElementById("address")?.value ?? "").trim(),
+      city: String(document.getElementById("city")?.value ?? "").trim(),
+      phone: String(document.getElementById("phone")?.value ?? "").trim(),
     };
-    parsed[userId] = [newOrder, ...userOrders];
-    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
+    const buyerNote = String(document.getElementById("notes")?.value ?? "").trim().slice(0, 500);
+
+    let persistedRemotely = false;
+    try {
+      const response = await fetch("/api/checkout-manual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${data.session.access_token}`,
+        },
+        body: JSON.stringify({
+          items: orderItems,
+          shipping,
+          buyer_note: buyerNote,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("manual-checkout-failed");
+      }
+      persistedRemotely = true;
+    } catch {
+      /* Fallback local para no bloquear compra si falla backend. */
+      const rawOrders = window.localStorage.getItem(ORDERS_KEY);
+      const parsed = rawOrders ? JSON.parse(rawOrders) : {};
+      const userId = data.session.user.id;
+      const userOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
+      const newOrder = {
+        id: `LOCAL-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        total_amount: total,
+        buyer_note: buyerNote || "",
+        order_items: orderItems,
+      };
+      parsed[userId] = [newOrder, ...userOrders];
+      window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
+    }
 
     /* Vacía el carrito luego de confirmar. */
     for (const item of items) {
@@ -123,6 +161,9 @@ if (form && feedback) {
     /* UI de éxito y redirección. */
     if (form) form.classList.add("ab-is-hidden");
     if (successNotice) successNotice.classList.remove("ab-is-hidden");
+    if (!persistedRemotely) {
+      feedback.textContent = "Compra confirmada. Se guardo localmente por un problema temporal del servidor.";
+    }
     window.setTimeout(() => {
       window.location.href = "/mis-compras";
     }, 900);

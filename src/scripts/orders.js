@@ -57,6 +57,16 @@ const buildWhatsappUrl = (provider, phone) => {
   return `https://wa.me/${digits}?text=${message}`;
 };
 
+const extractBuyerNote = (order) => {
+  const localNote = String(order?.buyer_note ?? "").trim();
+  if (localNote) return localNote;
+  const detail = String(order?.payment_detail ?? "").trim();
+  const marker = "note:";
+  const index = detail.indexOf(marker);
+  if (index < 0) return "";
+  return detail.slice(index + marker.length).trim();
+};
+
 const buildProviderMetaMap = async (history = []) => {
   const productIds = [
     ...new Set(
@@ -158,6 +168,7 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
     const wrapper = document.createElement("article");
     wrapper.className = "ab-order-card";
     const items = Array.isArray(order.order_items) ? order.order_items : [];
+    const buyerNote = extractBuyerNote(order);
     const providers = [
       ...new Set(items.map((item) => String(item.provider ?? "N/A").trim()).filter(Boolean)),
     ];
@@ -229,10 +240,11 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
           .map((item) => {
             const qty = item.qty ?? 1;
             const price = Number(item.unit_price ?? 0);
+            const safeName = escapeHtml(item.name ?? "Producto");
             return `
               <li>
                 <div>
-                  <strong>${item.name} x ${qty}</strong>
+                  <strong>${safeName} x ${qty}</strong>
                 </div>
                 <span>$${formatPrice(price * qty)}</span>
               </li>
@@ -240,6 +252,11 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
           })
           .join("")}
       </ul>
+      ${
+        buyerNote
+          ? `<p class="ab-order-card__date">Nota para el vendedor: ${escapeHtml(buyerNote)}</p>`
+          : ""
+      }
       <div class="ab-order-card__actions">
         <button type="button" class="ab-orders-delete-btn" data-order-delete="${escapeHtml(orderId)}">
           Borrar compra
@@ -340,7 +357,8 @@ const loadOrders = async () => {
   /* Si no hay locales, trae órdenes remotas. */
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, total_amount, status, order_items (product_id, name, qty, unit_price, provider)")
+    .select("id, created_at, total_amount, status, payment_detail, order_items (product_id, name, qty, unit_price, provider)")
+    .eq("user_id", currentUserId)
     .order("created_at", { ascending: false });
 
   if (error) {
