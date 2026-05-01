@@ -61,7 +61,7 @@ export const POST = async ({ request }) => {
     const productIds = [...new Set(items.map((item) => item.product_id))];
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
-      .select("id, title, price, currency, seller_name, contact, user_id")
+      .select("id, title, price, currency, seller_name, contact, user_id, image_url")
       .in("id", productIds);
 
     if (productsError) {
@@ -86,6 +86,7 @@ export const POST = async ({ request }) => {
         provider_whatsapp: String(product?.contact ?? "").trim(),
         provider_user_id: String(product?.user_id ?? "").trim(),
         currency: String(product?.currency ?? "ARS").toUpperCase(),
+        image: String(product?.image_url ?? "").trim(),
       };
     });
 
@@ -133,7 +134,7 @@ export const POST = async ({ request }) => {
       unit_price: item.unit_price,
       provider: item.provider || null,
       unit: null,
-      image: null,
+      image: item.image || null,
     }));
 
     const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);

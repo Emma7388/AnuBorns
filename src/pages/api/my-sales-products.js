@@ -93,7 +93,7 @@ export const GET = async ({ request }) => {
     const sellerId = userData.user.id;
     const { data: ownProducts, error: ownProductsError } = await supabaseAdmin
       .from("products")
-      .select("id, title, currency")
+      .select("id, title, currency, image_url")
       .eq("user_id", sellerId);
 
     if (ownProductsError) {
@@ -116,7 +116,7 @@ export const GET = async ({ request }) => {
     const { data: salesRows, error: salesError } = await supabaseAdmin
       .from("order_items")
       .select(
-        "product_id, name, qty, unit_price, orders!inner(id, created_at, status, payment_detail)",
+        "product_id, name, qty, unit_price, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name)",
       )
       .in("product_id", productIds);
 
@@ -145,28 +145,47 @@ export const GET = async ({ request }) => {
       const unitPrice = toPositiveNumber(row?.unit_price, 0);
       const orderCreatedAt = order?.created_at ?? null;
       const buyerNote = extractBuyerNote(order?.payment_detail);
+      const buyerName = String(order?.shipping_full_name ?? "").trim();
+      const buyerUserId = String(order?.user_id ?? "").trim();
 
       const entry = soldMap.get(productId) ?? {
         productId,
         title: String(product.title ?? row?.name ?? "Producto"),
         currency: String(product.currency ?? "ARS"),
+        image: String(product.image_url ?? "").trim() || "/logo2.svg",
         quantity: 0,
         revenue: 0,
         ordersSet: new Set(),
         lastSoldAt: null,
+        lastOrderId: "",
         lastBuyerNote: "",
+        lastBuyerName: "",
+        lastBuyerUserId: "",
+        salesHistory: [],
       };
 
       entry.quantity += qty;
       entry.revenue += unitPrice * qty;
       if (order?.id) entry.ordersSet.add(String(order.id));
+      entry.salesHistory.push({
+        orderId: String(order?.id ?? "").trim(),
+        soldAt: orderCreatedAt,
+        qty,
+        subtotal: unitPrice * qty,
+        buyerName,
+        buyerUserId,
+        buyerNote,
+      });
 
       if (orderCreatedAt) {
         const date = new Date(orderCreatedAt);
         if (!Number.isNaN(date.getTime())) {
           if (!entry.lastSoldAt || date > entry.lastSoldAt) {
             entry.lastSoldAt = date;
+            entry.lastOrderId = String(order?.id ?? "").trim();
             entry.lastBuyerNote = buyerNote;
+            entry.lastBuyerName = buyerName;
+            entry.lastBuyerUserId = buyerUserId;
           }
         }
       }
@@ -179,11 +198,18 @@ export const GET = async ({ request }) => {
         productId: entry.productId,
         title: entry.title,
         currency: entry.currency,
+        image: entry.image,
         quantity: entry.quantity,
         revenue: entry.revenue,
         ordersCount: entry.ordersSet.size,
         lastSoldAt: entry.lastSoldAt ? entry.lastSoldAt.toISOString() : null,
+        lastOrderId: entry.lastOrderId || "",
         lastBuyerNote: entry.lastBuyerNote || "",
+        lastBuyerName: entry.lastBuyerName || "",
+        lastBuyerUserId: entry.lastBuyerUserId || "",
+        salesHistory: entry.salesHistory
+          .filter((sale) => sale.orderId && sale.soldAt)
+          .sort((a, b) => new Date(b.soldAt).getTime() - new Date(a.soldAt).getTime()),
       }))
       .sort((a, b) => b.revenue - a.revenue);
 

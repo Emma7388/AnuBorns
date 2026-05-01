@@ -25,6 +25,18 @@ const formatPrice = (value) => {
   return safe.toLocaleString("es-AR");
 };
 
+const formatDeliveryMethods = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return "No especificado";
+  return value
+    .map((item) => {
+      if (item === "retiro") return "Retiro";
+      if (item === "envio") return "Envío";
+      return String(item ?? "").trim();
+    })
+    .filter(Boolean)
+    .join(" + ");
+};
+
 /* Renderiza el carrito completo en el DOM. */
 const renderCart = async () => {
   if (!itemsWrap || !emptyState || !totalLabel) return;
@@ -51,10 +63,12 @@ const renderCart = async () => {
     const image = product?.image_url ?? "/logo2.svg";
     const provider = product?.seller_name ?? "N/A";
     const currency = product?.currency ?? "ARS";
+    const deliveryMethods = formatDeliveryMethods(product?.delivery_methods);
     const safeTitle = escapeHtml(title);
     const safeImage = escapeHtml(image);
     const safeProvider = escapeHtml(provider);
     const safeCurrency = escapeHtml(currency);
+    const safeDeliveryMethods = escapeHtml(deliveryMethods);
 
     const row = document.createElement("article");
     row.className = "ab-cart-item";
@@ -64,6 +78,7 @@ const renderCart = async () => {
       <div class="ab-cart-item__info">
         <h2 class="ab-cart-item__title">${safeTitle}</h2>
         <p class="ab-cart-item__meta">Proveedor: ${safeProvider}</p>
+        <p class="ab-cart-item__meta">Método de entrega: ${safeDeliveryMethods}</p>
         <p class="ab-cart-item__meta">Precio: $${formatPrice(price)} ${safeCurrency}</p>
       </div>
       <div class="ab-cart-item__actions">

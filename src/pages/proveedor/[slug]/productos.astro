@@ -14,7 +14,7 @@ const backHref = fromParam && fromParam.startsWith("/")
   ? fromParam
   : provider
     ? `/comprar/productos/${provider.category}`
-    : "/comprar/productos";
+    : "/comprar";
 const formatDate = (value) => {
   if (!value) return "Sin fecha";
   const date = new Date(value);

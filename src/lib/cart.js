@@ -236,7 +236,7 @@ const enrichWithProducts = async (items) => {
   if (ids.length === 0) return items;
   const { data: products } = await supabase
     .from("products")
-    .select("id,title,image_url,currency,seller_name,contact,user_id")
+    .select("id,title,image_url,currency,seller_name,contact,user_id,delivery_methods")
     .in("id", ids);
   const map = new Map((products ?? []).map((product) => [product.id, product]));
   return items.map((item) => ({
@@ -260,7 +260,7 @@ export const getCart = async () => {
   const cartId = await getOrCreateCart(userId);
   const { data } = await supabase
     .from("cart_items")
-    .select("product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id)")
+    .select("product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)")
     .eq("cart_id", cartId);
   const normalized = (data ?? []).map((item) => ({
     product_id: item.product_id,

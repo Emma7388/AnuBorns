@@ -154,6 +154,40 @@ const buildProviderMetaMap = async (history = []) => {
   return map;
 };
 
+const hydrateOrderItemImages = async (history = []) => {
+  if (!Array.isArray(history) || history.length === 0) return history;
+  const productIds = [
+    ...new Set(
+      history
+        .flatMap((order) => (Array.isArray(order?.order_items) ? order.order_items : []))
+        .map((item) => String(item?.product_id ?? "").trim())
+        .filter(Boolean)
+    ),
+  ];
+  if (productIds.length === 0) return history;
+
+  const { data: products, error } = await supabase
+    .from("products")
+    .select("id, image_url")
+    .in("id", productIds);
+
+  if (error || !Array.isArray(products)) return history;
+  const imageMap = new Map(products.map((product) => [String(product.id), String(product.image_url ?? "").trim()]));
+
+  return history.map((order) => ({
+    ...order,
+    order_items: (Array.isArray(order?.order_items) ? order.order_items : []).map((item) => {
+      const currentImage = String(item?.image ?? "").trim();
+      if (currentImage) return item;
+      const imageFromProduct = imageMap.get(String(item?.product_id ?? "").trim()) ?? "";
+      return {
+        ...item,
+        image: imageFromProduct || "/logo2.svg",
+      };
+    }),
+  }));
+};
+
 /* Renderiza lista de órdenes en el DOM. */
 const renderHistory = (history = [], providerMetaMap = {}) => {
   if (!list) return;
@@ -229,11 +263,9 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
     wrapper.innerHTML = `
       <div class="ab-order-card__header">
         <div>
-          <p class="ab-order-card__label">Orden ${orderId.slice(0, 8)}</p>
+          <p class="ab-order-card__label">${providersMarkup}</p>
           <p class="ab-order-card__date">${formatDate(order.created_at)}</p>
-          <p>${providersMarkup}</p>
         </div>
-        <strong>$${formatPrice(order.total_amount ?? 0)}</strong>
       </div>
       <ul class="ab-order-card__items">
         ${items
@@ -241,17 +273,23 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
             const qty = item.qty ?? 1;
             const price = Number(item.unit_price ?? 0);
             const safeName = escapeHtml(item.name ?? "Producto");
+            const safeImage = escapeHtml(String(item.image ?? "").trim() || "/logo2.svg");
             return `
               <li>
+                <span class="ab-order-card__thumb">
+                  <img src="${safeImage}" alt="${safeName}" loading="lazy" />
+                </span>
                 <div>
-                  <strong>${safeName} x ${qty}</strong>
+                  <p class="ab-order-card__label">Cantidad: ${qty}</p>
+                  <strong>Item: ${safeName}</strong>
+                  <p class="ab-order-card__date">Subtotal: $${formatPrice(price * qty)}</p>
                 </div>
-                <span>$${formatPrice(price * qty)}</span>
               </li>
             `;
           })
           .join("")}
       </ul>
+      <p class="ab-order-card__total">Total: $${formatPrice(order.total_amount ?? 0)}</p>
       ${
         buyerNote
           ? `<p class="ab-order-card__date">Nota para el vendedor: ${escapeHtml(buyerNote)}</p>`
@@ -343,10 +381,10 @@ const loadOrders = async () => {
     const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
     if (localOrders.length > 0) {
       currentSource = "local";
-      currentOrders = localOrders;
-      const providerMetaMap = await buildProviderMetaMap(localOrders);
+      currentOrders = await hydrateOrderItemImages(localOrders);
+      const providerMetaMap = await buildProviderMetaMap(currentOrders);
       if (status) status.textContent = "";
-      renderHistory(localOrders, providerMetaMap);
+      renderHistory(currentOrders, providerMetaMap);
       renderOrders();
       return;
     }
@@ -357,7 +395,7 @@ const loadOrders = async () => {
   /* Si no hay locales, trae órdenes remotas. */
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, total_amount, status, payment_detail, order_items (product_id, name, qty, unit_price, provider)")
+    .select("id, created_at, total_amount, status, payment_detail, order_items (product_id, name, qty, unit_price, provider, image)")
     .eq("user_id", currentUserId)
     .order("created_at", { ascending: false });
 
@@ -385,7 +423,7 @@ const loadOrders = async () => {
   }
 
   if (status) status.textContent = "";
-  const safeData = data ?? [];
+  const safeData = await hydrateOrderItemImages(data ?? []);
   currentSource = "remote";
   currentOrders = safeData;
   const providerMetaMap = await buildProviderMetaMap(safeData);

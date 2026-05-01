@@ -13,7 +13,7 @@ const backHref = fromParam && fromParam.startsWith("/")
   ? fromParam
   : provider
     ? `/comprar/productos/${provider.category}`
-    : "/comprar/productos";
+    : "/comprar";
 ---
 
 <MainLayout title={provider ? `Proveedor: ${provider.name}` : "Proveedor"} backHref={backHref}>

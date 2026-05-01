@@ -690,6 +690,10 @@ input[type="submit"] {
   transition: opacity 0.14s ease;
 }
 
+.ab-mis-ventas-published-title {
+  margin-top: 36px;
+}
+
 .ab-seller-rows {
   margin-top: 12px;
   display: grid;
@@ -1844,6 +1848,13 @@ body.is-profile-editing #profile-form {
   font-size: 13px;
 }
 
+.ab-order-card__total {
+  margin: 6px 0 0;
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
 .ab-order-card__seller-name {
   color: var(--color-text);
   font-weight: 700;
@@ -1960,8 +1971,25 @@ body.is-profile-editing #profile-form {
 
 .ab-order-card__items li {
   display: flex;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
+}
+
+.ab-order-card__thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  flex: 0 0 44px;
+}
+
+.ab-order-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .ab-order-card__items p {
