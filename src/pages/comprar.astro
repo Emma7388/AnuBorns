@@ -2,100 +2,11 @@
 // Página: selector de compras.
 import MainLayout from "../layouts/MainLayout.astro";
 import { categories } from "../data/categories.js";
+import ActionSwitch from "../components/ActionSwitch.astro";
+import FeaturedProductsSection from "../components/FeaturedProductsSection.astro";
 ---
 
 <MainLayout title="Comprá">
-  <section class="ab-buy-switch">
-    <div class="ab-buy-switch__row">
-      <div class="ab-buy-switch__item">
-        <button class="ab-buy-switch__trigger" type="button" aria-haspopup="true" aria-expanded="false">
-          Productos
-        </button>
-        <div class="ab-buy-switch__menu" role="menu" aria-label="Categorías de productos">
-          {categories.map((category) => (
-            <a
-              class="ab-buy-switch__menu-item"
-              href={`/comprar/productos/${category.slug}`}
-              role="menuitem"
-            >
-              {category.name}
-            </a>
-          ))}
-        </div>
-      </div>
-
-      <div class="ab-buy-switch__item">
-        <a class="ab-buy-switch__trigger" href="/comprar/servicios">
-          Servicios
-        </a>
-      </div>
-    </div>
-  </section>
+  <ActionSwitch mode="buy" categories={categories} />
+  <FeaturedProductsSection />
 </MainLayout>
-
-<style>
-  .ab-buy-switch {
-    padding: 8px 0 0;
-  }
-
-  .ab-buy-switch__row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .ab-buy-switch__item {
-    position: relative;
-    padding-bottom: 8px;
-    margin-bottom: -8px;
-  }
-
-  .ab-buy-switch__trigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 118px;
-    padding: 8px 12px;
-    font-size: 0.86rem;
-    font-weight: 700;
-    text-decoration: none;
-    border-radius: 999px;
-    color: var(--color-text);
-    border: 1px solid var(--color-border-subtle);
-    background: rgba(255, 255, 255, 0.02);
-    font-family: inherit;
-    cursor: pointer;
-  }
-
-  .ab-buy-switch__menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    min-width: 220px;
-    display: none;
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface);
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
-    z-index: 30;
-  }
-
-  .ab-buy-switch__item:hover .ab-buy-switch__menu,
-  .ab-buy-switch__item:focus-within .ab-buy-switch__menu {
-    display: grid;
-  }
-
-  .ab-buy-switch__menu-item {
-    text-decoration: none;
-    color: var(--color-text);
-    font-weight: 600;
-    padding: 8px 10px;
-    border-radius: 8px;
-  }
-
-  .ab-buy-switch__menu-item:hover,
-  .ab-buy-switch__menu-item:focus-visible {
-    background: rgba(255, 255, 255, 0.06);
-  }
-</style>

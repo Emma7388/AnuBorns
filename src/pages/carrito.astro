@@ -36,6 +36,29 @@ import cartScriptUrl from "../scripts/cart.js?url";
       <p id="cart-feedback" class="ab-muted-text" aria-live="polite"></p>
     </div>
   </section>
+
+  <div
+    id="cart-remove-modal"
+    class="ab-orders-modal ab-is-hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="cart-remove-title"
+  >
+    <div class="ab-orders-modal__backdrop" data-cart-modal-close></div>
+    <div class="ab-orders-modal__panel" role="document">
+      <h2 id="cart-remove-title">Quitar producto</h2>
+      <p>¿Seguro que querés quitar este producto del carrito?</p>
+      <div class="ab-orders-modal__actions">
+        <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-cart-modal-cancel>
+          Cancelar
+        </button>
+        <button type="button" class="ab-orders-delete-btn" data-cart-modal-confirm>
+          Sí, quitar
+        </button>
+      </div>
+    </div>
+  </div>
 </MainLayout>
 
 <!-- Script de interacción del carrito -->

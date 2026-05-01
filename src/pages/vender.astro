@@ -1,15 +1,11 @@
 ---
 // Página: selector de venta.
 import MainLayout from "../layouts/MainLayout.astro";
-import SecondLevel from "../components/SecondLevel.astro";
+import ActionSwitch from "../components/ActionSwitch.astro";
+import FeaturedProductsSection from "../components/FeaturedProductsSection.astro";
 ---
 
 <MainLayout title="Vendé">
-  <!-- Acceso rápido a productos/servicios -->
-  <SecondLevel
-    basePath="vender"
-    title="Elegí qué querés vender"
-    productLabel="PRODUCTOS"
-    serviceLabel="SERVICIOS"
-  />
+  <ActionSwitch mode="sell" />
+  <FeaturedProductsSection />
 </MainLayout>

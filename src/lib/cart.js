@@ -3,6 +3,7 @@ import { supabase } from "./supabaseClient";
 
 /* Clave localStorage para carrito anónimo. */
 const CART_KEY = "ab_cart_v1";
+const CART_LOCAL_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 días
 
 /* Dispara un evento global para que la UI reaccione a cambios de carrito. */
 const emitCartUpdate = () => {
@@ -31,8 +32,23 @@ const loadLocalCart = () => {
   try {
     const raw = window.localStorage.getItem(CART_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
+    let items = [];
+    let updatedAt = 0;
+
+    if (Array.isArray(parsed)) {
+      /* Compatibilidad con formato legacy: array directo. */
+      items = parsed;
+    } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+      items = parsed.items;
+      updatedAt = Number(parsed.updatedAt ?? 0);
+    }
+
+    if (updatedAt > 0 && Date.now() - updatedAt > CART_LOCAL_TTL_MS) {
+      window.localStorage.removeItem(CART_KEY);
+      return [];
+    }
+
+    return items
       .map((item) => ({
         product_id: String(item?.product_id ?? ""),
         quantity: normalizeQuantity(item?.quantity),
@@ -46,7 +62,13 @@ const loadLocalCart = () => {
 
 /* Guarda el carrito local y notifica a la UI. */
 const saveLocalCart = (items) => {
-  window.localStorage.setItem(CART_KEY, JSON.stringify(items));
+  window.localStorage.setItem(
+    CART_KEY,
+    JSON.stringify({
+      updatedAt: Date.now(),
+      items,
+    }),
+  );
   emitCartUpdate();
 };
 

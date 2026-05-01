@@ -16,6 +16,7 @@ let pendingDeleteOrderId = "";
 let currentUserId = "";
 let currentSource = "remote";
 let currentOrders = [];
+let syncInFlight = false;
 
 /* Formateo de precios ARS. */
 const formatPrice = (value) => {
@@ -65,6 +66,88 @@ const extractBuyerNote = (order) => {
   const index = detail.indexOf(marker);
   if (index < 0) return "";
   return detail.slice(index + marker.length).trim();
+};
+
+const normalizeOrderItemsForInsert = (items) =>
+  (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      product_id: String(item?.product_id ?? "").trim() || null,
+      name: String(item?.name ?? "").trim() || "Producto",
+      qty: Math.max(1, Number(item?.qty ?? 1)),
+      unit_price: Math.max(0, Number(item?.unit_price ?? 0)),
+      provider: String(item?.provider ?? "").trim() || null,
+      unit: null,
+      image: String(item?.image ?? "").trim() || null,
+    }))
+    .filter((item) => item.name);
+
+const syncLocalOrdersToServer = async (userId) => {
+  if (!userId || syncInFlight) return { syncedCount: 0, remainingCount: 0 };
+  syncInFlight = true;
+  try {
+    const raw = window.localStorage.getItem(ORDERS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
+    if (localOrders.length === 0) {
+      return { syncedCount: 0, remainingCount: 0 };
+    }
+
+    let syncedCount = 0;
+    const remaining = [];
+
+    for (const localOrder of localOrders) {
+      const safeItems = normalizeOrderItemsForInsert(localOrder?.order_items);
+      if (safeItems.length === 0) continue;
+
+      const orderPayload = {
+        user_id: userId,
+        status: "approved",
+        total_amount: Math.max(0, Number(localOrder?.total_amount ?? 0)),
+        currency: String(localOrder?.currency ?? "ARS").trim() || "ARS",
+        shipping_full_name: null,
+        shipping_address: null,
+        shipping_city: null,
+        shipping_phone: null,
+        payment_status: "manual",
+        payment_detail: extractBuyerNote(localOrder)
+          ? `offline_sync|note:${extractBuyerNote(localOrder)}`
+          : "offline_sync",
+      };
+
+      const { data: createdOrder, error: createOrderError } = await supabase
+        .from("orders")
+        .insert(orderPayload)
+        .select("id")
+        .single();
+
+      if (createOrderError || !createdOrder?.id) {
+        remaining.push(localOrder);
+        continue;
+      }
+
+      const orderItemsPayload = safeItems.map((item) => ({
+        order_id: createdOrder.id,
+        ...item,
+      }));
+
+      const { error: createItemsError } = await supabase.from("order_items").insert(orderItemsPayload);
+      if (createItemsError) {
+        await supabase.from("orders").delete().eq("id", createdOrder.id);
+        remaining.push(localOrder);
+        continue;
+      }
+
+      syncedCount += 1;
+    }
+
+    parsed[userId] = remaining;
+    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
+    return { syncedCount, remainingCount: remaining.length };
+  } catch {
+    return { syncedCount: 0, remainingCount: 0 };
+  } finally {
+    syncInFlight = false;
+  }
 };
 
 const buildProviderMetaMap = async (history = []) => {
@@ -192,116 +275,82 @@ const hydrateOrderItemImages = async (history = []) => {
 const renderHistory = (history = [], providerMetaMap = {}) => {
   if (!list) return;
   list.innerHTML = "";
+  list.classList.add("ab-provider-products-grid");
 
   if (!Array.isArray(history) || history.length === 0) {
     return;
   }
 
   history.forEach((order) => {
-    const orderId = String(order.id ?? "");
-    const wrapper = document.createElement("article");
-    wrapper.className = "ab-order-card";
     const items = Array.isArray(order.order_items) ? order.order_items : [];
     const buyerNote = extractBuyerNote(order);
-    const providers = [
-      ...new Set(items.map((item) => String(item.provider ?? "N/A").trim()).filter(Boolean)),
-    ];
-    const providersMarkup = providers
-      .map((provider) => {
-        const userIdFromItem = items.find(
-          (item) => String(item?.provider ?? "").trim() === provider && String(item?.provider_user_id ?? "").trim()
-        )?.provider_user_id;
-        const phoneFromItem = items.find(
-          (item) => String(item?.provider ?? "").trim() === provider && toWhatsappDigits(item?.provider_whatsapp)
-        )?.provider_whatsapp;
-        const providerKey = normalizeProviderKey(provider);
-        const providerMeta = providerMetaMap[providerKey] ?? { phone: "", userId: "" };
-        const providerPhone = toWhatsappDigits(phoneFromItem) || providerMeta.phone || "";
-        const providerUserId = String(userIdFromItem ?? "").trim() || providerMeta.userId || "";
-        const waLink = buildWhatsappUrl(provider, providerPhone);
-        const providerProfileHref = providerUserId ? `/proveedor-publico/${encodeURIComponent(providerUserId)}` : "";
+    const orderId = String(order.id ?? "").trim();
+    const orderDate = formatDate(order.created_at);
+    const currency = String(order.currency ?? "ARS").trim() || "ARS";
 
-        if (!providerProfileHref && !waLink) {
-          return `
-            <span class="ab-order-card__provider-link ab-order-card__provider-link--disabled">
-              <span class="ab-order-card__seller-name">${escapeHtml(provider)}</span>
-              <span class="ab-order-card__provider-wa-icon" aria-hidden="true">☎</span>
-            </span>
-          `;
-        }
-        return `
-          <span class="ab-order-card__provider-wrap">
-            ${
-              providerProfileHref
-                ? `<a class="ab-order-card__provider-link" href="${providerProfileHref}">
-                     <span class="ab-order-card__seller-name">${escapeHtml(provider)}</span>
-                   </a>`
-                : `<span class="ab-order-card__provider-link ab-order-card__provider-link--disabled">
-                     <span class="ab-order-card__seller-name">${escapeHtml(provider)}</span>
-                   </span>`
-            }
-            ${
-              waLink
-                ? `<a
-                     class="ab-order-card__provider-phone-link"
-                     href="${waLink}"
-                     target="_blank"
-                     rel="noreferrer noopener"
-                     aria-label="Contactar por WhatsApp a ${escapeHtml(provider)}"
-                     title="Contactar por WhatsApp"
-                   >
-                     <span class="ab-order-card__provider-wa-icon" aria-hidden="true">☎</span>
-                   </a>`
-                : `<span class="ab-order-card__provider-phone-link ab-order-card__provider-phone-link--disabled" aria-hidden="true">
-                     <span class="ab-order-card__provider-wa-icon" aria-hidden="true">☎</span>
-                   </span>`
-            }
-          </span>
-        `;
-      })
-      .join(" ");
-    wrapper.innerHTML = `
-      <div class="ab-order-card__header">
-        <div>
-          <p class="ab-order-card__label">${providersMarkup}</p>
-          <p class="ab-order-card__date">${formatDate(order.created_at)}</p>
+    const itemsByProvider = new Map();
+    items.forEach((item) => {
+      const provider = String(item?.provider ?? "Proveedor").trim() || "Proveedor";
+      const bucket = itemsByProvider.get(provider) ?? [];
+      bucket.push(item);
+      itemsByProvider.set(provider, bucket);
+    });
+
+    Array.from(itemsByProvider.entries()).forEach(([provider, providerItems]) => {
+      const firstWithUser = providerItems.find((item) => String(item?.provider_user_id ?? "").trim());
+      const firstWithPhone = providerItems.find((item) => toWhatsappDigits(item?.provider_whatsapp));
+      const providerKey = normalizeProviderKey(provider);
+      const providerMeta = providerMetaMap[providerKey] ?? { phone: "", userId: "" };
+      const providerPhone = toWhatsappDigits(firstWithPhone?.provider_whatsapp) || providerMeta.phone || "";
+      const providerUserId = String(firstWithUser?.provider_user_id ?? "").trim() || providerMeta.userId || "";
+      const providerProfileHref = providerUserId ? `/proveedor-publico/${encodeURIComponent(providerUserId)}` : "";
+      const waLink = buildWhatsappUrl(provider, providerPhone);
+      const providerSubtotal = providerItems.reduce(
+        (sum, item) => sum + Number(item?.unit_price ?? 0) * Number(item?.qty ?? 1),
+        0,
+      );
+
+      const card = document.createElement("article");
+      card.className = "ab-provider-product-card";
+      const coverImage = escapeHtml(String(providerItems[0]?.image ?? "").trim() || "/logo2.svg");
+      const providerNameMarkup = providerProfileHref
+        ? `<a class="ab-order-card__provider-link" href="${providerProfileHref}">${escapeHtml(provider)}</a>`
+        : `<span class="ab-order-card__provider-link ab-order-card__provider-link--disabled">${escapeHtml(provider)}</span>`;
+
+      card.innerHTML = `
+        <img class="ab-provider-product-card__image" src="${coverImage}" alt="${escapeHtml(provider)}" loading="lazy" />
+        <div class="ab-provider-product-card__meta">
+          <div>
+            <p class="ab-provider-product-card__label">Compra ${escapeHtml(orderId.slice(0, 8) || "N/A")}</p>
+            <p class="ab-provider-product-card__code">${orderDate || "Sin fecha"}</p>
+          </div>
+          <p class="ab-provider-product-card__price">$${formatPrice(providerSubtotal)} <span>${escapeHtml(currency)}</span></p>
         </div>
-      </div>
-      <ul class="ab-order-card__items">
-        ${items
-          .map((item) => {
-            const qty = item.qty ?? 1;
-            const price = Number(item.unit_price ?? 0);
-            const safeName = escapeHtml(item.name ?? "Producto");
-            const safeImage = escapeHtml(String(item.image ?? "").trim() || "/logo2.svg");
-            return `
-              <li>
-                <span class="ab-order-card__thumb">
-                  <img src="${safeImage}" alt="${safeName}" loading="lazy" />
-                </span>
-                <div>
-                  <p class="ab-order-card__label">Cantidad: ${qty}</p>
-                  <strong>Item: ${safeName}</strong>
-                  <p class="ab-order-card__date">Subtotal: $${formatPrice(price * qty)}</p>
-                </div>
-              </li>
-            `;
-          })
-          .join("")}
-      </ul>
-      <p class="ab-order-card__total">Total: $${formatPrice(order.total_amount ?? 0)}</p>
-      ${
-        buyerNote
-          ? `<p class="ab-order-card__date">Nota para el vendedor: ${escapeHtml(buyerNote)}</p>`
-          : ""
-      }
-      <div class="ab-order-card__actions">
-        <button type="button" class="ab-orders-delete-btn" data-order-delete="${escapeHtml(orderId)}">
-          Borrar compra
-        </button>
-      </div>
-    `;
-    list.appendChild(wrapper);
+        <h2>${providerNameMarkup}</h2>
+        <p class="ab-provider-product-card__description">
+          ${waLink ? `<a class="ab-order-card__provider-phone-link" href="${waLink}" target="_blank" rel="noreferrer noopener">Contactar por WhatsApp</a>` : "Sin WhatsApp disponible"}
+        </p>
+        <ul class="ab-provider-product-card__details">
+          ${providerItems
+            .map((item) => {
+              const qty = Number(item?.qty ?? 1);
+              const price = Number(item?.unit_price ?? 0);
+              const subtotal = price * qty;
+              return `<li>${escapeHtml(item?.name ?? "Producto")} x <strong>${qty}</strong> · <strong>$${formatPrice(subtotal)}</strong></li>`;
+            })
+            .join("")}
+          <li>Total orden: <strong>$${formatPrice(order.total_amount ?? 0)}</strong></li>
+          ${buyerNote ? `<li>Nota: <strong>${escapeHtml(buyerNote)}</strong></li>` : ""}
+        </ul>
+        <div class="ab-provider-product-card__actions">
+          <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-order-delete="${escapeHtml(orderId)}">
+            Borrar compra
+          </button>
+        </div>
+      `;
+
+      list.appendChild(card);
+    });
   });
 };
 
@@ -375,6 +424,14 @@ const loadOrders = async () => {
   /* Primero intenta usar órdenes locales guardadas. */
   const userId = sessionData.session.user.id;
   currentUserId = userId;
+  const syncResult = await syncLocalOrdersToServer(userId);
+  if (syncResult.syncedCount > 0 && status) {
+    status.textContent =
+      syncResult.remainingCount > 0
+        ? `Sincronizamos ${syncResult.syncedCount} compra(s). Quedan ${syncResult.remainingCount} pendientes por reintentar.`
+        : `Sincronizamos ${syncResult.syncedCount} compra(s) locales al servidor.`;
+  }
+
   try {
     const raw = window.localStorage.getItem(ORDERS_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
@@ -395,7 +452,9 @@ const loadOrders = async () => {
   /* Si no hay locales, trae órdenes remotas. */
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, total_amount, status, payment_detail, order_items (product_id, name, qty, unit_price, provider, image)")
+    .select(
+      "id, created_at, total_amount, currency, status, payment_detail, order_items (product_id, name, qty, unit_price, provider, image)",
+    )
     .eq("user_id", currentUserId)
     .order("created_at", { ascending: false });
 

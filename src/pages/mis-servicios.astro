@@ -1,174 +1,28 @@
-﻿---
-// Página: historial de servicios (MVP local).
+---
+// Página: historial de servicios.
 import MainLayout from "../layouts/MainLayout.astro";
+import servicesScriptUrl from "../scripts/mis-servicios.js?url";
 ---
 
 <MainLayout title="Mis servicios" backHref="/mis-datos">
-  <!-- Panel principal -->
   <section class="ab-dark-panel ab-services-panel">
     <p class="ab-eyebrow">Usuario base</p>
     <h1>Mis servicios</h1>
     <p class="ab-muted-text">
       Historial de servicios finalizados y el servicio activo primero.
     </p>
-    <!-- Servicio activo -->
     <div id="service-active"></div>
 
-    <!-- Estado vacío -->
     <div id="services-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no registraste servicios.</p>
     </div>
 
-    <!-- Historial -->
     <h2 id="service-history-title">Servicios finalizados</h2>
     <div class="ab-actions">
-      <button id="services-reset" type="button">Resetear datos (MVP)</button>
+      <button id="services-reset" type="button">Resetear datos</button>
     </div>
     <div id="service-list" class="ab-service-list"></div>
   </section>
 </MainLayout>
 
-<script>
-  // MVP local: storage y render de servicios.
-  const SERVICES_KEY = "ab_services_v1";
-  const activeContainer = document.getElementById("service-active");
-  const list = document.getElementById("service-list");
-  const emptyState = document.getElementById("services-empty");
-  const historyTitle = document.getElementById("service-history-title");
-  const resetButton = document.getElementById("services-reset");
-
-  // Seed de ejemplo para experiencia inicial.
-  const seedData = {
-    active: {
-      title: "Reparación de aire acondicionado",
-      professional: "Martin Lozano",
-      startDate: "16 Mar 2026, 10:30",
-      location: "Palermo, CABA",
-    },
-    history: [
-      {
-        title: "Pintura de living",
-        professional: "Camila Rojas",
-        date: "02 Mar 2026",
-        rating: "4.8",
-      },
-      {
-        title: "Revisión eléctrica",
-        professional: "Pablo Ortega",
-        date: "18 Feb 2026",
-        rating: "5.0",
-      },
-      {
-        title: "Reparación de cañería",
-        professional: "Lucia Marquez",
-        date: "27 Ene 2026",
-        rating: "4.6",
-      },
-    ],
-  };
-
-  // Lee del storage o inicializa con seed.
-  const loadServices = () => {
-    try {
-      const raw = window.localStorage.getItem(SERVICES_KEY);
-      if (!raw) {
-        window.localStorage.setItem(SERVICES_KEY, JSON.stringify(seedData));
-        return seedData;
-      }
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === "object" ? parsed : seedData;
-    } catch {
-      return seedData;
-    }
-  };
-
-  // Render del servicio activo.
-  const renderActive = (active) => {
-    if (!active) {
-      activeContainer.innerHTML = "";
-      return;
-    }
-
-    activeContainer.innerHTML = `
-      <article class="ab-service-card ab-service-card--active">
-        <div class="ab-service-card__header">
-          <div>
-            <p class="ab-service-card__meta">En progreso</p>
-            <h2 class="ab-service-card__title">${active.title ?? "Servicio en curso"}</h2>
-          </div>
-          <span class="ab-service-card__status ab-service-card__status--active">En curso</span>
-        </div>
-        <div class="ab-service-card__details">
-          <p>Profesional: ${active.professional ?? "Pendiente"}</p>
-          <p>Inicio: ${active.startDate ?? "Por confirmar"}</p>
-          <p>Dirección: ${active.location ?? "Sin definir"}</p>
-        </div>
-        <div class="ab-actions">
-          <a
-            class="ab-cta-button"
-            href="https://wa.me/5491137915210"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Contactar (MVP)
-          </a>
-        </div>
-      </article>
-    `;
-  };
-
-  // Render del historial de servicios.
-  const renderHistory = (history) => {
-    list.innerHTML = "";
-
-    if (!Array.isArray(history) || history.length === 0) {
-      historyTitle.style.display = "none";
-      return;
-    }
-
-    historyTitle.style.display = "";
-
-    history.forEach((service) => {
-      const wrapper = document.createElement("article");
-      wrapper.className = "ab-service-card";
-      wrapper.innerHTML = `
-        <div class="ab-service-card__header">
-          <div>
-            <p class="ab-service-card__meta">Finalizado</p>
-            <h3 class="ab-service-card__title">${service.title ?? "Servicio finalizado"}</h3>
-          </div>
-          <span class="ab-service-card__status ab-service-card__status--done">Finalizado</span>
-        </div>
-        <div class="ab-service-card__details">
-          <p>Profesional: ${service.professional ?? "N/A"}</p>
-          <p>Fecha: ${service.date ?? "Sin fecha"}</p>
-          <p>Calificación: ${service.rating ?? "Sin datos"}</p>
-        </div>
-      `;
-      list.appendChild(wrapper);
-    });
-  };
-
-  // Render total con control de estados.
-  const renderServices = () => {
-    const data = loadServices();
-    const active = data?.active ?? null;
-    const history = data?.history ?? [];
-
-    renderActive(active);
-    renderHistory(history);
-
-    const hasActive = Boolean(active);
-    const hasHistory = Array.isArray(history) && history.length > 0;
-    emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
-  };
-
-  // Inicialización.
-  renderServices();
-
-  // Reset rápido para demo.
-  resetButton?.addEventListener("click", () => {
-    window.localStorage.setItem(SERVICES_KEY, JSON.stringify(seedData));
-    renderServices();
-  });
-</script>
+<script type="module" src={servicesScriptUrl}></script>

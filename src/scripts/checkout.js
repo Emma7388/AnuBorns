@@ -13,6 +13,11 @@ const totalLabel = document.getElementById("checkout-total");
 const form = document.getElementById("checkout-form");
 const feedback = document.getElementById("checkout-feedback");
 const successNotice = document.getElementById("checkout-success");
+const checkoutConfirmModal = document.getElementById("checkout-confirm-modal");
+const checkoutModalClose = document.querySelector("[data-checkout-modal-close]");
+const checkoutModalCancel = document.querySelector("[data-checkout-modal-cancel]");
+const checkoutModalConfirm = document.querySelector("[data-checkout-modal-confirm]");
+let checkoutConfirmed = false;
 
 /* Escapa texto para evitar inyección HTML en render dinámico. */
 const escapeHtml = (value) =>
@@ -80,23 +85,25 @@ const renderSummary = async () => {
 };
 
 if (form && feedback) {
-  /* Submit del checkout: validación, guardado local y redirección. */
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const items = await getCart();
-    if (items.length === 0) {
-      feedback.textContent = "No hay productos para procesar.";
-      return;
-    }
+  const openCheckoutModal = () => {
+    if (!checkoutConfirmModal) return;
+    checkoutConfirmModal.classList.remove("ab-is-hidden");
+    checkoutConfirmModal.setAttribute("aria-hidden", "false");
+    checkoutModalConfirm?.focus();
+  };
 
-    const { data } = await supabase.auth.getSession();
-    if (!data.session?.access_token) {
-      window.location.href = "/login?returnTo=/finalizar-compra";
-      return;
-    }
+  const closeCheckoutModal = () => {
+    if (!checkoutConfirmModal) return;
+    checkoutConfirmModal.classList.add("ab-is-hidden");
+    checkoutConfirmModal.setAttribute("aria-hidden", "true");
+  };
 
+  const processCheckout = async () => {
     /* Feedback UI inmediato. */
     feedback.textContent = "Procesando compra...";
+
+    const items = await getCart();
+    const { data } = await supabase.auth.getSession();
 
     /* Normaliza items para persistir orden y fallback local. */
     const orderItems = items.map((item) => ({
@@ -167,6 +174,52 @@ if (form && feedback) {
     window.setTimeout(() => {
       window.location.href = "/mis-compras";
     }, 900);
+  };
+
+  /* Submit del checkout: validación, guardado local y redirección. */
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!checkoutConfirmed) {
+      openCheckoutModal();
+      return;
+    }
+    checkoutConfirmed = false;
+    closeCheckoutModal();
+
+    const items = await getCart();
+    if (items.length === 0) {
+      feedback.textContent = "No hay productos para procesar.";
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.access_token) {
+      window.location.href = "/login?returnTo=/finalizar-compra";
+      return;
+    }
+    await processCheckout();
+  });
+
+  checkoutModalCancel?.addEventListener("click", () => {
+    checkoutConfirmed = false;
+    closeCheckoutModal();
+  });
+
+  checkoutModalClose?.addEventListener("click", () => {
+    checkoutConfirmed = false;
+    closeCheckoutModal();
+  });
+
+  checkoutModalConfirm?.addEventListener("click", () => {
+    checkoutConfirmed = true;
+    form.requestSubmit();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (checkoutConfirmModal?.classList.contains("ab-is-hidden")) return;
+    checkoutConfirmed = false;
+    closeCheckoutModal();
   });
 }
 

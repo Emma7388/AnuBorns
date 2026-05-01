@@ -129,6 +129,7 @@ export const GET = async ({ request }) => {
     }
 
     const soldMap = new Map();
+    const soldPairs = [];
     (salesRows ?? []).forEach((row) => {
       const productId = String(row?.product_id ?? "").trim();
       if (!productId) return;
@@ -169,13 +170,18 @@ export const GET = async ({ request }) => {
       if (order?.id) entry.ordersSet.add(String(order.id));
       entry.salesHistory.push({
         orderId: String(order?.id ?? "").trim(),
+        productId,
         soldAt: orderCreatedAt,
         qty,
         subtotal: unitPrice * qty,
         buyerName,
         buyerUserId,
         buyerNote,
+        dispatchedAt: null,
       });
+      if (order?.id && productId) {
+        soldPairs.push({ orderId: String(order.id).trim(), productId });
+      }
 
       if (orderCreatedAt) {
         const date = new Date(orderCreatedAt);
@@ -193,6 +199,28 @@ export const GET = async ({ request }) => {
       soldMap.set(productId, entry);
     });
 
+    const orderIds = [...new Set(soldPairs.map((pair) => pair.orderId).filter(Boolean))];
+    const productIdsBySales = [...new Set(soldPairs.map((pair) => pair.productId).filter(Boolean))];
+    const dispatchMap = new Map();
+    if (orderIds.length > 0 && productIdsBySales.length > 0) {
+      const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
+        .from("sale_dispatches")
+        .select("order_id, product_id, dispatched_at")
+        .eq("seller_id", sellerId)
+        .in("order_id", orderIds)
+        .in("product_id", productIdsBySales);
+
+      if (!dispatchError && Array.isArray(dispatchRows)) {
+        dispatchRows.forEach((row) => {
+          const orderId = String(row?.order_id ?? "").trim();
+          const productId = String(row?.product_id ?? "").trim();
+          const dispatchedAt = String(row?.dispatched_at ?? "").trim();
+          if (!orderId || !productId || !dispatchedAt) return;
+          dispatchMap.set(`${orderId}::${productId}`, dispatchedAt);
+        });
+      }
+    }
+
     const items = Array.from(soldMap.values())
       .map((entry) => ({
         productId: entry.productId,
@@ -209,6 +237,20 @@ export const GET = async ({ request }) => {
         lastBuyerUserId: entry.lastBuyerUserId || "",
         salesHistory: entry.salesHistory
           .filter((sale) => sale.orderId && sale.soldAt)
+          .map((sale) => {
+            const dispatchedAt = dispatchMap.get(`${sale.orderId}::${sale.productId}`) ?? null;
+            return {
+              orderId: sale.orderId,
+              productId: sale.productId,
+              soldAt: sale.soldAt,
+              qty: sale.qty,
+              subtotal: sale.subtotal,
+              buyerName: sale.buyerName,
+              buyerUserId: sale.buyerUserId,
+              buyerNote: sale.buyerNote,
+              dispatchedAt,
+            };
+          })
           .sort((a, b) => new Date(b.soldAt).getTime() - new Date(a.soldAt).getTime()),
       }))
       .sort((a, b) => b.revenue - a.revenue);

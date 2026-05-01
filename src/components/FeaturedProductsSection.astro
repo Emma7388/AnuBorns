@@ -1,0 +1,17 @@
+---
+import featuredProductsScriptUrl from "../scripts/featured-products.js?url";
+
+const { title = "PRODUCTOS DESTACADOS" } = Astro.props;
+---
+
+<section class="ab-dark-panel ab-provider-products-panel" data-featured-products>
+  <h2>{title}</h2>
+  <p class="ab-muted-text">Top 10 más vendidos de los últimos 7 días.</p>
+  <p class="ab-muted-text" data-featured-products-status>Cargando destacados...</p>
+  <div class="ab-provider-products-grid" data-featured-products-grid></div>
+  <div class="ab-cart-empty ab-is-hidden" data-featured-products-empty>
+    <p>Aún no hay productos destacados para mostrar.</p>
+  </div>
+</section>
+
+<script type="module" src={featuredProductsScriptUrl}></script>

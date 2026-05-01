@@ -9,6 +9,11 @@ const totalLabel = document.getElementById("cart-total");
 const clearButton = document.getElementById("cart-clear");
 const checkoutButton = document.getElementById("cart-checkout");
 const feedback = document.getElementById("cart-feedback");
+const removeModal = document.getElementById("cart-remove-modal");
+const removeModalClose = document.querySelector("[data-cart-modal-close]");
+const removeModalCancel = document.querySelector("[data-cart-modal-cancel]");
+const removeModalConfirm = document.querySelector("[data-cart-modal-confirm]");
+let pendingRemoveProductId = "";
 
 /* Escapa texto para evitar inyección HTML en templates del carrito. */
 const escapeHtml = (value) =>
@@ -35,6 +40,21 @@ const formatDeliveryMethods = (value) => {
     })
     .filter(Boolean)
     .join(" + ");
+};
+
+const openRemoveModal = (productId) => {
+  if (!removeModal || !productId) return;
+  pendingRemoveProductId = productId;
+  removeModal.classList.remove("ab-is-hidden");
+  removeModal.setAttribute("aria-hidden", "false");
+  removeModalConfirm?.focus();
+};
+
+const closeRemoveModal = () => {
+  if (!removeModal) return;
+  pendingRemoveProductId = "";
+  removeModal.classList.add("ab-is-hidden");
+  removeModal.setAttribute("aria-hidden", "true");
 };
 
 /* Renderiza el carrito completo en el DOM. */
@@ -121,7 +141,8 @@ if (itemsWrap && clearButton && checkoutButton && feedback) {
       await updateQuantity(id, nextQty);
     }
     if (action === "remove") {
-      await removeFromCart(id);
+      openRemoveModal(id);
+      return;
     }
 
     await renderCart();
@@ -152,6 +173,34 @@ if (itemsWrap && clearButton && checkoutButton && feedback) {
     window.location.href = "/finalizar-compra";
   });
 }
+
+removeModalCancel?.addEventListener("click", closeRemoveModal);
+removeModalClose?.addEventListener("click", closeRemoveModal);
+removeModalConfirm?.addEventListener("click", async () => {
+  const productId = pendingRemoveProductId;
+  if (!productId) return;
+
+  if (removeModalConfirm instanceof HTMLButtonElement) {
+    removeModalConfirm.disabled = true;
+    removeModalConfirm.setAttribute("aria-busy", "true");
+  }
+
+  await removeFromCart(productId);
+  await renderCart();
+
+  if (removeModalConfirm instanceof HTMLButtonElement) {
+    removeModalConfirm.disabled = false;
+    removeModalConfirm.removeAttribute("aria-busy");
+  }
+
+  closeRemoveModal();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (removeModal?.classList.contains("ab-is-hidden")) return;
+  closeRemoveModal();
+});
 
 /* Render inicial. */
 renderCart();

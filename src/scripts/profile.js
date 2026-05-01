@@ -20,6 +20,9 @@ const addressInput = document.getElementById("profile-address");
 const cityInput = document.getElementById("profile-city");
 const provinceInput = document.getElementById("profile-province");
 const postalInput = document.getElementById("profile-postal-code");
+const salesNotificationDot = document.getElementById("my-sales-notification-dot");
+const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
+const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 
 /* Convierte dataURL a Blob para subir a storage. */
 const dataUrlToBlob = (dataUrl) => {
@@ -128,8 +131,73 @@ const loadProfile = async () => {
 
   /* Sube avatar pendiente si fue guardado en registro. */
   await uploadPendingAvatar(session);
+  await refreshSalesNotification(session);
   if (runId === loadRunId && status) {
     status.textContent = "Información actualizada.";
+  }
+};
+
+const setSalesDotVisible = (visible) => {
+  if (!salesNotificationDot) return;
+  if (visible) {
+    salesNotificationDot.classList.remove("ab-is-hidden");
+    return;
+  }
+  salesNotificationDot.classList.add("ab-is-hidden");
+};
+
+const getLatestSaleCursor = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return "";
+  let latest = null;
+  let latestTime = 0;
+  items.forEach((item) => {
+    const soldAt = String(item?.lastSoldAt ?? "").trim();
+    if (!soldAt) return;
+    const soldAtTime = new Date(soldAt).getTime();
+    if (Number.isNaN(soldAtTime)) return;
+    if (!latest || soldAtTime > latestTime) {
+      latest = item;
+      latestTime = soldAtTime;
+    }
+  });
+  if (!latest) return "";
+  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}`;
+};
+
+const refreshSalesNotification = async (session) => {
+  const userId = session?.user?.id ?? "";
+  const token = session?.access_token ?? "";
+  if (!userId || !token || window.location.pathname === "/mis-ventas") {
+    setSalesDotVisible(false);
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/my-sales-products", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setSalesDotVisible(false);
+      return;
+    }
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const latestCursor = getLatestSaleCursor(items);
+    if (!latestCursor) {
+      setSalesDotVisible(false);
+      return;
+    }
+    const key = `${LAST_SEEN_SALE_KEY}:${userId}`;
+    const previousCursor = window.localStorage.getItem(key);
+    if (!previousCursor) {
+      window.localStorage.setItem(key, latestCursor);
+      setSalesDotVisible(false);
+      return;
+    }
+    setSalesDotVisible(previousCursor !== latestCursor);
+  } catch {
+    setSalesDotVisible(false);
   }
 };
 
@@ -139,6 +207,11 @@ const uploadPendingAvatar = async (session) => {
     const raw = window.localStorage.getItem("ab_pending_avatar");
     if (!raw) return;
     const pending = JSON.parse(raw);
+    const savedAt = Number(pending?.savedAt ?? 0);
+    if (!savedAt || Date.now() - savedAt > PENDING_AVATAR_MAX_AGE_MS) {
+      window.localStorage.removeItem("ab_pending_avatar");
+      return;
+    }
     if (!pending?.dataUrl || !pending?.type) return;
     const blob = dataUrlToBlob(pending.dataUrl);
     if (!blob) return;
@@ -202,6 +275,12 @@ document.addEventListener("astro:before-swap", () => {
 window.addEventListener("pageshow", () => {
   resetProfileView();
   loadProfile();
+});
+window.addEventListener("storage", (event) => {
+  if (!event.key) return;
+  if (event.key.includes("ab_last_seen_sale_at_v1")) {
+    loadProfile();
+  }
 });
 
 /* Toggle de edición. */

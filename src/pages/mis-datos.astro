@@ -70,7 +70,10 @@ import profileScriptUrl from "../scripts/profile.js?url";
     <!-- Accesos a secciones relacionadas -->
     <div class="ab-actions">
       <a class="ab-cta-button" href="/mis-compras">Ver mis compras</a>
-      <a class="ab-cta-button" href="/mis-ventas">Ver mis ventas</a>
+      <a class="ab-cta-button ab-sales-link" href="/mis-ventas">
+        Ver mis ventas
+        <span id="my-sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
+      </a>
       <a class="ab-cta-button" href="/mis-servicios">Ver mis servicios</a>
       <a class="ab-cta-button" href="/cuenta/profesional">Convertite en profesional</a>
     </div>

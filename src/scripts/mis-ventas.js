@@ -16,16 +16,17 @@ let productsEventsBound = false;
 let modalEventsBound = false;
 let pendingDeleteProductId = "";
 let pendingDeleteTrigger = null;
-let salesPollingStarted = false;
 let salesLoadInFlight = false;
 let lastSalesLoadAt = 0;
 let lastSoldProductsSignature = "";
 let lastPublishedProductsSignature = "";
+let salesRealtimeChannel = null;
+let salesRealtimeRefreshTimer = null;
 
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 const SALES_BOOTSTRAP_NOTICE_KEY = "ab_sales_bootstrap_notice_v1";
-const SALES_REFRESH_INTERVAL_MS = 60000;
 const SALES_MIN_GAP_MS = 4000;
+const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
 
 /* Formateo de precios ARS. */
 const formatPrice = (value) => {
@@ -63,6 +64,29 @@ const escapeHtml = (value) =>
 const getLastSeenSaleStorageKey = () => `${LAST_SEEN_SALE_KEY}:${currentUserId || "anonymous"}`;
 const getBootstrapNoticeStorageKey = () => `${SALES_BOOTSTRAP_NOTICE_KEY}:${currentUserId || "anonymous"}`;
 
+const getLatestSaleCursor = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return { cursor: "", latestSale: null };
+  let latestSale = null;
+  let latestSaleTime = 0;
+
+  items.forEach((item) => {
+    const soldAt = String(item?.lastSoldAt ?? "").trim();
+    if (!soldAt) return;
+    const soldAtTime = new Date(soldAt).getTime();
+    if (Number.isNaN(soldAtTime)) return;
+    if (!latestSale || soldAtTime > latestSaleTime) {
+      latestSale = item;
+      latestSaleTime = soldAtTime;
+    }
+  });
+
+  if (!latestSale) return { cursor: "", latestSale: null };
+  return {
+    cursor: `${String(latestSale.lastSoldAt ?? "").trim()}_${String(latestSale.lastOrderId ?? "").trim()}`,
+    latestSale,
+  };
+};
+
 const showUrgentSaleModal = ({ title, message }) => {
   const modal = document.createElement("div");
   modal.className = "ab-orders-modal";
@@ -91,10 +115,7 @@ const showUrgentSaleModal = ({ title, message }) => {
 const notifyIfNewSale = (soldItems) => {
   if (!currentUserId || !Array.isArray(soldItems) || soldItems.length === 0) return;
 
-  const latestSale = soldItems
-    .filter((item) => String(item?.lastSoldAt ?? "").trim())
-    .sort((a, b) => new Date(b.lastSoldAt).getTime() - new Date(a.lastSoldAt).getTime())[0];
-
+  const { latestSale } = getLatestSaleCursor(soldItems);
   if (!latestSale) return;
   const latestSaleIso = String(latestSale.lastSoldAt ?? "").trim();
   const latestOrderId = String(latestSale.lastOrderId ?? "").trim();
@@ -131,6 +152,62 @@ const isSalesPageActive = () => {
   return window.location.pathname === "/mis-ventas";
 };
 
+const scheduleRealtimeRefresh = () => {
+  if (!isSalesPageActive()) return;
+  if (salesRealtimeRefreshTimer) {
+    window.clearTimeout(salesRealtimeRefreshTimer);
+  }
+  salesRealtimeRefreshTimer = window.setTimeout(() => {
+    salesRealtimeRefreshTimer = null;
+    loadMyProducts();
+  }, SALES_REALTIME_REFRESH_DEBOUNCE_MS);
+};
+
+const teardownSalesRealtime = async () => {
+  if (salesRealtimeRefreshTimer) {
+    window.clearTimeout(salesRealtimeRefreshTimer);
+    salesRealtimeRefreshTimer = null;
+  }
+  if (!salesRealtimeChannel) return;
+  const channel = salesRealtimeChannel;
+  salesRealtimeChannel = null;
+  try {
+    await supabase.removeChannel(channel);
+  } catch {
+    /* noop */
+  }
+};
+
+const setupSalesRealtime = async () => {
+  if (!isSalesPageActive() || !currentUserId) return;
+  if (salesRealtimeChannel) return;
+
+  const channelName = `ab-my-sales-${currentUserId}`;
+  salesRealtimeChannel = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "products", filter: `user_id=eq.${currentUserId}` },
+      scheduleRealtimeRefresh,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "order_items" },
+      scheduleRealtimeRefresh,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders" },
+      scheduleRealtimeRefresh,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "sale_dispatches", filter: `seller_id=eq.${currentUserId}` },
+      scheduleRealtimeRefresh,
+    )
+    .subscribe();
+};
+
 const buildPublishedProductsSignature = (products) => {
   if (!Array.isArray(products) || products.length === 0) return "empty";
   return products
@@ -151,21 +228,8 @@ const buildPublishedProductsSignature = (products) => {
 };
 
 const buildSoldProductsSignature = (products) => {
-  if (!Array.isArray(products) || products.length === 0) return "empty";
-  let latest = null;
-  let latestTime = 0;
-  products.forEach((item) => {
-    const soldAt = String(item?.lastSoldAt ?? "").trim();
-    if (!soldAt) return;
-    const soldAtTime = new Date(soldAt).getTime();
-    if (Number.isNaN(soldAtTime)) return;
-    if (!latest || soldAtTime > latestTime) {
-      latest = item;
-      latestTime = soldAtTime;
-    }
-  });
-  if (!latest) return "empty";
-  return `${String(latest.lastSoldAt ?? "").trim()}_${String(latest.lastOrderId ?? "").trim()}`;
+  const { cursor } = getLatestSaleCursor(products);
+  return cursor || "empty";
 };
 
 /* Renderiza resumen de productos vendidos. */
@@ -194,11 +258,13 @@ const renderSoldProducts = (products) => {
         image: safeImage,
         soldAt: product.lastSoldAt,
         orderId: product.lastOrderId || "",
+        productId: product.productId || "",
         qty: product.quantity ?? 0,
         subtotal: product.revenue ?? 0,
         buyerName: product.lastBuyerName || "",
         buyerUserId: product.lastBuyerUserId || "",
         buyerNote: product.lastBuyerNote || "",
+        dispatchedAt: null,
       });
       return;
     }
@@ -210,24 +276,36 @@ const renderSoldProducts = (products) => {
         image: safeImage,
         soldAt: sale?.soldAt ?? null,
         orderId: sale?.orderId ?? "",
+        productId: sale?.productId ?? product.productId ?? "",
         qty: sale?.qty ?? 1,
         subtotal: sale?.subtotal ?? 0,
         buyerName: sale?.buyerName ?? "",
         buyerUserId: sale?.buyerUserId ?? "",
         buyerNote: sale?.buyerNote ?? "",
+        dispatchedAt: sale?.dispatchedAt ?? null,
       });
     });
   });
 
   salesCards
     .sort((a, b) => new Date(b.soldAt ?? 0).getTime() - new Date(a.soldAt ?? 0).getTime())
-    .forEach((sale) => {
+    .forEach((sale, index) => {
       const card = document.createElement("article");
-      card.className = "ab-provider-product-card";
+      const saleOrderId = String(sale.orderId || "").trim();
+      const saleProductId = String(sale.productId || "").trim();
+      const isDispatched = Boolean(String(sale.dispatchedAt ?? "").trim());
+      const isLatestSale = index === 0;
+      const isPendingDispatch = Boolean(saleOrderId) && !isDispatched;
+      card.className = `ab-provider-product-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
       const safeBuyerName = escapeHtml(sale.buyerName || "");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
       const safeNote = escapeHtml(sale.buyerNote || "");
-      const safeOrderId = escapeHtml(String(sale.orderId || "").slice(0, 8));
+      const safeOrderId = escapeHtml(saleOrderId.slice(0, 8));
+      const statusBadge = isPendingDispatch
+        ? isLatestSale
+          ? "Nueva venta · pendiente"
+          : "Pendiente de despacho"
+        : "Despachado";
 
       card.innerHTML = `
         <img
@@ -238,7 +316,7 @@ const renderSoldProducts = (products) => {
         />
         <div class="ab-provider-product-card__meta">
           <div>
-            <p class="ab-provider-product-card__label">Producto vendido</p>
+            <p class="ab-provider-product-card__label">${statusBadge}</p>
             <p class="ab-provider-product-card__code">Orden ${safeOrderId || "N/A"}</p>
           </div>
           <p class="ab-provider-product-card__price">
@@ -260,6 +338,17 @@ const renderSoldProducts = (products) => {
           }
           ${safeNote ? `<li>Nota: <strong>${safeNote}</strong></li>` : ""}
         </ul>
+        <div class="ab-provider-product-card__actions">
+          <button
+            type="button"
+            class="ab-provider-product-card__button ${isPendingDispatch ? "ab-provider-product-card__button--buy" : "ab-provider-product-card__button--ghost"}"
+            data-dispatch-sale="${escapeHtml(saleOrderId)}"
+            data-dispatch-product="${escapeHtml(saleProductId)}"
+            ${!saleOrderId || !saleProductId || isDispatched ? "disabled aria-disabled=\"true\"" : ""}
+          >
+            ${isDispatched ? "Despachado" : "Marcar como despachado"}
+          </button>
+        </div>
       `;
       soldProductsList.appendChild(card);
     });
@@ -392,6 +481,33 @@ const fetchSoldProductsSummary = async () => {
   };
 };
 
+const markSaleDispatchOnServer = async ({ orderId, productId }) => {
+  const safeOrderId = String(orderId ?? "").trim();
+  const safeProductId = String(productId ?? "").trim();
+  if (!safeOrderId || !safeProductId) {
+    return { ok: false, error: "Faltan datos de venta para despachar." };
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) return { ok: false, error: "Sesion expirada." };
+
+  const response = await fetch("/api/sales-dispatch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ orderId: safeOrderId, productId: safeProductId }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { ok: false, error: String(payload?.error ?? "No se pudo guardar el despacho.") };
+  }
+  return { ok: true, error: "" };
+};
+
 /* Carga y resume ventas de productos del usuario autenticado. */
 const loadSoldProducts = async () => {
   if (!soldProductsList || !soldProductsEmpty || !soldProductsStatus) return;
@@ -438,6 +554,7 @@ const loadMyProducts = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData?.session;
     if (!session?.user) {
+      await teardownSalesRealtime();
       currentUserId = "";
       productsEmpty.classList.remove("ab-is-hidden");
       renderSoldProducts([]);
@@ -446,7 +563,13 @@ const loadMyProducts = async () => {
       lastSoldProductsSignature = "empty";
       return;
     }
-    currentUserId = session.user.id;
+    const nextUserId = session.user.id;
+    if (currentUserId && currentUserId !== nextUserId) {
+      await teardownSalesRealtime();
+      lastPublishedProductsSignature = "";
+      lastSoldProductsSignature = "";
+    }
+    currentUserId = nextUserId;
     const { data, error } = await supabase
       .from("products")
       .select("id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,created_at")
@@ -464,6 +587,7 @@ const loadMyProducts = async () => {
       lastPublishedProductsSignature = nextPublishedSignature;
     }
     await loadSoldProducts();
+    await setupSalesRealtime();
   } catch {
     productsEmpty.classList.remove("ab-is-hidden");
     renderSoldProducts([]);
@@ -475,6 +599,11 @@ const loadMyProducts = async () => {
 
 /* Inicialización y hooks de navegación. */
 const initMySalesProducts = () => {
+  if (!isSalesPageActive()) {
+    void teardownSalesRealtime();
+    return;
+  }
+
   if (productsGrid && !productsEventsBound) {
     productsGrid.addEventListener("click", (event) => {
       const target = event.target;
@@ -486,6 +615,41 @@ const initMySalesProducts = () => {
       openDeleteModal(productId, button);
     });
     productsEventsBound = true;
+  }
+
+  if (soldProductsList && !soldProductsList.dataset.dispatchBound) {
+    soldProductsList.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-dispatch-sale]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const orderId = String(button.dataset.dispatchSale ?? "").trim();
+      const productId = String(button.dataset.dispatchProduct ?? "").trim();
+      if (!orderId || !productId) return;
+      if (button.disabled) return;
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      const result = await markSaleDispatchOnServer({ orderId, productId });
+      button.removeAttribute("aria-busy");
+      if (!result.ok) {
+        button.disabled = false;
+        if (soldProductsStatus) soldProductsStatus.textContent = result.error;
+        return;
+      }
+      if (soldProductsStatus) soldProductsStatus.textContent = "";
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+      button.textContent = "Despachado";
+      button.classList.remove("ab-provider-product-card__button--buy");
+      button.classList.add("ab-provider-product-card__button--ghost");
+      const card = button.closest(".ab-provider-product-card");
+      card?.classList.remove("ab-sale-card--pending");
+      const statusLabel = card?.querySelector(".ab-provider-product-card__label");
+      if (statusLabel) statusLabel.textContent = "Despachado";
+      lastSoldProductsSignature = "";
+      await loadSoldProducts();
+    });
+    soldProductsList.dataset.dispatchBound = "1";
   }
 
   if (!modalEventsBound) {
@@ -514,17 +678,10 @@ const initMySalesProducts = () => {
   }
 
   loadMyProducts();
-  if (!salesPollingStarted) {
-    window.setInterval(() => {
-      if (!isSalesPageActive()) return;
-      if (document.visibilityState === "hidden") return;
-      loadMyProducts();
-    }, SALES_REFRESH_INTERVAL_MS);
-    salesPollingStarted = true;
-  }
 };
 
 initMySalesProducts();
 document.addEventListener("astro:page-load", initMySalesProducts);
 document.addEventListener("astro:after-swap", initMySalesProducts);
 window.addEventListener("pageshow", initMySalesProducts);
+window.addEventListener("pagehide", teardownSalesRealtime);

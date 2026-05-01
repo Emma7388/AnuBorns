@@ -1,0 +1,79 @@
+---
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+
+const { id } = Astro.params;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+const safeId = encodeURIComponent(String(id ?? "").trim());
+
+const fetchJson = async (url) => {
+  const response = await fetch(url, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      "Cache-Control": "no-store",
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return response.json();
+};
+
+const product = supabaseUrl && supabaseAnonKey && safeId
+  ? await fetchJson(
+      `${supabaseUrl}/rest/v1/products?select=id,user_id,title,description,price,currency,image_url,location,pickup_address,seller_name,created_at&id=eq.${safeId}&limit=1`
+    )
+  : null;
+
+const current = Array.isArray(product) ? product[0] : null;
+const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent(current.user_id)}` : "";
+---
+
+<MainLayout title={current?.title ? `Producto: ${current.title}` : "Producto"} backHref="/comprar">
+  {current ? (
+    <section class="ab-dark-panel ab-provider-products-panel">
+      <p class="ab-eyebrow">Detalle de producto</p>
+      <article class="ab-provider-product-card">
+        <img
+          class="ab-provider-product-card__image"
+          src={current.image_url || "/logo2.svg"}
+          alt={current.title || "Producto"}
+          loading="lazy"
+        />
+        <div class="ab-provider-product-card__meta">
+          <div>
+            <p class="ab-provider-product-card__label">Proveedor</p>
+            <p class="ab-provider-product-card__code">{current.seller_name || "Proveedor"}</p>
+          </div>
+          <p class="ab-provider-product-card__price">
+            ${Number(current.price ?? 0).toLocaleString("es-AR")} <span>{current.currency || "ARS"}</span>
+          </p>
+        </div>
+        <h2>{current.title || "Producto sin título"}</h2>
+        <p class="ab-provider-product-card__description">{current.description || "Sin descripción."}</p>
+        <ul class="ab-provider-product-card__details">
+          <li>Ubicación: <strong>{current.location || "Sin especificar"}</strong></li>
+          {current.pickup_address ? <li>Dirección: <strong>{current.pickup_address}</strong></li> : null}
+        </ul>
+        <div class="ab-provider-product-card__actions">
+          {providerHref ? (
+            <a class="ab-provider-product-card__button ab-provider-product-card__button--buy" href={providerHref}>
+              Ver proveedor
+            </a>
+          ) : null}
+          <a class="ab-provider-product-card__button ab-provider-product-card__button--ghost" href="/carrito">
+            Ir al carrito
+          </a>
+        </div>
+      </article>
+    </section>
+  ) : (
+    <section class="ab-dark-panel">
+      <h1>Producto no encontrado</h1>
+      <p>El producto ya no está disponible o no existe.</p>
+    </section>
+  )}
+</MainLayout>

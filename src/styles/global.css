@@ -1077,6 +1077,11 @@ input[type="submit"] {
   transform: translateY(-2px);
 }
 
+.ab-sale-card--pending {
+  border-color: rgba(242, 140, 40, 0.75);
+  box-shadow: 0 0 0 1px rgba(242, 140, 40, 0.35);
+}
+
 .ab-provider-product-card h2 {
   font-size: 15px;
   margin: 0 0 3px;
@@ -2233,4 +2238,27 @@ body.is-profile-editing #profile-form {
   gap: 6px;
   color: var(--color-text-soft);
   font-size: 14px;
+}
+
+.ab-sales-link {
+  position: relative;
+}
+
+.ab-sales-link .ab-sales-notification-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+  z-index: 2;
+}
+
+.ab-featured-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
 }

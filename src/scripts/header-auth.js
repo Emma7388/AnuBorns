@@ -15,8 +15,10 @@ let modalConfirm = document.querySelector("[data-modal-confirm]");
 let modalClose = document.querySelector("[data-modal-close]");
 let cartCount = document.getElementById("cart-count");
 let cartSync = document.getElementById("cart-sync");
+let salesNotificationDot = document.getElementById("sales-notification-dot");
 let isSigningOut = false;
 let lastSyncedUserId = "";
+const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 
 /* Modal de confirmación para cerrar sesión. */
 const openModal = () => {
@@ -85,6 +87,7 @@ const bindElements = () => {
   modalClose = document.querySelector("[data-modal-close]");
   cartCount = document.getElementById("cart-count");
   cartSync = document.getElementById("cart-sync");
+  salesNotificationDot = document.getElementById("sales-notification-dot");
 };
 
 /* Evita registrar listeners duplicados. */
@@ -108,6 +111,82 @@ const renderCartCount = async () => {
   }
 };
 
+const getLastSeenSaleStorageKey = (userId) => `${LAST_SEEN_SALE_KEY}:${userId || "anonymous"}`;
+
+const setSalesNotificationVisible = (visible) => {
+  if (!salesNotificationDot) return;
+  if (visible) {
+    salesNotificationDot.classList.remove("ab-is-hidden");
+    return;
+  }
+  salesNotificationDot.classList.add("ab-is-hidden");
+};
+
+const getLatestSaleCursor = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return "";
+  let latest = null;
+  let latestTime = 0;
+  items.forEach((item) => {
+    const soldAt = String(item?.lastSoldAt ?? "").trim();
+    if (!soldAt) return;
+    const soldAtTime = new Date(soldAt).getTime();
+    if (Number.isNaN(soldAtTime)) return;
+    if (!latest || soldAtTime > latestTime) {
+      latest = item;
+      latestTime = soldAtTime;
+    }
+  });
+  if (!latest) return "";
+  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}`;
+};
+
+const refreshSalesNotification = async (session) => {
+  const userId = session?.user?.id ?? "";
+  const token = session?.access_token ?? "";
+  if (!userId || !token) {
+    setSalesNotificationVisible(false);
+    return;
+  }
+
+  if (window.location.pathname === "/mis-ventas") {
+    setSalesNotificationVisible(false);
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/my-sales-products", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setSalesNotificationVisible(false);
+      return;
+    }
+
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const latestCursor = getLatestSaleCursor(items);
+    if (!latestCursor) {
+      setSalesNotificationVisible(false);
+      return;
+    }
+
+    const storageKey = getLastSeenSaleStorageKey(userId);
+    const previousCursor = window.localStorage.getItem(storageKey);
+    if (!previousCursor) {
+      window.localStorage.setItem(storageKey, latestCursor);
+      setSalesNotificationVisible(false);
+      return;
+    }
+
+    setSalesNotificationVisible(previousCursor !== latestCursor);
+  } catch {
+    setSalesNotificationVisible(false);
+  }
+};
+
 /* Resuelve la sesión actual y sincroniza carrito si aplica. */
 const resolveSession = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
@@ -120,6 +199,7 @@ const resolveSession = async () => {
       await syncCartOnLogin(userId);
       if (cartSync) cartSync.classList.add("ab-is-hidden");
     }
+    await refreshSalesNotification(sessionData.session);
     renderCartCount();
     return;
   }
@@ -134,11 +214,13 @@ const resolveSession = async () => {
       await syncCartOnLogin(userId);
       if (cartSync) cartSync.classList.add("ab-is-hidden");
     }
+    await refreshSalesNotification({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
     renderCartCount();
     return;
   }
 
   setView(null);
+  setSalesNotificationVisible(false);
   renderCartCount();
 };
 
@@ -195,9 +277,11 @@ supabase.auth.onAuthStateChange((_event, session) => {
     if (cartSync) cartSync.classList.remove("ab-is-hidden");
     syncCartOnLogin(userId).finally(() => {
       if (cartSync) cartSync.classList.add("ab-is-hidden");
+      refreshSalesNotification(session);
       renderCartCount();
     });
   } else {
+    refreshSalesNotification(session);
     renderCartCount();
   }
 });
@@ -224,7 +308,11 @@ document.addEventListener("ab-cart-updated", () => {
 /* Sincroniza sesión cuando cambia en otra pestaña. */
 window.addEventListener("storage", (event) => {
   if (!event.key) return;
-  if (event.key.includes("supabase.auth.token") || event.key === "ab_auth_refresh") {
+  if (
+    event.key.includes("supabase.auth.token") ||
+    event.key === "ab_auth_refresh" ||
+    event.key.includes("ab_last_seen_sale_at_v1")
+  ) {
     resolveSession();
   }
 });

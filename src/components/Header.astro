@@ -33,6 +33,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
           data-astro-reload
           data-ab-profile-link
         >
+          <span id="sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
           <img id="auth-avatar" alt="Avatar de usuario" />
         </a>
         <button class="nav-login nav-login--ghost" type="button" id="auth-logout">Salir</button>
@@ -278,6 +279,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 
 /* Avatar de usuario */
 .nav-avatar {
+  position: relative;
   width: 36px;
   height: 36px;
   border-radius: 999px;
@@ -285,7 +287,20 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
   background: rgba(255, 255, 255, 0.06);
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.ab-sales-notification-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+  z-index: 2;
 }
 
 .nav-cart {
@@ -322,6 +337,7 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 .nav-avatar img {
   width: 100%;
   height: 100%;
+  border-radius: 999px;
   object-fit: cover;
   display: none;
 }
