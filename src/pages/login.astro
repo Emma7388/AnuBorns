@@ -1,7 +1,6 @@
 ---
 // Página: login de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
-import loginScriptUrl from "../scripts/login.js?url";
 ---
 
 <MainLayout title="Iniciar sesión">
@@ -42,4 +41,6 @@ import loginScriptUrl from "../scripts/login.js?url";
 </MainLayout>
 
 <!-- Script de login -->
-<script type="module" src={loginScriptUrl}></script>
+<script>
+  import "../scripts/login.js";
+</script>

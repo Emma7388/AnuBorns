@@ -1,6 +1,8 @@
 ---
 // Componente: footer con CTA opcional de regreso.
 const { showBack = false, backHref = "/" } = Astro.props;
+const useHistoryBack = backHref === "history";
+const resolvedBackHref = useHistoryBack ? "/" : backHref;
 ---
 
 <!-- Pie de página principal -->
@@ -12,8 +14,8 @@ const { showBack = false, backHref = "/" } = Astro.props;
       {showBack && (
         <a
           class="ab-cta-button footer-back"
-          href={backHref}
-          data-ab-back
+          href={resolvedBackHref}
+          data-ab-back={useHistoryBack ? "history" : "link"}
           {...(backHref === "/mis-datos" ? { "data-astro-reload": true } : {})}
         >
           Volver

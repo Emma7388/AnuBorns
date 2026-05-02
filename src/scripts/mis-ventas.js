@@ -1,10 +1,12 @@
 /* Mis ventas: render de productos publicados por el usuario. */
 import { supabase } from "../lib/supabaseClient";
+import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
 
 /* Referencias DOM. */
 const soldProductsList = document.getElementById("my-sold-products-list");
 const soldProductsEmpty = document.getElementById("my-sold-products-empty");
 const soldProductsStatus = document.getElementById("my-sold-products-status");
+const soldProductsDispatchFilter = document.getElementById("my-sold-products-dispatch-filter");
 const productsGrid = document.getElementById("my-products-grid");
 const productsEmpty = document.getElementById("my-products-empty");
 const deleteModal = document.getElementById("sales-delete-modal");
@@ -22,11 +24,16 @@ let lastSoldProductsSignature = "";
 let lastPublishedProductsSignature = "";
 let salesRealtimeChannel = null;
 let salesRealtimeRefreshTimer = null;
+let soldProductsResizeBound = false;
+let soldProductsFilterBound = false;
+let lastSoldProductsItems = [];
+let soldProductCards = [];
 
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 const SALES_BOOTSTRAP_NOTICE_KEY = "ab_sales_bootstrap_notice_v1";
 const SALES_MIN_GAP_MS = 4000;
 const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
+const SOLD_PRODUCTS_VISIBLE_CARD_COUNT = 3;
 
 /* Formateo de precios ARS. */
 const formatPrice = (value) => {
@@ -229,19 +236,95 @@ const buildPublishedProductsSignature = (products) => {
 
 const buildSoldProductsSignature = (products) => {
   const { cursor } = getLatestSaleCursor(products);
-  return cursor || "empty";
+  if (!Array.isArray(products) || products.length === 0) return "empty";
+  const dispatchState = products
+    .map((product) => {
+      const history = Array.isArray(product?.salesHistory) ? product.salesHistory : [];
+      if (history.length === 0) {
+        return [
+          product?.productId ?? "",
+          product?.lastOrderId ?? "",
+          product?.lastSoldAt ?? "",
+          product?.lastBuyerUserId ?? "",
+        ].join("|");
+      }
+      return history
+        .map((sale) =>
+          [
+            sale?.productId ?? product?.productId ?? "",
+            sale?.orderId ?? "",
+            sale?.soldAt ?? "",
+            sale?.dispatchedAt ?? "",
+          ].join("|"),
+        )
+        .join(";");
+    })
+    .join("::");
+  return `${cursor || "empty"}::${dispatchState}`;
+};
+
+const updateSoldProductsScrollWindow = () => {
+  if (!soldProductsList) return;
+  const cards = Array.from(soldProductsList.querySelectorAll(".ab-provider-product-card"));
+  if (cards.length <= SOLD_PRODUCTS_VISIBLE_CARD_COUNT) {
+    soldProductsList.classList.remove("ab-sold-products-scroll");
+    soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
+    return;
+  }
+
+  const lastVisibleCard = cards[SOLD_PRODUCTS_VISIBLE_CARD_COUNT - 1];
+  const listRect = soldProductsList.getBoundingClientRect();
+  const cardRect = lastVisibleCard.getBoundingClientRect();
+  const visibleHeight = Math.max(0, cardRect.bottom - listRect.top + 8);
+  soldProductsList.style.setProperty("--ab-sold-products-scroll-height", `${Math.ceil(visibleHeight)}px`);
+  soldProductsList.classList.add("ab-sold-products-scroll");
+};
+
+const scheduleSoldProductsScrollWindow = () => {
+  window.requestAnimationFrame(updateSoldProductsScrollWindow);
+};
+
+const applySoldProductsDispatchFilter = () => {
+  if (!soldProductsList || !soldProductsEmpty) return;
+  const showDispatchOnly = soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.checked;
+  const emptyText = soldProductsEmpty.querySelector("p");
+  const visibleCards = showDispatchOnly
+    ? soldProductCards.filter((card) => card.dataset.salePendingDispatch === "true")
+    : soldProductCards;
+
+  soldProductsList.replaceChildren(...visibleCards);
+  soldProductsList.scrollTop = 0;
+
+  if (visibleCards.length === 0) {
+    soldProductsList.classList.remove("ab-sold-products-scroll");
+    soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
+    if (emptyText) {
+      emptyText.textContent = showDispatchOnly
+        ? "No tenés productos pendientes de despacho."
+        : "Todavía no tenés productos vendidos.";
+    }
+    soldProductsEmpty.classList.remove("ab-is-hidden");
+    return;
+  }
+
+  soldProductsEmpty.classList.add("ab-is-hidden");
+  scheduleSoldProductsScrollWindow();
 };
 
 /* Renderiza resumen de productos vendidos. */
 const renderSoldProducts = (products) => {
   if (!soldProductsList || !soldProductsEmpty) return;
   soldProductsList.innerHTML = "";
+  soldProductCards = [];
+  const emptyText = soldProductsEmpty.querySelector("p");
   if (!Array.isArray(products) || products.length === 0) {
+    soldProductsList.classList.remove("ab-sold-products-scroll");
+    soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
+    if (emptyText) emptyText.textContent = "Todavía no tenés productos vendidos.";
     soldProductsEmpty.classList.remove("ab-is-hidden");
     return;
   }
 
-  soldProductsEmpty.classList.add("ab-is-hidden");
   soldProductsList.classList.add("ab-provider-products-grid");
 
   const salesCards = [];
@@ -287,6 +370,16 @@ const renderSoldProducts = (products) => {
     });
   });
 
+  if (salesCards.length === 0) {
+    soldProductsList.classList.remove("ab-sold-products-scroll");
+    soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
+    if (emptyText) emptyText.textContent = "Todavía no tenés productos vendidos.";
+    soldProductsEmpty.classList.remove("ab-is-hidden");
+    return;
+  }
+
+  soldProductsEmpty.classList.add("ab-is-hidden");
+
   salesCards
     .sort((a, b) => new Date(b.soldAt ?? 0).getTime() - new Date(a.soldAt ?? 0).getTime())
     .forEach((sale, index) => {
@@ -297,6 +390,7 @@ const renderSoldProducts = (products) => {
       const isLatestSale = index === 0;
       const isPendingDispatch = Boolean(saleOrderId) && !isDispatched;
       card.className = `ab-provider-product-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
+      card.dataset.salePendingDispatch = isPendingDispatch ? "true" : "false";
       const safeBuyerName = escapeHtml(sale.buyerName || "");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
       const safeNote = escapeHtml(sale.buyerNote || "");
@@ -350,8 +444,10 @@ const renderSoldProducts = (products) => {
           </button>
         </div>
       `;
-      soldProductsList.appendChild(card);
+      soldProductCards.push(card);
     });
+
+  applySoldProductsDispatchFilter();
 };
 
 /* Renderiza tarjetas de productos del usuario. */
@@ -463,22 +559,7 @@ const fetchSoldProductsSummary = async () => {
   const token = sessionData?.session?.access_token;
   if (!token) return { items: [], error: "" };
 
-  const response = await fetch("/api/my-sales-products", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    return { items: [], error: String(payload?.error ?? "No se pudieron cargar las ventas.") };
-  }
-
-  return {
-    items: Array.isArray(payload?.items) ? payload.items : [],
-    error: "",
-  };
+  return fetchSalesSummary(token, { force: true });
 };
 
 const markSaleDispatchOnServer = async ({ orderId, productId }) => {
@@ -517,6 +598,7 @@ const loadSoldProducts = async () => {
     soldProductsStatus.textContent = "";
     renderSoldProducts([]);
     lastSoldProductsSignature = "empty";
+    lastSoldProductsItems = [];
     return;
   }
 
@@ -530,6 +612,7 @@ const loadSoldProducts = async () => {
 
     const nextSoldSignature = buildSoldProductsSignature(items);
     soldProductsStatus.textContent = "";
+    lastSoldProductsItems = items;
     if (nextSoldSignature !== lastSoldProductsSignature) {
       renderSoldProducts(items);
       lastSoldProductsSignature = nextSoldSignature;
@@ -561,6 +644,7 @@ const loadMyProducts = async () => {
       if (soldProductsStatus) soldProductsStatus.textContent = "";
       lastPublishedProductsSignature = "empty";
       lastSoldProductsSignature = "empty";
+      lastSoldProductsItems = [];
       return;
     }
     const nextUserId = session.user.id;
@@ -637,6 +721,7 @@ const initMySalesProducts = () => {
         return;
       }
       if (soldProductsStatus) soldProductsStatus.textContent = "";
+      invalidateSalesSummaryCache();
       button.disabled = true;
       button.setAttribute("aria-disabled", "true");
       button.textContent = "Despachado";
@@ -644,12 +729,26 @@ const initMySalesProducts = () => {
       button.classList.add("ab-provider-product-card__button--ghost");
       const card = button.closest(".ab-provider-product-card");
       card?.classList.remove("ab-sale-card--pending");
+      if (card) card.dataset.salePendingDispatch = "false";
       const statusLabel = card?.querySelector(".ab-provider-product-card__label");
       if (statusLabel) statusLabel.textContent = "Despachado";
+      applySoldProductsDispatchFilter();
       lastSoldProductsSignature = "";
       await loadSoldProducts();
     });
     soldProductsList.dataset.dispatchBound = "1";
+  }
+
+  if (!soldProductsResizeBound) {
+    window.addEventListener("resize", scheduleSoldProductsScrollWindow);
+    soldProductsResizeBound = true;
+  }
+
+  if (soldProductsDispatchFilter instanceof HTMLInputElement && !soldProductsFilterBound) {
+    soldProductsDispatchFilter.addEventListener("change", () => {
+      applySoldProductsDispatchFilter();
+    });
+    soldProductsFilterBound = true;
   }
 
   if (!modalEventsBound) {

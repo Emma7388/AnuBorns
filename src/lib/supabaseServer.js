@@ -22,9 +22,7 @@ const normalizeSupabaseUrl = (value) => {
   }
 };
 
-/* Devuelve un cliente administrador usando la service role key. */
-export const getSupabaseAdmin = () => {
-  if (cachedAdmin) return cachedAdmin;
+export const getSupabaseAdminConfigStatus = () => {
   const env = import.meta.env ?? {};
   const rawSupabaseUrl =
     process.env.SUPABASE_URL ??
@@ -34,19 +32,38 @@ export const getSupabaseAdmin = () => {
   const supabaseUrl = normalizeSupabaseUrl(rawSupabaseUrl);
   const supabaseServiceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY;
+
+  const missing = [];
+  if (!supabaseUrl) missing.push("SUPABASE_URL");
+  if (!supabaseServiceKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+
+  return {
+    hasSupabaseUrl: Boolean(supabaseUrl),
+    hasServiceRoleKey: Boolean(supabaseServiceKey),
+    missing,
+    supabaseUrl,
+    supabaseServiceKey,
+  };
+};
+
+/* Devuelve un cliente administrador usando la service role key. */
+export const getSupabaseAdmin = () => {
+  if (cachedAdmin) return cachedAdmin;
+  const config = getSupabaseAdminConfigStatus();
   /* Si falta configuración, se responde null y el caller maneja el error. */
-  if (!supabaseUrl || !supabaseServiceKey) {
+  if (config.missing.length > 0) {
     if (!warnedMissingConfig) {
       warnedMissingConfig = true;
       console.error("[supabaseServer] Missing server env configuration.", {
-        hasSupabaseUrl: Boolean(supabaseUrl),
-        hasServiceRoleKey: Boolean(supabaseServiceKey),
+        hasSupabaseUrl: config.hasSupabaseUrl,
+        hasServiceRoleKey: config.hasServiceRoleKey,
+        missing: config.missing,
       });
     }
     return null;
   }
   /* Cliente sin persistencia de sesión (server-side). */
-  cachedAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  cachedAdmin = createClient(config.supabaseUrl, config.supabaseServiceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

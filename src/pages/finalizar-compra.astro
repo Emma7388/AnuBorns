@@ -1,7 +1,6 @@
 ---
 // Página: checkout y datos de entrega.
 import MainLayout from "../layouts/MainLayout.astro";
-import checkoutScriptUrl from "../scripts/checkout.js?url";
 ---
 
 <MainLayout title="Finalizar compra">
@@ -80,4 +79,6 @@ import checkoutScriptUrl from "../scripts/checkout.js?url";
 </MainLayout>
 
 <!-- Script de checkout -->
-<script type="module" src={checkoutScriptUrl}></script>
+<script>
+  import "../scripts/checkout.js";
+</script>

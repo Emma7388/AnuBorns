@@ -1,8 +1,6 @@
 ---
 // Página: ventas del usuario.
 import MainLayout from "../layouts/MainLayout.astro";
-// URL del script de ventas (cliente).
-import salesScriptUrl from "../scripts/mis-ventas.js?url";
 ---
 
 <MainLayout title="Mis ventas" backHref="/mis-datos">
@@ -14,6 +12,10 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
 
     <!-- Productos vendidos -->
     <h2>Productos vendidos</h2>
+    <label class="ab-sales-dispatch-filter">
+      <input id="my-sold-products-dispatch-filter" type="checkbox" />
+      <span>Mostrar solo productos para despachar</span>
+    </label>
     <p id="my-sold-products-status" class="ab-muted-text"></p>
     <div id="my-sold-products-list" class="ab-orders-list"></div>
     <div id="my-sold-products-empty" class="ab-cart-empty ab-is-hidden">
@@ -54,4 +56,6 @@ import salesScriptUrl from "../scripts/mis-ventas.js?url";
   </div>
 </MainLayout>
 
-<script type="module" src={salesScriptUrl}></script>
+<script>
+  import "../scripts/mis-ventas.js";
+</script>

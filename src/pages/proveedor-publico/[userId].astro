@@ -25,7 +25,7 @@ const fetchJson = async (url) => {
 
 const products = supabaseUrl && supabaseAnonKey && safeUserId
   ? await fetchJson(
-      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,pickup_address,contact,seller_name,created_at&user_id=eq.${safeUserId}&order=created_at.desc`
+      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,contact,seller_name,user_id,created_at&user_id=eq.${safeUserId}&order=created_at.desc`
     )
   : [];
 
@@ -40,9 +40,33 @@ const phoneDigits = rawContact.replace(/\D+/g, "");
 const publicPhone = phoneDigits ? rawContact : "";
 const publicAddress = String(first?.pickup_address ?? "").trim();
 const publicLocation = String(first?.location ?? "").trim();
+
+const formatPrice = (value) => {
+  const safe = Number(value ?? 0);
+  return safe.toLocaleString("es-AR");
+};
+const formatDate = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+const formatDelivery = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return "No especificada";
+  const labels = value.map((item) => {
+    if (item === "retiro") return "Retiro";
+    if (item === "envio") return "Envío";
+    return item;
+  });
+  return labels.join(" + ");
+};
+const shortId = (value) => {
+  const raw = String(value ?? "").replace(/-/g, "");
+  return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
+};
 ---
 
-<MainLayout title={`Proveedor: ${sellerName}`} backHref="/mis-compras">
+<MainLayout title={`Proveedor: ${sellerName}`} backHref="history">
   {first ? (
     <section class="ab-dark-panel">
       <p class="ab-eyebrow">Perfil público</p>
@@ -75,7 +99,15 @@ const publicLocation = String(first?.location ?? "").trim();
       ) : (
         <div class="ab-provider-products-grid">
           {safeProducts.map((product) => (
-            <article class="ab-provider-product-card">
+            <article
+              class="ab-provider-product-card"
+              data-user-id={product.user_id || ""}
+              data-title={product.title || ""}
+              data-price={product.price ?? 0}
+              data-image={product.image_url || "/logo2.svg"}
+              data-provider={product.seller_name || sellerName || "Vendedor"}
+              data-cart-id={product.id || ""}
+            >
               <img
                 class="ab-provider-product-card__image"
                 src={product.image_url || "/logo2.svg"}
@@ -85,13 +117,35 @@ const publicLocation = String(first?.location ?? "").trim();
               <div class="ab-provider-product-card__meta">
                 <div>
                   <p class="ab-provider-product-card__label">Producto</p>
+                  <p class="ab-provider-product-card__code">ID {shortId(product.id)}</p>
                 </div>
                 <p class="ab-provider-product-card__price">
-                  ${Number(product.price ?? 0).toLocaleString("es-AR")} <span>{product.currency || "ARS"}</span>
+                  ${formatPrice(product.price)} <span>{product.currency || "ARS"}</span>
                 </p>
               </div>
               <h2>{product.title || "Sin título"}</h2>
               <p class="ab-provider-product-card__description">{product.description || "Sin descripción"}</p>
+              <ul class="ab-provider-product-card__details">
+                <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
+                {product.pickup_address ? (
+                  <li>Dirección: <strong>{product.pickup_address}</strong></li>
+                ) : null}
+                <li>Entrega: <strong>{formatDelivery(product.delivery_methods)}</strong></li>
+              </ul>
+              <button
+                type="button"
+                class="ab-provider-product-card__add"
+                aria-label="Agregar al carrito"
+                title="Agregar al carrito"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
+                    fill="currentColor"
+                  ></path>
+                </svg>
+              </button>
             </article>
           ))}
         </div>
@@ -104,3 +158,7 @@ const publicLocation = String(first?.location ?? "").trim();
     </section>
   )}
 </MainLayout>
+
+<script>
+  import "../../scripts/comprar-productos.js";
+</script>

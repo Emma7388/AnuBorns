@@ -1,7 +1,6 @@
 ---
 // Página: historial de compras.
 import MainLayout from "../layouts/MainLayout.astro";
-import ordersScriptUrl from "../scripts/orders.js?url";
 ---
 
 <MainLayout title="Mis compras" backHref="/mis-datos">
@@ -45,4 +44,6 @@ import ordersScriptUrl from "../scripts/orders.js?url";
 </MainLayout>
 
 <!-- Script de órdenes -->
-<script type="module" src={ordersScriptUrl}></script>
+<script>
+  import "../scripts/orders.js";
+</script>

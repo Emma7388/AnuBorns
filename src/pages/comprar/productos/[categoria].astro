@@ -4,8 +4,6 @@ export const prerender = false;
 
 import MainLayout from "../../../layouts/MainLayout.astro";
 import "../../../styles/global.css";
-// URL del script de interacción de productos (cliente).
-import buyProductsUrl from "../../../scripts/comprar-productos.js?url";
 
 // Evita cache para reflejar cambios en tiempo real.
 Astro.response.headers.set("Cache-Control", "no-store");
@@ -213,7 +211,9 @@ const resolveCategoryName = (product) => {
   </section>
 </MainLayout>
 
-<script type="module" src={buyProductsUrl}></script>
+<script>
+  import "../../../scripts/comprar-productos.js";
+</script>
 
 <script>
   const initProductSearch = () => {

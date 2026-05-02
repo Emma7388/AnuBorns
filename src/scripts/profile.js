@@ -1,6 +1,7 @@
 /* Perfil de usuario: lectura, edición y avatar. */
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
+import { fetchSalesSummary } from "../lib/salesSummaryClient";
 
 /* Referencias DOM principales. */
 const status = document.getElementById("profile-status");
@@ -173,16 +174,12 @@ const refreshSalesNotification = async (session) => {
   }
 
   try {
-    const response = await fetch("/api/my-sales-products", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    const payload = await fetchSalesSummary(token);
+    if (payload.error) {
       setSalesDotVisible(false);
       return;
     }
-    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const items = payload.items;
     const latestCursor = getLatestSaleCursor(items);
     if (!latestCursor) {
       setSalesDotVisible(false);

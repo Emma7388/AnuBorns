@@ -1,7 +1,6 @@
 ---
 // Página: registro de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
-import registerScriptUrl from "../scripts/register.js?url";
 ---
 
 <MainLayout title="Crear cuenta">
@@ -63,4 +62,6 @@ import registerScriptUrl from "../scripts/register.js?url";
 </MainLayout>
 
 <!-- Script de registro -->
-<script type="module" src={registerScriptUrl}></script>
+<script>
+  import "../scripts/register.js";
+</script>

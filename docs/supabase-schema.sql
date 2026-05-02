@@ -35,12 +35,14 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
 -- Allow logged-in users to read their own orders
+drop policy if exists "Orders are viewable by owner" on public.orders;
 create policy "Orders are viewable by owner"
 on public.orders
 for select
 using (auth.uid() = user_id);
 
 -- Allow logged-in users to read their order items
+drop policy if exists "Order items viewable by owner" on public.order_items;
 create policy "Order items viewable by owner"
 on public.order_items
 for select

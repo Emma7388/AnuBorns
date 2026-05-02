@@ -1,7 +1,6 @@
 ---
 // Página: historial de servicios.
 import MainLayout from "../layouts/MainLayout.astro";
-import servicesScriptUrl from "../scripts/mis-servicios.js?url";
 ---
 
 <MainLayout title="Mis servicios" backHref="/mis-datos">
@@ -25,4 +24,6 @@ import servicesScriptUrl from "../scripts/mis-servicios.js?url";
   </section>
 </MainLayout>
 
-<script type="module" src={servicesScriptUrl}></script>
+<script>
+  import "../scripts/mis-servicios.js";
+</script>

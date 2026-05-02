@@ -1,6 +1,5 @@
 ---
 // Componente: header con auth, carrito y modal de logout.
-import headerAuthUrl from "../scripts/header-auth.js?url";
 ---
 
 <header class="header" transition:persist>
@@ -402,4 +401,6 @@ import headerAuthUrl from "../scripts/header-auth.js?url";
 }
 </style>
 
-<script type="module" src={headerAuthUrl}></script>
+<script>
+  import "../scripts/header-auth.js";
+</script>

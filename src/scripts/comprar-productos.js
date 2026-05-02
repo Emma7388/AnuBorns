@@ -79,4 +79,5 @@ const init = () => {
 init();
 document.addEventListener("astro:page-load", init);
 document.addEventListener("astro:after-swap", init);
+document.addEventListener("ab-products-rendered", init);
 window.addEventListener("pageshow", init);

@@ -1,8 +1,8 @@
 ---
 // Layout base: HTML, metas, transiciones y utilidades globales.
-import { ViewTransitions } from "astro:transitions";
+//import { ViewTransitions } from "astro:transitions";
 
-const { title = "DeSoluciones.com" } = Astro.props;
+const { title = "mvp-peach-six.vercel.app" } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -21,7 +21,7 @@ const { title = "DeSoluciones.com" } = Astro.props;
       }
     </script>
     <title>{title}</title>
-    <ViewTransitions fallback="animate" />
+    <!-- <ViewTransitions fallback="animate" /> -->
   </head>
   <body>
     <slot />

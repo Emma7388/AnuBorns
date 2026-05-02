@@ -1,7 +1,6 @@
 ---
 // Página: perfil del usuario.
 import MainLayout from "../layouts/MainLayout.astro";
-import profileScriptUrl from "../scripts/profile.js?url";
 ---
 
 <MainLayout title="Mis datos">
@@ -80,4 +79,6 @@ import profileScriptUrl from "../scripts/profile.js?url";
   </section>
 </MainLayout>
 
-<script type="module" src={profileScriptUrl}></script>
+<script>
+  import "../scripts/profile.js";
+</script>

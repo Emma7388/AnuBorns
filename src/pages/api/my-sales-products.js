@@ -1,6 +1,6 @@
 /* API: resumen de productos vendidos para el vendedor autenticado. */
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
 /* Estados de orden que cuentan como venta real. */
@@ -58,10 +58,10 @@ export const GET = async ({ request }) => {
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
+      const config = getSupabaseAdminConfigStatus();
       return new Response(
         JSON.stringify({
-          error:
-            "Servicio no disponible. Falta configurar variables de servidor de Supabase.",
+          error: `Servicio no disponible. Falta configurar ${config.missing.join(", ")} en Vercel.`,
         }),
         { status: 503 },
       );

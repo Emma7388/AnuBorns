@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { getCart, syncCartOnLogin } from "../lib/cart";
+import { fetchSalesSummary } from "../lib/salesSummaryClient";
 
 /* Referencias DOM (se recalculan en cada navegación). */
 let guest = document.querySelector('[data-auth="guest"]');
@@ -154,19 +155,13 @@ const refreshSalesNotification = async (session) => {
   }
 
   try {
-    const response = await fetch("/api/my-sales-products", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    const payload = await fetchSalesSummary(token);
+    if (payload.error) {
       setSalesNotificationVisible(false);
       return;
     }
 
-    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const items = payload.items;
     const latestCursor = getLatestSaleCursor(items);
     if (!latestCursor) {
       setSalesNotificationVisible(false);

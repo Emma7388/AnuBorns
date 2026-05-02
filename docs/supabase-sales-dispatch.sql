@@ -14,7 +14,7 @@ create table if not exists public.sale_dispatches (
 create index if not exists sale_dispatches_seller_idx on public.sale_dispatches (seller_id);
 create index if not exists sale_dispatches_order_idx on public.sale_dispatches (order_id);
 create index if not exists sale_dispatches_product_idx on public.sale_dispatches (product_id);
-s
+
 alter table public.sale_dispatches enable row level security;
 
 drop policy if exists sale_dispatches_select_own on public.sale_dispatches;

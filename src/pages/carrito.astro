@@ -1,7 +1,6 @@
 ---
 // Página: carrito con listado y resumen.
 import MainLayout from "../layouts/MainLayout.astro";
-import cartScriptUrl from "../scripts/cart.js?url";
 ---
 
 <MainLayout title="Carrito">
@@ -62,4 +61,6 @@ import cartScriptUrl from "../scripts/cart.js?url";
 </MainLayout>
 
 <!-- Script de interacción del carrito -->
-<script type="module" src={cartScriptUrl}></script>
+<script>
+  import "../scripts/cart.js";
+</script>

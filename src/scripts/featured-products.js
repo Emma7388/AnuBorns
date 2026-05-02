@@ -35,6 +35,9 @@ const renderFeaturedSection = (section, items) => {
     const href = productId ? `/producto/${encodeURIComponent(productId)}` : sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
     const card = document.createElement("article");
     card.className = "ab-provider-product-card";
+    card.dataset.userId = sellerUserId;
+    card.dataset.cartId = productId;
+    card.dataset.price = String(item?.price ?? 0);
     card.innerHTML = `
       <a href="${href}" class="ab-featured-card-link" ${sellerUserId ? "" : 'aria-disabled="true"'}>
         <img
@@ -53,13 +56,24 @@ const renderFeaturedSection = (section, items) => {
           </p>
         </div>
         <h2>${escapeHtml(item?.title ?? "Producto")}</h2>
-        <ul class="ab-provider-product-card__details">
-          <li>Vendidos (7 días): <strong>${Number(item?.soldQty ?? 0)}</strong></li>
-        </ul>
       </a>
+      <button
+        type="button"
+        class="ab-provider-product-card__add"
+        aria-label="Agregar al carrito"
+        title="Agregar al carrito"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
+            fill="currentColor"
+          ></path>
+        </svg>
+      </button>
     `;
     grid.appendChild(card);
   });
+  document.dispatchEvent(new CustomEvent("ab-products-rendered"));
 };
 
 const loadFeaturedProducts = async () => {

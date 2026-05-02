@@ -1,6 +1,5 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
-import authCallbackScriptUrl from "../../scripts/auth-callback.js?url";
 ---
 
 <MainLayout title="Verificando cuenta">
@@ -16,4 +15,6 @@ import authCallbackScriptUrl from "../../scripts/auth-callback.js?url";
   </section>
 </MainLayout>
 
-<script type="module" src={authCallbackScriptUrl}></script>
+<script>
+  import "../../scripts/auth-callback.js";
+</script>

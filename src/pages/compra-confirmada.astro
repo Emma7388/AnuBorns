@@ -1,7 +1,6 @@
 ---
 // Página: confirmación de pago.
 import MainLayout from "../layouts/MainLayout.astro";
-import confirmationScriptUrl from "../scripts/confirmation.js?url";
 ---
 
 <MainLayout title="Compra confirmada">
@@ -26,4 +25,6 @@ import confirmationScriptUrl from "../scripts/confirmation.js?url";
 </MainLayout>
 
 <!-- Script de estado de pago -->
-<script type="module" src={confirmationScriptUrl}></script>
+<script>
+  import "../scripts/confirmation.js";
+</script>

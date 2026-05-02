@@ -1,8 +1,6 @@
 ---
 // Página: publicación de producto.
 import MainLayout from "../../layouts/MainLayout.astro";
-// URL del script de publicación (cliente).
-import productCreateScriptUrl from "../../scripts/product-create.js?url";
 ---
 
 <MainLayout title="Vender producto">
@@ -115,4 +113,6 @@ import productCreateScriptUrl from "../../scripts/product-create.js?url";
 </MainLayout>
 
 <!-- Script de creación de producto -->
-<script type="module" src={productCreateScriptUrl}></script>
+<script>
+  import "../../scripts/product-create.js";
+</script>

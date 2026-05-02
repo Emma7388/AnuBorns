@@ -1,5 +1,5 @@
 /* Dependencias: cliente Supabase para persistir carrito cuando hay sesión. */
-import { supabase } from "./supabaseClient";
+//import { supabase } from "./supabaseClient";
 
 /* Clave localStorage para carrito anónimo. */
 const CART_KEY = "ab_cart_v1";
@@ -38,7 +38,11 @@ const loadLocalCart = () => {
     if (Array.isArray(parsed)) {
       /* Compatibilidad con formato legacy: array directo. */
       items = parsed;
-    } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+    } else if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray(parsed.items)
+    ) {
       items = parsed.items;
       updatedAt = Number(parsed.updatedAt ?? 0);
     }
@@ -115,7 +119,7 @@ const mergeLocalIntoDb = async (cartId, localItems) => {
     .eq("cart_id", cartId);
 
   const existingMap = new Map(
-    (existingItems ?? []).map((item) => [item.product_id, item])
+    (existingItems ?? []).map((item) => [item.product_id, item]),
   );
 
   const inserts = [];
@@ -143,7 +147,10 @@ const mergeLocalIntoDb = async (cartId, localItems) => {
   }
 
   for (const update of updates) {
-    await supabase.from("cart_items").update({ quantity: update.quantity }).eq("id", update.id);
+    await supabase
+      .from("cart_items")
+      .update({ quantity: update.quantity })
+      .eq("id", update.id);
   }
 };
 
@@ -176,7 +183,11 @@ export const addToCart = async (product) => {
     if (existing) {
       existing.quantity += 1;
     } else {
-      items.push({ product_id: productId, quantity: 1, price_snapshot: priceSnapshot });
+      items.push({
+        product_id: productId,
+        quantity: 1,
+        price_snapshot: priceSnapshot,
+      });
     }
     saveLocalCart(items);
     return;
@@ -258,7 +269,9 @@ const enrichWithProducts = async (items) => {
   if (ids.length === 0) return items;
   const { data: products } = await supabase
     .from("products")
-    .select("id,title,image_url,currency,seller_name,contact,user_id,delivery_methods")
+    .select(
+      "id,title,image_url,currency,seller_name,contact,user_id,delivery_methods",
+    )
     .in("id", ids);
   const map = new Map((products ?? []).map((product) => [product.id, product]));
   return items.map((item) => ({
@@ -282,7 +295,9 @@ export const getCart = async () => {
   const cartId = await getOrCreateCart(userId);
   const { data } = await supabase
     .from("cart_items")
-    .select("product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)")
+    .select(
+      "product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)",
+    )
     .eq("cart_id", cartId);
   const normalized = (data ?? []).map((item) => ({
     product_id: item.product_id,
