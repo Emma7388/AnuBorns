@@ -19,6 +19,7 @@ let cartSync = document.getElementById("cart-sync");
 let salesNotificationDot = document.getElementById("sales-notification-dot");
 let isSigningOut = false;
 let lastSyncedUserId = "";
+let cartSyncTimeout = 0;
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 
 /* Modal de confirmación para cerrar sesión. */
@@ -112,6 +113,22 @@ const renderCartCount = async () => {
   }
 };
 
+const showCartSyncMessage = (message, durationMs = 3000) => {
+  if (!cartSync) return;
+  if (cartSyncTimeout) {
+    window.clearTimeout(cartSyncTimeout);
+    cartSyncTimeout = 0;
+  }
+  cartSync.textContent = message;
+  cartSync.classList.remove("ab-is-hidden");
+  cartSyncTimeout = window.setTimeout(() => {
+    if (!cartSync) return;
+    cartSync.classList.add("ab-is-hidden");
+    cartSync.textContent = "Sincronizando";
+    cartSyncTimeout = 0;
+  }, durationMs);
+};
+
 const getLastSeenSaleStorageKey = (userId) => `${LAST_SEEN_SALE_KEY}:${userId || "anonymous"}`;
 
 const setSalesNotificationVisible = (visible) => {
@@ -192,7 +209,7 @@ const resolveSession = async () => {
       lastSyncedUserId = userId;
       if (cartSync) cartSync.classList.remove("ab-is-hidden");
       await syncCartOnLogin(userId);
-      if (cartSync) cartSync.classList.add("ab-is-hidden");
+      if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
     await refreshSalesNotification(sessionData.session);
     renderCartCount();
@@ -207,7 +224,7 @@ const resolveSession = async () => {
       lastSyncedUserId = userId;
       if (cartSync) cartSync.classList.remove("ab-is-hidden");
       await syncCartOnLogin(userId);
-      if (cartSync) cartSync.classList.add("ab-is-hidden");
+      if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
     await refreshSalesNotification({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
     renderCartCount();
@@ -271,7 +288,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
     lastSyncedUserId = userId;
     if (cartSync) cartSync.classList.remove("ab-is-hidden");
     syncCartOnLogin(userId).finally(() => {
-      if (cartSync) cartSync.classList.add("ab-is-hidden");
+      if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
       refreshSalesNotification(session);
       renderCartCount();
     });
@@ -298,6 +315,14 @@ window.addEventListener("ab-cart-updated", () => {
 });
 document.addEventListener("ab-cart-updated", () => {
   renderCartCount();
+});
+window.addEventListener("ab-cart-own-items-removed", (event) => {
+  const count = Number(event?.detail?.count ?? 0);
+  if (!count) return;
+  const message = count === 1
+    ? "Se quitó un producto propio del carrito."
+    : `Se quitaron ${count} productos propios del carrito.`;
+  showCartSyncMessage(message, 3000);
 });
 
 /* Sincroniza sesión cuando cambia en otra pestaña. */

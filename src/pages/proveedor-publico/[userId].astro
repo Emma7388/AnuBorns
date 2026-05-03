@@ -36,8 +36,11 @@ const sellerName = first?.seller_name || "Proveedor";
 const rawContact = String(first?.contact ?? "").trim();
 const emailMatch = rawContact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
 const publicEmail = emailMatch?.[0] ?? "";
-const phoneDigits = rawContact.replace(/\D+/g, "");
-const publicPhone = phoneDigits ? rawContact : "";
+const contactWithoutEmail = publicEmail ? rawContact.replace(publicEmail, " ") : rawContact;
+const phoneMatch = contactWithoutEmail.match(/(\+?\d[\d\s().-]{7,}\d)/);
+const fallbackPhone = contactWithoutEmail.replace(/[|,;]+/g, " ").replace(/\s+/g, " ").trim();
+const publicPhone = String(phoneMatch?.[0] ?? fallbackPhone ?? "").trim();
+const phoneDigits = publicPhone.replace(/\D+/g, "");
 const publicAddress = String(first?.pickup_address ?? "").trim();
 const publicLocation = String(first?.location ?? "").trim();
 
@@ -86,7 +89,14 @@ const shortId = (value) => {
             </a>
           ) : "No publicado"}
         </p>
-        <p><strong>Email:</strong> {publicEmail || "No publicado"}</p>
+        <p>
+          <strong>Email:</strong>{" "}
+          {publicEmail ? (
+            <a href={`mailto:${publicEmail}`}>
+              {publicEmail}
+            </a>
+          ) : "No publicado"}
+        </p>
         <p><strong>Dirección:</strong> {publicAddress || "No publicada"}</p>
         <p><strong>Ubicación:</strong> {publicLocation || "No publicada"}</p>
       </div>
@@ -106,6 +116,8 @@ const shortId = (value) => {
               data-price={product.price ?? 0}
               data-image={product.image_url || "/logo2.svg"}
               data-provider={product.seller_name || sellerName || "Vendedor"}
+              data-currency={product.currency || "ARS"}
+              data-delivery={formatDelivery(product.delivery_methods)}
               data-cart-id={product.id || ""}
             >
               <img

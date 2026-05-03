@@ -10,12 +10,15 @@ create table if not exists public.user_services (
 );
 
 create or replace function public.user_services_set_updated_at()
-returns trigger as $$
+returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 drop trigger if exists user_services_set_updated_at on public.user_services;
 create trigger user_services_set_updated_at

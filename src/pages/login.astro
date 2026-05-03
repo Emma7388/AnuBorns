@@ -8,7 +8,9 @@ import MainLayout from "../layouts/MainLayout.astro";
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Acceso</p>
     <h1>Ingresá a tu cuenta</h1>
-    <p class="ab-muted-text">Accedé con tu email y contraseña.</p>
+    <p class="ab-muted-text">
+      Ingresá con el email de tu cuenta y la contraseña que creaste para Desoluciones.
+    </p>
 
     <!-- Formulario de login -->
     <form class="ab-form" id="login-form" method="post">
@@ -31,6 +33,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         autocomplete="current-password"
         required
       />
+      <p class="ab-form-help">No uses la contraseña de tu email.</p>
 
       <div class="ab-actions">
         <button type="submit" class="ab-cta-button" id="login-submit">Ingresar</button>

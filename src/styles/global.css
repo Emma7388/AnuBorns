@@ -348,6 +348,13 @@ input[type="submit"] {
   font-weight: 600;
 }
 
+.ab-form-help {
+  margin: -6px 0 2px;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .ab-required-label {
   color: var(--color-text);
 }
@@ -805,6 +812,11 @@ input[type="submit"] {
   align-items: end;
 }
 
+.ab-search-stack {
+  display: grid;
+  gap: 8px;
+}
+
 .ab-search-inline .ab-provider-products-toolbar__search {
   width: auto;
 }
@@ -1209,13 +1221,78 @@ input[type="submit"] {
 .ab-provider-product-card__image {
   width: 100%;
   height: 104px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   border-radius: 8px;
   margin-bottom: 5px;
   border: 1px solid var(--color-border-soft);
   background: var(--color-panel-tint-strong);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  cursor: zoom-in;
+  padding: 6px;
+}
+
+.ab-image-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 140;
+}
+
+.ab-image-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 15, 26, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.ab-image-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 980px);
+  max-height: min(88vh, 920px);
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  box-shadow: 0 24px 50px var(--color-shadow-strong);
+  display: grid;
+  gap: 12px;
+}
+
+.ab-image-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ab-image-modal__close:hover {
+  border-color: var(--color-accent);
+}
+
+.ab-image-modal__image {
+  width: 100%;
+  max-height: calc(88vh - 72px);
+  object-fit: contain;
+  object-position: center;
+  border-radius: 12px;
+  background: var(--color-panel-tint-strong);
 }
 
 .ab-provider-product-card__header {
@@ -1338,6 +1415,77 @@ input[type="submit"] {
   font-size: 14px;
   font-weight: 800;
   color: var(--color-text);
+}
+
+.ab-cart-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--footer-height) + 18px);
+  z-index: 80;
+  width: min(420px, calc(100vw - 24px));
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(22, 199, 132, 0.5);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 18px 38px var(--color-shadow-strong);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 14px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ab-cart-toast.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.ab-cart-toast__icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.ab-cart-toast__icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ab-cart-toast__message {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ab-cart-toast__link {
+  flex: 0 0 auto;
+  border: 1px solid var(--glass-green-border);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: var(--glass-green-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .ab-provider-product-card__actions {
@@ -2118,23 +2266,32 @@ body.is-profile-editing #profile-form {
 }
 
 .ab-orders-delete-btn {
-  border: 1px solid rgba(255, 107, 107, 0.45);
-  background: rgba(255, 107, 107, 0.22);
-  color: #ffd6d6;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
   border-radius: 10px;
   padding: 7px 12px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
 }
 
 .ab-orders-delete-btn:hover {
-  background: rgba(255, 107, 107, 0.3);
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 .ab-orders-delete-btn--ghost {
   background: transparent;
   border: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+.ab-orders-delete-btn--ghost:hover {
+  background: transparent;
+  border-color: var(--color-accent);
   color: var(--color-text);
 }
 

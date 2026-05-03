@@ -2,12 +2,18 @@
 import { supabase } from "../lib/supabaseClient";
 import { addToCart } from "../lib/cart";
 import { confirmAddToCart } from "../lib/cartConfirm";
+import { showCartToast } from "../lib/cartToast";
 
 /* Convierte la tarjeta DOM a item de carrito. */
 const addCardToCart = async (card) => {
   await addToCart({
     id: card.dataset.cartId,
     price: card.dataset.price,
+    title: card.dataset.title,
+    image_url: card.dataset.image,
+    seller_name: card.dataset.provider,
+    currency: card.dataset.currency,
+    delivery_methods: card.dataset.delivery,
   });
 };
 
@@ -74,6 +80,7 @@ const initBuyButtons = async () => {
         if (!accepted) return;
         await addCardToCart(card);
         animateAddButton(button);
+        showCartToast();
       } finally {
         delete button.dataset.abLoading;
       }

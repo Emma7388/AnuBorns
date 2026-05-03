@@ -91,10 +91,16 @@ const resolveCategoryName = (product) => {
   <section class="ab-dark-panel ab-list-panel">
     <!-- Barra de búsqueda y filtro de ubicación -->
     <div class="ab-search-inline">
-      <label class="ab-provider-products-toolbar__search">
-        Buscar producto
-        <input id="product-search" type="search" placeholder="Nombre o ID" />
-      </label>
+      <div class="ab-search-stack">
+        <label class="ab-provider-products-toolbar__search">
+          Buscar producto
+          <input id="product-search" type="search" placeholder="Nombre o ID" />
+        </label>
+        <label class="ab-provider-products-toolbar__search">
+          Buscar proveedor
+          <input id="provider-search" type="search" placeholder="Nombre del proveedor" />
+        </label>
+      </div>
       <div class="ab-location-filter">
         <button
           type="button"
@@ -140,7 +146,7 @@ const resolveCategoryName = (product) => {
     ) : (
       <div class="ab-seller-rows">
         {sellerEntries.map(([sellerName, items]) => (
-          <article class="ab-order-card">
+          <article class="ab-order-card" data-seller-search={sellerName.toLowerCase()}>
             <div class="ab-order-card__header">
               <div>
                 <p class="ab-order-card__label">Vendedor</p>
@@ -159,6 +165,8 @@ const resolveCategoryName = (product) => {
                   data-price={product.price ?? 0}
                   data-image={product.image_url || "/logo2.svg"}
                   data-provider={product.seller_name || "Vendedor"}
+                  data-currency={product.currency || "ARS"}
+                  data-delivery={formatDelivery(product.delivery_methods)}
                   data-cart-id={product.id || ""}
                 >
                   <img
@@ -216,8 +224,13 @@ const resolveCategoryName = (product) => {
 </script>
 
 <script>
+  import "../../../scripts/product-category-notifications.js";
+</script>
+
+<script>
   const initProductSearch = () => {
     const input = document.getElementById("product-search");
+    const providerInput = document.getElementById("provider-search");
     if (!input) return;
     const rows = Array.from(document.querySelectorAll(".ab-card-row"));
     if (rows.length === 0) return;
@@ -232,17 +245,20 @@ const resolveCategoryName = (product) => {
       });
     });
 
-    const resizeInput = () => {
+    const resizeInput = (target) => {
       const base = 140;
       const max = 420;
-      const content = input.value || input.placeholder || "";
+      const content = target.value || target.placeholder || "";
       const next = Math.min(max, Math.max(base, 14 + content.length * 8));
-      input.style.width = `${next}px`;
+      target.style.width = `${next}px`;
     };
 
     const applySearch = () => {
       const query = input.value.trim().toLowerCase();
+      const providerQuery = providerInput?.value.trim().toLowerCase() ?? "";
       rows.forEach((row) => {
+        const sellerCard = row.closest(".ab-order-card");
+        const sellerMatch = !providerQuery || (sellerCard?.dataset.sellerSearch || "").includes(providerQuery);
         const cards = Array.from(row.querySelectorAll(".ab-provider-product-card"));
         cards.forEach((card) => {
           const cardLocation = (card.dataset.location || "").trim();
@@ -273,7 +289,7 @@ const resolveCategoryName = (product) => {
           });
         }
         row.scrollTo({ left: 0, behavior: "smooth" });
-        row.closest(".ab-order-card").style.display = ordered.length ? "" : "none";
+        if (sellerCard) sellerCard.style.display = sellerMatch && ordered.length ? "" : "none";
         visibleCards.forEach((card) => {
           const match = query.length > 0 && (card.dataset.search || "").includes(query);
           card.classList.toggle("is-match", match);
@@ -328,11 +344,16 @@ const resolveCategoryName = (product) => {
     };
 
     input.addEventListener("input", () => {
-      resizeInput();
+      resizeInput(input);
+      applySearch();
+    });
+    providerInput?.addEventListener("input", () => {
+      resizeInput(providerInput);
       applySearch();
     });
     bindLocationMenu();
-    resizeInput();
+    resizeInput(input);
+    if (providerInput) resizeInput(providerInput);
     applySearch();
   };
 

@@ -1,5 +1,5 @@
 /* Dependencias: cliente Supabase para persistir carrito cuando hay sesión. */
-//import { supabase } from "./supabaseClient";
+import { supabase } from "./supabaseClient";
 
 /* Clave localStorage para carrito anónimo. */
 const CART_KEY = "ab_cart_v1";
@@ -11,6 +11,13 @@ const emitCartUpdate = () => {
   const event = new CustomEvent("ab-cart-updated");
   window.dispatchEvent(event);
   document.dispatchEvent(new CustomEvent("ab-cart-updated"));
+};
+
+const emitOwnCartItemsRemoved = (count) => {
+  if (typeof window === "undefined" || !count) return;
+  const detail = { count: Number(count) || 0 };
+  window.dispatchEvent(new CustomEvent("ab-cart-own-items-removed", { detail }));
+  document.dispatchEvent(new CustomEvent("ab-cart-own-items-removed", { detail }));
 };
 
 /* Normaliza cantidades a enteros válidos. */
@@ -25,6 +32,29 @@ const normalizePrice = (value) => {
   const price = Number(value ?? 0);
   if (!Number.isFinite(price) || price < 0) return 0;
   return price;
+};
+
+const normalizeProductSnapshot = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const title = String(value.title ?? value.name ?? "").trim();
+  const imageUrl = String(value.image_url ?? value.image ?? "").trim();
+  const sellerName = String(value.seller_name ?? value.provider ?? "").trim();
+  const currency = String(value.currency ?? "ARS").trim() || "ARS";
+  const deliveryMethods = Array.isArray(value.delivery_methods)
+    ? value.delivery_methods.filter(Boolean).map((item) => String(item))
+    : typeof value.delivery_methods === "string" && value.delivery_methods.trim()
+      ? value.delivery_methods.trim()
+      : null;
+
+  if (!title && !imageUrl && !sellerName) return null;
+
+  return {
+    title: title || "Producto",
+    image_url: imageUrl || "/logo2.svg",
+    seller_name: sellerName || "N/A",
+    currency,
+    delivery_methods: deliveryMethods,
+  };
 };
 
 /* Lee el carrito local y lo limpia de datos inválidos. */
@@ -57,6 +87,7 @@ const loadLocalCart = () => {
         product_id: String(item?.product_id ?? ""),
         quantity: normalizeQuantity(item?.quantity),
         price_snapshot: normalizePrice(item?.price_snapshot),
+        product_snapshot: normalizeProductSnapshot(item?.product_snapshot),
       }))
       .filter((item) => item.product_id && item.quantity > 0);
   } catch {
@@ -110,6 +141,32 @@ const getOrCreateCart = async (userId) => {
   return created.id;
 };
 
+const splitOwnProductsFromLocalItems = async (userId, localItems) => {
+  const ids = localItems.map((item) => item.product_id).filter(Boolean);
+  if (!userId || ids.length === 0) {
+    return { allowedItems: localItems, removedCount: 0 };
+  }
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, user_id")
+    .in("id", ids);
+
+  const ownIds = new Set(
+    (products ?? [])
+      .filter((product) => String(product?.user_id ?? "").trim() === userId)
+      .map((product) => String(product?.id ?? "").trim()),
+  );
+
+  if (ownIds.size === 0) {
+    return { allowedItems: localItems, removedCount: 0 };
+  }
+
+  const allowedItems = localItems.filter((item) => !ownIds.has(item.product_id));
+  const removedCount = localItems.length - allowedItems.length;
+  return { allowedItems, removedCount };
+};
+
 /* Une items locales con el carrito en base de datos. */
 const mergeLocalIntoDb = async (cartId, localItems) => {
   if (localItems.length === 0) return;
@@ -160,9 +217,11 @@ export const syncCartOnLogin = async (userId) => {
   const localItems = loadLocalCart();
   if (localItems.length === 0) return;
   try {
+    const { allowedItems, removedCount } = await splitOwnProductsFromLocalItems(userId, localItems);
     const cartId = await getOrCreateCart(userId);
-    await mergeLocalIntoDb(cartId, localItems);
+    await mergeLocalIntoDb(cartId, allowedItems);
     saveLocalCart([]);
+    emitOwnCartItemsRemoved(removedCount);
     emitCartUpdate();
   } catch {
     // keep local cart if sync fails
@@ -174,6 +233,7 @@ export const addToCart = async (product) => {
   const productId = String(product?.id ?? "");
   if (!productId) return;
   const priceSnapshot = normalizePrice(product?.price);
+  const productSnapshot = normalizeProductSnapshot(product);
 
   /* Si no hay sesión, se guarda en localStorage. */
   const userId = await getSessionUserId();
@@ -182,11 +242,15 @@ export const addToCart = async (product) => {
     const existing = items.find((item) => item.product_id === productId);
     if (existing) {
       existing.quantity += 1;
+      if (!existing.product_snapshot && productSnapshot) {
+        existing.product_snapshot = productSnapshot;
+      }
     } else {
       items.push({
         product_id: productId,
         quantity: 1,
         price_snapshot: priceSnapshot,
+        product_snapshot: productSnapshot,
       });
     }
     saveLocalCart(items);
@@ -276,7 +340,7 @@ const enrichWithProducts = async (items) => {
   const map = new Map((products ?? []).map((product) => [product.id, product]));
   return items.map((item) => ({
     ...item,
-    product: map.get(item.product_id) ?? null,
+    product: map.get(item.product_id) ?? item.product_snapshot ?? null,
   }));
 };
 
@@ -288,7 +352,10 @@ export const getCart = async () => {
     try {
       return await enrichWithProducts(localItems);
     } catch {
-      return localItems.map((item) => ({ ...item, product: null }));
+      return localItems.map((item) => ({
+        ...item,
+        product: item.product_snapshot ?? null,
+      }));
     }
   }
 

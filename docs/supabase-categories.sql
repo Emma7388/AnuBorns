@@ -24,12 +24,15 @@ create policy "categories_select_all"
 
 -- Optional: updated_at trigger
 create or replace function public.set_updated_at()
-returns trigger as $$
+returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 drop trigger if exists categories_set_updated_at on public.categories;
 create trigger categories_set_updated_at

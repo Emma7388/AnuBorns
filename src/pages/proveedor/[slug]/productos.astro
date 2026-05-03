@@ -179,6 +179,7 @@ const shortId = (value) => {
 <script type="module">
   import { addToCart, getCart } from "../../../lib/cart";
   import { confirmAddToCart } from "../../../lib/cartConfirm";
+  import { showCartToast } from "../../../lib/cartToast";
 
   const grid = document.getElementById("provider-products-grid");
   const stockFilter = document.getElementById("stock-filter");
@@ -260,6 +261,9 @@ const shortId = (value) => {
       await addToCart({
         id: card.dataset.productId,
         price: card.dataset.price,
+        title: card.dataset.name,
+        image_url: card.dataset.image,
+        seller_name: card.dataset.provider,
       });
       await updateCartCount();
     };
@@ -437,6 +441,7 @@ const shortId = (value) => {
         window.location.href = "/carrito";
         return;
       }
+      showCartToast();
       showCartFeedback("Producto agregado al carrito");
     });
     activeFilters.addEventListener("click", (event) => {

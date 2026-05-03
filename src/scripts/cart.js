@@ -31,6 +31,7 @@ const formatPrice = (value) => {
 };
 
 const formatDeliveryMethods = (value) => {
+  if (typeof value === "string" && value.trim()) return value.trim();
   if (!Array.isArray(value) || value.length === 0) return "No especificado";
   return value
     .map((item) => {

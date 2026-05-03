@@ -38,6 +38,10 @@ const renderFeaturedSection = (section, items) => {
     card.dataset.userId = sellerUserId;
     card.dataset.cartId = productId;
     card.dataset.price = String(item?.price ?? 0);
+    card.dataset.title = String(item?.title ?? "");
+    card.dataset.image = String(item?.imageUrl ?? "/logo2.svg");
+    card.dataset.provider = String(item?.sellerName ?? "Proveedor");
+    card.dataset.currency = String(item?.currency ?? "ARS");
     card.innerHTML = `
       <a href="${href}" class="ab-featured-card-link" ${sellerUserId ? "" : 'aria-disabled="true"'}>
         <img

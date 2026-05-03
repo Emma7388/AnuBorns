@@ -5,9 +5,10 @@ const {
 } = Astro.props;
 
 const isBuy = mode === "buy";
+const isSell = mode === "sell";
 ---
 
-<section class="ab-buy-switch">
+<section class:list={["ab-buy-switch", isSell && "ab-buy-switch--sell"]}>
   <div class="ab-buy-switch__row">
     <div class="ab-buy-switch__item">
       {
@@ -15,15 +16,18 @@ const isBuy = mode === "buy";
           <>
             <button class="ab-buy-switch__trigger" type="button" aria-haspopup="true" aria-expanded="false">
               Productos
+              <span class="ab-buy-switch__dot ab-is-hidden" data-products-dot aria-hidden="true"></span>
             </button>
             <div class="ab-buy-switch__menu" role="menu" aria-label="Categorías de productos">
               {categories.map((category) => (
                 <a
                   class="ab-buy-switch__menu-item"
                   href={`/comprar/productos/${category.slug}`}
+                  data-category-slug={category.slug}
                   role="menuitem"
                 >
-                  {category.name}
+                  <span class="ab-buy-switch__menu-label">{category.name}</span>
+                  <span class="ab-buy-switch__dot ab-buy-switch__dot--menu ab-is-hidden" data-category-dot={category.slug} aria-hidden="true"></span>
                 </a>
               ))}
             </div>
@@ -55,6 +59,10 @@ const isBuy = mode === "buy";
     gap: 10px;
   }
 
+  .ab-buy-switch--sell .ab-buy-switch__row {
+    justify-content: center;
+  }
+
   .ab-buy-switch__item {
     position: relative;
     padding-bottom: 8px;
@@ -65,6 +73,7 @@ const isBuy = mode === "buy";
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     min-width: 118px;
     padding: 8px 12px;
     font-size: 0.86rem;
@@ -98,11 +107,33 @@ const isBuy = mode === "buy";
   }
 
   .ab-buy-switch__menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     text-decoration: none;
     color: var(--color-text);
     font-weight: 600;
     padding: 8px 10px;
     border-radius: 8px;
+  }
+
+  .ab-buy-switch__menu-label {
+    min-width: 0;
+  }
+
+  .ab-buy-switch__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #22c55e;
+    border: 2px solid var(--color-bg);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+    flex: 0 0 auto;
+  }
+
+  .ab-buy-switch__dot--menu {
+    border-color: var(--color-surface);
   }
 
   .ab-buy-switch__menu-item:hover,
@@ -136,3 +167,7 @@ const isBuy = mode === "buy";
     }
   }
 </style>
+
+<script>
+  import "../scripts/product-category-notifications.js";
+</script>
