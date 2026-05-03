@@ -152,7 +152,7 @@ h3 {
 }
 
 main {
-  padding: 16px var(--app-gutter) 44px;
+  padding: 16px var(--app-gutter) calc(var(--footer-height) + 20px);
   flex: 1;
 }
 
@@ -207,7 +207,7 @@ a {
 
 @media (max-width: 768px) {
   main {
-    padding-bottom: 44px;
+    padding-bottom: calc(var(--footer-height) + 22px);
   }
 
   .ab-dark-panel {
@@ -2420,7 +2420,7 @@ body.is-profile-editing #profile-form {
 
 @media (max-width: 720px) {
   main {
-    padding: 14px var(--app-gutter) 36px;
+    padding: 14px var(--app-gutter) calc(var(--footer-height) + 22px);
   }
 
   .ab-dark-panel {

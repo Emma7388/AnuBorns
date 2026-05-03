@@ -57,19 +57,17 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
 }
 
 /* Ajustes responsive */
-@media (max-width: 1024px) {
-  .footer {
-    position: static;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: var(--color-bg);
-  }
-}
-
 @media (max-width: 720px) {
+  .footer {
+    padding: 8px 0;
+    background: var(--color-surface);
+  }
+
   .footer-content {
     flex-direction: column;
     text-align: center;
+    justify-content: center;
+    gap: 10px;
   }
 }
 </style>

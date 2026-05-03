@@ -24,8 +24,9 @@ const updateThemeToggles = (theme = getCurrentTheme()) => {
   const isDark = theme === "dark";
   document.querySelectorAll("[data-theme-toggle]").forEach((toggle) => {
     toggle.setAttribute("aria-pressed", String(isDark));
+    toggle.setAttribute("aria-label", isDark ? "Activar modo claro" : "Activar modo oscuro");
     const label = toggle.querySelector("[data-theme-label]");
-    if (label) label.textContent = isDark ? "Oscuro" : "Blanco";
+    if (label) label.textContent = "";
   });
 };
 

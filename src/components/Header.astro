@@ -5,12 +5,14 @@ const { title = "" } = Astro.props;
 
 <header class="header" transition:persist>
   <div class="container header-inner">
-    <!-- Marca / logo -->
-    <a href="/" class="logo">Desoluciones</a>
+    <div class="brand-row">
+      <!-- Marca / logo -->
+      <a href="/" class="logo">Desoluciones</a>
 
-    <!-- Título de página (inyectado desde MainLayout) -->
-    <div id="ab-header-page-title" class="ab-header-page-title" aria-live="polite">
-      {title && <h1>{title}</h1>}
+      <!-- Título de página (inyectado desde MainLayout) -->
+      <div id="ab-header-page-title" class="ab-header-page-title" aria-live="polite">
+        {title && <h1>{title}</h1>}
+      </div>
     </div>
 
     <!-- Navegación superior -->
@@ -22,15 +24,32 @@ const { title = "" } = Astro.props;
         aria-label="Cambiar tema"
         aria-pressed="false"
       >
-        <span class="theme-toggle__track" aria-hidden="true">
-          <span class="theme-toggle__thumb"></span>
+        <span class="theme-toggle__icons" aria-hidden="true">
+          <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" focusable="false">
+            <path
+              d="M12 4.5a1 1 0 0 1 1 1v1.1a1 1 0 1 1-2 0V5.5a1 1 0 0 1 1-1zm0 12.9a1 1 0 0 1 1 1v1.1a1 1 0 1 1-2 0v-1.1a1 1 0 0 1 1-1zM6.7 6.1a1 1 0 0 1 1.4 0l.8.8A1 1 0 1 1 7.5 8.3l-.8-.8a1 1 0 0 1 0-1.4zm8.4 8.4a1 1 0 0 1 1.4 0l.8.8a1 1 0 0 1-1.4 1.4l-.8-.8a1 1 0 0 1 0-1.4zM4.5 12a1 1 0 0 1 1-1h1.1a1 1 0 1 1 0 2H5.5a1 1 0 0 1-1-1zm12.9 0a1 1 0 0 1 1-1h1.1a1 1 0 1 1 0 2h-1.1a1 1 0 0 1-1-1zM6.7 17.9a1 1 0 0 1 0-1.4l.8-.8a1 1 0 0 1 1.4 1.4l-.8.8a1 1 0 0 1-1.4 0zm8.4-8.4a1 1 0 0 1 0-1.4l.8-.8a1 1 0 1 1 1.4 1.4l-.8.8a1 1 0 0 1-1.4 0zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"
+              fill="currentColor"
+            ></path>
+          </svg>
+          <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" focusable="false">
+            <path
+              d="M14.6 3.2a1 1 0 0 1 .9 1.5 7.3 7.3 0 0 0 8.8 10.6 1 1 0 0 1 1.3 1.2A10 10 0 1 1 13.4 2a1 1 0 0 1 1.2 1.2z"
+              fill="currentColor"
+            ></path>
+          </svg>
         </span>
-        <span class="theme-toggle__label" data-theme-label>Blanco</span>
+        <span class="theme-toggle__label ab-is-hidden" data-theme-label aria-hidden="true"></span>
       </button>
 
       <!-- Acceso rápido al carrito -->
       <a class="nav-cart" href="/carrito" aria-label="Ir al carrito">
-        Carrito <span id="cart-count">0</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
+            fill="currentColor"
+          ></path>
+        </svg>
+        <span id="cart-count">0</span>
       </a>
       <span id="cart-sync" class="nav-cart-sync ab-is-hidden">Sincronizando</span>
       <!-- Estado: usuario invitado -->
@@ -83,7 +102,6 @@ const { title = "" } = Astro.props;
   border-bottom: 1px solid var(--color-border-subtle);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  min-height: var(--header-height);
   display: flex;
   align-items: center;
   position: sticky;
@@ -92,23 +110,25 @@ const { title = "" } = Astro.props;
 }
 
 .header-inner {
-  position: relative;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: space-evenly;
+}
+
 .ab-header-page-title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: min(52vw, 640px);
+  min-width: 0;
   text-align: center;
-  width: 100%;
-  pointer-events: none;
-  z-index: 1;
 }
 
 .ab-header-page-title:empty {
@@ -130,20 +150,26 @@ const { title = "" } = Astro.props;
   text-decoration: none;
   color: var(--color-text);
   letter-spacing: 0.3px;
+  flex: 0 0 auto;
 }
 
 .nav {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  flex: 0 1 auto;
 }
 
 .theme-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   min-height: 38px;
-  padding: 0.35rem 0.75rem;
+  width: 42px;
+  height: 42px;
+  padding: 0;
   border-radius: 999px;
   border: 1px solid var(--color-border-subtle);
   background: var(--color-panel-tint);
@@ -160,36 +186,38 @@ const { title = "" } = Astro.props;
   box-shadow: none;
 }
 
-.theme-toggle__track {
+.theme-toggle__icons {
   position: relative;
-  width: 38px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--color-surface-hover);
-  border: 1px solid var(--color-border-soft);
-  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.theme-toggle__thumb {
+.theme-toggle__icon {
   position: absolute;
-  top: 50%;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: var(--color-accent);
-  transform: translateY(-50%);
-  transition: transform 0.2s ease;
+  inset: 0;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-:global(:root[data-theme="dark"]) .theme-toggle__thumb {
-  transform: translate(16px, -50%);
+.theme-toggle__icon--moon {
+  opacity: 1;
+  transform: scale(1);
 }
 
-.theme-toggle__label {
-  min-width: 46px;
-  text-align: left;
-  font-size: 0.88rem;
+:global(:root[data-theme="dark"]) .theme-toggle__icon--moon {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+:global(:root[data-theme="dark"]) .theme-toggle__icon--sun {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .nav-auth {
@@ -375,23 +403,41 @@ const { title = "" } = Astro.props;
 .nav-cart {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0.55rem 1rem;
+  justify-content: center;
+  gap: 0;
+  width: 42px;
+  height: 42px;
   border-radius: 999px;
   border: 1px solid var(--glass-green-border);
   background: var(--glass-green-bg);
   color: var(--color-text);
   font-weight: 700;
   text-decoration: none;
-  font-size: 0.95rem;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.nav-cart svg {
+  width: 22px;
+  height: 22px;
 }
 
 .nav-cart span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
   background: var(--color-accent);
   color: var(--color-on-accent);
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  border: 2px solid var(--color-surface);
 }
 
 .nav-cart-sync {
@@ -411,83 +457,82 @@ const { title = "" } = Astro.props;
   display: none;
 }
 
-/* Responsive: ajustes de layout */
-@media (max-width: 380px) {
-  .nav {
-    display: flex;
-    align-items: center;
+@media (max-width: 430px) {
+  .header {
+    padding: 0.85rem 0;
   }
 
-  .nav-auth--guest {
-    gap: 8px;
-  }
-}
-
-@media (max-width: 520px) {
   .header-inner {
-    position: static;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 10px;
+    justify-items: center;
+    gap: 12px;
+    text-align: center;
   }
 
-  .logo,
-  .ab-header-page-title,
-  .nav-auth {
-    width: 100%;
+  .brand-row,
+  .nav,
+  .nav-auth,
+  .nav-cart-sync {
+    /* width: 100%; */
   }
 
-  .ab-header-page-title {
-    position: static;
-    transform: none;
-    max-width: none;
+  .brand-row {
+    /* flex-direction: column; */
+    gap: 8px;
   }
 
   .ab-header-page-title :global(h1) {
-    font-size: clamp(1rem, 5.2vw, 1.25rem);
+    margin: 0;
+    text-align: center;
+    font-size: clamp(1rem, 4.9vw, 1.25rem);
   }
 
   .nav {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
     gap: 8px;
   }
 
-  .nav-auth {
-    justify-content: flex-start;
-    width: 100%;
+  .nav > * {
+    max-width: 100%;
   }
 
-  .nav-login,
-  .nav-login--ghost {
-    padding: 0.55rem 1rem;
-    font-size: 0.95rem;
+  .logo {
+    justify-self: center;
   }
 
-  .nav-cart {
-    padding: 0.5rem 0.85rem;
-    font-size: 0.9rem;
+  .nav-auth,
+  .nav-auth--guest {
+    justify-content: center;
   }
 
-  .theme-toggle {
-    min-height: 34px;
-    padding: 0.25rem 0.55rem;
+  .nav-auth--user {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    /* width: 100%; */
   }
 
-  .theme-toggle__label {
-    min-width: 40px;
-    font-size: 0.8rem;
+  .nav-user--plain {
+    text-align: center;
+    /* width: 100%; */
+  }
+
+  .nav-cart-sync {
+    text-align: center;
+    justify-self: center;
   }
 }
 
 @media (max-width: 720px) {
-  .nav-auth--user {
-    width: 100%;
-  }
-
-  .ab-header-page-title {
-    max-width: min(68vw, 560px);
+  .nav {
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
 }
 
@@ -498,6 +543,55 @@ const { title = "" } = Astro.props;
 
   .ab-header-page-title :global(h1) {
     font-size: 1rem;
+  }
+
+  .nav-auth--guest,
+  .nav-auth--user {
+    /* width: 100%; */
+  }
+
+  .nav-auth--guest {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .nav-avatar,
+  .nav-login,
+  .nav-login--ghost,
+  .nav-cart,
+  .theme-toggle {
+    justify-self: center;
+  }
+
+  .nav-login,
+  .nav-login--ghost,
+  .nav-cart,
+  .theme-toggle {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .nav-cart {
+    height: 42px;
+  }
+
+  .theme-toggle {
+    min-height: 34px;
+    width: 42px;
+  }
+}
+
+@media (max-width: 380px) {
+  .nav {
+    gap: 7px;
+  }
+
+  .nav-login,
+  .nav-login--ghost,
+  .nav-cart,
+  .theme-toggle {
+    width: auto;
   }
 }
 </style>
