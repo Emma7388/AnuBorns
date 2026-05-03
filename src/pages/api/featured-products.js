@@ -59,7 +59,7 @@ export const GET = async ({ request }) => {
 
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
-      .select("id, title, price, currency, image_url, seller_name, user_id")
+      .select("id, title, description, price, currency, image_url, seller_name, user_id")
       .in("id", productIds);
 
     if (productsError) {
@@ -74,6 +74,7 @@ export const GET = async ({ request }) => {
         return {
           productId,
           title: String(product?.title ?? "Producto"),
+          description: String(product?.description ?? "").trim(),
           price: toSafeNumber(product?.price, 0),
           currency: String(product?.currency ?? "ARS"),
           imageUrl: String(product?.image_url ?? "").trim() || "/logo2.svg",

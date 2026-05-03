@@ -1,5 +1,6 @@
 ---
 // Componente: header con auth, carrito y modal de logout.
+const { title = "" } = Astro.props;
 ---
 
 <header class="header" transition:persist>
@@ -8,10 +9,25 @@
     <a href="/" class="logo">Desoluciones</a>
 
     <!-- Título de página (inyectado desde MainLayout) -->
-    <div id="ab-header-page-title" class="ab-header-page-title" aria-live="polite"></div>
+    <div id="ab-header-page-title" class="ab-header-page-title" aria-live="polite">
+      {title && <h1>{title}</h1>}
+    </div>
 
     <!-- Navegación superior -->
     <nav class="nav">
+      <button
+        class="theme-toggle"
+        type="button"
+        data-theme-toggle
+        aria-label="Cambiar tema"
+        aria-pressed="false"
+      >
+        <span class="theme-toggle__track" aria-hidden="true">
+          <span class="theme-toggle__thumb"></span>
+        </span>
+        <span class="theme-toggle__label" data-theme-label>Blanco</span>
+      </button>
+
       <!-- Acceso rápido al carrito -->
       <a class="nav-cart" href="/carrito" aria-label="Ir al carrito">
         Carrito <span id="cart-count">0</span>
@@ -99,7 +115,7 @@
   display: none;
 }
 
-.ab-header-page-title h1 {
+.ab-header-page-title :global(h1) {
   margin: 0;
   font-size: clamp(1rem, 2.2vw, 1.4rem);
   font-weight: 800;
@@ -120,6 +136,60 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-panel-tint);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--glass-green-border);
+  box-shadow: none;
+}
+
+.theme-toggle__track {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border-soft);
+  flex: 0 0 auto;
+}
+
+.theme-toggle__thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+}
+
+:global(:root[data-theme="dark"]) .theme-toggle__thumb {
+  transform: translate(16px, -50%);
+}
+
+.theme-toggle__label {
+  min-width: 46px;
+  text-align: left;
+  font-size: 0.88rem;
 }
 
 .nav-auth {
@@ -182,8 +252,8 @@
   color: var(--color-text);
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-panel-tint);
+  border: 1px solid var(--color-panel-tint-strong);
 }
 
 .nav-user--plain {
@@ -209,7 +279,7 @@
 .ab-modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(5, 8, 12, 0.7);
+  background: var(--color-modal-backdrop);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -223,7 +293,7 @@
   border: 1px solid var(--color-border-subtle);
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 18px 40px var(--color-shadow-strong);
   display: grid;
   gap: 12px;
 }
@@ -282,8 +352,8 @@
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-panel-tint);
   display: grid;
   place-items: center;
   overflow: visible;
@@ -327,7 +397,7 @@
 .nav-cart-sync {
   font-size: 11px;
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-panel-tint-strong);
   border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
   padding: 4px 8px;
@@ -373,7 +443,7 @@
     max-width: none;
   }
 
-  .ab-header-page-title h1 {
+  .ab-header-page-title :global(h1) {
     font-size: clamp(1rem, 5.2vw, 1.25rem);
   }
 
@@ -403,4 +473,5 @@
 
 <script>
   import "../scripts/header-auth.js";
+  import "../scripts/theme.js";
 </script>

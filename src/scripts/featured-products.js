@@ -56,6 +56,9 @@ const renderFeaturedSection = (section, items) => {
           </p>
         </div>
         <h2>${escapeHtml(item?.title ?? "Producto")}</h2>
+        <p class="ab-provider-product-card__description">
+          ${escapeHtml(item?.description || "Sin descripción")}
+        </p>
       </a>
       <button
         type="button"

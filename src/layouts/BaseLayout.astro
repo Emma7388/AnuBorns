@@ -10,6 +10,16 @@ const { title = "mvp-peach-six.vercel.app" } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Aplica tema antes de pintar para evitar flashes. Claro es el modo principal. -->
+    <script is:inline>
+      try {
+        const savedTheme = localStorage.getItem("ab_theme");
+        const theme = savedTheme === "dark" ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
     <!-- Marca transiciones al volver del perfil -->
     <script>
       try {

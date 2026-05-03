@@ -73,7 +73,7 @@ const isBuy = mode === "buy";
     border-radius: 999px;
     color: var(--color-text);
     border: 1px solid var(--color-border-subtle);
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-panel-tint);
     font-family: inherit;
     cursor: pointer;
   }
@@ -88,7 +88,7 @@ const isBuy = mode === "buy";
     border-radius: 10px;
     border: 1px solid var(--color-border-subtle);
     background: var(--color-surface);
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 14px 34px var(--color-shadow-strong);
     z-index: 30;
   }
 
@@ -107,6 +107,6 @@ const isBuy = mode === "buy";
 
   .ab-buy-switch__menu-item:hover,
   .ab-buy-switch__menu-item:focus-visible {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-panel-tint);
   }
 </style>

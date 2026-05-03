@@ -30,6 +30,17 @@ const animateAddButton = (button) => {
   }, 220);
 };
 
+const markAsOwnPublication = (card, button) => {
+  button.remove();
+  card.classList.add("is-own-publication");
+  if (card.querySelector(".ab-provider-product-card__own-label")) return;
+
+  const label = document.createElement("p");
+  label.className = "ab-provider-product-card__own-label";
+  label.textContent = "Mi publicación";
+  card.appendChild(label);
+};
+
 /* Inicializa botones de compra y bloquea auto-compra del dueño. */
 const initBuyButtons = async () => {
   const cards = Array.from(document.querySelectorAll(".ab-provider-product-card"));
@@ -50,7 +61,7 @@ const initBuyButtons = async () => {
     if (!(button instanceof HTMLButtonElement)) return;
     const ownerId = String(card.dataset.userId || "");
     if (myUserId && ownerId && myUserId === ownerId) {
-      button.remove();
+      markAsOwnPublication(card, button);
       return;
     }
     if (button.dataset.abBound) return;
