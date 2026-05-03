@@ -109,4 +109,30 @@ const isBuy = mode === "buy";
   .ab-buy-switch__menu-item:focus-visible {
     background: var(--color-panel-tint);
   }
+
+  @media (max-width: 560px) {
+    .ab-buy-switch__row {
+      width: 100%;
+      gap: 8px;
+    }
+
+    .ab-buy-switch__item {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ab-buy-switch__trigger {
+      width: 100%;
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+    }
+
+    .ab-buy-switch__menu {
+      width: 100%;
+      min-width: 0;
+      max-height: 52vh;
+      overflow: auto;
+    }
+  }
 </style>

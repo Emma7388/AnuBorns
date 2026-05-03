@@ -449,12 +449,14 @@ const { title = "" } = Astro.props;
 
   .nav {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
     flex-wrap: wrap;
+    gap: 8px;
   }
 
   .nav-auth {
     justify-content: flex-start;
+    width: 100%;
   }
 
   .nav-login,
@@ -462,11 +464,40 @@ const { title = "" } = Astro.props;
     padding: 0.55rem 1rem;
     font-size: 0.95rem;
   }
+
+  .nav-cart {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.9rem;
+  }
+
+  .theme-toggle {
+    min-height: 34px;
+    padding: 0.25rem 0.55rem;
+  }
+
+  .theme-toggle__label {
+    min-width: 40px;
+    font-size: 0.8rem;
+  }
 }
 
 @media (max-width: 720px) {
   .nav-auth--user {
     width: 100%;
+  }
+
+  .ab-header-page-title {
+    max-width: min(68vw, 560px);
+  }
+}
+
+@media (max-width: 420px) {
+  .logo {
+    font-size: 1.1rem;
+  }
+
+  .ab-header-page-title :global(h1) {
+    font-size: 1rem;
   }
 }
 </style>
