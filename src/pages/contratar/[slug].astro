@@ -9,7 +9,8 @@ const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
 const fromParam = Astro.url.searchParams.get("from");
-const backHref = fromParam && fromParam.startsWith("/")
+const isSafeInternalPath = (value) => Boolean(value?.startsWith("/") && !value.startsWith("//") && !value.includes("://"));
+const backHref = isSafeInternalPath(fromParam)
   ? fromParam
   : provider
     ? `/proveedor/${provider.slug}`

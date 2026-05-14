@@ -18,7 +18,11 @@ const showBack = pathname !== "/";
   <Header title={title} />
 
   <!-- Contenido de página -->
-  <main data-ab-page-title={title ?? ""}>
+  <main
+    data-ab-page-title={title ?? ""}
+    data-ab-show-back={showBack ? "true" : "false"}
+    data-ab-back-href={backHref}
+  >
     <slot />
   </main>
 
@@ -29,11 +33,12 @@ const showBack = pathname !== "/";
   <script is:inline>
     const bindBackLinks = () => {
       const backLinks = document.querySelectorAll("[data-ab-back]");
-      if (backLinks.length && window.history.length > 1) {
+      if (backLinks.length) {
         backLinks.forEach((link) => {
-          if (link.getAttribute("data-ab-back") !== "history") return;
           if (link.dataset.abBackBound === "true") return;
           link.addEventListener("click", (event) => {
+            if (link.getAttribute("data-ab-back") !== "history") return;
+            if (window.history.length <= 1) return;
             event.preventDefault();
             window.history.back();
           });
@@ -43,6 +48,36 @@ const showBack = pathname !== "/";
     };
 
     const runLayoutEnhancements = () => {
+      const titleWrap = document.getElementById("ab-header-page-title");
+      const main = document.querySelector("main[data-ab-page-title]");
+      const pageTitle = main?.getAttribute("data-ab-page-title")?.trim() ?? "";
+
+      if (titleWrap) {
+        let heading = titleWrap.querySelector("h1");
+        if (!pageTitle) {
+          heading?.remove();
+        } else {
+          if (!heading) {
+            heading = document.createElement("h1");
+            titleWrap.appendChild(heading);
+          }
+          heading.textContent = pageTitle;
+        }
+      }
+
+      const footerBack = document.getElementById("footer-back");
+      if (footerBack) {
+        const showBack = main?.getAttribute("data-ab-show-back") === "true";
+        const backHref = main?.getAttribute("data-ab-back-href") || "/";
+        const useHistoryBack = backHref === "history";
+        footerBack.hidden = !showBack;
+        footerBack.setAttribute("aria-hidden", showBack ? "false" : "true");
+        footerBack.setAttribute("tabindex", showBack ? "0" : "-1");
+        footerBack.setAttribute("href", useHistoryBack ? "/" : backHref);
+        footerBack.setAttribute("data-ab-back", useHistoryBack ? "history" : "link");
+        footerBack.removeAttribute("data-astro-reload");
+      }
+
       bindBackLinks();
     };
 

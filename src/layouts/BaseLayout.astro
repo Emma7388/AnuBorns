@@ -1,6 +1,7 @@
 ---
+// @ts-nocheck
 // Layout base: HTML, metas, transiciones y utilidades globales.
-//import { ViewTransitions } from "astro:transitions";
+import { ClientRouter } from "astro:transitions";
 
 const { title = "mvp-peach-six.vercel.app" } = Astro.props;
 ---
@@ -31,59 +32,120 @@ const { title = "mvp-peach-six.vercel.app" } = Astro.props;
       }
     </script>
     <title>{title}</title>
-    <!-- <ViewTransitions fallback="animate" /> -->
+    <ClientRouter />
   </head>
   <body>
     <slot />
-    <!-- Script global: transiciones y prefetch interno -->
+    <!-- Script global: transiciones y utilidades internas -->
     <script>
-      const PROFILE_ENTER_KEY = "ab_profile_enter";
+      (() => {
+        const PROFILE_ENTER_KEY = "ab_profile_enter";
+        const BASE_ENHANCEMENTS_BOUND_KEY = "__abBaseEnhancementsBound";
+        const NAV_GUARD_BOUND_KEY = "__abNavigationGuardBound";
+        const NAV_GUARD_WINDOW_MS = 800;
+        let lastNavigationHref = "";
+        let lastNavigationAt = 0;
 
-      /* Detecta clicks que van al perfil para animación de entrada. */
-      const markProfileEnter = (event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) return;
-        const link = target.closest("[data-ab-profile-link]");
-        if (link) {
+        const normalizePath = (value = "") => {
+          if (value === "/") return "/";
+          return value.replace(/\/+$/, "");
+        };
+
+        const isPlainPrimaryClick = (event) =>
+          event.button === 0 &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.shiftKey;
+
+        const shouldIgnoreLink = (link) => {
+          const target = link.getAttribute("target");
+          return (
+            link.hasAttribute("download") ||
+            link.hasAttribute("data-astro-reload") ||
+            link.getAttribute("data-ab-back") === "history" ||
+            (target && target !== "_self")
+          );
+        };
+
+        const resolveInternalUrl = (link) => {
+          const href = link.getAttribute("href");
+          if (!href || href.startsWith("#")) return null;
           try {
-            sessionStorage.setItem(PROFILE_ENTER_KEY, "1");
+            const url = new URL(href, window.location.href);
+            return url.origin === window.location.origin ? url : null;
           } catch {
-            // ignore
+            return null;
           }
-        }
-      };
+        };
 
-      document.addEventListener("click", markProfileEnter);
+        const guardInternalNavigation = (event) => {
+          if (event.defaultPrevented || !isPlainPrimaryClick(event)) return;
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const link = target.closest("a[href]");
+          if (!(link instanceof HTMLAnchorElement) || shouldIgnoreLink(link)) return;
 
-      /* Limpia la clase luego de la animación. */
-      try {
-        if (sessionStorage.getItem(PROFILE_ENTER_KEY) === "1") {
-          sessionStorage.removeItem(PROFILE_ENTER_KEY);
-          window.setTimeout(() => {
-            document.documentElement.classList.remove("ab-profile-enter");
-          }, 280);
-        }
-      } catch {
-        // ignore
-      }
+          const url = resolveInternalUrl(link);
+          if (!url) return;
 
-      /* Determina si un link es interno (para prefetch). */
-      const isInternalLink = (link) => {
-        const href = link.getAttribute("href");
-        if (!href) return false;
-        if (href.startsWith("http") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-          return false;
-        }
-        if (href.startsWith("#")) return false;
-        return true;
-      };
+          const currentPath = normalizePath(window.location.pathname);
+          const nextPath = normalizePath(url.pathname);
+          const sameDocument =
+            currentPath === nextPath &&
+            window.location.search === url.search &&
+            window.location.hash === url.hash;
+          if (sameDocument) {
+            event.preventDefault();
+            return;
+          }
 
-      /* Habilita prefetch en hover para navegación interna. */
-      document.querySelectorAll("a[href]").forEach((link) => {
-        if (isInternalLink(link)) {
-          link.setAttribute("data-astro-prefetch", "hover");
+          const nextHref = `${nextPath}${url.search}${url.hash}`;
+          const now = Date.now();
+          if (nextHref === lastNavigationHref && now - lastNavigationAt < NAV_GUARD_WINDOW_MS) {
+            event.preventDefault();
+            return;
+          }
+          lastNavigationHref = nextHref;
+          lastNavigationAt = now;
+        };
+
+        /* Detecta clicks que van al perfil para animación de entrada. */
+        const markProfileEnter = (event = new MouseEvent("click")) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const link = target.closest("[data-ab-profile-link]");
+          if (link) {
+            try {
+              sessionStorage.setItem(PROFILE_ENTER_KEY, "1");
+            } catch {
+              // ignore
+            }
+          }
+        };
+
+        if (!Reflect.get(window, BASE_ENHANCEMENTS_BOUND_KEY)) {
+          document.addEventListener("click", markProfileEnter);
+          Reflect.set(window, BASE_ENHANCEMENTS_BOUND_KEY, true);
         }
-      });
+
+        if (!Reflect.get(window, NAV_GUARD_BOUND_KEY)) {
+          document.addEventListener("click", guardInternalNavigation, { capture: true });
+          Reflect.set(window, NAV_GUARD_BOUND_KEY, true);
+        }
+
+        /* Limpia la clase luego de la animación. */
+        try {
+          if (sessionStorage.getItem(PROFILE_ENTER_KEY) === "1") {
+            sessionStorage.removeItem(PROFILE_ENTER_KEY);
+            window.setTimeout(() => {
+              document.documentElement.classList.remove("ab-profile-enter");
+            }, 280);
+          }
+        } catch {
+          // ignore
+        }
+      })();
     </script>
   </body>
 </html>

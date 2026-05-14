@@ -35,6 +35,24 @@ const formatDate = (value) => {
   });
 };
 
+const formatShippingStatus = (value, requested) => {
+  const statusValue = String(value ?? "").trim();
+  if (!requested && (!statusValue || statusValue === "not_requested" || statusValue === "pickup_pending")) {
+    return "Retiro pendiente";
+  }
+  const labels = {
+    requested: "Envío solicitado",
+    preparing: "Preparando envío",
+    shipped: "Enviado",
+    delivered: "Entregado",
+    pickup_pending: "Retiro pendiente",
+    ready_for_pickup: "Listo para retirar",
+    completed: "Completado",
+    not_requested: "Sin envío",
+  };
+  return labels[statusValue] ?? labels.requested;
+};
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -104,10 +122,13 @@ const syncLocalOrdersToServer = async (userId) => {
         status: "approved",
         total_amount: Math.max(0, Number(localOrder?.total_amount ?? 0)),
         currency: String(localOrder?.currency ?? "ARS").trim() || "ARS",
-        shipping_full_name: null,
-        shipping_address: null,
-        shipping_city: null,
-        shipping_phone: null,
+        shipping_full_name: String(localOrder?.shipping_full_name ?? "").trim() || null,
+        shipping_address: String(localOrder?.shipping_address ?? "").trim() || null,
+        shipping_city: String(localOrder?.shipping_city ?? "").trim() || null,
+        shipping_phone: String(localOrder?.shipping_phone ?? "").trim() || null,
+        shipping_requested: Boolean(localOrder?.shipping_requested),
+        shipping_cost: Math.max(0, Number(localOrder?.shipping_cost ?? 0)),
+        shipping_status: String(localOrder?.shipping_status ?? "").trim() || (localOrder?.shipping_requested ? "requested" : "pickup_pending"),
         payment_status: "manual",
         payment_detail: extractBuyerNote(localOrder)
           ? `offline_sync|note:${extractBuyerNote(localOrder)}`
@@ -287,6 +308,12 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
     const orderId = String(order.id ?? "").trim();
     const orderDate = formatDate(order.created_at);
     const currency = String(order.currency ?? "ARS").trim() || "ARS";
+    const shippingRequested = Boolean(order.shipping_requested);
+    const shippingCost = Number(order.shipping_cost ?? 0);
+    const shippingStatus = formatShippingStatus(order.shipping_status, shippingRequested);
+    const shippingAddress = String(order.shipping_address ?? "").trim();
+    const shippingCity = String(order.shipping_city ?? "").trim();
+    const shippingPhone = String(order.shipping_phone ?? "").trim();
 
     const itemsByProvider = new Map();
     items.forEach((item) => {
@@ -336,10 +363,18 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
               const qty = Number(item?.qty ?? 1);
               const price = Number(item?.unit_price ?? 0);
               const subtotal = price * qty;
-              return `<li>${escapeHtml(item?.name ?? "Producto")} x <strong>${qty}</strong> · <strong>$${formatPrice(subtotal)}</strong></li>`;
+              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} x ${qty} · $${formatPrice(subtotal)}</strong></li>`;
             })
             .join("")}
-          <li>Total orden: <strong>$${formatPrice(order.total_amount ?? 0)}</strong></li>
+          ${
+            shippingRequested
+              ? `<li>Entrega: <strong>${escapeHtml(shippingStatus)}</strong></li>
+                 <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>
+                 <li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
+                 ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
+              : `<li>Entrega: <strong>${escapeHtml(shippingStatus)}</strong></li>`
+          }
+          <li>Total: <strong>$${formatPrice(order.total_amount ?? 0)}</strong></li>
           ${buyerNote ? `<li>Nota: <strong>${escapeHtml(buyerNote)}</strong></li>` : ""}
         </ul>
         <div class="ab-provider-product-card__actions">
@@ -453,7 +488,7 @@ const loadOrders = async () => {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, created_at, total_amount, currency, status, payment_detail, order_items (product_id, name, qty, unit_price, provider, image)",
+      "id, created_at, total_amount, currency, status, payment_detail, shipping_requested, shipping_cost, shipping_status, shipping_full_name, shipping_address, shipping_city, shipping_phone, order_items (product_id, name, qty, unit_price, provider, image)",
     )
     .eq("user_id", currentUserId)
     .order("created_at", { ascending: false });

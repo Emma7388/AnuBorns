@@ -60,6 +60,38 @@ const formatDelivery = (value) => {
   return labels.join(" + ");
 };
 
+const formatFulfillmentStatus = (status, shippingRequested) => {
+  const raw = String(status ?? "").trim();
+  const labels = {
+    pending: shippingRequested ? "Envío solicitado" : "Retiro pendiente",
+    requested: "Envío solicitado",
+    preparing: "Preparando envío",
+    shipped: "Enviado",
+    delivered: "Entregado",
+    pickup_pending: "Retiro pendiente",
+    ready_for_pickup: "Listo para retirar",
+    completed: "Completado",
+  };
+  return labels[raw] ?? labels.pending;
+};
+
+const getNextFulfillmentAction = (status, shippingRequested) => {
+  const raw = String(status ?? "").trim();
+  if (shippingRequested) {
+    if (!raw || raw === "pending" || raw === "requested") {
+      return { status: "preparing", label: "Preparar envío" };
+    }
+    if (raw === "preparing") return { status: "shipped", label: "Marcar enviado" };
+    if (raw === "shipped") return { status: "delivered", label: "Marcar entregado" };
+    return null;
+  }
+  if (!raw || raw === "pending" || raw === "pickup_pending") {
+    return { status: "ready_for_pickup", label: "Listo para retirar" };
+  }
+  if (raw === "ready_for_pickup") return { status: "completed", label: "Completar retiro" };
+  return null;
+};
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -254,6 +286,8 @@ const buildSoldProductsSignature = (products) => {
             sale?.productId ?? product?.productId ?? "",
             sale?.orderId ?? "",
             sale?.soldAt ?? "",
+            sale?.shippingRequested ? "shipping" : "pickup",
+            sale?.fulfillmentStatus ?? "",
             sale?.dispatchedAt ?? "",
           ].join("|"),
         )
@@ -347,6 +381,12 @@ const renderSoldProducts = (products) => {
         buyerName: product.lastBuyerName || "",
         buyerUserId: product.lastBuyerUserId || "",
         buyerNote: product.lastBuyerNote || "",
+        shippingRequested: Boolean(product.shippingRequested),
+        shippingAddress: product.shippingAddress || "",
+        shippingCity: product.shippingCity || "",
+        shippingPhone: product.shippingPhone || "",
+        shippingCost: product.shippingCost ?? 0,
+        fulfillmentStatus: product.fulfillmentStatus || (product.shippingRequested ? "requested" : "pickup_pending"),
         dispatchedAt: null,
       });
       return;
@@ -365,6 +405,12 @@ const renderSoldProducts = (products) => {
         buyerName: sale?.buyerName ?? "",
         buyerUserId: sale?.buyerUserId ?? "",
         buyerNote: sale?.buyerNote ?? "",
+        shippingRequested: Boolean(sale?.shippingRequested),
+        shippingAddress: sale?.shippingAddress ?? "",
+        shippingCity: sale?.shippingCity ?? "",
+        shippingPhone: sale?.shippingPhone ?? "",
+        shippingCost: sale?.shippingCost ?? 0,
+        fulfillmentStatus: sale?.fulfillmentStatus ?? (sale?.shippingRequested ? "requested" : "pickup_pending"),
         dispatchedAt: sale?.dispatchedAt ?? null,
       });
     });
@@ -386,20 +432,25 @@ const renderSoldProducts = (products) => {
       const card = document.createElement("article");
       const saleOrderId = String(sale.orderId || "").trim();
       const saleProductId = String(sale.productId || "").trim();
-      const isDispatched = Boolean(String(sale.dispatchedAt ?? "").trim());
+      const shippingRequested = Boolean(sale.shippingRequested);
+      const fulfillmentStatus = String(sale.fulfillmentStatus || (shippingRequested ? "requested" : "pickup_pending")).trim();
+      const nextAction = getNextFulfillmentAction(fulfillmentStatus, shippingRequested);
+      const isCompleted = !nextAction;
       const isLatestSale = index === 0;
-      const isPendingDispatch = Boolean(saleOrderId) && !isDispatched;
+      const isPendingDispatch = Boolean(saleOrderId) && !isCompleted;
       card.className = `ab-provider-product-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
       card.dataset.salePendingDispatch = isPendingDispatch ? "true" : "false";
       const safeBuyerName = escapeHtml(sale.buyerName || "");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
       const safeNote = escapeHtml(sale.buyerNote || "");
       const safeOrderId = escapeHtml(saleOrderId.slice(0, 8));
+      const safeShippingAddress = escapeHtml([sale.shippingAddress, sale.shippingCity].filter(Boolean).join(", "));
+      const safeShippingPhone = escapeHtml(sale.shippingPhone || "");
       const statusBadge = isPendingDispatch
         ? isLatestSale
-          ? "Nueva venta · pendiente"
-          : "Pendiente de despacho"
-        : "Despachado";
+          ? `Nueva venta · ${formatFulfillmentStatus(fulfillmentStatus, shippingRequested)}`
+          : formatFulfillmentStatus(fulfillmentStatus, shippingRequested)
+        : formatFulfillmentStatus(fulfillmentStatus, shippingRequested);
 
       card.innerHTML = `
         <img
@@ -418,7 +469,7 @@ const renderSoldProducts = (products) => {
           </p>
         </div>
         <h2>${sale.title}</h2>
-        <p class="ab-provider-product-card__description">FECHA: ${formatDate(sale.soldAt)}</p>
+        <p class="ab-provider-product-card__description">Fecha: ${formatDate(sale.soldAt)}</p>
         <ul class="ab-provider-product-card__details">
           <li>Cantidad: <strong>${sale.qty}</strong></li>
           ${
@@ -431,6 +482,14 @@ const renderSoldProducts = (products) => {
               : ""
           }
           ${safeNote ? `<li>Nota: <strong>${safeNote}</strong></li>` : ""}
+          ${
+            shippingRequested
+              ? `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, true)}</strong></li>
+                 <li>Costo envío: <strong>$${formatPrice(sale.shippingCost ?? 0)}</strong></li>
+                 <li>Dirección: <strong>${safeShippingAddress || "Sin dirección"}</strong></li>
+                 ${safeShippingPhone ? `<li>Teléfono: <strong>${safeShippingPhone}</strong></li>` : ""}`
+              : `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, false)}</strong></li>`
+          }
         </ul>
         <div class="ab-provider-product-card__actions">
           <button
@@ -438,9 +497,10 @@ const renderSoldProducts = (products) => {
             class="ab-provider-product-card__button ${isPendingDispatch ? "ab-provider-product-card__button--buy" : "ab-provider-product-card__button--ghost"}"
             data-dispatch-sale="${escapeHtml(saleOrderId)}"
             data-dispatch-product="${escapeHtml(saleProductId)}"
-            ${!saleOrderId || !saleProductId || isDispatched ? "disabled aria-disabled=\"true\"" : ""}
+            data-next-fulfillment-status="${escapeHtml(nextAction?.status ?? "")}"
+            ${!saleOrderId || !saleProductId || !nextAction ? "disabled aria-disabled=\"true\"" : ""}
           >
-            ${isDispatched ? "Despachado" : "Marcar como despachado"}
+            ${nextAction?.label ?? formatFulfillmentStatus(fulfillmentStatus, shippingRequested)}
           </button>
         </div>
       `;
@@ -490,7 +550,7 @@ const renderMyProducts = (products) => {
         ${safeDescription}
       </p>
       <ul class="ab-provider-product-card__details">
-        <li>Publicada el <strong>${formatDate(product.created_at)}</strong></li>
+        <li>Fecha: <strong>${formatDate(product.created_at)}</strong></li>
         <li>Ubicación: <strong>${safeLocation}</strong></li>
         ${safePickupAddress ? `<li>Dirección: <strong>${safePickupAddress}</strong></li>` : ""}
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
@@ -562,11 +622,15 @@ const fetchSoldProductsSummary = async () => {
   return fetchSalesSummary(token, { force: true });
 };
 
-const markSaleDispatchOnServer = async ({ orderId, productId }) => {
+const markSaleDispatchOnServer = async ({ orderId, productId, status }) => {
   const safeOrderId = String(orderId ?? "").trim();
   const safeProductId = String(productId ?? "").trim();
+  const safeStatus = String(status ?? "").trim();
   if (!safeOrderId || !safeProductId) {
-    return { ok: false, error: "Faltan datos de venta para despachar." };
+    return { ok: false, error: "Faltan datos de venta para actualizar la entrega." };
+  }
+  if (!safeStatus) {
+    return { ok: false, error: "Falta el estado de entrega." };
   }
 
   const { data: sessionData } = await supabase.auth.getSession();
@@ -579,12 +643,12 @@ const markSaleDispatchOnServer = async ({ orderId, productId }) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ orderId: safeOrderId, productId: safeProductId }),
+    body: JSON.stringify({ orderId: safeOrderId, productId: safeProductId, status: safeStatus }),
   });
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    return { ok: false, error: String(payload?.error ?? "No se pudo guardar el despacho.") };
+    return { ok: false, error: String(payload?.error ?? "No se pudo guardar el estado de entrega.") };
   }
   return { ok: true, error: "" };
 };
@@ -709,11 +773,12 @@ const initMySalesProducts = () => {
       if (!(button instanceof HTMLButtonElement)) return;
       const orderId = String(button.dataset.dispatchSale ?? "").trim();
       const productId = String(button.dataset.dispatchProduct ?? "").trim();
+      const nextStatus = String(button.dataset.nextFulfillmentStatus ?? "").trim();
       if (!orderId || !productId) return;
       if (button.disabled) return;
       button.disabled = true;
       button.setAttribute("aria-busy", "true");
-      const result = await markSaleDispatchOnServer({ orderId, productId });
+      const result = await markSaleDispatchOnServer({ orderId, productId, status: nextStatus });
       button.removeAttribute("aria-busy");
       if (!result.ok) {
         button.disabled = false;
@@ -722,17 +787,6 @@ const initMySalesProducts = () => {
       }
       if (soldProductsStatus) soldProductsStatus.textContent = "";
       invalidateSalesSummaryCache();
-      button.disabled = true;
-      button.setAttribute("aria-disabled", "true");
-      button.textContent = "Despachado";
-      button.classList.remove("ab-provider-product-card__button--buy");
-      button.classList.add("ab-provider-product-card__button--ghost");
-      const card = button.closest(".ab-provider-product-card");
-      card?.classList.remove("ab-sale-card--pending");
-      if (card) card.dataset.salePendingDispatch = "false";
-      const statusLabel = card?.querySelector(".ab-provider-product-card__label");
-      if (statusLabel) statusLabel.textContent = "Despachado";
-      applySoldProductsDispatchFilter();
       lastSoldProductsSignature = "";
       await loadSoldProducts();
     });

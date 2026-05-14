@@ -10,7 +10,8 @@ const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
 const products = provider?.products ?? [];
 const fromParam = Astro.url.searchParams.get("from");
-const backHref = fromParam && fromParam.startsWith("/")
+const isSafeInternalPath = (value) => Boolean(value?.startsWith("/") && !value.startsWith("//") && !value.includes("://"));
+const backHref = isSafeInternalPath(fromParam)
   ? fromParam
   : provider
     ? `/profesionales/categoria/${provider.category}`
@@ -61,7 +62,7 @@ const shortId = (value) => {
               <h2>{product.name}</h2>
               <p class="ab-provider-product-card__description">{product.description}</p>
               <ul class="ab-provider-product-card__details">
-                <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
                 <li>Ubicación: <strong>{provider.location}</strong></li>
                 {product.pickup_address ? (
                   <li>Dirección: <strong>{product.pickup_address}</strong></li>

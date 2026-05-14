@@ -1,6 +1,22 @@
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
+const allowedStatuses = new Set([
+  "preparing",
+  "shipped",
+  "delivered",
+  "ready_for_pickup",
+  "completed",
+]);
+
+const orderStatusByFulfillment = {
+  preparing: "preparing",
+  shipped: "shipped",
+  delivered: "delivered",
+  ready_for_pickup: "ready_for_pickup",
+  completed: "completed",
+};
+
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
@@ -35,9 +51,13 @@ export const POST = async ({ request }) => {
     const payload = await request.json().catch(() => ({}));
     const orderId = String(payload?.orderId ?? "").trim();
     const productId = String(payload?.productId ?? "").trim();
+    const status = String(payload?.status ?? "").trim();
 
     if (!orderId || !productId) {
-      return new Response(JSON.stringify({ error: "Faltan datos para marcar despacho." }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Faltan datos para actualizar la entrega." }), { status: 400 });
+    }
+    if (!allowedStatuses.has(status)) {
+      return new Response(JSON.stringify({ error: "Estado de entrega invalido." }), { status: 400 });
     }
 
     const sellerId = userData.user.id;
@@ -74,18 +94,28 @@ export const POST = async ({ request }) => {
         seller_id: sellerId,
         order_id: orderId,
         product_id: productId,
+        fulfillment_status: status,
         dispatched_at: new Date().toISOString(),
+        status_updated_at: new Date().toISOString(),
       },
       { onConflict: "seller_id,order_id,product_id" },
     );
 
     if (upsertError) {
-      return new Response(JSON.stringify({ error: "No se pudo guardar el despacho." }), { status: 500 });
+      return new Response(JSON.stringify({ error: "No se pudo guardar el estado de entrega." }), { status: 500 });
+    }
+
+    const nextOrderStatus = orderStatusByFulfillment[status];
+    if (nextOrderStatus) {
+      await supabaseAdmin
+        .from("orders")
+        .update({ shipping_status: nextOrderStatus })
+        .eq("id", orderId);
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (error) {
     console.error("[sales-dispatch] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo guardar el despacho." }), { status: 500 });
+    return new Response(JSON.stringify({ error: "No se pudo guardar el estado de entrega." }), { status: 500 });
   }
 };

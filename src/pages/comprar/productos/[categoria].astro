@@ -74,6 +74,8 @@ const formatDelivery = (value) => {
   });
   return labels.join(" + ");
 };
+const serializeDelivery = (value) =>
+  Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 const shortId = (value) => {
   const raw = String(value ?? "").replace(/-/g, "");
   return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
@@ -166,7 +168,7 @@ const resolveCategoryName = (product) => {
                   data-image={product.image_url || "/logo2.svg"}
                   data-provider={product.seller_name || "Vendedor"}
                   data-currency={product.currency || "ARS"}
-                  data-delivery={formatDelivery(product.delivery_methods)}
+                  data-delivery={serializeDelivery(product.delivery_methods)}
                   data-cart-id={product.id || ""}
                 >
                   <img
@@ -189,7 +191,7 @@ const resolveCategoryName = (product) => {
                     {product.description || "Sin descripción"}
                   </p>
                   <ul class="ab-provider-product-card__details">
-                    <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                    <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
                     <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
                     {product.pickup_address ? (
                       <li>Dirección: <strong>{product.pickup_address}</strong></li>
@@ -234,6 +236,8 @@ const resolveCategoryName = (product) => {
     if (!input) return;
     const rows = Array.from(document.querySelectorAll(".ab-card-row"));
     if (rows.length === 0) return;
+    if (input.dataset.abProductSearchBound === "true") return;
+    input.dataset.abProductSearchBound = "true";
     let activeLocation = "";
 
     rows.forEach((row) => {
@@ -357,6 +361,7 @@ const resolveCategoryName = (product) => {
     applySearch();
   };
 
+  initProductSearch();
   document.addEventListener("astro:page-load", initProductSearch);
   document.addEventListener("astro:after-swap", initProductSearch);
   window.addEventListener("pageshow", initProductSearch);

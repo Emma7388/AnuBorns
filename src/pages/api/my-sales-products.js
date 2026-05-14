@@ -21,6 +21,12 @@ const extractBuyerNote = (paymentDetail) => {
   return detail.slice(index + marker.length).trim();
 };
 
+const normalizeFulfillmentStatus = (value, shippingRequested) => {
+  const raw = String(value ?? "").trim();
+  if (raw) return raw;
+  return shippingRequested ? "requested" : "pickup_pending";
+};
+
 /* Resuelve cliente público para validar token de usuario. */
 const getPublicAuthClient = () => {
   const env = import.meta.env ?? {};
@@ -116,7 +122,7 @@ export const GET = async ({ request }) => {
     const { data: salesRows, error: salesError } = await supabaseAdmin
       .from("order_items")
       .select(
-        "product_id, name, qty, unit_price, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name)",
+        "product_id, name, qty, unit_price, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost, shipping_status)",
       )
       .in("product_id", productIds);
 
@@ -148,6 +154,12 @@ export const GET = async ({ request }) => {
       const buyerNote = extractBuyerNote(order?.payment_detail);
       const buyerName = String(order?.shipping_full_name ?? "").trim();
       const buyerUserId = String(order?.user_id ?? "").trim();
+      const shippingRequested = Boolean(order?.shipping_requested);
+      const shippingAddress = String(order?.shipping_address ?? "").trim();
+      const shippingCity = String(order?.shipping_city ?? "").trim();
+      const shippingPhone = String(order?.shipping_phone ?? "").trim();
+      const shippingCost = toPositiveNumber(order?.shipping_cost, 0);
+      const orderShippingStatus = String(order?.shipping_status ?? "").trim();
 
       const entry = soldMap.get(productId) ?? {
         productId,
@@ -177,6 +189,13 @@ export const GET = async ({ request }) => {
         buyerName,
         buyerUserId,
         buyerNote,
+        shippingRequested,
+        shippingAddress,
+        shippingCity,
+        shippingPhone,
+        shippingCost,
+        orderShippingStatus,
+        fulfillmentStatus: normalizeFulfillmentStatus("", shippingRequested),
         dispatchedAt: null,
       });
       if (order?.id && productId) {
@@ -205,7 +224,7 @@ export const GET = async ({ request }) => {
     if (orderIds.length > 0 && productIdsBySales.length > 0) {
       const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
         .from("sale_dispatches")
-        .select("order_id, product_id, dispatched_at")
+        .select("order_id, product_id, dispatched_at, fulfillment_status")
         .eq("seller_id", sellerId)
         .in("order_id", orderIds)
         .in("product_id", productIdsBySales);
@@ -215,8 +234,12 @@ export const GET = async ({ request }) => {
           const orderId = String(row?.order_id ?? "").trim();
           const productId = String(row?.product_id ?? "").trim();
           const dispatchedAt = String(row?.dispatched_at ?? "").trim();
-          if (!orderId || !productId || !dispatchedAt) return;
-          dispatchMap.set(`${orderId}::${productId}`, dispatchedAt);
+          const fulfillmentStatus = String(row?.fulfillment_status ?? "").trim();
+          if (!orderId || !productId) return;
+          dispatchMap.set(`${orderId}::${productId}`, {
+            dispatchedAt: dispatchedAt || null,
+            fulfillmentStatus,
+          });
         });
       }
     }
@@ -238,7 +261,11 @@ export const GET = async ({ request }) => {
         salesHistory: entry.salesHistory
           .filter((sale) => sale.orderId && sale.soldAt)
           .map((sale) => {
-            const dispatchedAt = dispatchMap.get(`${sale.orderId}::${sale.productId}`) ?? null;
+            const dispatchState = dispatchMap.get(`${sale.orderId}::${sale.productId}`) ?? {};
+            const fulfillmentStatus = normalizeFulfillmentStatus(
+              dispatchState.fulfillmentStatus || sale.fulfillmentStatus,
+              sale.shippingRequested,
+            );
             return {
               orderId: sale.orderId,
               productId: sale.productId,
@@ -248,7 +275,14 @@ export const GET = async ({ request }) => {
               buyerName: sale.buyerName,
               buyerUserId: sale.buyerUserId,
               buyerNote: sale.buyerNote,
-              dispatchedAt,
+              shippingRequested: sale.shippingRequested,
+              shippingAddress: sale.shippingAddress,
+              shippingCity: sale.shippingCity,
+              shippingPhone: sale.shippingPhone,
+              shippingCost: sale.shippingCost,
+              orderShippingStatus: sale.orderShippingStatus,
+              fulfillmentStatus,
+              dispatchedAt: dispatchState.dispatchedAt ?? null,
             };
           })
           .sort((a, b) => new Date(b.soldAt).getTime() - new Date(a.soldAt).getTime()),

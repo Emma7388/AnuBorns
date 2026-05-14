@@ -24,19 +24,54 @@ const fetchJson = async (url) => {
 
 const product = supabaseUrl && supabaseAnonKey && safeId
   ? await fetchJson(
-      `${supabaseUrl}/rest/v1/products?select=id,user_id,title,description,price,currency,image_url,location,pickup_address,seller_name,created_at&id=eq.${safeId}&limit=1`
+      `${supabaseUrl}/rest/v1/products?select=id,user_id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,seller_name,created_at&id=eq.${safeId}&limit=1`
     )
   : null;
 
 const current = Array.isArray(product) ? product[0] : null;
 const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent(current.user_id)}` : "";
+const formatPrice = (value) => {
+  const safe = Number(value ?? 0);
+  return safe.toLocaleString("es-AR");
+};
+const formatDate = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+const formatDelivery = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return "No especificada";
+  const labels = value.map((item) => {
+    if (item === "retiro") return "Retiro";
+    if (item === "envio") return "Envío";
+    return item;
+  });
+  return labels.join(" + ");
+};
+const serializeDelivery = (value) =>
+  Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
+const shortId = (value) => {
+  const raw = String(value ?? "").replace(/-/g, "");
+  return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
+};
 ---
 
 <MainLayout title={current?.title ? `Producto: ${current.title}` : "Producto"} backHref="/comprar">
   {current ? (
     <section class="ab-dark-panel ab-provider-products-panel">
       <p class="ab-eyebrow">Detalle de producto</p>
-      <article class="ab-provider-product-card ab-provider-product-card--detail">
+      <article
+        class="ab-provider-product-card ab-provider-product-card--detail"
+        data-user-id={current.user_id || ""}
+        data-title={current.title || ""}
+        data-price={current.price ?? 0}
+        data-image={current.image_url || "/logo2.svg"}
+        data-provider={current.seller_name || "Proveedor"}
+        data-currency={current.currency || "ARS"}
+        data-delivery={serializeDelivery(current.delivery_methods)}
+        data-cart-id={current.id || ""}
+      >
         <img
           class="ab-provider-product-card__image"
           src={current.image_url || "/logo2.svg"}
@@ -49,14 +84,17 @@ const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent
             <p class="ab-provider-product-card__code">{current.seller_name || "Proveedor"}</p>
           </div>
           <p class="ab-provider-product-card__price">
-            ${Number(current.price ?? 0).toLocaleString("es-AR")} <span>{current.currency || "ARS"}</span>
+            ${formatPrice(current.price)} <span>{current.currency || "ARS"}</span>
           </p>
         </div>
+        <p class="ab-provider-product-card__code">ID {shortId(current.id)}</p>
         <h2>{current.title || "Producto sin título"}</h2>
         <p class="ab-provider-product-card__description">{current.description || "Sin descripción."}</p>
         <ul class="ab-provider-product-card__details">
+          <li>Fecha: <strong>{formatDate(current.created_at)}</strong></li>
           <li>Ubicación: <strong>{current.location || "Sin especificar"}</strong></li>
           {current.pickup_address ? <li>Dirección: <strong>{current.pickup_address}</strong></li> : null}
+          <li>Entrega: <strong>{formatDelivery(current.delivery_methods)}</strong></li>
         </ul>
         <div class="ab-provider-product-card__actions">
           {providerHref ? (
@@ -64,14 +102,19 @@ const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent
               Ver proveedor
             </a>
           ) : null}
-          <a class="ab-provider-product-card__cart-link" href="/carrito" aria-label="Ir al carrito">
+          <button
+            type="button"
+            class="ab-provider-product-card__add"
+            aria-label="Agregar al carrito"
+            title="Agregar al carrito"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path
                 d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
                 fill="currentColor"
               ></path>
             </svg>
-          </a>
+          </button>
         </div>
       </article>
     </section>
@@ -83,9 +126,19 @@ const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent
   )}
 </MainLayout>
 
+<script>
+  import "../../scripts/comprar-productos.js";
+</script>
+
 <style>
   .ab-provider-product-card--detail {
     margin: 0 auto;
+    max-width: min(100%, 360px);
+    padding: 10px;
+  }
+
+  .ab-provider-product-card--detail .ab-provider-product-card__image {
+    height: 220px;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__actions {
@@ -97,23 +150,5 @@ const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent
     align-items: center;
     justify-content: center;
     text-align: center;
-  }
-
-  .ab-provider-product-card__cart-link {
-    width: 52px;
-    height: 52px;
-    border-radius: 999px;
-    border: 1px solid var(--glass-green-border);
-    background: var(--glass-green-bg);
-    color: var(--color-text);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-  }
-
-  .ab-provider-product-card__cart-link svg {
-    width: 24px;
-    height: 24px;
   }
 </style>

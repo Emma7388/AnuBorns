@@ -63,6 +63,8 @@ const formatDelivery = (value) => {
   });
   return labels.join(" + ");
 };
+const serializeDelivery = (value) =>
+  Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 const shortId = (value) => {
   const raw = String(value ?? "").replace(/-/g, "");
   return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
@@ -117,7 +119,7 @@ const shortId = (value) => {
               data-image={product.image_url || "/logo2.svg"}
               data-provider={product.seller_name || sellerName || "Vendedor"}
               data-currency={product.currency || "ARS"}
-              data-delivery={formatDelivery(product.delivery_methods)}
+              data-delivery={serializeDelivery(product.delivery_methods)}
               data-cart-id={product.id || ""}
             >
               <img
@@ -138,7 +140,7 @@ const shortId = (value) => {
               <h2>{product.title || "Sin título"}</h2>
               <p class="ab-provider-product-card__description">{product.description || "Sin descripción"}</p>
               <ul class="ab-provider-product-card__details">
-                <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
                 <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
                 {product.pickup_address ? (
                   <li>Dirección: <strong>{product.pickup_address}</strong></li>

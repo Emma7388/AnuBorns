@@ -10,7 +10,8 @@ const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
 const products = provider?.products ?? [];
 const fromParam = Astro.url.searchParams.get("from");
-const backHref = fromParam && fromParam.startsWith("/")
+const isSafeInternalPath = (value) => Boolean(value?.startsWith("/") && !value.startsWith("//") && !value.includes("://"));
+const backHref = isSafeInternalPath(fromParam)
   ? fromParam
   : provider
     ? `/comprar/productos/${provider.category}`
@@ -75,7 +76,7 @@ const shortId = (value) => {
             Copiar enlace
           </button>
           <a class="ab-provider-products-toolbar__cart" href="/carrito">
-            Carrito <span id="cart-count">0</span>
+            Carrito <span id="provider-cart-count">0</span>
           </a>
         </div>
         <p class="ab-provider-products-share-feedback" id="share-feedback" aria-live="polite"></p>
@@ -119,7 +120,7 @@ const shortId = (value) => {
                 <h2>{product.name}</h2>
                 <p class="ab-provider-product-card__description">{product.description}</p>
                 <ul class="ab-provider-product-card__details">
-                  <li>Publicada el <strong>{formatDate(product.created_at)}</strong></li>
+                  <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
                   <li>Ubicación: <strong>{provider.location}</strong></li>
                   {product.pickup_address ? (
                     <li>Dirección: <strong>{product.pickup_address}</strong></li>
@@ -181,45 +182,52 @@ const shortId = (value) => {
   import { confirmAddToCart } from "../../../lib/cartConfirm";
   import { showCartToast } from "../../../lib/cartToast";
 
-  const grid = document.getElementById("provider-products-grid");
-  const stockFilter = document.getElementById("stock-filter");
-  const priceSort = document.getElementById("price-sort");
-  const pageSizeSelect = document.getElementById("page-size");
-  const searchQuery = document.getElementById("search-query");
-  const clearFilters = document.getElementById("clear-filters");
-  const copyLink = document.getElementById("copy-link");
-  const shareFeedback = document.getElementById("share-feedback");
-  const cartFeedback = document.getElementById("cart-feedback");
-  const cartCount = document.getElementById("cart-count");
-  const activeFilters = document.getElementById("provider-active-filters");
-  const countLabel = document.getElementById("provider-products-count");
-  const emptyState = document.getElementById("provider-products-empty");
-  const emptyReset = document.getElementById("empty-reset");
-  const paginationWrap = document.getElementById("provider-products-pagination");
-  const paginationPrev = document.getElementById("pagination-prev");
-  const paginationNext = document.getElementById("pagination-next");
-  const paginationLabel = document.getElementById("pagination-label");
+  const initProviderProducts = () => {
+    const grid = document.getElementById("provider-products-grid");
+    const stockFilter = document.getElementById("stock-filter");
+    const priceSort = document.getElementById("price-sort");
+    const pageSizeSelect = document.getElementById("page-size");
+    const searchQuery = document.getElementById("search-query");
+    const clearFilters = document.getElementById("clear-filters");
+    const copyLink = document.getElementById("copy-link");
+    const shareFeedback = document.getElementById("share-feedback");
+    const cartFeedback = document.getElementById("cart-feedback");
+    const cartCount = document.getElementById("provider-cart-count");
+    const activeFilters = document.getElementById("provider-active-filters");
+    const countLabel = document.getElementById("provider-products-count");
+    const emptyState = document.getElementById("provider-products-empty");
+    const emptyReset = document.getElementById("empty-reset");
+    const paginationWrap = document.getElementById("provider-products-pagination");
+    const paginationPrev = document.getElementById("pagination-prev");
+    const paginationNext = document.getElementById("pagination-next");
+    const paginationLabel = document.getElementById("pagination-label");
 
-  if (
-    grid &&
-    stockFilter &&
-    priceSort &&
-    pageSizeSelect &&
-    searchQuery &&
-    clearFilters &&
-    copyLink &&
-    shareFeedback &&
-    cartFeedback &&
-    cartCount &&
-    activeFilters &&
-    countLabel &&
-    emptyState &&
-    emptyReset &&
-    paginationWrap &&
-    paginationPrev &&
-    paginationNext &&
-    paginationLabel
-  ) {
+    if (
+      !grid ||
+      !stockFilter ||
+      !priceSort ||
+      !pageSizeSelect ||
+      !searchQuery ||
+      !clearFilters ||
+      !copyLink ||
+      !shareFeedback ||
+      !cartFeedback ||
+      !cartCount ||
+      !activeFilters ||
+      !countLabel ||
+      !emptyState ||
+      !emptyReset ||
+      !paginationWrap ||
+      !paginationPrev ||
+      !paginationNext ||
+      !paginationLabel
+    ) return;
+
+    if (grid.dataset.abProviderProductsBound === "true") {
+      return;
+    }
+    grid.dataset.abProviderProductsBound = "true";
+
     const cards = Array.from(grid.querySelectorAll(".ab-provider-product-card"));
     const total = cards.length;
     const allowedPageSizes = [6, 12, 24];
@@ -459,5 +467,10 @@ const shortId = (value) => {
     });
     updateCartCount();
     renderCards();
-  }
+  };
+
+  initProviderProducts();
+  document.addEventListener("astro:page-load", initProviderProducts);
+  document.addEventListener("astro:after-swap", initProviderProducts);
+  window.addEventListener("pageshow", initProviderProducts);
 </script>

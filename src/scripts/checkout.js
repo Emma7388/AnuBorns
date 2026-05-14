@@ -2,22 +2,36 @@
 import { supabase } from "../lib/supabaseClient";
 import { getCart } from "../lib/cart";
 import { removeFromCart } from "../lib/cart";
+import {
+  SHIPPING_FEE,
+  clearShippingPreference,
+  getProviderShippingPreference,
+  itemSupportsShipping,
+} from "../lib/shippingPreference";
 
 /* Clave de almacenamiento local para historial de compras offline. */
 const ORDERS_KEY = "ab_orders_v1";
-/* Referencias DOM principales. */
-const emptyState = document.getElementById("checkout-empty");
-const summary = document.getElementById("checkout-summary");
-const itemsWrap = document.getElementById("checkout-items");
-const totalLabel = document.getElementById("checkout-total");
-const form = document.getElementById("checkout-form");
-const feedback = document.getElementById("checkout-feedback");
-const successNotice = document.getElementById("checkout-success");
-const checkoutConfirmModal = document.getElementById("checkout-confirm-modal");
-const checkoutModalClose = document.querySelector("[data-checkout-modal-close]");
-const checkoutModalCancel = document.querySelector("[data-checkout-modal-cancel]");
-const checkoutModalConfirm = document.querySelector("[data-checkout-modal-confirm]");
 let checkoutConfirmed = false;
+let currentSubtotal = 0;
+let currentShippingGroups = [];
+let checkoutKeydownBound = false;
+
+const getCheckoutDom = () => ({
+  emptyState: document.getElementById("checkout-empty"),
+  summary: document.getElementById("checkout-summary"),
+  itemsWrap: document.getElementById("checkout-items"),
+  subtotalLabel: document.getElementById("checkout-subtotal"),
+  shippingTotalLabel: document.getElementById("checkout-shipping-total"),
+  shippingTotalRow: document.querySelector(".ab-checkout-shipping-total"),
+  totalLabel: document.getElementById("checkout-total"),
+  form: document.getElementById("checkout-form"),
+  feedback: document.getElementById("checkout-feedback"),
+  successNotice: document.getElementById("checkout-success"),
+  checkoutConfirmModal: document.getElementById("checkout-confirm-modal"),
+  checkoutModalClose: document.querySelector("[data-checkout-modal-close]"),
+  checkoutModalCancel: document.querySelector("[data-checkout-modal-cancel]"),
+  checkoutModalConfirm: document.querySelector("[data-checkout-modal-confirm]"),
+});
 
 /* Escapa texto para evitar inyección HTML en render dinámico. */
 const escapeHtml = (value) =>
@@ -44,8 +58,63 @@ const formatPrice = (value) => {
   return safe.toLocaleString("es-AR");
 };
 
+const getProviderKey = (item) => {
+  const product = item.product ?? null;
+  const providerId = String(product?.user_id ?? "").trim();
+  if (providerId) return `id:${providerId}`;
+  const providerName = String(product?.seller_name ?? "N/A").trim();
+  return `name:${providerName.toLowerCase() || "n/a"}`;
+};
+
+const groupItemsByProvider = (items) => {
+  const groups = new Map();
+  items.forEach((item) => {
+    const product = item.product ?? null;
+    const provider = String(product?.seller_name ?? "N/A").trim() || "N/A";
+    const key = getProviderKey(item);
+    if (!groups.has(key)) {
+      groups.set(key, { key, provider, items: [] });
+    }
+    groups.get(key).items.push(item);
+  });
+  return [...groups.values()];
+};
+
+const getRequestedShippingGroups = (items) => {
+  const groups = groupItemsByProvider(items);
+  return groups
+    .map((group) => ({
+      ...group,
+      preference: getProviderShippingPreference(group.key),
+    }))
+    .filter((group) => group.preference.requested);
+};
+
+const refreshTotals = () => {
+  const { itemsWrap, shippingTotalRow, subtotalLabel, shippingTotalLabel, totalLabel } = getCheckoutDom();
+  const shippingCost = currentShippingGroups.length * SHIPPING_FEE;
+  document.querySelectorAll("[data-checkout-shipping-item]").forEach((row) => row.remove());
+  currentShippingGroups.forEach((group) => {
+    if (!itemsWrap) return;
+    const row = document.createElement("div");
+    row.className = "ab-checkout-item";
+    row.dataset.checkoutShippingItem = "true";
+    row.innerHTML = `
+      <span>Envío a domicilio<small>${escapeHtml(group.provider)}</small></span>
+      <strong>$${formatPrice(SHIPPING_FEE)}</strong>
+    `;
+    itemsWrap.appendChild(row);
+  });
+  shippingTotalRow?.classList.toggle("ab-is-hidden", currentShippingGroups.length === 0);
+  if (subtotalLabel) subtotalLabel.textContent = `$${formatPrice(currentSubtotal)}`;
+  if (shippingTotalLabel) shippingTotalLabel.textContent = shippingCost ? `$${formatPrice(shippingCost)}` : "$0";
+  if (totalLabel) totalLabel.textContent = `$${formatPrice(currentSubtotal + shippingCost)}`;
+};
+
 /* Renderiza el resumen del pedido. */
 const renderSummary = async () => {
+  const { itemsWrap, emptyState, summary, form, totalLabel, shippingTotalRow, subtotalLabel, shippingTotalLabel } =
+    getCheckoutDom();
   if (!itemsWrap || !emptyState || !summary || !form || !totalLabel) return;
   const items = await getCart();
   itemsWrap.innerHTML = "";
@@ -55,6 +124,12 @@ const renderSummary = async () => {
     emptyState.style.display = "grid";
     summary.style.display = "none";
     form.style.display = "none";
+    currentSubtotal = 0;
+    currentShippingGroups = [];
+    shippingTotalRow?.classList.add("ab-is-hidden");
+    clearShippingPreference();
+    if (subtotalLabel) subtotalLabel.textContent = "$0";
+    if (shippingTotalLabel) shippingTotalLabel.textContent = "$0";
     totalLabel.textContent = "$0";
     return;
   }
@@ -70,21 +145,48 @@ const renderSummary = async () => {
     const price = Number(item.price_snapshot ?? 0);
     total += price * qty;
     const title = item.product?.title ?? item.product_id ?? "Producto";
+    const deliveryMethods = item.product?.delivery_methods ?? [];
+    const deliveryLabel = deliveryMethods.includes("envio")
+      ? deliveryMethods.includes("retiro")
+        ? "Retiro o envío"
+        : "Envío"
+      : "Retiro";
     const safeTitle = escapeHtml(title);
+    const safeDeliveryLabel = escapeHtml(deliveryLabel);
 
     const row = document.createElement("div");
     row.className = "ab-checkout-item";
     row.innerHTML = `
-      <span>${safeTitle} x ${qty}</span>
+      <span>${safeTitle} x ${qty}<small>${safeDeliveryLabel}</small></span>
       <strong>$${formatPrice(price * qty)}</strong>
     `;
     itemsWrap.appendChild(row);
   });
 
-  totalLabel.textContent = `$${formatPrice(total)}`;
+  currentSubtotal = total;
+  currentShippingGroups = getRequestedShippingGroups(items).filter((group) => group.items.every(itemSupportsShipping));
+  refreshTotals();
 };
 
-if (form && feedback) {
+const initCheckoutPage = () => {
+  const {
+    form,
+    feedback,
+    successNotice,
+    checkoutConfirmModal,
+    checkoutModalClose,
+    checkoutModalCancel,
+    checkoutModalConfirm,
+  } = getCheckoutDom();
+  if (!form || !feedback) return;
+
+  if (form.dataset.abCheckoutBound === "true") {
+    renderSummary();
+    preloadUser();
+    return;
+  }
+  form.dataset.abCheckoutBound = "true";
+
   const openCheckoutModal = () => {
     if (!checkoutConfirmModal) return;
     checkoutConfirmModal.classList.remove("ab-is-hidden");
@@ -117,11 +219,27 @@ if (form && feedback) {
     }));
 
     const total = orderItems.reduce((sum, item) => sum + (item.unit_price ?? 0) * (item.qty ?? 1), 0);
+    const requestedShippingGroups = getRequestedShippingGroups(items);
+    const shippingRequested = requestedShippingGroups.length > 0;
+    const shippingCost = requestedShippingGroups.length * SHIPPING_FEE;
+    const shippingAddressSummary = requestedShippingGroups
+      .map((group) => `${group.provider}: ${[group.preference.address, group.preference.city].filter(Boolean).join(", ")}`)
+      .join(" | ");
     const shipping = {
+      requested: shippingRequested,
+      cost: shippingCost,
       fullName: String(document.getElementById("full-name")?.value ?? "").trim(),
-      address: String(document.getElementById("address")?.value ?? "").trim(),
-      city: String(document.getElementById("city")?.value ?? "").trim(),
+      address: shippingRequested ? shippingAddressSummary : "",
+      city: shippingRequested ? "Por proveedor" : "",
       phone: String(document.getElementById("phone")?.value ?? "").trim(),
+      groups: requestedShippingGroups.map((group) => ({
+        provider_key: group.key,
+        provider: group.provider,
+        requested: true,
+        cost: SHIPPING_FEE,
+        address: group.preference.address,
+        city: group.preference.city,
+      })),
     };
     const buyerNote = String(document.getElementById("notes")?.value ?? "").trim().slice(0, 500);
 
@@ -152,7 +270,14 @@ if (form && feedback) {
       const newOrder = {
         id: `LOCAL-${Date.now()}`,
         created_at: new Date().toISOString(),
-        total_amount: total,
+        total_amount: total + shippingCost,
+        shipping_requested: shipping.requested,
+        shipping_cost: shippingCost,
+        shipping_status: shipping.requested ? "requested" : "pickup_pending",
+        shipping_full_name: shipping.fullName || "",
+        shipping_address: shipping.address || "",
+        shipping_city: shipping.city || "",
+        shipping_phone: shipping.phone || "",
         buyer_note: buyerNote || "",
         order_items: orderItems,
       };
@@ -164,6 +289,7 @@ if (form && feedback) {
     for (const item of items) {
       await removeFromCart(item.product_id);
     }
+    clearShippingPreference();
 
     /* UI de éxito y redirección. */
     if (form) form.classList.add("ab-is-hidden");
@@ -192,6 +318,18 @@ if (form && feedback) {
       return;
     }
 
+    const requestedShippingGroups = getRequestedShippingGroups(items);
+    for (const group of requestedShippingGroups) {
+      if (!group.items.every(itemSupportsShipping)) {
+        feedback.textContent = `Hay productos de ${group.provider} que no aceptan envío.`;
+        return;
+      }
+      if (!group.preference.address || !group.preference.city) {
+        feedback.textContent = `Volvé al carrito y completá dirección y ciudad para el envío de ${group.provider}.`;
+        return;
+      }
+    }
+
     const { data } = await supabase.auth.getSession();
     if (!data.session?.access_token) {
       window.location.href = "/login?returnTo=/finalizar-compra";
@@ -200,28 +338,45 @@ if (form && feedback) {
     await processCheckout();
   });
 
-  checkoutModalCancel?.addEventListener("click", () => {
+  const bindModalButton = (element, handler) => {
+    if (!(element instanceof HTMLElement)) return;
+    if (element.dataset.abCheckoutModalBound === "true") return;
+    element.dataset.abCheckoutModalBound = "true";
+    element.addEventListener("click", handler);
+  };
+
+  bindModalButton(checkoutModalCancel, () => {
     checkoutConfirmed = false;
     closeCheckoutModal();
   });
 
-  checkoutModalClose?.addEventListener("click", () => {
+  bindModalButton(checkoutModalClose, () => {
     checkoutConfirmed = false;
     closeCheckoutModal();
   });
 
-  checkoutModalConfirm?.addEventListener("click", () => {
+  bindModalButton(checkoutModalConfirm, () => {
     checkoutConfirmed = true;
     form.requestSubmit();
   });
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    if (checkoutConfirmModal?.classList.contains("ab-is-hidden")) return;
-    checkoutConfirmed = false;
-    closeCheckoutModal();
-  });
-}
+  if (!checkoutKeydownBound) {
+    checkoutKeydownBound = true;
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const { checkoutConfirmModal: currentModal } = getCheckoutDom();
+      if (currentModal?.classList.contains("ab-is-hidden")) return;
+      checkoutConfirmed = false;
+      const { checkoutConfirmModal: modal } = getCheckoutDom();
+      if (!modal) return;
+      modal.classList.add("ab-is-hidden");
+      modal.setAttribute("aria-hidden", "true");
+    });
+  }
+
+  renderSummary();
+  preloadUser();
+};
 
 /* Precarga datos del usuario en el formulario. */
 const preloadUser = async () => {
@@ -242,5 +397,9 @@ const preloadUser = async () => {
 };
 
 /* Inicialización. */
-renderSummary();
-preloadUser();
+initCheckoutPage();
+window.addEventListener("ab-shipping-preference-updated", renderSummary);
+document.addEventListener("ab-shipping-preference-updated", renderSummary);
+document.addEventListener("astro:page-load", initCheckoutPage);
+document.addEventListener("astro:after-swap", initCheckoutPage);
+window.addEventListener("pageshow", initCheckoutPage);

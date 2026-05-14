@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 /* Configuración de Mercado Pago desde variables de entorno. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+const SHIPPING_FEE = 5000;
 
 if (!accessToken) {
   throw new Error("Missing MERCADOPAGO_ACCESS_TOKEN.");
@@ -24,6 +25,14 @@ const sanitizeItems = (items) =>
       image: String(item.image ?? "").trim(),
     }))
     .filter((item) => item.id && item.name && item.price > 0);
+
+const normalizeDeliveryMethods = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+  return String(value ?? "")
+    .split(/[,+]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+};
 
 export const POST = async ({ request }) => {
   try {
@@ -53,7 +62,63 @@ export const POST = async ({ request }) => {
 
     /* Crea orden en base de datos para referencia interna. */
     const shipping = payload?.shipping ?? {};
-    const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const shippingGroups = Array.isArray(shipping?.groups) ? shipping.groups : [];
+    const requestedShippingGroups = shippingGroups
+      .map((group) => ({
+        providerKey: String(group?.provider_key ?? "").trim(),
+        address: String(group?.address ?? "").trim(),
+        city: String(group?.city ?? "").trim(),
+      }))
+      .filter((group) => group.providerKey);
+    const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
+    const productIds = [...new Set(items.map((item) => item.id).filter(Boolean))];
+    if (shippingRequested) {
+      const { data: products, error: productsError } = await supabaseAdmin
+        .from("products")
+        .select("id, seller_name, user_id, delivery_methods")
+        .in("id", productIds);
+
+      if (productsError) {
+        return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+      }
+
+      const productMap = new Map((products ?? []).map((product) => [String(product.id), product]));
+      if (requestedShippingGroups.length === 0) {
+        const allItemsSupportShipping = items.every((item) =>
+          normalizeDeliveryMethods(productMap.get(item.id)?.delivery_methods).includes("envio"),
+        );
+        if (!allItemsSupportShipping) {
+          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
+        }
+        if (!String(shipping?.address ?? "").trim() || !String(shipping?.city ?? "").trim()) {
+          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para el envío." }), { status: 400 });
+        }
+      }
+      for (const group of requestedShippingGroups) {
+        if (!group.address || !group.city) {
+          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para un proveedor." }), { status: 400 });
+        }
+        const providerItems = items.filter((item) => {
+          const product = productMap.get(item.id);
+          const providerKey = product?.user_id
+            ? `id:${String(product.user_id).trim()}`
+            : `name:${String(product?.seller_name ?? "").trim().toLowerCase() || "n/a"}`;
+          return providerKey === group.providerKey;
+        });
+        const providerSupportsShipping = providerItems.length > 0 && providerItems.every((item) =>
+          normalizeDeliveryMethods(productMap.get(item.id)?.delivery_methods).includes("envio"),
+        );
+        if (!providerSupportsShipping) {
+          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
+        }
+      }
+    }
+    const shippingCost = requestedShippingGroups.length
+      ? requestedShippingGroups.length * SHIPPING_FEE
+      : shippingRequested
+        ? SHIPPING_FEE
+        : 0;
+    const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0) + shippingCost;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
@@ -66,6 +131,9 @@ export const POST = async ({ request }) => {
         shipping_address: String(shipping.address ?? "").trim(),
         shipping_city: String(shipping.city ?? "").trim(),
         shipping_phone: String(shipping.phone ?? "").trim(),
+        shipping_requested: shippingRequested,
+        shipping_cost: shippingCost,
+        shipping_status: shippingRequested ? "requested" : "pickup_pending",
       })
       .select()
       .single();
@@ -103,13 +171,26 @@ export const POST = async ({ request }) => {
     const preference = new Preference(mpClient);
     const mpResponse = await preference.create({
       body: {
-        items: items.map((item) => ({
-          id: item.id,
-          title: item.name,
-          quantity: item.qty,
-          unit_price: item.price,
-          currency_id: "ARS",
-        })),
+        items: [
+          ...items.map((item) => ({
+            id: item.id,
+            title: item.name,
+            quantity: item.qty,
+            unit_price: item.price,
+            currency_id: "ARS",
+          })),
+          ...(shippingCost
+            ? [
+                {
+                  id: "shipping",
+                  title: "Envío a domicilio",
+                  quantity: 1,
+                  unit_price: shippingCost,
+                  currency_id: "ARS",
+                },
+              ]
+            : []),
+        ],
         external_reference: order.id,
         back_urls: {
           success: `${siteUrl}/compra-confirmada?status=approved&orderId=${order.id}`,

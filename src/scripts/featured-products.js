@@ -1,5 +1,3 @@
-const sections = Array.from(document.querySelectorAll("[data-featured-products]"));
-
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");
@@ -13,6 +11,17 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
+const getProductHref = (item) => {
+  const sellerUserId = String(item?.sellerUserId ?? "").trim();
+  const productId = String(item?.productId ?? "").trim();
+  if (productId) return `/producto/${encodeURIComponent(productId)}`;
+  if (sellerUserId) return `/proveedor-publico/${encodeURIComponent(sellerUserId)}`;
+  return "#";
+};
+
+const serializeDelivery = (value) =>
+  Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
+
 const renderFeaturedSection = (section, items) => {
   const status = section.querySelector("[data-featured-products-status]");
   const grid = section.querySelector("[data-featured-products-grid]");
@@ -23,6 +32,8 @@ const renderFeaturedSection = (section, items) => {
   if (!Array.isArray(items) || items.length === 0) {
     status.textContent = "";
     empty.classList.remove("ab-is-hidden");
+    section.dataset.featuredLoaded = "true";
+    document.dispatchEvent(new CustomEvent("ab-products-rendered"));
     return;
   }
 
@@ -30,9 +41,9 @@ const renderFeaturedSection = (section, items) => {
   status.textContent = "";
 
   items.forEach((item) => {
+    const href = getProductHref(item);
     const sellerUserId = String(item?.sellerUserId ?? "").trim();
     const productId = String(item?.productId ?? "").trim();
-    const href = productId ? `/producto/${encodeURIComponent(productId)}` : sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
     const card = document.createElement("article");
     card.className = "ab-provider-product-card";
     card.dataset.userId = sellerUserId;
@@ -42,8 +53,9 @@ const renderFeaturedSection = (section, items) => {
     card.dataset.image = String(item?.imageUrl ?? "/logo2.svg");
     card.dataset.provider = String(item?.sellerName ?? "Proveedor");
     card.dataset.currency = String(item?.currency ?? "ARS");
+    card.dataset.delivery = serializeDelivery(item?.deliveryMethods);
     card.innerHTML = `
-      <a href="${href}" class="ab-featured-card-link" ${sellerUserId ? "" : 'aria-disabled="true"'}>
+      <a href="${href}" class="ab-featured-card-link" ${sellerUserId || productId ? "" : 'aria-disabled="true"'}>
         <img
           class="ab-provider-product-card__image"
           src="${escapeHtml(item?.imageUrl ?? "/logo2.svg")}"
@@ -80,29 +92,65 @@ const renderFeaturedSection = (section, items) => {
     `;
     grid.appendChild(card);
   });
+
+  section.dataset.featuredLoaded = "true";
   document.dispatchEvent(new CustomEvent("ab-products-rendered"));
 };
 
-const loadFeaturedProducts = async () => {
-  if (sections.length === 0) return;
+const loadFeaturedSection = async (section) => {
+  const status = section.querySelector("[data-featured-products-status]");
+  const grid = section.querySelector("[data-featured-products-grid]");
+  if (!status || !grid) return;
+
+  if (section.dataset.featuredLoading === "true") return;
+  if (section.dataset.featuredLoaded === "true") {
+    document.dispatchEvent(new CustomEvent("ab-products-rendered"));
+    return;
+  }
+
+  if (grid.children.length > 0) {
+    section.dataset.featuredLoaded = "true";
+    document.dispatchEvent(new CustomEvent("ab-products-rendered"));
+    return;
+  }
+
+  section.dataset.featuredLoading = "true";
+  status.textContent = "Cargando destacados...";
+
+  const previousController = section.__abFeaturedController;
+  previousController?.abort();
+  const controller = new AbortController();
+  section.__abFeaturedController = controller;
+
   try {
-    const response = await fetch("/api/featured-products", { method: "GET" });
+    const response = await fetch("/api/featured-products", {
+      method: "GET",
+      signal: controller.signal,
+    });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      sections.forEach((section) => {
-        const status = section.querySelector("[data-featured-products-status]");
-        if (status) status.textContent = "No se pudieron cargar los productos destacados.";
-      });
+      status.textContent = "No se pudieron cargar los productos destacados.";
       return;
     }
-    const items = Array.isArray(payload?.items) ? payload.items : [];
-    sections.forEach((section) => renderFeaturedSection(section, items));
-  } catch {
-    sections.forEach((section) => {
-      const status = section.querySelector("[data-featured-products-status]");
-      if (status) status.textContent = "No se pudieron cargar los productos destacados.";
-    });
+    renderFeaturedSection(section, Array.isArray(payload?.items) ? payload.items : []);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    status.textContent = "No se pudieron cargar los productos destacados.";
+  } finally {
+    if (section.__abFeaturedController === controller) {
+      delete section.__abFeaturedController;
+      delete section.dataset.featuredLoading;
+    }
   }
 };
 
-loadFeaturedProducts();
+const initFeaturedProducts = () => {
+  document.querySelectorAll("[data-featured-products]").forEach((section) => {
+    loadFeaturedSection(section);
+  });
+};
+
+initFeaturedProducts();
+document.addEventListener("astro:page-load", initFeaturedProducts);
+document.addEventListener("astro:after-swap", initFeaturedProducts);
+window.addEventListener("pageshow", initFeaturedProducts);

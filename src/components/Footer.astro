@@ -6,21 +6,22 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
 ---
 
 <!-- Pie de página principal -->
-<footer class="footer">
+<footer class="footer" transition:name="ab-footer" transition:persist transition:animate="none">
   <div class="container">
     <div class="footer-content">
       <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
       <!-- Botón volver opcional -->
-      {showBack && (
-        <a
-          class="ab-cta-button footer-back"
-          href={resolvedBackHref}
-          data-ab-back={useHistoryBack ? "history" : "link"}
-          {...(backHref === "/mis-datos" ? { "data-astro-reload": true } : {})}
-        >
-          Volver
-        </a>
-      )}
+      <a
+        id="footer-back"
+        class="ab-cta-button footer-back"
+        href={resolvedBackHref}
+        data-ab-back={useHistoryBack ? "history" : "link"}
+        aria-hidden={showBack ? "false" : "true"}
+        tabindex={showBack ? "0" : "-1"}
+        hidden={!showBack}
+      >
+        Volver
+      </a>
     </div>
   </div>
 </footer>

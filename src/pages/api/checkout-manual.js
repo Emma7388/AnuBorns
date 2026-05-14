@@ -2,6 +2,8 @@
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
+const SHIPPING_FEE = 5000;
+
 /* Normaliza items y descarta valores inválidos. */
 const sanitizeItems = (items) =>
   items
@@ -16,6 +18,14 @@ const sanitizeBuyerNote = (value) => {
   const note = String(value ?? "").trim();
   if (!note) return "";
   return note.slice(0, 500);
+};
+
+const normalizeDeliveryMethods = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+  return String(value ?? "")
+    .split(/[,+]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
 };
 
 /** @type {import("astro").APIRoute} */
@@ -52,6 +62,16 @@ export const POST = async ({ request }) => {
     const payload = await request.json().catch(() => ({}));
     const items = sanitizeItems(Array.isArray(payload?.items) ? payload.items : []);
     const shipping = payload?.shipping ?? {};
+    const shippingGroups = Array.isArray(shipping?.groups) ? shipping.groups : [];
+    const requestedShippingGroups = shippingGroups
+      .map((group) => ({
+        providerKey: String(group?.provider_key ?? "").trim(),
+        provider: String(group?.provider ?? "").trim(),
+        address: String(group?.address ?? "").trim(),
+        city: String(group?.city ?? "").trim(),
+      }))
+      .filter((group) => group.providerKey);
+    const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
     const buyerNote = sanitizeBuyerNote(payload?.buyer_note);
 
     if (items.length === 0) {
@@ -61,7 +81,7 @@ export const POST = async ({ request }) => {
     const productIds = [...new Set(items.map((item) => item.product_id))];
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
-      .select("id, title, price, currency, seller_name, contact, user_id, image_url")
+      .select("id, title, price, currency, seller_name, contact, user_id, image_url, delivery_methods")
       .in("id", productIds);
 
     if (productsError) {
@@ -87,6 +107,7 @@ export const POST = async ({ request }) => {
         provider_user_id: String(product?.user_id ?? "").trim(),
         currency: String(product?.currency ?? "ARS").toUpperCase(),
         image: String(product?.image_url ?? "").trim(),
+        delivery_methods: normalizeDeliveryMethods(product?.delivery_methods),
       };
     });
 
@@ -102,8 +123,39 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No podes comprar tus propios productos." }), { status: 400 });
     }
 
+    if (shippingRequested) {
+      if (requestedShippingGroups.length === 0) {
+        const allItemsSupportShipping = serverItems.every((item) => item.delivery_methods.includes("envio"));
+        if (!allItemsSupportShipping) {
+          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
+        }
+        if (!String(shipping?.address ?? "").trim() || !String(shipping?.city ?? "").trim()) {
+          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para el envío." }), { status: 400 });
+        }
+      }
+      for (const group of requestedShippingGroups) {
+        if (!group.address || !group.city) {
+          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para un proveedor." }), { status: 400 });
+        }
+        const providerUserId = group.providerKey.startsWith("id:") ? group.providerKey.slice(3) : "";
+        const providerItems = serverItems.filter((item) =>
+          providerUserId
+            ? item.provider_user_id === providerUserId
+            : `name:${String(item.provider ?? "").trim().toLowerCase() || "n/a"}` === group.providerKey,
+        );
+        if (providerItems.length === 0 || providerItems.some((item) => !item.delivery_methods.includes("envio"))) {
+          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
+        }
+      }
+    }
+
     const orderCurrency = serverItems[0]?.currency || "ARS";
-    const totalAmount = serverItems.reduce((sum, item) => sum + item.unit_price * item.qty, 0);
+    const shippingCost = requestedShippingGroups.length
+      ? requestedShippingGroups.length * SHIPPING_FEE
+      : shippingRequested
+        ? SHIPPING_FEE
+        : 0;
+    const totalAmount = serverItems.reduce((sum, item) => sum + item.unit_price * item.qty, 0) + shippingCost;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
@@ -116,6 +168,9 @@ export const POST = async ({ request }) => {
         shipping_address: String(shipping?.address ?? "").trim() || null,
         shipping_city: String(shipping?.city ?? "").trim() || null,
         shipping_phone: String(shipping?.phone ?? "").trim() || null,
+        shipping_requested: shippingRequested,
+        shipping_cost: shippingCost,
+        shipping_status: shippingRequested ? "requested" : "pickup_pending",
         payment_status: "manual",
         payment_detail: buyerNote ? `manual_checkout|note:${buyerNote}` : "manual_checkout",
       })
@@ -148,11 +203,13 @@ export const POST = async ({ request }) => {
       user_id: userData.user.id,
       event: "manual_checkout_created",
       metadata: {
-        order_id: order.id,
-        items_count: orderItems.length,
-        total_amount: totalAmount,
-        currency: orderCurrency,
-      },
+              order_id: order.id,
+              items_count: orderItems.length,
+              total_amount: totalAmount,
+              currency: orderCurrency,
+              shipping_requested: shippingRequested,
+              shipping_cost: shippingCost,
+            },
       ip_address:
         request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
         request.headers.get("x-real-ip") ??

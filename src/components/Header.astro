@@ -3,7 +3,7 @@
 const { title = "" } = Astro.props;
 ---
 
-<header class="header" transition:persist>
+<header class="header" transition:name="ab-header" transition:persist transition:animate="none">
   <div class="container header-inner">
     <div class="brand-row">
       <!-- Marca / logo -->
@@ -84,7 +84,6 @@ const { title = "" } = Astro.props;
           class="nav-avatar"
           href="/mis-datos"
           aria-label="Ir a mis datos"
-          data-astro-reload
           data-ab-profile-link
         >
           <span id="sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
