@@ -1,5 +1,4 @@
 ---
-// @ts-nocheck
 // Layout base: HTML, metas, transiciones y utilidades globales.
 import { ClientRouter } from "astro:transitions";
 
@@ -22,7 +21,7 @@ const { title = "mvp-peach-six.vercel.app" } = Astro.props;
       }
     </script>
     <!-- Marca transiciones al volver del perfil -->
-    <script>
+    <script is:inline>
       try {
         if (sessionStorage.getItem("ab_profile_enter") === "1") {
           document.documentElement.classList.add("ab-profile-enter");
@@ -37,7 +36,7 @@ const { title = "mvp-peach-six.vercel.app" } = Astro.props;
   <body>
     <slot />
     <!-- Script global: transiciones y utilidades internas -->
-    <script>
+    <script is:inline>
       (() => {
         const PROFILE_ENTER_KEY = "ab_profile_enter";
         const BASE_ENHANCEMENTS_BOUND_KEY = "__abBaseEnhancementsBound";

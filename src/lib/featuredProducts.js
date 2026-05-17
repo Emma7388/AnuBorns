@@ -35,26 +35,7 @@ const runWithTimeout = async (query) => {
   }
 };
 
-export const getFeaturedProducts = async () => {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) {
-    return { items: [], error: "Servicio no disponible." };
-  }
-
-  const fromDate = new Date(Date.now() - DAYS_WINDOW * 24 * 60 * 60 * 1000).toISOString();
-  const { data: rows, error: rowsError } = await runWithTimeout(
-    supabaseAdmin
-      .from("order_items")
-      .select("product_id, qty, unit_price, orders!inner(created_at, status)")
-      .gte("orders.created_at", fromDate)
-      .in("orders.status", [...ALLOWED_ORDER_STATUSES])
-  );
-
-  if (rowsError) {
-    logSupabaseError("Order items query failed", rowsError);
-    return { items: [], error: "No se pudieron cargar destacados." };
-  }
-
+const aggregateSalesRows = (rows) => {
   const aggregate = new Map();
   (rows ?? []).forEach((row) => {
     const productId = String(row?.product_id ?? "").trim();
@@ -68,7 +49,10 @@ export const getFeaturedProducts = async () => {
     current.revenue += unitPrice * qty;
     aggregate.set(productId, current);
   });
+  return aggregate;
+};
 
+const buildItemsFromAggregate = async (supabaseAdmin, aggregate) => {
   const productIds = [...aggregate.keys()];
   if (productIds.length === 0) {
     return { items: [], error: "" };
@@ -115,4 +99,74 @@ export const getFeaturedProducts = async () => {
     .slice(0, MAX_ITEMS);
 
   return { items, error: "" };
+};
+
+const pickTopHistoricalProductPerSeller = (items) => {
+  const bySeller = new Map();
+  items.forEach((item) => {
+    const sellerKey = item.sellerUserId || item.sellerName || item.productId;
+    const current = bySeller.get(sellerKey);
+    if (
+      !current ||
+      item.soldQty > current.soldQty ||
+      (item.soldQty === current.soldQty && item.revenue > current.revenue)
+    ) {
+      bySeller.set(sellerKey, item);
+    }
+  });
+
+  return [...bySeller.values()]
+    .sort((a, b) => {
+      if (b.soldQty !== a.soldQty) return b.soldQty - a.soldQty;
+      return b.revenue - a.revenue;
+    })
+    .slice(0, MAX_ITEMS);
+};
+
+const getRecentFeaturedProducts = async (supabaseAdmin) => {
+  const fromDate = new Date(Date.now() - DAYS_WINDOW * 24 * 60 * 60 * 1000).toISOString();
+  const { data: rows, error: rowsError } = await runWithTimeout(
+    supabaseAdmin
+      .from("order_items")
+      .select("product_id, qty, unit_price, orders!inner(created_at, status)")
+      .gte("orders.created_at", fromDate)
+      .in("orders.status", [...ALLOWED_ORDER_STATUSES])
+  );
+
+  if (rowsError) {
+    logSupabaseError("Recent order items query failed", rowsError);
+    return { items: [], error: "No se pudieron cargar destacados." };
+  }
+
+  return buildItemsFromAggregate(supabaseAdmin, aggregateSalesRows(rows));
+};
+
+const getHistoricalFeaturedProductsBySeller = async (supabaseAdmin) => {
+  const { data: rows, error: rowsError } = await runWithTimeout(
+    supabaseAdmin
+      .from("order_items")
+      .select("product_id, qty, unit_price, orders!inner(status)")
+      .in("orders.status", [...ALLOWED_ORDER_STATUSES])
+  );
+
+  if (rowsError) {
+    logSupabaseError("Historical order items query failed", rowsError);
+    return { items: [], error: "No se pudieron cargar destacados." };
+  }
+
+  const result = await buildItemsFromAggregate(supabaseAdmin, aggregateSalesRows(rows));
+  if (result.error) return result;
+  return { items: pickTopHistoricalProductPerSeller(result.items), error: "" };
+};
+
+export const getFeaturedProducts = async () => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return { items: [], error: "Servicio no disponible." };
+  }
+
+  const recent = await getRecentFeaturedProducts(supabaseAdmin);
+  if (recent.error || recent.items.length > 0) return recent;
+
+  return getHistoricalFeaturedProductsBySeller(supabaseAdmin);
 };

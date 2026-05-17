@@ -8,17 +8,23 @@ const isBuy = mode === "buy";
 const isSell = mode === "sell";
 ---
 
-<section class:list={["ab-buy-switch", isSell && "ab-buy-switch--sell"]}>
+<section class:list={["ab-buy-switch", isSell && "ab-buy-switch--sell"]} data-buy-switch>
   <div class="ab-buy-switch__row">
     <div class="ab-buy-switch__item">
       {
         isBuy ? (
           <>
-            <button class="ab-buy-switch__trigger" type="button" aria-haspopup="true" aria-expanded="false">
+            <button
+              class="ab-buy-switch__trigger"
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              data-buy-switch-trigger
+            >
               Productos
               <span class="ab-buy-switch__dot ab-is-hidden" data-products-dot aria-hidden="true"></span>
             </button>
-            <div class="ab-buy-switch__menu" role="menu" aria-label="Categorías de productos">
+            <div class="ab-buy-switch__menu" role="menu" aria-label="Categorías de productos" data-buy-switch-menu>
               {categories.map((category) => (
                 <a
                   class="ab-buy-switch__menu-item"
@@ -101,8 +107,7 @@ const isSell = mode === "sell";
     z-index: 30;
   }
 
-  .ab-buy-switch__item:hover .ab-buy-switch__menu,
-  .ab-buy-switch__item:focus-within .ab-buy-switch__menu {
+  .ab-buy-switch__item.is-open .ab-buy-switch__menu {
     display: grid;
   }
 
@@ -169,5 +174,6 @@ const isSell = mode === "sell";
 </style>
 
 <script>
+  import "../scripts/action-switch.js";
   import "../scripts/product-category-notifications.js";
 </script>

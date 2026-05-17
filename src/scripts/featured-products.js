@@ -22,6 +22,136 @@ const getProductHref = (item) => {
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 
+const AUTOPLAY_MS = 4_200;
+
+const getFeaturedCards = (section) =>
+  Array.from(section.querySelectorAll("[data-featured-products-grid] > .ab-provider-product-card"));
+
+const createCarouselButton = (direction) => {
+  const button = document.createElement("button");
+  const isPrev = direction === "prev";
+  button.type = "button";
+  button.className = `ab-featured-products-nav ab-featured-products-nav--${direction}`;
+  button.setAttribute("aria-label", isPrev ? "Ver producto destacado anterior" : "Ver siguiente producto destacado");
+  button.setAttribute(isPrev ? "data-featured-products-prev" : "data-featured-products-next", "");
+  button.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="${isPrev ? "M15.5 5 8.5 12l7 7" : "m8.5 5 7 7-7 7"}"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ></path>
+    </svg>
+  `;
+  return button;
+};
+
+const ensureFeaturedCarouselMarkup = (section) => {
+  const grid = section.querySelector("[data-featured-products-grid]");
+  if (!grid) return;
+  section.classList.add("ab-featured-products-panel");
+  grid.classList.add("ab-featured-products-track");
+
+  let carousel = section.querySelector("[data-featured-products-carousel]");
+  if (!carousel) {
+    carousel = document.createElement("div");
+    carousel.className = "ab-featured-products-carousel";
+    carousel.dataset.featuredProductsCarousel = "";
+    grid.parentNode?.insertBefore(carousel, grid);
+    carousel.appendChild(grid);
+  }
+
+  if (!carousel.querySelector("[data-featured-products-prev]")) {
+    carousel.insertBefore(createCarouselButton("prev"), carousel.firstChild);
+  }
+  if (!carousel.querySelector("[data-featured-products-next]")) {
+    carousel.appendChild(createCarouselButton("next"));
+  }
+};
+
+const scrollFeaturedToIndex = (section, index) => {
+  const grid = section.querySelector("[data-featured-products-grid]");
+  const cards = getFeaturedCards(section);
+  if (!grid || cards.length === 0) return;
+  const safeIndex = ((index % cards.length) + cards.length) % cards.length;
+  grid.scrollTo({
+    left: cards[safeIndex].offsetLeft - grid.offsetLeft,
+    behavior: "smooth",
+  });
+};
+
+const getCurrentFeaturedIndex = (section) => {
+  const grid = section.querySelector("[data-featured-products-grid]");
+  const cards = getFeaturedCards(section);
+  if (!grid || cards.length === 0) return 0;
+  const scrollLeft = grid.scrollLeft;
+  return cards.reduce((closestIndex, card, index) => {
+    const currentDistance = Math.abs(cards[closestIndex].offsetLeft - grid.offsetLeft - scrollLeft);
+    const nextDistance = Math.abs(card.offsetLeft - grid.offsetLeft - scrollLeft);
+    return nextDistance < currentDistance ? index : closestIndex;
+  }, 0);
+};
+
+const setFeaturedCarouselControls = (section) => {
+  const cards = getFeaturedCards(section);
+  const shouldHide = cards.length <= 1;
+  section.querySelectorAll("[data-featured-products-prev], [data-featured-products-next]").forEach((button) => {
+    button.classList.toggle("ab-is-hidden", shouldHide);
+    button.disabled = shouldHide;
+  });
+};
+
+const stopFeaturedAutoplay = (section) => {
+  if (!section.__abFeaturedAutoplay) return;
+  window.clearInterval(section.__abFeaturedAutoplay);
+  delete section.__abFeaturedAutoplay;
+};
+
+const startFeaturedAutoplay = (section) => {
+  stopFeaturedAutoplay(section);
+  const cards = getFeaturedCards(section);
+  if (cards.length <= 1 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  section.__abFeaturedAutoplay = window.setInterval(() => {
+    if (section.matches(":hover") || section.contains(document.activeElement)) return;
+    scrollFeaturedToIndex(section, getCurrentFeaturedIndex(section) + 1);
+  }, AUTOPLAY_MS);
+};
+
+const initFeaturedCarousel = (section) => {
+  ensureFeaturedCarouselMarkup(section);
+  const grid = section.querySelector("[data-featured-products-grid]");
+  const prev = section.querySelector("[data-featured-products-prev]");
+  const next = section.querySelector("[data-featured-products-next]");
+  if (!grid || !prev || !next) return;
+
+  setFeaturedCarouselControls(section);
+
+  if (section.dataset.featuredCarouselBound !== "true") {
+    prev.addEventListener("click", () => {
+      scrollFeaturedToIndex(section, getCurrentFeaturedIndex(section) - 1);
+      startFeaturedAutoplay(section);
+    });
+    next.addEventListener("click", () => {
+      scrollFeaturedToIndex(section, getCurrentFeaturedIndex(section) + 1);
+      startFeaturedAutoplay(section);
+    });
+    grid.addEventListener("scroll", () => {
+      window.clearTimeout(section.__abFeaturedScrollTimer);
+      section.__abFeaturedScrollTimer = window.setTimeout(() => startFeaturedAutoplay(section), AUTOPLAY_MS);
+    });
+    section.addEventListener("pointerenter", () => stopFeaturedAutoplay(section));
+    section.addEventListener("pointerleave", () => startFeaturedAutoplay(section));
+    section.addEventListener("focusin", () => stopFeaturedAutoplay(section));
+    section.addEventListener("focusout", () => startFeaturedAutoplay(section));
+    section.dataset.featuredCarouselBound = "true";
+  }
+
+  startFeaturedAutoplay(section);
+};
+
 const renderFeaturedSection = (section, items) => {
   const status = section.querySelector("[data-featured-products-status]");
   const grid = section.querySelector("[data-featured-products-grid]");
@@ -33,6 +163,7 @@ const renderFeaturedSection = (section, items) => {
     status.textContent = "";
     empty.classList.remove("ab-is-hidden");
     section.dataset.featuredLoaded = "true";
+    initFeaturedCarousel(section);
     document.dispatchEvent(new CustomEvent("ab-products-rendered"));
     return;
   }
@@ -94,6 +225,7 @@ const renderFeaturedSection = (section, items) => {
   });
 
   section.dataset.featuredLoaded = "true";
+  initFeaturedCarousel(section);
   document.dispatchEvent(new CustomEvent("ab-products-rendered"));
 };
 
@@ -104,12 +236,14 @@ const loadFeaturedSection = async (section) => {
 
   if (section.dataset.featuredLoading === "true") return;
   if (section.dataset.featuredLoaded === "true") {
+    initFeaturedCarousel(section);
     document.dispatchEvent(new CustomEvent("ab-products-rendered"));
     return;
   }
 
   if (grid.children.length > 0) {
     section.dataset.featuredLoaded = "true";
+    initFeaturedCarousel(section);
     document.dispatchEvent(new CustomEvent("ab-products-rendered"));
     return;
   }
@@ -147,6 +281,7 @@ const loadFeaturedSection = async (section) => {
 const initFeaturedProducts = () => {
   document.querySelectorAll("[data-featured-products]").forEach((section) => {
     loadFeaturedSection(section);
+    initFeaturedCarousel(section);
   });
 };
 

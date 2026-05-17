@@ -47,9 +47,10 @@ const showWelcomeModal = (name) =>
     modal.setAttribute("aria-modal", "true");
     modal.innerHTML = `
       <div class="ab-orders-modal__backdrop"></div>
-      <div class="ab-orders-modal__panel" role="document">
-        <h2 style="font-size: 1.65rem;">Bienvenido</h2>
-        <p style="font-size: 1.65rem; font-weight: 700; color: var(--color-text);">Bienvenido, ${safeName}</p>
+      <div class="ab-orders-modal__panel" role="document" style="text-align: center; align-items: center;">
+        <div style="font-size: 2.5rem; line-height: 1;" aria-hidden="true">😊</div>
+        <h2 style="font-size: 1.65rem; margin: 0;">Hola, ${safeName}</h2>
+        <p style="margin: 0; color: var(--color-text-muted);">Qué bueno verte de nuevo.</p>
       </div>
     `;
     document.body.appendChild(modal);

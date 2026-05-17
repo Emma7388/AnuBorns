@@ -7,6 +7,8 @@ import FeaturedProductsSection from "../components/FeaturedProductsSection.astro
 ---
 
 <MainLayout title="Comprá">
-  <ActionSwitch mode="buy" categories={categories} />
-  <FeaturedProductsSection />
+  <div class="ab-main-choice-page">
+    <ActionSwitch mode="buy" categories={categories} />
+    <FeaturedProductsSection />
+  </div>
 </MainLayout>

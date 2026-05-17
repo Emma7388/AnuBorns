@@ -25,65 +25,87 @@ const serializeDelivery = (value) =>
 ---
 
 <section
-  class="ab-dark-panel ab-provider-products-panel"
+  class="ab-dark-panel ab-provider-products-panel ab-featured-products-panel"
   data-featured-products
   data-featured-loaded={isLoaded}
 >
   <h2>{title}</h2>
   <p class="ab-muted-text" data-featured-products-status>{error}</p>
-  <div class="ab-provider-products-grid" data-featured-products-grid>
-    {items.map((item) => (
-      <article
-        class="ab-provider-product-card"
-        data-user-id={item.sellerUserId}
-        data-cart-id={item.productId}
-        data-price={item.price}
-        data-title={item.title}
-        data-image={item.imageUrl}
-        data-provider={item.sellerName}
-        data-currency={item.currency}
-        data-delivery={serializeDelivery(item.deliveryMethods)}
-      >
-        <a
-          href={getProductHref(item)}
-          class="ab-featured-card-link"
-          aria-disabled={item.productId || item.sellerUserId ? null : "true"}
+  <div class="ab-featured-products-carousel" data-featured-products-carousel>
+    <button
+      type="button"
+      class="ab-featured-products-nav ab-featured-products-nav--prev"
+      aria-label="Ver producto destacado anterior"
+      data-featured-products-prev
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M15.5 5 8.5 12l7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </button>
+    <div class="ab-provider-products-grid ab-featured-products-track" data-featured-products-grid>
+      {items.map((item) => (
+        <article
+          class="ab-provider-product-card"
+          data-user-id={item.sellerUserId}
+          data-cart-id={item.productId}
+          data-price={item.price}
+          data-title={item.title}
+          data-image={item.imageUrl}
+          data-provider={item.sellerName}
+          data-currency={item.currency}
+          data-delivery={serializeDelivery(item.deliveryMethods)}
         >
-          <img
-            class="ab-provider-product-card__image"
-            src={item.imageUrl}
-            alt={item.title || "Producto"}
-            loading="lazy"
-          />
-          <div class="ab-provider-product-card__meta">
-            <div>
-              <p class="ab-provider-product-card__label">Destacado</p>
-              <p class="ab-provider-product-card__code">{item.sellerName || "Proveedor"}</p>
+          <a
+            href={getProductHref(item)}
+            class="ab-featured-card-link"
+            aria-disabled={item.productId || item.sellerUserId ? null : "true"}
+          >
+            <img
+              class="ab-provider-product-card__image"
+              src={item.imageUrl}
+              alt={item.title || "Producto"}
+              loading="lazy"
+            />
+            <div class="ab-provider-product-card__meta">
+              <div>
+                <p class="ab-provider-product-card__label">Destacado</p>
+                <p class="ab-provider-product-card__code">{item.sellerName || "Proveedor"}</p>
+              </div>
+              <p class="ab-provider-product-card__price">
+                ${formatPrice(item.price)} <span>{item.currency || "ARS"}</span>
+              </p>
             </div>
-            <p class="ab-provider-product-card__price">
-              ${formatPrice(item.price)} <span>{item.currency || "ARS"}</span>
+            <h2>{item.title || "Producto"}</h2>
+            <p class="ab-provider-product-card__description">
+              {item.description || "Sin descripción"}
             </p>
-          </div>
-          <h2>{item.title || "Producto"}</h2>
-          <p class="ab-provider-product-card__description">
-            {item.description || "Sin descripción"}
-          </p>
-        </a>
-        <button
-          type="button"
-          class="ab-provider-product-card__add"
-          aria-label="Agregar al carrito"
-          title="Agregar al carrito"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
-              fill="currentColor"
-            ></path>
-          </svg>
-        </button>
-      </article>
-    ))}
+          </a>
+          <button
+            type="button"
+            class="ab-provider-product-card__add"
+            aria-label="Agregar al carrito"
+            title="Agregar al carrito"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
+                fill="currentColor"
+              ></path>
+            </svg>
+          </button>
+        </article>
+      ))}
+    </div>
+    <button
+      type="button"
+      class="ab-featured-products-nav ab-featured-products-nav--next"
+      aria-label="Ver siguiente producto destacado"
+      data-featured-products-next
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="m8.5 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </button>
   </div>
   <div class:list={["ab-cart-empty", { "ab-is-hidden": items.length > 0 || error }] } data-featured-products-empty>
     <p>Aún no hay productos destacados para mostrar.</p>

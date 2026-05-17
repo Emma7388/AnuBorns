@@ -124,14 +124,13 @@ const persistProviderShippingForm = (section) => {
   const providerKey = section.dataset.providerKey;
   if (!providerKey) return;
   const requestedInput = section.querySelector("[data-shipping-requested]");
-  const addressInput = section.querySelector("[data-shipping-address]");
-  const cityInput = section.querySelector("[data-shipping-city]");
   const provider = section.dataset.providerName ?? "";
+  const previousPreference = getProviderShippingPreference(providerKey);
   setProviderShippingPreference(providerKey, {
     provider,
     requested: requestedInput instanceof HTMLInputElement && requestedInput.checked,
-    address: addressInput instanceof HTMLInputElement ? addressInput.value : "",
-    city: cityInput instanceof HTMLInputElement ? cityInput.value : "",
+    address: profileShippingAddress || previousPreference.address,
+    city: profileShippingCity || previousPreference.city,
   });
 };
 
@@ -179,8 +178,10 @@ const renderCart = async () => {
     const safeGroupProvider = escapeHtml(group.provider);
     const canRequestProviderShipping = group.items.every(itemSupportsShipping);
     const shippingPreference = getDisplayShippingPreference(group.key);
-    const safeAddress = escapeHtml(shippingPreference.address);
-    const safeCity = escapeHtml(shippingPreference.city);
+    const profileShippingReady = Boolean(profileShippingAddress && profileShippingCity);
+    const hasProviderShipping = canRequestProviderShipping && shippingPreference.requested;
+    const shippingPrefix = hasProviderShipping ? "Envío + " : "";
+    const displayedSubtotal = group.subtotal + (hasProviderShipping ? SHIPPING_FEE : 0);
     const section = document.createElement("section");
     section.className = "ab-cart-provider-group";
     section.dataset.providerKey = group.key;
@@ -188,7 +189,7 @@ const renderCart = async () => {
     section.innerHTML = `
       <div class="ab-cart-provider-group__header">
         <h2>${safeGroupProvider}</h2>
-        <p>${group.items.length} ${group.items.length === 1 ? "producto" : "productos"} · Subtotal: <strong>$${formatPrice(group.subtotal)}</strong></p>
+        <p>${shippingPrefix}${group.items.length} ${group.items.length === 1 ? "producto" : "productos"} · Subtotal: <strong>$${formatPrice(displayedSubtotal)}</strong></p>
       </div>
       <div class="ab-cart-provider-group__items"></div>
       <div class="ab-checkout-shipping ab-cart-provider-shipping">
@@ -200,14 +201,13 @@ const renderCart = async () => {
                 Solicitar envío a domicilio para ${safeGroupProvider} (+$${formatPrice(SHIPPING_FEE)})
               </label>
               <p class="ab-muted-text">
-                El envío se aplica solo a los productos de este proveedor.
+                El envío se aplica solo a los productos de este proveedor y usa la dirección guardada en tu perfil.
               </p>
-              <div class="ab-checkout-shipping__fields ${shippingPreference.requested ? "" : "ab-is-hidden"}">
-                <label>Dirección de envío</label>
-                <input data-shipping-address type="text" value="${safeAddress}" placeholder="Ej: San Martín 123" ${shippingPreference.requested ? "required" : ""} />
-                <label>Ciudad</label>
-                <input data-shipping-city type="text" value="${safeCity}" placeholder="Ej: Campana" ${shippingPreference.requested ? "required" : ""} />
-              </div>
+              ${
+                profileShippingReady
+                  ? ""
+                  : `<p class="ab-muted-text">Completá dirección y ciudad en Mis datos para solicitar envío.</p>`
+              }
             `
             : `<p class="ab-muted-text">Este proveedor tiene productos que no aceptan envío.</p>`
         }
@@ -339,7 +339,7 @@ const initCartPage = () => {
         return;
       }
       if (!preference.address || !preference.city) {
-        feedback.textContent = `Completá dirección y ciudad para el envío de ${group.provider}.`;
+        feedback.textContent = "Completá dirección y ciudad en Mis datos para solicitar envío.";
         return;
       }
     }
@@ -355,15 +355,6 @@ const initCartPage = () => {
     if (target.matches("[data-shipping-requested]")) {
       await renderCart();
     }
-  });
-
-  itemsWrap.addEventListener("input", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    if (!target.matches("[data-shipping-address], [data-shipping-city]")) return;
-    const group = target.closest(".ab-cart-provider-group");
-    if (!group) return;
-    persistProviderShippingForm(group);
   });
 
   const bindModalButton = (element, handler) => {
