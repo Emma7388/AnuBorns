@@ -3,19 +3,124 @@ import { supabase } from "../lib/supabaseClient";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
 
 /* Referencias DOM. */
-const soldProductsList = document.getElementById("my-sold-products-list");
-const soldProductsEmpty = document.getElementById("my-sold-products-empty");
-const soldProductsStatus = document.getElementById("my-sold-products-status");
-const soldProductsDispatchFilter = document.getElementById("my-sold-products-dispatch-filter");
-const productsGrid = document.getElementById("my-products-grid");
-const productsEmpty = document.getElementById("my-products-empty");
-const deleteModal = document.getElementById("sales-delete-modal");
-const deleteModalClose = document.querySelector("[data-sales-modal-close]");
-const deleteModalCancel = document.querySelector("[data-sales-modal-cancel]");
-const deleteModalConfirm = document.querySelector("[data-sales-modal-confirm]");
+let soldProductsList = document.getElementById("my-sold-products-list");
+let soldProductsEmpty = document.getElementById("my-sold-products-empty");
+let soldProductsStatus = document.getElementById("my-sold-products-status");
+let soldProductsDispatchFilter = document.getElementById("my-sold-products-dispatch-filter");
+let productsGrid = document.getElementById("my-products-grid");
+let productsEmpty = document.getElementById("my-products-empty");
+let deleteModal = document.getElementById("sales-delete-modal");
+let deleteModalClose = document.querySelector("[data-sales-modal-close]");
+let deleteModalCancel = document.querySelector("[data-sales-modal-cancel]");
+let deleteModalConfirm = document.querySelector("[data-sales-modal-confirm]");
 let currentUserId = "";
-let productsEventsBound = false;
-let modalEventsBound = false;
+let modalKeyDownBound = false;
+
+const refreshMySalesNodes = () => {
+  soldProductsList = document.getElementById("my-sold-products-list");
+  soldProductsEmpty = document.getElementById("my-sold-products-empty");
+  soldProductsStatus = document.getElementById("my-sold-products-status");
+  soldProductsDispatchFilter = document.getElementById("my-sold-products-dispatch-filter");
+  productsGrid = document.getElementById("my-products-grid");
+  productsEmpty = document.getElementById("my-products-empty");
+  deleteModal = document.getElementById("sales-delete-modal");
+  deleteModalClose = document.querySelector("[data-sales-modal-close]");
+  deleteModalCancel = document.querySelector("[data-sales-modal-cancel]");
+  deleteModalConfirm = document.querySelector("[data-sales-modal-confirm]");
+};
+
+const bindMySalesEvents = () => {
+  refreshMySalesNodes();
+  if (productsGrid && productsGrid.dataset.abMySalesProductsBound !== "true") {
+    productsGrid.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-delete-product]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const productId = button.dataset.deleteProduct ?? "";
+      if (!productId) return;
+      openDeleteModal(productId, button);
+    });
+    productsGrid.dataset.abMySalesProductsBound = "true";
+  }
+
+  if (soldProductsList && soldProductsList.dataset.dispatchBound !== "1") {
+    soldProductsList.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-dispatch-sale]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const orderId = String(button.dataset.dispatchSale ?? "").trim();
+      const productId = String(button.dataset.dispatchProduct ?? "").trim();
+      const nextStatus = String(button.dataset.nextFulfillmentStatus ?? "").trim();
+      if (!orderId || !productId) return;
+      if (button.disabled) return;
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      const result = await markSaleDispatchOnServer({ orderId, productId, status: nextStatus });
+      button.removeAttribute("aria-busy");
+      if (!result.ok) {
+        button.disabled = false;
+        if (soldProductsStatus) soldProductsStatus.textContent = result.error;
+        return;
+      }
+      if (soldProductsStatus) soldProductsStatus.textContent = "";
+      invalidateSalesSummaryCache();
+      lastSoldProductsSignature = "";
+      await loadSoldProducts();
+    });
+    soldProductsList.dataset.dispatchBound = "1";
+  }
+
+  if (!soldProductsResizeBound) {
+    window.addEventListener("resize", scheduleSoldProductsScrollWindow);
+    soldProductsResizeBound = true;
+  }
+
+  if (soldProductsDispatchFilter instanceof HTMLInputElement && !soldProductsFilterBound) {
+    soldProductsDispatchFilter.addEventListener("change", () => {
+      applySoldProductsDispatchFilter();
+    });
+    soldProductsFilterBound = true;
+  }
+
+  if (deleteModalCancel && deleteModalCancel.dataset.abMySalesModalBound !== "true") {
+    deleteModalCancel.addEventListener("click", closeDeleteModal);
+    deleteModalCancel.dataset.abMySalesModalBound = "true";
+  }
+
+  if (deleteModalClose && deleteModalClose.dataset.abMySalesModalBound !== "true") {
+    deleteModalClose.addEventListener("click", closeDeleteModal);
+    deleteModalClose.dataset.abMySalesModalBound = "true";
+  }
+
+  if (deleteModalConfirm && deleteModalConfirm.dataset.abMySalesModalBound !== "true") {
+    deleteModalConfirm.addEventListener("click", async () => {
+      const productId = pendingDeleteProductId;
+      if (!productId) return;
+      if (deleteModalConfirm instanceof HTMLButtonElement) {
+        deleteModalConfirm.disabled = true;
+        deleteModalConfirm.setAttribute("aria-busy", "true");
+      }
+      await deletePublishedProduct(productId, pendingDeleteTrigger);
+      if (deleteModalConfirm instanceof HTMLButtonElement) {
+        deleteModalConfirm.disabled = false;
+        deleteModalConfirm.removeAttribute("aria-busy");
+      }
+      closeDeleteModal();
+    });
+    deleteModalConfirm.dataset.abMySalesModalBound = "true";
+  }
+
+  if (!modalKeyDownBound) {
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (deleteModal?.classList.contains("ab-is-hidden")) return;
+      closeDeleteModal();
+    });
+    modalKeyDownBound = true;
+  }
+};
 let pendingDeleteProductId = "";
 let pendingDeleteTrigger = null;
 let salesLoadInFlight = false;
@@ -127,6 +232,7 @@ const getLatestSaleCursor = (items) => {
 };
 
 const showUrgentSaleModal = ({ title, message }) => {
+  const lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const modal = document.createElement("div");
   modal.className = "ab-orders-modal";
   modal.setAttribute("role", "dialog");
@@ -143,6 +249,13 @@ const showUrgentSaleModal = ({ title, message }) => {
   `;
 
   const close = () => {
+    if (modal.contains(document.activeElement)) {
+      if (lastTrigger instanceof HTMLElement && document.contains(lastTrigger)) {
+        lastTrigger.focus();
+      } else if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
     modal.remove();
   };
 
@@ -607,6 +720,13 @@ const openDeleteModal = (productId, triggerButton) => {
 
 const closeDeleteModal = () => {
   if (!deleteModal) return;
+  if (deleteModal.contains(document.activeElement)) {
+    if (pendingDeleteTrigger instanceof HTMLElement) {
+      pendingDeleteTrigger.focus();
+    } else if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
   pendingDeleteProductId = "";
   pendingDeleteTrigger = null;
   deleteModal.classList.add("ab-is-hidden");
@@ -747,87 +867,12 @@ const loadMyProducts = async () => {
 
 /* Inicialización y hooks de navegación. */
 const initMySalesProducts = () => {
+  refreshMySalesNodes();
+  bindMySalesEvents();
+
   if (!isSalesPageActive()) {
     void teardownSalesRealtime();
     return;
-  }
-
-  if (productsGrid && !productsEventsBound) {
-    productsGrid.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const button = target.closest("[data-delete-product]");
-      if (!(button instanceof HTMLButtonElement)) return;
-      const productId = button.dataset.deleteProduct ?? "";
-      if (!productId) return;
-      openDeleteModal(productId, button);
-    });
-    productsEventsBound = true;
-  }
-
-  if (soldProductsList && !soldProductsList.dataset.dispatchBound) {
-    soldProductsList.addEventListener("click", async (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const button = target.closest("[data-dispatch-sale]");
-      if (!(button instanceof HTMLButtonElement)) return;
-      const orderId = String(button.dataset.dispatchSale ?? "").trim();
-      const productId = String(button.dataset.dispatchProduct ?? "").trim();
-      const nextStatus = String(button.dataset.nextFulfillmentStatus ?? "").trim();
-      if (!orderId || !productId) return;
-      if (button.disabled) return;
-      button.disabled = true;
-      button.setAttribute("aria-busy", "true");
-      const result = await markSaleDispatchOnServer({ orderId, productId, status: nextStatus });
-      button.removeAttribute("aria-busy");
-      if (!result.ok) {
-        button.disabled = false;
-        if (soldProductsStatus) soldProductsStatus.textContent = result.error;
-        return;
-      }
-      if (soldProductsStatus) soldProductsStatus.textContent = "";
-      invalidateSalesSummaryCache();
-      lastSoldProductsSignature = "";
-      await loadSoldProducts();
-    });
-    soldProductsList.dataset.dispatchBound = "1";
-  }
-
-  if (!soldProductsResizeBound) {
-    window.addEventListener("resize", scheduleSoldProductsScrollWindow);
-    soldProductsResizeBound = true;
-  }
-
-  if (soldProductsDispatchFilter instanceof HTMLInputElement && !soldProductsFilterBound) {
-    soldProductsDispatchFilter.addEventListener("change", () => {
-      applySoldProductsDispatchFilter();
-    });
-    soldProductsFilterBound = true;
-  }
-
-  if (!modalEventsBound) {
-    deleteModalCancel?.addEventListener("click", closeDeleteModal);
-    deleteModalClose?.addEventListener("click", closeDeleteModal);
-    deleteModalConfirm?.addEventListener("click", async () => {
-      const productId = pendingDeleteProductId;
-      if (!productId) return;
-      if (deleteModalConfirm instanceof HTMLButtonElement) {
-        deleteModalConfirm.disabled = true;
-        deleteModalConfirm.setAttribute("aria-busy", "true");
-      }
-      await deletePublishedProduct(productId, pendingDeleteTrigger);
-      if (deleteModalConfirm instanceof HTMLButtonElement) {
-        deleteModalConfirm.disabled = false;
-        deleteModalConfirm.removeAttribute("aria-busy");
-      }
-      closeDeleteModal();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      if (deleteModal?.classList.contains("ab-is-hidden")) return;
-      closeDeleteModal();
-    });
-    modalEventsBound = true;
   }
 
   loadMyProducts();

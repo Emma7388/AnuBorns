@@ -26,11 +26,10 @@ import MainLayout from "../layouts/MainLayout.astro";
         TOTAL: <strong id="cart-total">$0</strong>
       </p>
       <div class="ab-actions">
-        <a class="ab-cta-button" href="/mis-compras">Ver mis compras</a>
-        <button id="cart-checkout" class="ab-cta-button" type="button">
+        <button id="cart-checkout" class="ab-cta-button ab-cart-action ab-cart-action--checkout" type="button">
           FINALIZAR COMPRA
         </button>
-        <button id="cart-clear" type="button">Vaciar carrito</button>
+        <button id="cart-clear" class="ab-cart-action ab-cart-action--clear" type="button">Vaciar carrito</button>
       </div>
       <p id="cart-feedback" class="ab-muted-text" aria-live="polite"></p>
     </div>
@@ -49,10 +48,10 @@ import MainLayout from "../layouts/MainLayout.astro";
       <h2 id="cart-remove-title">Quitar producto</h2>
       <p>¿Seguro que querés quitar este producto del carrito?</p>
       <div class="ab-orders-modal__actions">
-        <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-cart-modal-cancel>
+        <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost ab-cart-action ab-cart-action--clear" data-cart-modal-cancel>
           Cancelar
         </button>
-        <button type="button" class="ab-orders-delete-btn" data-cart-modal-confirm>
+        <button type="button" class="ab-orders-delete-btn ab-cart-action ab-cart-action--checkout" data-cart-modal-confirm>
           Sí, quitar
         </button>
       </div>

@@ -27,8 +27,8 @@ import MainLayout from "../layouts/MainLayout.astro";
       <input id="email" name="email" type="email" placeholder="tu@email.com" required />
       <p class="ab-form-help">Usamos tu email para tu cuenta y para avisos importantes.</p>
 
-      <label for="phone">Teléfono</label>
-      <input id="phone" name="phone" type="tel" placeholder="Ej: 11 2345 6789" />
+      <label for="phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
+      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input placeholder="Ej: 1123456789" />
 
       <label for="dni">DNI</label>
       <input id="dni" name="dni" type="text" placeholder="Ej: 12345678" />

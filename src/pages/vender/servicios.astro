@@ -39,8 +39,8 @@ import { categories } from "../../data/categories";
       <label for="availability">Disponibilidad</label>
       <input id="availability" name="availability" type="text" placeholder="Ej: Lun a sáb de 9 a 18" />
 
-      <label for="contact">Contacto</label>
-      <input id="contact" name="contact" type="text" placeholder="Teléfono o WhatsApp" />
+      <label for="contact">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
+      <input id="contact" name="contact" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input placeholder="Ej: 1123456789" />
 
       <a
         class="ab-cta-button"

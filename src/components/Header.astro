@@ -5,18 +5,20 @@ const { title = "" } = Astro.props;
 
 <header class="header" transition:name="ab-header" transition:persist transition:animate="none">
   <div class="container header-inner">
-    <div class="brand-row">
+    <div class="brand-row header-zone header-zone--brand">
       <!-- Marca / logo -->
-      <a href="/" class="logo">Desoluciones</a>
+      <a href="/" class="logo" data-astro-reload aria-label="Ir al inicio">
+        <img src="/Logo_Final.webp" alt="Desoluciones.com" />
+      </a>
+    </div>
 
-      <!-- Título de página (inyectado desde MainLayout) -->
-      <div id="ab-header-page-title" class="ab-header-page-title" aria-live="polite">
-        {title && <h1>{title}</h1>}
-      </div>
+    <!-- Título de página (inyectado desde MainLayout) -->
+    <div id="ab-header-page-title" class="ab-header-page-title header-zone header-zone--title" aria-live="polite">
+      {title && <h1><span>{title}</span></h1>}
     </div>
 
     <!-- Navegación superior -->
-    <nav class="nav">
+    <nav class="nav header-zone header-zone--nav">
       <button
         class="theme-toggle"
         type="button"
@@ -25,41 +27,27 @@ const { title = "" } = Astro.props;
         aria-pressed="false"
       >
         <span class="theme-toggle__icons" aria-hidden="true">
-          <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" focusable="false">
-            <path
-              d="M12 4.5a1 1 0 0 1 1 1v1.1a1 1 0 1 1-2 0V5.5a1 1 0 0 1 1-1zm0 12.9a1 1 0 0 1 1 1v1.1a1 1 0 1 1-2 0v-1.1a1 1 0 0 1 1-1zM6.7 6.1a1 1 0 0 1 1.4 0l.8.8A1 1 0 1 1 7.5 8.3l-.8-.8a1 1 0 0 1 0-1.4zm8.4 8.4a1 1 0 0 1 1.4 0l.8.8a1 1 0 0 1-1.4 1.4l-.8-.8a1 1 0 0 1 0-1.4zM4.5 12a1 1 0 0 1 1-1h1.1a1 1 0 1 1 0 2H5.5a1 1 0 0 1-1-1zm12.9 0a1 1 0 0 1 1-1h1.1a1 1 0 1 1 0 2h-1.1a1 1 0 0 1-1-1zM6.7 17.9a1 1 0 0 1 0-1.4l.8-.8a1 1 0 0 1 1.4 1.4l-.8.8a1 1 0 0 1-1.4 0zm8.4-8.4a1 1 0 0 1 0-1.4l.8-.8a1 1 0 1 1 1.4 1.4l-.8.8a1 1 0 0 1-1.4 0zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"
-              fill="currentColor"
-            ></path>
-          </svg>
-          <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" focusable="false">
-            <path
-              d="M14.6 3.2a1 1 0 0 1 .9 1.5 7.3 7.3 0 0 0 8.8 10.6 1 1 0 0 1 1.3 1.2A10 10 0 1 1 13.4 2a1 1 0 0 1 1.2 1.2z"
-              fill="currentColor"
-            ></path>
-          </svg>
+          <img class="theme-toggle__icon theme-toggle__icon--sun" src="/icons/claro.svg" alt="" />
+          <img class="theme-toggle__icon theme-toggle__icon--moon" src="/icons/oscuro.svg" alt="" />
         </span>
         <span class="theme-toggle__label ab-is-hidden" data-theme-label aria-hidden="true"></span>
       </button>
 
       <!-- Acceso rápido al carrito -->
       <a class="nav-cart" href="/carrito" aria-label="Ir al carrito">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
-            fill="currentColor"
-          ></path>
-        </svg>
+        <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
         <span id="cart-count">0</span>
       </a>
       <span id="cart-sync" class="nav-cart-sync ab-is-hidden">Sincronizando</span>
       <!-- Estado: usuario invitado -->
       <div class="nav-auth nav-auth--guest ab-is-hidden" data-auth="guest">
-        <a class="nav-login nav-login--icon" href="/login" aria-label="Iniciar sesión" title="Iniciar sesión">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M10 7V5.8A2.8 2.8 0 0 1 12.8 3h5.4A2.8 2.8 0 0 1 21 5.8v12.4a2.8 2.8 0 0 1-2.8 2.8h-5.4A2.8 2.8 0 0 1 10 18.2V17" />
-            <path d="M3 12h11" />
-            <path d="m11 8 4 4-4 4" />
-          </svg>
+        <a
+          class="nav-login nav-login--ghost nav-login--icon"
+          href="/login"
+          aria-label="Iniciar sesión"
+          title="Iniciar sesión"
+        >
+          <img src="/icons/iniciarsesion.svg" alt="" aria-hidden="true" />
           <span>Entrar</span>
         </a>
         <a
@@ -68,28 +56,34 @@ const { title = "" } = Astro.props;
           aria-label="Registrarse"
           title="Registrarse"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M15 20a6 6 0 0 0-12 0" />
-            <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
-            <path d="M19 8v6" />
-            <path d="M16 11h6" />
-          </svg>
+          <img src="/icons/registrar.svg" alt="" aria-hidden="true" />
           <span>Registro</span>
         </a>
       </div>
       <!-- Estado: usuario autenticado -->
       <div class="nav-auth nav-auth--user ab-is-hidden" data-auth="user">
-        <span class="nav-user nav-user--plain" id="auth-name"></span>
-        <a
-          class="nav-avatar"
-          href="/mis-datos"
-          aria-label="Ir a mis datos"
-          data-ab-profile-link
+        <div class="nav-profile">
+          <a
+            class="nav-avatar"
+            href="/mis-datos"
+            aria-label="Ir a mis datos"
+            data-ab-profile-link
+          >
+            <span id="sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
+            <img id="auth-avatar" alt="Avatar de usuario" />
+          </a>
+          <span class="nav-user nav-user--plain" id="auth-name"></span>
+        </div>
+        <button
+          class="nav-login nav-login--ghost nav-login--icon nav-logout"
+          type="button"
+          id="auth-logout"
+          aria-label="Salir"
+          title="Salir"
         >
-          <span id="sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
-          <img id="auth-avatar" alt="Avatar de usuario" />
-        </a>
-        <button class="nav-login nav-login--ghost" type="button" id="auth-logout">Salir</button>
+          <img src="/icons/salir.svg" alt="" aria-hidden="true" />
+          <span>Salir</span>
+        </button>
       </div>
     </nav>
   </div>
@@ -102,10 +96,10 @@ const { title = "" } = Astro.props;
     <h2 id="logout-title">Cerrar sesión</h2>
     <p>¿Estás seguro de que querés cerrar sesión?</p>
     <div class="ab-modal__actions">
-      <button type="button" class="nav-login nav-login--ghost" data-modal-cancel>
+      <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-modal-cancel>
         Cancelar
       </button>
-      <button type="button" class="nav-login" data-modal-confirm>
+      <button type="button" class="ab-orders-delete-btn" data-modal-confirm>
         Sí, salir
       </button>
     </div>
@@ -117,7 +111,8 @@ const { title = "" } = Astro.props;
 .header {
   background: var(--color-surface);
   color: var(--color-text);
-  padding: 1rem 0;
+  min-height: var(--header-height);
+  padding: clamp(8px, 1.4dvh, 14px) 0;
   border-bottom: 1px solid var(--color-border-subtle);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -129,11 +124,18 @@ const { title = "" } = Astro.props;
 }
 
 .header-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  column-gap: clamp(2px, 0.45vw, 6px);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: clamp(10px, 2.2vw, 28px);
+}
+
+.header-zone {
+  min-width: 0;
 }
 
 .brand-row {
@@ -141,13 +143,14 @@ const { title = "" } = Astro.props;
   align-items: center;
   gap: 14px;
   min-width: 0;
-  flex: 1 1 auto;
-  justify-content: space-evenly;
+  justify-content: flex-start;
 }
 
 .ab-header-page-title {
   min-width: 0;
-  text-align: center;
+  text-align: left;
+  justify-self: stretch;
+  width: 100%;
 }
 
 .ab-header-page-title:empty {
@@ -155,25 +158,34 @@ const { title = "" } = Astro.props;
 }
 
 .ab-header-page-title :global(h1) {
-  position: relative;
   margin: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 14px 8px;
-  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  display: -webkit-box;
+  padding: 4px 6px 10px 2px;
+  font-size: clamp(0.92rem, 1.45vw, 1.24rem);
   font-weight: 800;
   color: var(--color-text);
-  line-height: 1.2;
+  line-height: 1.12;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.ab-header-page-title :global(h1)::after {
+.ab-header-page-title :global(h1 span) {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.ab-header-page-title :global(h1 span)::after {
   content: "";
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 2px;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  width: min(100%, 84px);
   height: 3px;
   border-radius: 999px;
   background: var(--color-accent);
@@ -181,51 +193,68 @@ const { title = "" } = Astro.props;
 }
 
 .logo {
-  font-weight: bold;
-  font-size: 1.3rem;
+  position: relative;
   text-decoration: none;
-  color: var(--color-text);
-  letter-spacing: 0.3px;
   flex: 0 0 auto;
+  width: clamp(148px, 16vw, 182px);
+  height: clamp(42px, 5dvh, 54px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+  max-width: 100%;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: clamp(10px, 1.2vw, 14px);
   justify-content: flex-end;
-  flex-wrap: wrap;
-  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  justify-self: end;
+  min-width: 0;
 }
 
 .theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  width: 42px;
-  height: 42px;
+  min-height: 50px;
+  width: 50px;
+  height: 50px;
   padding: 0;
   border-radius: 999px;
   border: 1px solid var(--color-border-subtle);
-  background: var(--color-panel-tint);
+  background: transparent;
   color: var(--color-text);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
   box-shadow: none;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
   border-color: var(--glass-green-border);
-  box-shadow: none;
+  background: transparent;
+  box-shadow: 0 14px 24px rgba(22, 199, 132, 0.18);
+  transform: translateY(-1px);
 }
 
 .theme-toggle__icons {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -234,8 +263,9 @@ const { title = "" } = Astro.props;
 .theme-toggle__icon {
   position: absolute;
   inset: 0;
-  width: 20px;
-  height: 20px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   opacity: 0;
   transform: scale(0.8);
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -259,7 +289,7 @@ const { title = "" } = Astro.props;
 .nav-auth {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
@@ -291,8 +321,8 @@ const { title = "" } = Astro.props;
 }
 
 .nav-login--icon {
-  width: 50px;
-  height: 46px;
+  width: 56px;
+  height: 52px;
   padding: 0;
   flex: 0 0 auto;
   flex-direction: column;
@@ -309,6 +339,12 @@ const { title = "" } = Astro.props;
   stroke-linejoin: round;
 }
 
+.nav-login img {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+}
+
 .nav-login--icon span {
   font-size: 9px;
   font-weight: 800;
@@ -316,8 +352,14 @@ const { title = "" } = Astro.props;
   letter-spacing: 0;
 }
 
-.nav-login:hover {
+.nav-logout {
+  color: var(--color-text);
+}
+
+.nav-login:hover,
+.nav-login:focus-visible {
   box-shadow: 0 14px 24px rgba(22, 199, 132, 0.3);
+  transform: translateY(-1px);
 }
 
 .nav-login:active {
@@ -332,7 +374,8 @@ const { title = "" } = Astro.props;
   box-shadow: none;
 }
 
-.nav-login--ghost:hover {
+.nav-login--ghost:hover,
+.nav-login--ghost:focus-visible {
   color: var(--color-text);
   border-color: var(--color-accent);
 }
@@ -350,11 +393,26 @@ const { title = "" } = Astro.props;
   border: 1px solid var(--color-panel-tint-strong);
 }
 
+.nav-profile {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 50px;
+}
+
 .nav-user--plain {
+  max-width: 54px;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Modal: estilos y animaciones */
@@ -413,23 +471,34 @@ const { title = "" } = Astro.props;
   flex-wrap: wrap;
 }
 
-.ab-modal__actions .nav-login:not(.nav-login--ghost) {
-  background: #2563eb;
+.ab-modal__actions :global(.ab-orders-delete-btn) {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(180deg, #48baa1 0%, #229478 100%);
   color: #ffffff;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 0.92rem;
+  font-weight: 850;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
+    0 7px 12px rgba(32, 74, 91, 0.22);
 }
 
-.ab-modal__actions .nav-login:not(.nav-login--ghost):hover {
-  background: #1d4ed8;
-  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.28);
+.ab-modal__actions :global(.ab-orders-delete-btn--ghost) {
+  background: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
 }
 
-.ab-modal__actions .nav-login--ghost,
-.ab-modal__actions .nav-login--ghost:hover {
-  background: transparent;
-  border: 1px solid var(--color-border-subtle);
-  color: var(--color-text);
-  box-shadow: none;
+.ab-modal__actions :global(.ab-orders-delete-btn:hover),
+.ab-modal__actions :global(.ab-orders-delete-btn:focus-visible) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
+    0 11px 18px rgba(32, 74, 91, 0.26);
 }
 
 @keyframes ab-modal-fade {
@@ -462,8 +531,8 @@ const { title = "" } = Astro.props;
 /* Avatar de usuario */
 .nav-avatar {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   border: 1px solid var(--color-border-soft);
   background: var(--color-panel-tint);
@@ -490,21 +559,32 @@ const { title = "" } = Astro.props;
   align-items: center;
   justify-content: center;
   gap: 0;
-  width: 42px;
-  height: 42px;
+  width: 50px;
+  height: 50px;
   border-radius: 999px;
-  border: 1px solid var(--glass-green-border);
-  background: var(--glass-green-bg);
+  border: 1px solid var(--color-border-subtle);
+  background: transparent;
   color: var(--color-text);
   font-weight: 700;
   text-decoration: none;
   position: relative;
   flex: 0 0 auto;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
-.nav-cart svg {
-  width: 22px;
-  height: 22px;
+.nav-cart:hover,
+.nav-cart:focus-visible {
+  background: transparent;
+  border-color: var(--color-accent);
+  box-shadow: 0 14px 24px rgba(22, 199, 132, 0.18);
+  transform: translateY(-1px);
+}
+
+.nav-cart img {
+  width: 29px;
+  height: 29px;
+  object-fit: contain;
 }
 
 .nav-cart span {
@@ -542,111 +622,105 @@ const { title = "" } = Astro.props;
   display: none;
 }
 
-@media (max-width: 430px) {
+@media (max-width: 720px) {
   .header {
-    padding: 0.85rem 0;
+    padding: clamp(7px, 1.2dvh, 10px) 0;
   }
 
   .header-inner {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 12px;
-    text-align: center;
-  }
-
-  .brand-row,
-  .nav,
-  .nav-auth,
-  .nav-cart-sync {
-    /* width: 100%; */
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 2px;
+    text-align: left;
+    padding-inline: 8px;
   }
 
   .brand-row {
-    /* flex-direction: column; */
     gap: 8px;
+  }
+
+  .logo {
+    width: clamp(98px, 26vw, 122px);
+    height: 34px;
+  }
+
+  .logo img {
+    width: 100%;
+    height: 100%;
   }
 
   .ab-header-page-title :global(h1) {
     margin: 0;
-    text-align: center;
-    font-size: clamp(1rem, 4.9vw, 1.25rem);
+    text-align: left;
+    padding: 3px 3px 8px 1px;
+    font-size: clamp(0.72rem, 2.35vw, 0.92rem);
+    line-height: 1.08;
+  }
+
+  .ab-header-page-title :global(h1 span)::after {
+    bottom: -5px;
+    width: min(72%, 58px);
+    height: 2px;
+    box-shadow: 0 0 0 3px var(--glass-green-bg);
   }
 
   .nav {
-    display: flex;
-    flex-direction: row;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .nav > * {
-    max-width: 100%;
-  }
-
-  .logo {
-    justify-self: center;
+    justify-content: flex-end;
+    gap: 7px;
+    row-gap: 0;
   }
 
   .nav-auth,
-  .nav-auth--guest {
-    justify-content: center;
-  }
-
+  .nav-auth--guest,
   .nav-auth--user {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    /* width: 100%; */
+    justify-content: flex-end;
+    gap: 6px;
   }
 
-  .nav-user--plain {
-    text-align: center;
-    /* width: 100%; */
+  .theme-toggle,
+  .nav-cart {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .nav-login--icon {
+    width: 48px;
+    height: 44px;
+  }
+
+  .nav-login img {
+    width: 23px;
+    height: 23px;
+  }
+
+  .nav-login--icon span {
+    font-size: 8px;
   }
 
   .nav-cart-sync {
-    text-align: center;
-    justify-self: center;
-  }
-}
-
-@media (max-width: 720px) {
-  .nav {
-    justify-content: center;
-    flex-wrap: wrap;
-    row-gap: 8px;
+    display: none;
   }
 }
 
 @media (max-width: 420px) {
+  .header-inner {
+    column-gap: 1px;
+  }
+
   .logo {
-    font-size: 1.1rem;
+    width: 88px;
+    height: 30px;
+  }
+
+  .logo img {
+    width: 100%;
+    height: 100%;
   }
 
   .ab-header-page-title :global(h1) {
-    font-size: 1rem;
-  }
-
-  .nav-auth--guest,
-  .nav-auth--user {
-    /* width: 100%; */
-  }
-
-  .nav-auth--guest {
-    display: flex;
-    flex-direction: row;
-    gap: 8px;
-  }
-
-  .nav-avatar,
-  .nav-login,
-  .nav-login--ghost,
-  .nav-cart,
-  .theme-toggle {
-    justify-self: center;
+    padding-inline: 0 2px;
+    font-size: 0.72rem;
   }
 
   .nav-login,
@@ -656,28 +730,44 @@ const { title = "" } = Astro.props;
     justify-content: center;
     text-align: center;
   }
-
-  .nav-cart {
-    height: 42px;
-  }
-
-  .theme-toggle {
-    min-height: 34px;
-    width: 42px;
-  }
 }
 
 @media (max-width: 380px) {
-  .nav {
-    gap: 7px;
+  .brand-row,
+  .nav,
+  .nav-auth,
+  .nav-auth--guest,
+  .nav-auth--user {
+    gap: 5px;
   }
 
-  .nav-login,
-  .nav-login--ghost,
+  .logo {
+    width: 82px;
+  }
+
+  .logo img {
+    width: 100%;
+  }
+
   .nav-cart,
   .theme-toggle {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .nav-login--icon {
+    width: 42px;
+    height: 40px;
+  }
+
+  .nav-login img {
+    width: 21px;
+    height: 21px;
+  }
+
+  .nav-login--icon span {
+    font-size: 7px;
   }
 }
 </style>

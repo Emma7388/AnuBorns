@@ -2,12 +2,27 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 
-/* Referencias DOM. */
-const loginForm = document.getElementById("login-form");
-const feedback = document.getElementById("login-feedback");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const submitButton = document.getElementById("login-submit");
+/* Referencias DOM (re-consultadas en navegación SPA). */
+let loginForm = document.getElementById("login-form");
+let feedback = document.getElementById("login-feedback");
+let emailInput = document.getElementById("email");
+let passwordInput = document.getElementById("password");
+let submitButton = document.getElementById("login-submit");
+
+const bindLoginElements = () => {
+  loginForm = document.getElementById("login-form");
+  feedback = document.getElementById("login-feedback");
+  emailInput = document.getElementById("email");
+  passwordInput = document.getElementById("password");
+  submitButton = document.getElementById("login-submit");
+};
+
+const bindLoginEvents = () => {
+  if (!loginForm) return;
+  if (loginForm.dataset.abLoginBound === "true") return;
+  loginForm.dataset.abLoginBound = "true";
+  loginForm.addEventListener("submit", handleLoginSubmit);
+};
 
 /* Sanitiza returnTo para evitar redirecciones externas. */
 const params = new URLSearchParams(window.location.search);
@@ -70,7 +85,7 @@ const withTimeout = (promise, ms) =>
   ]);
 
 /* Submit del formulario: valida, autentica y redirige. */
-loginForm?.addEventListener("submit", async (event) => {
+const handleLoginSubmit = async (event) => {
   event.preventDefault();
   if (!emailInput || !passwordInput || !feedback) return;
   if (submitButton) submitButton.disabled = true;
@@ -106,4 +121,20 @@ loginForm?.addEventListener("submit", async (event) => {
   } finally {
     if (submitButton) submitButton.disabled = false;
   }
+};
+
+/* Inicialización y hooks SPA. */
+bindLoginElements();
+bindLoginEvents();
+document.addEventListener("astro:page-load", () => {
+  bindLoginElements();
+  bindLoginEvents();
+});
+document.addEventListener("astro:after-swap", () => {
+  bindLoginElements();
+  bindLoginEvents();
+});
+window.addEventListener("pageshow", () => {
+  bindLoginElements();
+  bindLoginEvents();
 });

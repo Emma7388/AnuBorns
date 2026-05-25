@@ -19,6 +19,11 @@ const getProductHref = (item) => {
   return "#";
 };
 
+const getProviderHref = (item) => {
+  const sellerUserId = String(item?.sellerUserId ?? "").trim();
+  return sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
+};
+
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 
@@ -34,18 +39,7 @@ const createCarouselButton = (direction) => {
   button.className = `ab-featured-products-nav ab-featured-products-nav--${direction}`;
   button.setAttribute("aria-label", isPrev ? "Ver producto destacado anterior" : "Ver siguiente producto destacado");
   button.setAttribute(isPrev ? "data-featured-products-prev" : "data-featured-products-next", "");
-  button.innerHTML = `
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="${isPrev ? "M15.5 5 8.5 12l7 7" : "m8.5 5 7 7-7 7"}"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.4"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      ></path>
-    </svg>
-  `;
+  button.innerHTML = `<img src="/icons/${isPrev ? "atras2" : "adelante"}.svg" alt="" aria-hidden="true" />`;
   return button;
 };
 
@@ -54,6 +48,33 @@ const ensureFeaturedCarouselMarkup = (section) => {
   if (!grid) return;
   section.classList.add("ab-featured-products-panel");
   grid.classList.add("ab-featured-products-track");
+
+  grid.querySelectorAll(".ab-provider-product-card").forEach((card) => {
+    if (card.querySelector(".ab-featured-products-actions")) return;
+    const addButton = card.querySelector(":scope > .ab-provider-product-card__add");
+    if (!addButton) return;
+    const sellerUserId = String(card.dataset.userId ?? "").trim();
+    const productId = String(card.dataset.cartId ?? "").trim();
+    const providerLink = document.createElement("a");
+    providerLink.className = "ab-featured-products-provider";
+    providerLink.href = sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
+    providerLink.innerHTML = '<img src="/icons/proveedor.svg" alt="" aria-hidden="true" /><span>Proveedor</span>';
+    if (!sellerUserId) providerLink.setAttribute("aria-disabled", "true");
+    const detailLink = document.createElement("a");
+    detailLink.className = "ab-featured-products-detail";
+    detailLink.href = productId ? `/producto/${encodeURIComponent(productId)}` : "#";
+    detailLink.innerHTML = '<img src="/icons/detalle.svg" alt="" aria-hidden="true" /><span>Detalle</span>';
+    if (!productId) detailLink.setAttribute("aria-disabled", "true");
+    const links = document.createElement("div");
+    links.className = "ab-featured-products-links";
+    const actions = document.createElement("div");
+    actions.className = "ab-featured-products-actions";
+    card.insertBefore(actions, addButton);
+    links.appendChild(providerLink);
+    links.appendChild(detailLink);
+    actions.appendChild(links);
+    actions.appendChild(addButton);
+  });
 
   let carousel = section.querySelector("[data-featured-products-carousel]");
   if (!carousel) {
@@ -173,6 +194,7 @@ const renderFeaturedSection = (section, items) => {
 
   items.forEach((item) => {
     const href = getProductHref(item);
+    const providerHref = getProviderHref(item);
     const sellerUserId = String(item?.sellerUserId ?? "").trim();
     const productId = String(item?.productId ?? "").trim();
     const card = document.createElement("article");
@@ -195,7 +217,10 @@ const renderFeaturedSection = (section, items) => {
         />
         <div class="ab-provider-product-card__meta">
           <div>
-            <p class="ab-provider-product-card__label">Destacado</p>
+            <p class="ab-provider-product-card__label">
+              <img src="/icons/destacado.svg" alt="" aria-hidden="true" />
+              <span>Destacado</span>
+            </p>
             <p class="ab-provider-product-card__code">${escapeHtml(item?.sellerName ?? "Proveedor")}</p>
           </div>
           <p class="ab-provider-product-card__price">
@@ -207,19 +232,34 @@ const renderFeaturedSection = (section, items) => {
           ${escapeHtml(item?.description || "Sin descripción")}
         </p>
       </a>
-      <button
-        type="button"
-        class="ab-provider-product-card__add"
-        aria-label="Agregar al carrito"
-        title="Agregar al carrito"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
-            fill="currentColor"
-          ></path>
-        </svg>
-      </button>
+      <div class="ab-featured-products-actions">
+        <div class="ab-featured-products-links">
+          <a
+            class="ab-featured-products-provider"
+            href="${providerHref}"
+            ${sellerUserId ? "" : 'aria-disabled="true"'}
+          >
+            <img src="/icons/proveedor.svg" alt="" aria-hidden="true" />
+            <span>Proveedor</span>
+          </a>
+          <a
+            class="ab-featured-products-detail"
+            href="${href}"
+            ${productId ? "" : 'aria-disabled="true"'}
+          >
+            <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+            <span>Detalle</span>
+          </a>
+        </div>
+        <button
+          type="button"
+          class="ab-provider-product-card__add"
+          aria-label="Agregar al carrito"
+          title="Agregar al carrito"
+        >
+          <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+        </button>
+      </div>
     `;
     grid.appendChild(card);
   });

@@ -3,12 +3,19 @@ let modalImage = null;
 let modalClose = null;
 let lastTrigger = null;
 
+const IMAGE_MODAL_SELECTOR = [
+  ".ab-provider-product-card__image",
+  ".ab-cart-item__image",
+  ".ab-order-card__thumb img",
+].join(", ");
+
 const ensureModal = () => {
   if (modalRoot) return modalRoot;
 
   modalRoot = document.createElement("div");
   modalRoot.className = "ab-image-modal ab-is-hidden";
   modalRoot.setAttribute("aria-hidden", "true");
+  modalRoot.inert = true;
   modalRoot.innerHTML = `
     <div class="ab-image-modal__backdrop" data-ab-image-close></div>
     <div class="ab-image-modal__dialog" role="dialog" aria-modal="true" aria-label="Vista ampliada de imagen">
@@ -38,6 +45,7 @@ const openImageModal = (image, trigger) => {
   lastTrigger = trigger instanceof HTMLElement ? trigger : image;
   modalImage.src = image.currentSrc || image.src;
   modalImage.alt = image.alt || "Imagen del producto";
+  root.inert = false;
   root.classList.remove("ab-is-hidden");
   root.setAttribute("aria-hidden", "false");
   modalClose?.focus();
@@ -45,35 +53,63 @@ const openImageModal = (image, trigger) => {
 
 function closeImageModal() {
   if (!modalRoot) return;
+  const focusTarget = lastTrigger instanceof HTMLElement && document.contains(lastTrigger) ? lastTrigger : null;
+  const activeElement = document.activeElement;
+
+  if (focusTarget) {
+    focusTarget.focus();
+  } else if (activeElement instanceof HTMLElement && modalRoot.contains(activeElement)) {
+    activeElement.blur();
+  }
+
   modalRoot.classList.add("ab-is-hidden");
   modalRoot.setAttribute("aria-hidden", "true");
+  modalRoot.inert = true;
   if (modalImage) {
     modalImage.removeAttribute("src");
   }
-  if (lastTrigger instanceof HTMLElement) {
-    lastTrigger.focus();
-  }
 }
 
-const bindProductImages = () => {
-  document.querySelectorAll(".ab-provider-product-card__image").forEach((image) => {
+const findModalImage = (target) => {
+  if (!(target instanceof Element)) return null;
+  const image = target.closest(IMAGE_MODAL_SELECTOR);
+  return image instanceof HTMLImageElement ? image : null;
+};
+
+const prepareProductImages = () => {
+  document.querySelectorAll(IMAGE_MODAL_SELECTOR).forEach((image) => {
     if (!(image instanceof HTMLImageElement)) return;
-    if (image.dataset.abImageModalBound === "true") return;
-    image.dataset.abImageModalBound = "true";
     image.tabIndex = 0;
-    image.addEventListener("click", () => openImageModal(image, image));
-    image.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      openImageModal(image, image);
-    });
   });
 };
 
-bindProductImages();
-document.addEventListener("astro:page-load", bindProductImages);
-document.addEventListener("astro:after-swap", bindProductImages);
-window.addEventListener("pageshow", bindProductImages);
+const bindImageModalEvents = () => {
+  if (document.body.dataset.abImageModalDelegated === "true") return;
+  document.body.dataset.abImageModalDelegated = "true";
+
+  document.addEventListener("click", (event) => {
+    const image = findModalImage(event.target);
+    if (!image) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openImageModal(image, image);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const image = findModalImage(event.target);
+    if (!image) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openImageModal(image, image);
+  });
+};
+
+bindImageModalEvents();
+prepareProductImages();
+document.addEventListener("astro:page-load", prepareProductImages);
+document.addEventListener("astro:after-swap", prepareProductImages);
+window.addEventListener("pageshow", prepareProductImages);
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!modalRoot || modalRoot.classList.contains("ab-is-hidden")) return;

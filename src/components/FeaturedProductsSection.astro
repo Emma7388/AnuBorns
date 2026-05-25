@@ -20,6 +20,11 @@ const getProductHref = (item) => {
   return "#";
 };
 
+const getProviderHref = (item) => {
+  const sellerUserId = String(item?.sellerUserId ?? "").trim();
+  return sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
+};
+
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 ---
@@ -38,9 +43,7 @@ const serializeDelivery = (value) =>
       aria-label="Ver producto destacado anterior"
       data-featured-products-prev
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M15.5 5 8.5 12l7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
-      </svg>
+      <img src="/icons/atras2.svg" alt="" aria-hidden="true" />
     </button>
     <div class="ab-provider-products-grid ab-featured-products-track" data-featured-products-grid>
       {items.map((item) => (
@@ -68,7 +71,10 @@ const serializeDelivery = (value) =>
             />
             <div class="ab-provider-product-card__meta">
               <div>
-                <p class="ab-provider-product-card__label">Destacado</p>
+                <p class="ab-provider-product-card__label">
+                  <img src="/icons/destacado.svg" alt="" aria-hidden="true" />
+                  <span>Destacado</span>
+                </p>
                 <p class="ab-provider-product-card__code">{item.sellerName || "Proveedor"}</p>
               </div>
               <p class="ab-provider-product-card__price">
@@ -80,19 +86,34 @@ const serializeDelivery = (value) =>
               {item.description || "Sin descripción"}
             </p>
           </a>
-          <button
-            type="button"
-            class="ab-provider-product-card__add"
-            aria-label="Agregar al carrito"
-            title="Agregar al carrito"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
-                fill="currentColor"
-              ></path>
-            </svg>
-          </button>
+          <div class="ab-featured-products-actions">
+            <div class="ab-featured-products-links">
+              <a
+                class="ab-featured-products-provider"
+                href={getProviderHref(item)}
+                aria-disabled={item.sellerUserId ? null : "true"}
+              >
+                <img src="/icons/proveedor.svg" alt="" aria-hidden="true" />
+                <span>Proveedor</span>
+              </a>
+              <a
+                class="ab-featured-products-detail"
+                href={getProductHref(item)}
+                aria-disabled={item.productId ? null : "true"}
+              >
+                <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+                <span>Detalle</span>
+              </a>
+            </div>
+            <button
+              type="button"
+              class="ab-provider-product-card__add"
+              aria-label="Agregar al carrito"
+              title="Agregar al carrito"
+            >
+              <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+            </button>
+          </div>
         </article>
       ))}
     </div>
@@ -102,9 +123,7 @@ const serializeDelivery = (value) =>
       aria-label="Ver siguiente producto destacado"
       data-featured-products-next
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="m8.5 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
-      </svg>
+      <img src="/icons/adelante.svg" alt="" aria-hidden="true" />
     </button>
   </div>
   <div class:list={["ab-cart-empty", { "ab-is-hidden": items.length > 0 || error }] } data-featured-products-empty>

@@ -4,26 +4,63 @@ import { postAudit } from "./audit.js";
 import { fetchSalesSummary } from "../lib/salesSummaryClient";
 
 /* Referencias DOM principales. */
-const status = document.getElementById("profile-status");
-const card = document.getElementById("profile-card");
-const avatarImg = document.getElementById("profile-avatar");
-const avatarInput = document.getElementById("avatar-upload");
-const avatarFeedback = document.getElementById("avatar-feedback");
-const profileForm = document.getElementById("profile-form");
-const profileFeedback = document.getElementById("profile-feedback");
-const profileToggle = document.getElementById("profile-edit-toggle");
-const emailInput = document.getElementById("profile-email");
-const firstNameInput = document.getElementById("profile-first-name");
-const lastNameInput = document.getElementById("profile-last-name");
-const phoneInput = document.getElementById("profile-phone");
-const dniInput = document.getElementById("profile-dni");
-const addressInput = document.getElementById("profile-address");
-const cityInput = document.getElementById("profile-city");
-const provinceInput = document.getElementById("profile-province");
-const postalInput = document.getElementById("profile-postal-code");
-const salesNotificationDot = document.getElementById("my-sales-notification-dot");
+let status = document.getElementById("profile-status");
+let card = document.getElementById("profile-card");
+let avatarImg = document.getElementById("profile-avatar");
+let avatarInput = document.getElementById("avatar-upload");
+let avatarFeedback = document.getElementById("avatar-feedback");
+let profileForm = document.getElementById("profile-form");
+let profileFeedback = document.getElementById("profile-feedback");
+let profileToggle = document.getElementById("profile-edit-toggle");
+let emailInput = document.getElementById("profile-email");
+let firstNameInput = document.getElementById("profile-first-name");
+let lastNameInput = document.getElementById("profile-last-name");
+let phoneInput = document.getElementById("profile-phone");
+let dniInput = document.getElementById("profile-dni");
+let addressInput = document.getElementById("profile-address");
+let cityInput = document.getElementById("profile-city");
+let provinceInput = document.getElementById("profile-province");
+let postalInput = document.getElementById("profile-postal-code");
+let salesNotificationDot = document.getElementById("my-sales-notification-dot");
 const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
+
+const refreshProfileNodes = () => {
+  status = document.getElementById("profile-status");
+  card = document.getElementById("profile-card");
+  avatarImg = document.getElementById("profile-avatar");
+  avatarInput = document.getElementById("avatar-upload");
+  avatarFeedback = document.getElementById("avatar-feedback");
+  profileForm = document.getElementById("profile-form");
+  profileFeedback = document.getElementById("profile-feedback");
+  profileToggle = document.getElementById("profile-edit-toggle");
+  emailInput = document.getElementById("profile-email");
+  firstNameInput = document.getElementById("profile-first-name");
+  lastNameInput = document.getElementById("profile-last-name");
+  phoneInput = document.getElementById("profile-phone");
+  dniInput = document.getElementById("profile-dni");
+  addressInput = document.getElementById("profile-address");
+  cityInput = document.getElementById("profile-city");
+  provinceInput = document.getElementById("profile-province");
+  postalInput = document.getElementById("profile-postal-code");
+  salesNotificationDot = document.getElementById("my-sales-notification-dot");
+};
+
+const bindProfileEvents = () => {
+  refreshProfileNodes();
+  if (profileToggle && profileToggle.dataset.abProfileEventsBound !== "true") {
+    profileToggle.addEventListener("click", handleProfileToggleClick);
+    profileToggle.dataset.abProfileEventsBound = "true";
+  }
+  if (profileForm && profileForm.dataset.abProfileEventsBound !== "true") {
+    profileForm.addEventListener("submit", handleProfileFormSubmit);
+    profileForm.dataset.abProfileEventsBound = "true";
+  }
+  if (avatarInput && avatarInput.dataset.abProfileEventsBound !== "true") {
+    avatarInput.addEventListener("change", handleAvatarChange);
+    avatarInput.dataset.abProfileEventsBound = "true";
+  }
+}
 
 /* Convierte dataURL a Blob para subir a storage. */
 const dataUrlToBlob = (dataUrl) => {
@@ -61,6 +98,7 @@ const withTimeout = (promise, ms) =>
 
 /* Carga datos del usuario y actualiza la UI. */
 const loadProfile = async () => {
+  refreshProfileNodes();
   const runId = (loadRunId += 1);
   if (status) status.textContent = "Cargando información del usuario...";
 
@@ -243,6 +281,7 @@ const uploadPendingAvatar = async (session) => {
 
 /* Alterna entre modo lectura y edición. */
 const setFormVisible = (isVisible) => {
+  refreshProfileNodes();
   if (!profileToggle) return;
   document.body.classList.toggle("is-profile-editing", isVisible);
   profileToggle.textContent = isVisible ? "Cancelar edición" : "Editar perfil";
@@ -250,26 +289,36 @@ const setFormVisible = (isVisible) => {
 };
 
 /* Estado inicial del formulario. */
+refreshProfileNodes();
 setFormVisible(false);
+bindProfileEvents();
 
 const resetProfileView = () => {
+  refreshProfileNodes();
   setFormVisible(false);
 };
 
 /* Re-carga en navegación Astro. */
 document.addEventListener("astro:page-load", () => {
+  refreshProfileNodes();
+  bindProfileEvents();
   resetProfileView();
   loadProfile();
 });
 document.addEventListener("astro:after-swap", () => {
+  refreshProfileNodes();
+  bindProfileEvents();
   resetProfileView();
   loadProfile();
 });
 document.addEventListener("astro:before-swap", () => {
   loadRunId += 1;
+  refreshProfileNodes();
   resetProfileView();
 });
 window.addEventListener("pageshow", () => {
+  refreshProfileNodes();
+  bindProfileEvents();
   resetProfileView();
   loadProfile();
 });
@@ -280,15 +329,14 @@ window.addEventListener("storage", (event) => {
   }
 });
 
-/* Toggle de edición. */
-profileToggle?.addEventListener("click", () => {
+function handleProfileToggleClick() {
   const isEditing = document.body.classList.contains("is-profile-editing");
   setFormVisible(!isEditing);
-});
+}
 
-/* Submit del formulario de perfil. */
-profileForm?.addEventListener("submit", async (event) => {
+async function handleProfileFormSubmit(event) {
   event.preventDefault();
+  refreshProfileNodes();
   if (profileFeedback) profileFeedback.textContent = "Guardando...";
 
   const { data: sessionData } = await supabase.auth.getSession();
@@ -320,11 +368,13 @@ profileForm?.addEventListener("submit", async (event) => {
   postAudit("profile_update").catch(() => {});
   setFormVisible(false);
   loadProfile();
-});
+}
 
-/* Upload de avatar desde el formulario. */
-avatarInput?.addEventListener("change", async () => {
-  const file = avatarInput.files?.[0];
+async function handleAvatarChange(event) {
+  refreshProfileNodes();
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  const file = target.files?.[0];
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
@@ -378,4 +428,4 @@ avatarInput?.addEventListener("change", async () => {
     console.error("Avatar upload error", error);
     if (avatarFeedback) avatarFeedback.textContent = "Error subiendo avatar.";
   }
-});
+}

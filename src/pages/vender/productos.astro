@@ -60,11 +60,14 @@ import MainLayout from "../../layouts/MainLayout.astro";
         <option value="LIMA">LIMA</option>
       </select>
 
-      <label for="public-phone">Teléfono</label>
+      <label for="public-phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
       <input
         id="public-phone"
         name="publicPhone"
         type="tel"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        data-phone-input
         placeholder="Sin teléfono en perfil"
         readonly
         required

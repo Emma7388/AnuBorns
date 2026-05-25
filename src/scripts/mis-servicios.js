@@ -1,10 +1,30 @@
 import { supabase } from "../lib/supabaseClient";
 
-const activeContainer = document.getElementById("service-active");
-const list = document.getElementById("service-list");
-const emptyState = document.getElementById("services-empty");
-const historyTitle = document.getElementById("service-history-title");
-const resetButton = document.getElementById("services-reset");
+let activeContainer = document.getElementById("service-active");
+let list = document.getElementById("service-list");
+let emptyState = document.getElementById("services-empty");
+let historyTitle = document.getElementById("service-history-title");
+let resetButton = document.getElementById("services-reset");
+
+const refreshServiceNodes = () => {
+  activeContainer = document.getElementById("service-active");
+  list = document.getElementById("service-list");
+  emptyState = document.getElementById("services-empty");
+  historyTitle = document.getElementById("service-history-title");
+  resetButton = document.getElementById("services-reset");
+};
+
+const bindServiceEvents = () => {
+  refreshServiceNodes();
+  if (resetButton && resetButton.dataset.abServiceEventsBound !== "true") {
+    resetButton.addEventListener("click", async () => {
+      const payload = await resetServices();
+      if (!payload) return;
+      renderServices(payload);
+    });
+    resetButton.dataset.abServiceEventsBound = "true";
+  }
+};
 
 const formatServiceValue = (value, fallback = "Sin datos") => {
   const safe = String(value ?? "").trim();
@@ -124,10 +144,22 @@ const initServices = async () => {
   renderServices(payload);
 };
 
-resetButton?.addEventListener("click", async () => {
-  const payload = await resetServices();
-  if (!payload) return;
-  renderServices(payload);
+bindServiceEvents();
+
+document.addEventListener("astro:page-load", () => {
+  refreshServiceNodes();
+  bindServiceEvents();
+  initServices();
+});
+document.addEventListener("astro:after-swap", () => {
+  refreshServiceNodes();
+  bindServiceEvents();
+  initServices();
+});
+window.addEventListener("pageshow", () => {
+  refreshServiceNodes();
+  bindServiceEvents();
+  initServices();
 });
 
 initServices();

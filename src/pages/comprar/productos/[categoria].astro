@@ -104,6 +104,7 @@ const resolveCategoryName = (product) => {
         </label>
       </div>
       <div class="ab-location-filter">
+        <span class="ab-location-filter__title">Buscar ciudad</span>
         <button
           type="button"
           class="ab-location-filter__toggle"
@@ -112,12 +113,7 @@ const resolveCategoryName = (product) => {
           aria-label="Filtrar por ubicación"
           title="Filtrar por ubicación"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
-              fill="currentColor"
-            />
-          </svg>
+          <img src="/icons/mapa.svg" alt="" aria-hidden="true" />
           <span class="ab-location-filter__label">Todas</span>
         </button>
         <div class="ab-location-filter__menu" role="listbox">
@@ -204,12 +200,7 @@ const resolveCategoryName = (product) => {
                     aria-label="Agregar al carrito"
                     title="Agregar al carrito"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path
-                        d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
-                        fill="currentColor"
-                      ></path>
-                    </svg>
+                    <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
                   </button>
                 </article>
               ))}

@@ -4,24 +4,24 @@ import MainLayout from "../layouts/MainLayout.astro";
 import "../styles/global.css";
 ---
 
-<MainLayout title="Inicio">
+<MainLayout title="Desoluciones" headerTitle="">
   <!-- Hero principal -->
   <section class="hero">
     <div class="hero-content">
-      <!-- Mensaje central -->
-      <h1>Comprá. Vendé. Ofertá.</h1>
+      <img class="hero-logo" src="/Logo_Final.webp" alt="Desoluciones.com" loading="eager" />
+      <h1>Comprá, vendé y ofertá en un solo lugar</h1>
 
       <!-- CTAs principales -->
       <div class="hero-buttons">
-        <a href="/comprar" class="ab-cta-button">
+        <a href="/comprar" class="ab-cta-button hero-button hero-button--buy" data-astro-reload>
           Comprá
         </a>
 
-        <a href="/vender" class="ab-cta-button">
+        <a href="/vender" class="ab-cta-button hero-button hero-button--sell" data-astro-reload>
           Vendé
         </a>
 
-        <a href="/oferta" class="ab-cta-button">
+        <a href="/oferta" class="ab-cta-button hero-button hero-button--offer" data-astro-reload>
           Ofertá
         </a>
       </div>

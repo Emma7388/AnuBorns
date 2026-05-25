@@ -25,7 +25,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 
     <!-- CTA de edición -->
     <div class="ab-actions">
-      <button type="button" class="ab-cta-button" id="profile-edit-toggle">
+      <button type="button" class="ab-cta-button ab-profile-action ab-profile-action--edit" id="profile-edit-toggle">
         Editar perfil
       </button>
     </div>
@@ -41,8 +41,8 @@ import MainLayout from "../layouts/MainLayout.astro";
       <label for="profile-last-name">Apellido</label>
       <input id="profile-last-name" name="profile-last-name" type="text" />
 
-      <label for="profile-phone">Teléfono</label>
-      <input id="profile-phone" name="profile-phone" type="tel" />
+      <label for="profile-phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
+      <input id="profile-phone" name="profile-phone" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input />
 
       <label for="profile-dni">DNI</label>
       <input id="profile-dni" name="profile-dni" type="text" />
@@ -59,7 +59,7 @@ import MainLayout from "../layouts/MainLayout.astro";
       <label for="profile-postal-code">Código postal</label>
       <input id="profile-postal-code" name="profile-postal-code" type="text" />
 
-      <button type="submit" class="ab-cta-button">Guardar cambios</button>
+      <button type="submit" class="ab-cta-button ab-profile-action ab-profile-action--save">Guardar cambios</button>
       <p class="ab-muted-text" id="profile-feedback" aria-live="polite"></p>
     </form>
 
@@ -68,13 +68,13 @@ import MainLayout from "../layouts/MainLayout.astro";
 
     <!-- Accesos a secciones relacionadas -->
     <div class="ab-actions">
-      <a class="ab-cta-button" href="/mis-compras">Ver mis compras</a>
-      <a class="ab-cta-button ab-sales-link" href="/mis-ventas">
+      <a class="ab-cta-button ab-profile-action ab-profile-action--buy" href="/mis-compras">Ver mis compras</a>
+      <a class="ab-cta-button ab-sales-link ab-profile-action ab-profile-action--sell" href="/mis-ventas">
         Ver mis ventas
         <span id="my-sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
       </a>
-      <a class="ab-cta-button" href="/mis-servicios">Ver mis servicios</a>
-      <a class="ab-cta-button" href="/cuenta/profesional">Convertite en profesional</a>
+      <a class="ab-cta-button ab-profile-action ab-profile-action--service" href="/mis-servicios">Ver mis servicios</a>
+      <a class="ab-cta-button ab-profile-action ab-profile-action--pro" href="/cuenta/profesional">Convertite en profesional</a>
     </div>
   </section>
 </MainLayout>

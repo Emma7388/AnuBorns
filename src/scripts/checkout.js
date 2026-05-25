@@ -15,6 +15,7 @@ let checkoutConfirmed = false;
 let currentSubtotal = 0;
 let currentShippingGroups = [];
 let checkoutKeydownBound = false;
+let lastCheckoutModalTrigger = null;
 
 const getCheckoutDom = () => ({
   emptyState: document.getElementById("checkout-empty"),
@@ -189,6 +190,7 @@ const initCheckoutPage = () => {
 
   const openCheckoutModal = () => {
     if (!checkoutConfirmModal) return;
+    lastCheckoutModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     checkoutConfirmModal.classList.remove("ab-is-hidden");
     checkoutConfirmModal.setAttribute("aria-hidden", "false");
     checkoutModalConfirm?.focus();
@@ -196,6 +198,14 @@ const initCheckoutPage = () => {
 
   const closeCheckoutModal = () => {
     if (!checkoutConfirmModal) return;
+    if (checkoutConfirmModal.contains(document.activeElement)) {
+      if (lastCheckoutModalTrigger instanceof HTMLElement) {
+        lastCheckoutModalTrigger.focus();
+      } else if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+    lastCheckoutModalTrigger = null;
     checkoutConfirmModal.classList.add("ab-is-hidden");
     checkoutConfirmModal.setAttribute("aria-hidden", "true");
   };

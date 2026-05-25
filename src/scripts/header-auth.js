@@ -32,9 +32,15 @@ const openModal = () => {
 
 const closeModal = () => {
   if (!logoutModal) return;
+  if (logoutModal.contains(document.activeElement)) {
+    if (logoutButton instanceof HTMLElement) {
+      logoutButton.focus();
+    } else if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
   logoutModal.classList.add("ab-is-hidden");
   logoutModal.setAttribute("aria-hidden", "true");
-  logoutButton?.focus();
 };
 
 /* Obtiene un nombre corto para mostrar en el header. */

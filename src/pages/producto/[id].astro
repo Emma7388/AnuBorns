@@ -98,7 +98,7 @@ const shortId = (value) => {
         </ul>
         <div class="ab-provider-product-card__actions">
           {providerHref ? (
-            <a class="ab-provider-product-card__button ab-provider-product-card__button--buy" href={providerHref}>
+            <a class="ab-featured-products-provider" href={providerHref}>
               Ver proveedor
             </a>
           ) : null}
@@ -107,14 +107,9 @@ const shortId = (value) => {
             class="ab-provider-product-card__add"
             aria-label="Agregar al carrito"
             title="Agregar al carrito"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6.2 6l.7 3.2h11.7a1 1 0 0 1 1 .8l-1.1 5a1 1 0 0 1-1 .8H8.2a1 1 0 0 1-1-.8L5.1 5H3a1 1 0 1 1 0-2h2.9a1 1 0 0 1 1 .8L7.1 4H20a1 1 0 1 1 0 2H6.2z"
-                fill="currentColor"
-              ></path>
-            </svg>
-          </button>
+            >
+              <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+            </button>
         </div>
       </article>
     </section>
@@ -145,7 +140,7 @@ const shortId = (value) => {
     align-items: center;
   }
 
-  .ab-provider-product-card--detail .ab-provider-product-card__button {
+  .ab-provider-product-card--detail .ab-featured-products-provider {
     display: inline-flex;
     align-items: center;
     justify-content: center;

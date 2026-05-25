@@ -5,18 +5,80 @@ import { supabase } from "../lib/supabaseClient";
 const ORDERS_KEY = "ab_orders_v1";
 
 /* Referencias DOM. */
-const list = document.getElementById("orders-list");
-const emptyState = document.getElementById("orders-empty");
-const status = document.getElementById("orders-status");
-const deleteModal = document.getElementById("orders-delete-modal");
-const deleteModalClose = document.querySelector("[data-orders-modal-close]");
-const deleteModalCancel = document.querySelector("[data-orders-modal-cancel]");
-const deleteModalConfirm = document.querySelector("[data-orders-modal-confirm]");
+let list = document.getElementById("orders-list");
+let emptyState = document.getElementById("orders-empty");
+let status = document.getElementById("orders-status");
+let deleteModal = document.getElementById("orders-delete-modal");
+let deleteModalClose = document.querySelector("[data-orders-modal-close]");
+let deleteModalCancel = document.querySelector("[data-orders-modal-cancel]");
+let deleteModalConfirm = document.querySelector("[data-orders-modal-confirm]");
 let pendingDeleteOrderId = "";
+let lastOrderDeleteModalTrigger = null;
 let currentUserId = "";
 let currentSource = "remote";
 let currentOrders = [];
 let syncInFlight = false;
+
+const refreshOrderNodes = () => {
+  list = document.getElementById("orders-list");
+  emptyState = document.getElementById("orders-empty");
+  status = document.getElementById("orders-status");
+  deleteModal = document.getElementById("orders-delete-modal");
+  deleteModalClose = document.querySelector("[data-orders-modal-close]");
+  deleteModalCancel = document.querySelector("[data-orders-modal-cancel]");
+  deleteModalConfirm = document.querySelector("[data-orders-modal-confirm]");
+};
+
+const bindOrderEvents = () => {
+  refreshOrderNodes();
+  if (list && list.dataset.abOrdersClickBound !== "true") {
+    list.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-order-delete]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const orderId = button.dataset.orderDelete ?? "";
+      if (!orderId) return;
+      openDeleteModal(orderId);
+    });
+    list.dataset.abOrdersClickBound = "true";
+  }
+
+  if (deleteModalCancel && deleteModalCancel.dataset.abOrdersCancelBound !== "true") {
+    deleteModalCancel.addEventListener("click", closeDeleteModal);
+    deleteModalCancel.dataset.abOrdersCancelBound = "true";
+  }
+  if (deleteModalClose && deleteModalClose.dataset.abOrdersCloseBound !== "true") {
+    deleteModalClose.addEventListener("click", closeDeleteModal);
+    deleteModalClose.dataset.abOrdersCloseBound = "true";
+  }
+  if (deleteModalConfirm && deleteModalConfirm.dataset.abOrdersConfirmBound !== "true") {
+    deleteModalConfirm.addEventListener("click", async () => {
+      const orderId = pendingDeleteOrderId;
+      if (!orderId) return;
+      if (deleteModalConfirm instanceof HTMLButtonElement) {
+        deleteModalConfirm.disabled = true;
+        deleteModalConfirm.setAttribute("aria-busy", "true");
+      }
+      const deleted = await deleteOrder(orderId);
+      if (deleteModalConfirm instanceof HTMLButtonElement) {
+        deleteModalConfirm.disabled = false;
+        deleteModalConfirm.removeAttribute("aria-busy");
+      }
+      if (deleted) closeDeleteModal();
+    });
+    deleteModalConfirm.dataset.abOrdersConfirmBound = "true";
+  }
+
+  if (document.documentElement.dataset.abOrdersKeydownBound !== "true") {
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (deleteModal?.classList.contains("ab-is-hidden")) return;
+      closeDeleteModal();
+    });
+    document.documentElement.dataset.abOrdersKeydownBound = "true";
+  }
+};
 
 /* Formateo de precios ARS. */
 const formatPrice = (value) => {
@@ -404,6 +466,7 @@ const renderOrders = () => {
 
 const openDeleteModal = (orderId) => {
   if (!deleteModal || !orderId) return;
+  lastOrderDeleteModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   pendingDeleteOrderId = orderId;
   deleteModal.classList.remove("ab-is-hidden");
   deleteModal.setAttribute("aria-hidden", "false");
@@ -412,7 +475,15 @@ const openDeleteModal = (orderId) => {
 
 const closeDeleteModal = () => {
   if (!deleteModal) return;
+  if (deleteModal.contains(document.activeElement)) {
+    if (lastOrderDeleteModalTrigger instanceof HTMLElement) {
+      lastOrderDeleteModalTrigger.focus();
+    } else if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
   pendingDeleteOrderId = "";
+  lastOrderDeleteModalTrigger = null;
   deleteModal.classList.add("ab-is-hidden");
   deleteModal.setAttribute("aria-hidden", "true");
 };
@@ -525,39 +596,22 @@ const loadOrders = async () => {
   renderOrders();
 };
 
-if (list) {
-  list.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest("[data-order-delete]");
-    if (!(button instanceof HTMLButtonElement)) return;
-    const orderId = button.dataset.orderDelete ?? "";
-    if (!orderId) return;
-    openDeleteModal(orderId);
-  });
-}
+bindOrderEvents();
 
-deleteModalCancel?.addEventListener("click", closeDeleteModal);
-deleteModalClose?.addEventListener("click", closeDeleteModal);
-deleteModalConfirm?.addEventListener("click", async () => {
-  const orderId = pendingDeleteOrderId;
-  if (!orderId) return;
-  if (deleteModalConfirm instanceof HTMLButtonElement) {
-    deleteModalConfirm.disabled = true;
-    deleteModalConfirm.setAttribute("aria-busy", "true");
-  }
-  const deleted = await deleteOrder(orderId);
-  if (deleteModalConfirm instanceof HTMLButtonElement) {
-    deleteModalConfirm.disabled = false;
-    deleteModalConfirm.removeAttribute("aria-busy");
-  }
-  if (deleted) closeDeleteModal();
+document.addEventListener("astro:page-load", () => {
+  refreshOrderNodes();
+  bindOrderEvents();
+  loadOrders();
 });
-
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  if (deleteModal?.classList.contains("ab-is-hidden")) return;
-  closeDeleteModal();
+document.addEventListener("astro:after-swap", () => {
+  refreshOrderNodes();
+  bindOrderEvents();
+  loadOrders();
+});
+window.addEventListener("pageshow", () => {
+  refreshOrderNodes();
+  bindOrderEvents();
+  loadOrders();
 });
 
 /* Inicialización. */

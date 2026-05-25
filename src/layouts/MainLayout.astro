@@ -6,7 +6,7 @@ import Footer from "../components/Footer.astro";
 import "../styles/global.css";
 
 // Calcula el "volver" según ruta.
-const { title, backHref: customBackHref } = Astro.props;
+const { title, headerTitle = title, backHref: customBackHref } = Astro.props;
 const pathname = Astro.url.pathname;
 const segments = pathname.split("/").filter(Boolean);
 const backHref = customBackHref ?? (segments.length <= 1 ? "/" : `/${segments.slice(0, -1).join("/")}`);
@@ -15,13 +15,14 @@ const showBack = pathname !== "/";
 
 <BaseLayout title={title}>
   <!-- Header global -->
-  <Header title={title} />
+  <Header title={headerTitle} />
 
   <!-- Contenido de página -->
   <main
-    data-ab-page-title={title ?? ""}
+    data-ab-page-title={headerTitle ?? ""}
     data-ab-show-back={showBack ? "true" : "false"}
     data-ab-back-href={backHref}
+    data-ab-pathname={pathname}
   >
     <slot />
   </main>
@@ -67,7 +68,8 @@ const showBack = pathname !== "/";
 
       const footerBack = document.getElementById("footer-back");
       if (footerBack) {
-        const showBack = main?.getAttribute("data-ab-show-back") === "true";
+        const currentPath = main?.getAttribute("data-ab-pathname") || window.location.pathname;
+        const showBack = currentPath !== "/" && main?.getAttribute("data-ab-show-back") === "true";
         const backHref = main?.getAttribute("data-ab-back-href") || "/";
         const useHistoryBack = backHref === "history";
         footerBack.hidden = !showBack;

@@ -1,21 +1,21 @@
 /* Formulario de registro: validaciones y alta de usuario. */
 import { supabase } from "../lib/supabaseClient";
 
-/* Referencias DOM. */
-const registerForm = document.getElementById("register-form");
-const feedback = document.getElementById("register-feedback");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const passwordConfirm = document.getElementById("password-confirm");
-const avatarInput = document.getElementById("avatar");
-const firstName = document.getElementById("first-name");
-const lastName = document.getElementById("last-name");
-const phone = document.getElementById("phone");
-const dni = document.getElementById("dni");
-const address = document.getElementById("address");
-const city = document.getElementById("city");
-const province = document.getElementById("province");
-const postal = document.getElementById("postal-code");
+/* Referencias DOM (re-consultadas en navegación SPA). */
+let registerForm = document.getElementById("register-form");
+let feedback = document.getElementById("register-feedback");
+let emailInput = document.getElementById("email");
+let passwordInput = document.getElementById("password");
+let passwordConfirm = document.getElementById("password-confirm");
+let avatarInput = document.getElementById("avatar");
+let firstName = document.getElementById("first-name");
+let lastName = document.getElementById("last-name");
+let phone = document.getElementById("phone");
+let dni = document.getElementById("dni");
+let address = document.getElementById("address");
+let city = document.getElementById("city");
+let province = document.getElementById("province");
+let postal = document.getElementById("postal-code");
 
 /* Si el usuario ya quedó autenticado (por ejemplo desde otra pestaña), avanza al perfil. */
 supabase.auth.onAuthStateChange((_event, session) => {
@@ -24,8 +24,33 @@ supabase.auth.onAuthStateChange((_event, session) => {
   }
 });
 
-/* Submit del formulario de registro. */
-registerForm?.addEventListener("submit", async (event) => {
+/* Rebind helpers para navegaciones SPA. */
+const bindRegisterElements = () => {
+  registerForm = document.getElementById("register-form");
+  feedback = document.getElementById("register-feedback");
+  emailInput = document.getElementById("email");
+  passwordInput = document.getElementById("password");
+  passwordConfirm = document.getElementById("password-confirm");
+  avatarInput = document.getElementById("avatar");
+  firstName = document.getElementById("first-name");
+  lastName = document.getElementById("last-name");
+  phone = document.getElementById("phone");
+  dni = document.getElementById("dni");
+  address = document.getElementById("address");
+  city = document.getElementById("city");
+  province = document.getElementById("province");
+  postal = document.getElementById("postal-code");
+};
+
+const bindRegisterEvents = () => {
+  if (!registerForm) return;
+  if (registerForm.dataset.abRegisterBound === "true") return;
+  registerForm.dataset.abRegisterBound = "true";
+  registerForm.addEventListener("submit", handleRegisterSubmit);
+};
+
+/* Submit del formulario de registro (handler reutilizable). */
+const handleRegisterSubmit = async (event) => {
   event.preventDefault();
   if (!emailInput || !passwordInput || !passwordConfirm || !feedback) return;
   feedback.textContent = "Creando cuenta...";
@@ -144,4 +169,20 @@ registerForm?.addEventListener("submit", async (event) => {
   /* Mensaje final cuando requiere confirmación por email. */
   feedback.textContent =
     "Cuenta creada. Revisá tu email para confirmar el acceso. El avatar se subirá cuando inicies sesión.";
+};
+
+/* Inicialización y hooks Astro SPA. */
+bindRegisterElements();
+bindRegisterEvents();
+document.addEventListener("astro:page-load", () => {
+  bindRegisterElements();
+  bindRegisterEvents();
+});
+document.addEventListener("astro:after-swap", () => {
+  bindRegisterElements();
+  bindRegisterEvents();
+});
+window.addEventListener("pageshow", () => {
+  bindRegisterElements();
+  bindRegisterEvents();
 });

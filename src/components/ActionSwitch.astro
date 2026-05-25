@@ -15,7 +15,7 @@ const isSell = mode === "sell";
         isBuy ? (
           <>
             <button
-              class="ab-buy-switch__trigger"
+              class="ab-buy-switch__trigger ab-buy-switch__trigger--products"
               type="button"
               aria-haspopup="true"
               aria-expanded="false"
@@ -25,13 +25,22 @@ const isSell = mode === "sell";
               <span class="ab-buy-switch__dot ab-is-hidden" data-products-dot aria-hidden="true"></span>
             </button>
             <div class="ab-buy-switch__menu" role="menu" aria-label="Categorías de productos" data-buy-switch-menu>
-              {categories.map((category) => (
+              {categories.map((category, index) => (
                 <a
-                  class="ab-buy-switch__menu-item"
+                  class={`ab-buy-switch__menu-item ab-buy-switch__menu-item--${(index % 4) + 1}`}
                   href={`/comprar/productos/${category.slug}`}
                   data-category-slug={category.slug}
                   role="menuitem"
                 >
+                  {category.icon && (
+                    <img
+                      class="ab-buy-switch__menu-icon"
+                      src={category.icon}
+                      alt=""
+                      loading="lazy"
+                      aria-hidden="true"
+                    />
+                  )}
                   <span class="ab-buy-switch__menu-label">{category.name}</span>
                   <span class="ab-buy-switch__dot ab-buy-switch__dot--menu ab-is-hidden" data-category-dot={category.slug} aria-hidden="true"></span>
                 </a>
@@ -39,7 +48,7 @@ const isSell = mode === "sell";
             </div>
           </>
         ) : (
-          <a class="ab-buy-switch__trigger" href="/vender/productos">
+          <a class="ab-buy-switch__trigger ab-buy-switch__trigger--products" href="/vender/productos">
             Productos
           </a>
         )
@@ -47,7 +56,7 @@ const isSell = mode === "sell";
     </div>
 
     <div class="ab-buy-switch__item">
-      <a class="ab-buy-switch__trigger" href={isBuy ? "/comprar/servicios" : "/vender/servicios"}>
+      <a class="ab-buy-switch__trigger ab-buy-switch__trigger--services" href={isBuy ? "/comprar/servicios" : "/vender/servicios"}>
         Servicios
       </a>
     </div>
@@ -56,13 +65,18 @@ const isSell = mode === "sell";
 
 <style>
   .ab-buy-switch {
+    position: relative;
+    width: 100%;
     padding: 8px 0 0;
   }
 
   .ab-buy-switch__row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: clamp(18px, 3vw, 30px);
+    width: 100%;
   }
 
   .ab-buy-switch--sell .ab-buy-switch__row {
@@ -70,7 +84,7 @@ const isSell = mode === "sell";
   }
 
   .ab-buy-switch__item {
-    position: relative;
+    position: static;
     padding-bottom: 8px;
     margin-bottom: -8px;
   }
@@ -93,38 +107,164 @@ const isSell = mode === "sell";
     cursor: pointer;
   }
 
+  .ab-buy-switch__trigger--products,
+  .ab-buy-switch__trigger--services {
+    width: clamp(210px, 25vw, 270px);
+    min-height: 78px;
+    padding: 14px 28px;
+    border-radius: 12px;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    font-size: clamp(1.8rem, 3.2vw, 2.65rem);
+    font-weight: 850;
+    line-height: 1;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.1),
+      0 7px 12px rgba(32, 74, 91, 0.28);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      filter 0.18s ease;
+  }
+
+  .ab-buy-switch__trigger--products {
+    background: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
+  }
+
+  .ab-buy-switch__trigger--services {
+    background: linear-gradient(180deg, #48baa1 0%, #229478 100%);
+  }
+
+  .ab-buy-switch__trigger--products:hover,
+  .ab-buy-switch__trigger--services:hover,
+  .ab-buy-switch__trigger--products:focus-visible,
+  .ab-buy-switch__trigger--services:focus-visible {
+    filter: brightness(1.04);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.38),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.1),
+      0 12px 22px rgba(32, 74, 91, 0.3);
+  }
+
   .ab-buy-switch__menu {
     position: absolute;
     top: 100%;
-    left: 0;
-    min-width: 220px;
+    left: 50%;
+    translate: -50% 0;
+    width: min(760px, calc(100vw - 24px));
+    min-width: 0;
+    max-height: min(68vh, calc(100dvh - var(--header-height) - var(--footer-height) - 72px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     display: none;
-    padding: 8px;
-    border-radius: 10px;
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    gap: 12px;
+    padding: 12px;
+    border-radius: 16px;
     border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface);
-    box-shadow: 0 14px 34px var(--color-shadow-strong);
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    box-shadow: 0 18px 38px var(--color-shadow-strong);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     z-index: 30;
+    transform-origin: top center;
   }
 
   .ab-buy-switch__item.is-open .ab-buy-switch__menu {
     display: grid;
+    animation: ab-products-menu-open 0.24s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  }
+
+  @keyframes ab-products-menu-open {
+    from {
+      opacity: 0;
+      transform: translateY(-14px) scale(0.94);
+      filter: blur(4px);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(3px) scale(1.01);
+      filter: blur(0);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  .ab-buy-switch__menu::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .ab-buy-switch__menu::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+  }
+
+  .ab-buy-switch__menu::-webkit-scrollbar-thumb {
+    background: rgba(22, 199, 132, 0.62);
+    border-radius: 999px;
   }
 
   .ab-buy-switch__menu-item {
+    position: relative;
+    min-height: 123px;
+    aspect-ratio: 1 / 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 10px;
     text-decoration: none;
-    color: var(--color-text);
-    font-weight: 600;
-    padding: 8px 10px;
-    border-radius: 8px;
+    color: #ffffff;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.08;
+    padding: 16px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -12px 20px rgba(0, 0, 0, 0.1),
+      0 7px 14px rgba(24, 76, 93, 0.22);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      filter 0.16s ease;
+  }
+
+  .ab-buy-switch__menu-item--1,
+  .ab-buy-switch__menu-item--3 {
+    background: linear-gradient(180deg, #69ba75 0%, #2f8d58 100%);
+  }
+
+  .ab-buy-switch__menu-item--2 {
+    background: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
+  }
+
+  .ab-buy-switch__menu-item--4 {
+    background: linear-gradient(180deg, #48baa1 0%, #229478 100%);
+  }
+
+  .ab-buy-switch__menu-icon {
+    width: 94px;
+    height: 94px;
+    flex: 0 0 94px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.22));
   }
 
   .ab-buy-switch__menu-label {
     min-width: 0;
+    font-size: 1.38rem;
+    font-weight: 850;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .ab-buy-switch__dot {
@@ -138,37 +278,76 @@ const isSell = mode === "sell";
   }
 
   .ab-buy-switch__dot--menu {
-    border-color: var(--color-surface);
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border-color: rgba(255, 255, 255, 0.76);
   }
 
   .ab-buy-switch__menu-item:hover,
   .ab-buy-switch__menu-item:focus-visible {
-    background: var(--color-panel-tint);
+    filter: brightness(1.04);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.26),
+      inset 0 -12px 20px rgba(0, 0, 0, 0.1),
+      0 12px 22px rgba(24, 76, 93, 0.28);
   }
 
-  @media (max-width: 560px) {
+  @media (max-width: 768px) {
     .ab-buy-switch__row {
-      width: 100%;
-      gap: 8px;
+      gap: 14px;
     }
 
     .ab-buy-switch__item {
-      flex: 1;
+      flex: 0 1 min(310px, 100%);
       min-width: 0;
     }
 
     .ab-buy-switch__trigger {
-      width: 100%;
       min-width: 0;
-      padding: 8px 10px;
-      font-size: 0.82rem;
+    }
+
+    .ab-buy-switch__trigger--products,
+    .ab-buy-switch__trigger--services {
+      width: min(310px, 100%);
+      min-height: 64px;
+      font-size: clamp(1.55rem, 8vw, 2.2rem);
     }
 
     .ab-buy-switch__menu {
-      width: 100%;
+      width: min(360px, calc(100vw - 24px));
       min-width: 0;
-      max-height: 52vh;
+      max-height: min(62vh, calc(100dvh - var(--header-height) - var(--footer-height) - 72px));
       overflow: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .ab-buy-switch__menu-item {
+      min-height: 117px;
+      padding: 14px 10px;
+    }
+
+    .ab-buy-switch__menu-icon {
+      width: 78px;
+      height: 78px;
+      flex-basis: 78px;
+    }
+
+    .ab-buy-switch__menu-label {
+      font-size: 1.18rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ab-buy-switch__menu {
+      animation: none !important;
+    }
+
+    .ab-buy-switch__menu-item {
+      transition: none;
     }
   }
 </style>

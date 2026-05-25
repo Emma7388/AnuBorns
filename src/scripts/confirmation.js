@@ -15,13 +15,19 @@ const clearCart = async () => {
 };
 
 /* Referencias DOM y parámetros de URL. */
-const title = document.getElementById("confirmation-title");
-const message = document.getElementById("confirmation-message");
-const orderLabel = document.getElementById("confirmation-order");
+let title = document.getElementById("confirmation-title");
+let message = document.getElementById("confirmation-message");
+let orderLabel = document.getElementById("confirmation-order");
 
-const params = new URLSearchParams(window.location.search);
-const orderId = params.get("orderId");
-const status = params.get("status");
+const params = () => new URLSearchParams(window.location.search);
+const orderId = () => params().get("orderId");
+const status = () => params().get("status");
+
+const bindConfirmationElements = () => {
+  title = document.getElementById("confirmation-title");
+  message = document.getElementById("confirmation-message");
+  orderLabel = document.getElementById("confirmation-order");
+};
 
 /* Mapeo de estados a textos de UI. */
 const statusMap = {
@@ -63,18 +69,33 @@ const renderStatus = (value) => {
 
 /* Carga y muestra información resumida de la orden. */
 const loadOrder = async () => {
-  renderStatus(status);
-  if (!orderId) return;
+  bindConfirmationElements();
+  renderStatus(status());
+  const id = orderId();
+  if (!id) return;
   const { data, error } = await supabase
     .from("orders")
     .select("id, status, total_amount")
-    .eq("id", orderId)
+    .eq("id", id)
     .maybeSingle();
   if (!error && data && orderLabel) {
     orderLabel.textContent = `Orden ${data.id.slice(0, 8)} · Total $${Number(data.total_amount).toLocaleString("es-AR")}`;
   }
 };
 
-/* Inicialización. */
+/* Inicialización y hooks SPA. */
+bindConfirmationElements();
 loadOrder();
 clearCart();
+document.addEventListener("astro:page-load", () => {
+  bindConfirmationElements();
+  loadOrder();
+});
+document.addEventListener("astro:after-swap", () => {
+  bindConfirmationElements();
+  loadOrder();
+});
+window.addEventListener("pageshow", () => {
+  bindConfirmationElements();
+  loadOrder();
+});

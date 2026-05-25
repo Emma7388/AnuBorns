@@ -6,6 +6,7 @@ let modalMessage = null;
 let confirmButton = null;
 let cancelButton = null;
 let isOpen = false;
+let lastModalTrigger = null;
 let resolver = null;
 let escHandlerBound = false;
 
@@ -49,6 +50,14 @@ const ensureModal = () => {
   const close = (accepted) => {
     if (!modalRoot || !isOpen) return;
     isOpen = false;
+    if (modalRoot.contains(document.activeElement)) {
+      if (lastModalTrigger instanceof HTMLElement && document.contains(lastModalTrigger)) {
+        lastModalTrigger.focus();
+      } else if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+    lastModalTrigger = null;
     modalRoot.classList.add("ab-is-hidden");
     modalRoot.setAttribute("aria-hidden", "true");
     const next = resolver;
@@ -83,6 +92,7 @@ export const confirmAddToCart = ({
   if (confirmButton) confirmButton.textContent = confirmLabel;
   if (cancelButton) cancelButton.textContent = cancelLabel;
 
+  lastModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   modalRoot.classList.remove("ab-is-hidden");
   modalRoot.setAttribute("aria-hidden", "false");
   isOpen = true;

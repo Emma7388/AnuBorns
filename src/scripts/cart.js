@@ -11,6 +11,7 @@ import {
 } from "../lib/shippingPreference";
 
 let pendingRemoveProductId = "";
+let lastRemoveModalTrigger = null;
 let profileAddressLoaded = false;
 let profileShippingAddress = "";
 let profileShippingCity = "";
@@ -41,29 +42,6 @@ const escapeHtml = (value) =>
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");
-};
-
-const formatDeliveryMethods = (value) => {
-  const rawItems = Array.isArray(value)
-    ? value
-    : String(value ?? "")
-        .split(/[,+]/)
-        .map((item) => item.trim())
-        .filter(Boolean);
-  if (rawItems.length === 0) return "No especificado";
-  return rawItems
-    .map((item) => {
-      const normalized = String(item ?? "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim()
-        .toLowerCase();
-      if (normalized === "retiro") return "Retiro";
-      if (normalized === "envio") return "Envío";
-      return String(item ?? "").trim();
-    })
-    .filter(Boolean)
-    .join(" + ");
 };
 
 const getProviderKey = (item) => {
@@ -137,6 +115,7 @@ const persistProviderShippingForm = (section) => {
 const openRemoveModal = (productId, dom = getCartDom()) => {
   const { removeModal, removeModalConfirm } = dom;
   if (!removeModal || !productId) return;
+  lastRemoveModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   pendingRemoveProductId = productId;
   removeModal.classList.remove("ab-is-hidden");
   removeModal.setAttribute("aria-hidden", "false");
@@ -146,7 +125,15 @@ const openRemoveModal = (productId, dom = getCartDom()) => {
 const closeRemoveModal = (dom = getCartDom()) => {
   const { removeModal } = dom;
   if (!removeModal) return;
+  if (removeModal.contains(document.activeElement)) {
+    if (lastRemoveModalTrigger instanceof HTMLElement) {
+      lastRemoveModalTrigger.focus();
+    } else if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
   pendingRemoveProductId = "";
+  lastRemoveModalTrigger = null;
   removeModal.classList.add("ab-is-hidden");
   removeModal.setAttribute("aria-hidden", "true");
 };
@@ -180,6 +167,7 @@ const renderCart = async () => {
     const shippingPreference = getDisplayShippingPreference(group.key);
     const profileShippingReady = Boolean(profileShippingAddress && profileShippingCity);
     const hasProviderShipping = canRequestProviderShipping && shippingPreference.requested;
+    const selectedDeliveryLabel = hasProviderShipping ? "Envío" : "A retirar";
     const shippingPrefix = hasProviderShipping ? "Envío + " : "";
     const displayedSubtotal = group.subtotal + (hasProviderShipping ? SHIPPING_FEE : 0);
     const section = document.createElement("section");
@@ -222,11 +210,10 @@ const renderCart = async () => {
       const title = product?.title ?? item.product_id ?? "Producto";
       const image = product?.image_url ?? "/logo2.svg";
       const currency = product?.currency ?? "ARS";
-      const deliveryMethods = formatDeliveryMethods(product?.delivery_methods);
       const safeTitle = escapeHtml(title);
       const safeImage = escapeHtml(image);
       const safeCurrency = escapeHtml(currency);
-      const safeDeliveryMethods = escapeHtml(deliveryMethods);
+      const safeSelectedDelivery = escapeHtml(selectedDeliveryLabel);
 
       const row = document.createElement("article");
       row.className = "ab-cart-item";
@@ -236,7 +223,7 @@ const renderCart = async () => {
         <div class="ab-cart-item__info">
           <h2 class="ab-cart-item__title">${safeTitle}</h2>
           <ul class="ab-cart-item__details">
-            <li>Entrega: <strong>${safeDeliveryMethods}</strong></li>
+            <li>Entrega: <strong>${safeSelectedDelivery}</strong></li>
             <li>Precio unitario: <strong>$${formatPrice(price)} ${safeCurrency}</strong></li>
           </ul>
         </div>
@@ -246,8 +233,9 @@ const renderCart = async () => {
             <span>${qty}</span>
             <button type="button" data-action="inc" aria-label="Sumar uno">+</button>
           </div>
-          <p class="ab-cart-item__subtotal">$${formatPrice(price * qty)}</p>
-          <button class="ab-cart-item__remove" type="button" data-action="remove">Quitar</button>
+          <button class="ab-cart-item__remove" type="button" data-action="remove" aria-label="Quitar producto" title="Quitar producto">
+            <img src="/icons/borrar.svg" alt="" aria-hidden="true" />
+          </button>
         </div>
       `;
       groupItemsWrap?.appendChild(row);
@@ -281,13 +269,15 @@ const initCartPage = () => {
   /* Delegación de eventos para incrementar, decrementar o quitar. */
   itemsWrap.addEventListener("click", async (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) return;
-    const row = target.closest(".ab-cart-item");
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("button[data-action]");
+    if (!(button instanceof HTMLButtonElement)) return;
+    const row = button.closest(".ab-cart-item");
     if (!row) return;
     const id = row.dataset.id;
     if (!id) return;
 
-    const action = target.dataset.action;
+    const action = button.dataset.action;
     if (action === "inc") {
       const items = await getCart();
       const item = items.find((entry) => entry.product_id === id);
