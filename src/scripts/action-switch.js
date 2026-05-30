@@ -1,6 +1,7 @@
 const closeProductMenus = (exceptSwitch = null) => {
   document.querySelectorAll("[data-buy-switch]").forEach((switchEl) => {
     if (switchEl === exceptSwitch) return;
+    switchEl.classList.remove("is-open");
     switchEl.querySelectorAll(".ab-buy-switch__item.is-open").forEach((item) => {
       item.classList.remove("is-open");
       item.querySelector("[data-buy-switch-trigger]")?.setAttribute("aria-expanded", "false");
@@ -13,13 +14,14 @@ const initBuySwitchMenus = () => {
     if (trigger.dataset.buySwitchBound === "true") return;
     const switchEl = trigger.closest("[data-buy-switch]");
     const item = trigger.closest(".ab-buy-switch__item");
-    const menu = item?.querySelector("[data-buy-switch-menu]");
+    const menu = switchEl?.querySelector("[data-buy-switch-menu]");
     if (!switchEl || !item || !menu) return;
 
     trigger.addEventListener("click", (event) => {
       event.preventDefault();
-      const willOpen = !item.classList.contains("is-open");
+      const willOpen = !switchEl.classList.contains("is-open");
       closeProductMenus(switchEl);
+      switchEl.classList.toggle("is-open", willOpen);
       item.classList.toggle("is-open", willOpen);
       trigger.setAttribute("aria-expanded", String(willOpen));
     });

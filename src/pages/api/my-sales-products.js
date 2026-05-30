@@ -5,6 +5,7 @@ import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
 /* Estados de orden que cuentan como venta real. */
 const allowedOrderStatuses = new Set(["approved", "pending"]);
+const SHIPPING_FEE = 5000;
 
 /* Parsea cantidad y precio a números seguros. */
 const toPositiveNumber = (value, fallback = 0) => {
@@ -25,6 +26,65 @@ const normalizeFulfillmentStatus = (value, shippingRequested) => {
   const raw = String(value ?? "").trim();
   if (raw) return raw;
   return shippingRequested ? "requested" : "pickup_pending";
+};
+
+const normalizeProviderName = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const getShippingProviderNames = (shippingAddress) =>
+  String(shippingAddress ?? "")
+    .split("|")
+    .map((part) => part.split(":")[0])
+    .map(normalizeProviderName)
+    .filter(Boolean);
+
+const getShippingProviderEntries = (shippingAddress) =>
+  String(shippingAddress ?? "")
+    .split("|")
+    .map((part) => {
+      const [provider, ...addressParts] = part.split(":");
+      return {
+        provider: normalizeProviderName(provider),
+        address: addressParts.join(":").trim(),
+      };
+    })
+    .filter((entry) => entry.provider);
+
+const getSellerShippingDestination = ({ shippingAddress, shippingCity, providerName }) => {
+  const entries = getShippingProviderEntries(shippingAddress);
+  if (entries.length > 0) {
+    const normalizedProvider = normalizeProviderName(providerName);
+    const match = entries.find((entry) => entry.provider === normalizedProvider);
+    return {
+      address: match?.address ?? "",
+      city: "",
+    };
+  }
+
+  return {
+    address: String(shippingAddress ?? "").trim(),
+    city: String(shippingCity ?? "").trim(),
+  };
+};
+
+const getSellerShippingCost = ({ shippingRequested, orderShippingCost, shippingAddress, providerName }) => {
+  if (!shippingRequested) return 0;
+  const cost = toPositiveNumber(orderShippingCost, 0);
+  if (cost <= 0) return 0;
+
+  const requestedProviders = getShippingProviderNames(shippingAddress);
+  if (requestedProviders.length > 0) {
+    const normalizedProvider = normalizeProviderName(providerName);
+    return normalizedProvider && requestedProviders.includes(normalizedProvider)
+      ? Math.min(SHIPPING_FEE, cost)
+      : 0;
+  }
+
+  return cost > SHIPPING_FEE ? SHIPPING_FEE : cost;
 };
 
 /* Resuelve cliente público para validar token de usuario. */
@@ -99,7 +159,7 @@ export const GET = async ({ request }) => {
     const sellerId = userData.user.id;
     const { data: ownProducts, error: ownProductsError } = await supabaseAdmin
       .from("products")
-      .select("id, title, currency, image_url")
+      .select("id, title, currency, image_url, seller_name")
       .eq("user_id", sellerId);
 
     if (ownProductsError) {
@@ -122,7 +182,7 @@ export const GET = async ({ request }) => {
     const { data: salesRows, error: salesError } = await supabaseAdmin
       .from("order_items")
       .select(
-        "product_id, name, qty, unit_price, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost, shipping_status)",
+        "product_id, name, qty, unit_price, provider, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost, shipping_status)",
       )
       .in("product_id", productIds);
 
@@ -154,11 +214,23 @@ export const GET = async ({ request }) => {
       const buyerNote = extractBuyerNote(order?.payment_detail);
       const buyerName = String(order?.shipping_full_name ?? "").trim();
       const buyerUserId = String(order?.user_id ?? "").trim();
-      const shippingRequested = Boolean(order?.shipping_requested);
-      const shippingAddress = String(order?.shipping_address ?? "").trim();
-      const shippingCity = String(order?.shipping_city ?? "").trim();
+      const orderShippingAddress = String(order?.shipping_address ?? "").trim();
+      const orderShippingCity = String(order?.shipping_city ?? "").trim();
       const shippingPhone = String(order?.shipping_phone ?? "").trim();
-      const shippingCost = toPositiveNumber(order?.shipping_cost, 0);
+      const providerName = String(row?.provider ?? product?.seller_name ?? "").trim();
+      const orderShippingRequested = Boolean(order?.shipping_requested);
+      const shippingCost = getSellerShippingCost({
+        shippingRequested: orderShippingRequested,
+        orderShippingCost: order?.shipping_cost,
+        shippingAddress: orderShippingAddress,
+        providerName,
+      });
+      const shippingRequested = orderShippingRequested && shippingCost > 0;
+      const sellerShippingDestination = getSellerShippingDestination({
+        shippingAddress: orderShippingAddress,
+        shippingCity: orderShippingCity,
+        providerName,
+      });
       const orderShippingStatus = String(order?.shipping_status ?? "").trim();
 
       const entry = soldMap.get(productId) ?? {
@@ -190,8 +262,8 @@ export const GET = async ({ request }) => {
         buyerUserId,
         buyerNote,
         shippingRequested,
-        shippingAddress,
-        shippingCity,
+        shippingAddress: sellerShippingDestination.address,
+        shippingCity: sellerShippingDestination.city,
         shippingPhone,
         shippingCost,
         orderShippingStatus,

@@ -197,6 +197,12 @@ const getNextFulfillmentAction = (status, shippingRequested) => {
   return null;
 };
 
+const getSaleOrderGroupKey = (sale) => {
+  const orderId = String(sale?.orderId ?? "").trim();
+  if (orderId) return `order:${orderId}`;
+  return `single:${String(sale?.productId ?? "").trim()}:${String(sale?.soldAt ?? "").trim()}`;
+};
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -400,6 +406,7 @@ const buildSoldProductsSignature = (products) => {
             sale?.orderId ?? "",
             sale?.soldAt ?? "",
             sale?.shippingRequested ? "shipping" : "pickup",
+            sale?.shippingCost ?? 0,
             sale?.fulfillmentStatus ?? "",
             sale?.dispatchedAt ?? "",
           ].join("|"),
@@ -539,13 +546,24 @@ const renderSoldProducts = (products) => {
 
   soldProductsEmpty.classList.add("ab-is-hidden");
 
-  salesCards
+  const salesByOrder = new Map();
+  salesCards.forEach((sale) => {
+    const key = getSaleOrderGroupKey(sale);
+    const group = salesByOrder.get(key) ?? [];
+    group.push(sale);
+    salesByOrder.set(key, group);
+  });
+
+  const renderedCards = salesCards
     .sort((a, b) => new Date(b.soldAt ?? 0).getTime() - new Date(a.soldAt ?? 0).getTime())
-    .forEach((sale, index) => {
+    .map((sale, index) => {
       const card = document.createElement("article");
       const saleOrderId = String(sale.orderId || "").trim();
       const saleProductId = String(sale.productId || "").trim();
       const shippingRequested = Boolean(sale.shippingRequested);
+      const orderGroup = salesByOrder.get(getSaleOrderGroupKey(sale)) ?? [sale];
+      const sharedOrderItemCount = orderGroup.length;
+      const hasSharedSellerShipping = shippingRequested && sharedOrderItemCount > 1;
       const fulfillmentStatus = String(sale.fulfillmentStatus || (shippingRequested ? "requested" : "pickup_pending")).trim();
       const nextAction = getNextFulfillmentAction(fulfillmentStatus, shippingRequested);
       const isCompleted = !nextAction;
@@ -598,7 +616,11 @@ const renderSoldProducts = (products) => {
           ${
             shippingRequested
               ? `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, true)}</strong></li>
-                 <li>Costo envío: <strong>$${formatPrice(sale.shippingCost ?? 0)}</strong></li>
+                 ${
+                   hasSharedSellerShipping
+                     ? `<li>Envío: <strong>Único de la venta</strong></li>`
+                     : `<li>Costo envío: <strong>$${formatPrice(sale.shippingCost ?? 0)}</strong></li>`
+                 }
                  <li>Dirección: <strong>${safeShippingAddress || "Sin dirección"}</strong></li>
                  ${safeShippingPhone ? `<li>Teléfono: <strong>${safeShippingPhone}</strong></li>` : ""}`
               : `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, false)}</strong></li>`
@@ -618,8 +640,44 @@ const renderSoldProducts = (products) => {
         </div>
       `;
       soldProductCards.push(card);
+      return card;
     });
 
+  const groupedCards = [];
+  const usedOrderGroups = new Set();
+  renderedCards.forEach((card, index) => {
+    const sale = salesCards[index];
+    const groupKey = getSaleOrderGroupKey(sale);
+    const groupSales = salesByOrder.get(groupKey) ?? [];
+    if (groupSales.length <= 1) {
+      groupedCards.push(card);
+      return;
+    }
+    if (usedOrderGroups.has(groupKey)) return;
+    usedOrderGroups.add(groupKey);
+
+    const orderCards = renderedCards.filter((_, cardIndex) => getSaleOrderGroupKey(salesCards[cardIndex]) === groupKey);
+    const firstSale = groupSales[0] ?? {};
+    const group = document.createElement("section");
+    group.className = "ab-sale-order-group";
+    group.dataset.salePendingDispatch = orderCards.some((item) => item.dataset.salePendingDispatch === "true") ? "true" : "false";
+    const groupHasShipping = groupSales.some((item) => item.shippingRequested);
+    group.innerHTML = `
+      <div class="ab-sale-order-group__header">
+        <span>Orden ${escapeHtml(String(firstSale.orderId || "").slice(0, 8) || "N/A")}</span>
+        ${
+          groupHasShipping
+            ? `<strong>Envío único: $${formatPrice(firstSale.shippingCost ?? 0)}</strong>
+               <small>${groupSales.length} productos de esta venta comparten el mismo costo de envío.</small>`
+            : `<strong>${groupSales.length} productos en esta venta</strong>`
+        }
+      </div>
+    `;
+    group.append(...orderCards);
+    groupedCards.push(group);
+  });
+
+  soldProductCards = groupedCards;
   applySoldProductsDispatchFilter();
 };
 
