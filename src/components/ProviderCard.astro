@@ -60,3 +60,90 @@ const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComp
   <a href={profileHref} class="ab-cta-button">Ver perfil</a>
 
 </div>
+
+<style>
+  .ab-provider-card {
+    padding: var(--card-padding);
+    position: relative;
+    color: var(--color-text);
+    transition: 0.25s ease;
+  }
+
+  .ab-provider-card:hover {
+    border-color: rgba(22, 199, 132, 0.45);
+  }
+
+  .ab-provider-card:active {
+    transform: translateY(2px);
+  }
+
+  .ab-provider-card__ranking-badge {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background: var(--color-accent);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-on-accent);
+  }
+
+  .ab-provider-card__sponsor-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: gold;
+    color: var(--color-on-accent);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .ab-provider-card__name {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .ab-provider-card__average {
+    margin: 8px 0;
+    color: var(--color-text-soft);
+  }
+
+  .ab-provider-card__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .ab-provider-card__avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--color-border-soft);
+    background: var(--color-panel-tint-strong);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ab-provider-card__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ab-provider-card__daily {
+    margin: 4px 0 0;
+    color: var(--color-text-soft);
+  }
+
+  .ab-provider-card__location {
+    color: var(--color-text-muted);
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+</style>

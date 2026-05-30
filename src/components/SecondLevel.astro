@@ -10,7 +10,6 @@ const {
 } = Astro.props;
 // Normaliza basePath para generar rutas.
 const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toLowerCase();
-import "../styles/global.css";
 ---
 <!-- Sección con accesos de segundo nivel -->
 <section class="level-two">
@@ -28,3 +27,79 @@ import "../styles/global.css";
     </a>
   </div>
 </section>
+
+<style>
+  .level-two {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    gap: 28px;
+    padding: 0 20px;
+  }
+
+  .level-two__title {
+    margin: 0;
+    font-size: 28px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .block-group {
+    display: flex;
+    gap: 60px;
+  }
+
+  .level-block {
+    width: 320px;
+    height: 200px;
+    border-radius: 20px;
+    background: var(--glass-green-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: 20px;
+    font-weight: 600;
+    transition: 0.25s ease;
+    letter-spacing: 1px;
+    border: 1px solid var(--glass-green-border);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .level-block:hover {
+    box-shadow: 0 20px 40px rgba(22, 199, 132, 0.35);
+  }
+
+  .level-block:active {
+    transform: translateY(2px);
+  }
+
+  @media (max-width: 900px) {
+    .level-two {
+      gap: 16px;
+    }
+
+    .block-group {
+      width: 100%;
+      align-items: center;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .level-block {
+      width: min(360px, 100%);
+      height: 136px;
+      font-size: clamp(1rem, 4.8vw, 1.1rem);
+    }
+  }
+
+  @media (max-width: 420px) {
+    .level-two__title {
+      font-size: 1.2rem;
+    }
+  }
+</style>

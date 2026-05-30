@@ -1,7 +1,6 @@
 ---
 // Página de inicio con accesos principales.
 import MainLayout from "../layouts/MainLayout.astro";
-import "../styles/global.css";
 ---
 
 <MainLayout title="Desoluciones" headerTitle="">
@@ -28,3 +27,133 @@ import "../styles/global.css";
     </div>
   </section>
 </MainLayout>
+
+<style>
+  .hero {
+    width: min(1180px, 100%);
+    min-height: calc(100dvh - var(--header-height) - var(--footer-height) - 32px);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: clamp(18px, 4vh, 42px) 16px;
+    border-radius: 4px;
+  }
+
+  .hero-content {
+    width: min(900px, 100%);
+    display: grid;
+    justify-items: center;
+    gap: clamp(24px, 4.5vh, 48px);
+  }
+
+  .hero-logo {
+    width: min(520px, 84vw);
+    max-height: 190px;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  .hero h1 {
+    margin: 0;
+    color: #4f958a;
+    font-size: clamp(2.1rem, 4.35vw, 3.65rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: clamp(18px, 3vw, 30px);
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .hero-buttons .ab-cta-button {
+    width: clamp(210px, 25vw, 270px);
+    min-height: 78px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 28px;
+    border-radius: 12px;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    font-size: clamp(1.8rem, 3.2vw, 2.65rem);
+    font-weight: 850;
+    line-height: 1;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.1),
+      0 7px 12px rgba(32, 74, 91, 0.28);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      filter 0.18s ease;
+  }
+
+  .hero-button--buy {
+    background: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
+  }
+
+  .hero-button--sell {
+    background: linear-gradient(180deg, #48baa1 0%, #229478 100%);
+  }
+
+  .hero-button--offer {
+    background: linear-gradient(180deg, #69ba75 0%, #2f8d58 100%);
+  }
+
+  .hero-buttons .ab-cta-button:hover {
+    filter: brightness(1.04);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.38),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.1),
+      0 12px 22px rgba(32, 74, 91, 0.3);
+  }
+
+  @media (max-width: 900px) {
+    .hero h1 {
+      font-size: clamp(1.75rem, 6.6vw, 2.25rem);
+      margin-bottom: 0;
+    }
+
+    .hero-buttons {
+      gap: 12px;
+    }
+
+    .hero-buttons .ab-cta-button {
+      width: min(310px, 100%);
+      padding: 12px 18px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero h1 {
+      font-size: clamp(1.8rem, 8vw, 2.55rem);
+    }
+
+    .hero-buttons {
+      gap: 14px;
+    }
+
+    .hero-buttons .ab-cta-button {
+      width: min(310px, 100%);
+      min-height: 64px;
+      font-size: clamp(1.55rem, 8vw, 2.2rem);
+    }
+  }
+
+  @media (max-width: 420px) {
+    .hero h1 {
+      font-size: clamp(1.45rem, 7.8vw, 1.8rem);
+      margin-bottom: 0;
+    }
+  }
+</style>
