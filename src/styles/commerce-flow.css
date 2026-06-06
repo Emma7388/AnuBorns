@@ -484,6 +484,18 @@
   text-decoration: none;
 }
 
+.ab-purchase-status-toast {
+  left: 16px;
+  top: calc(var(--header-height) + 14px);
+  bottom: auto;
+  width: min(360px, calc(100vw - 24px));
+  transform: translate(calc(-100% - 28px), 0);
+}
+
+.ab-purchase-status-toast.is-visible {
+  transform: translate(0, 0);
+}
+
 @media (max-width: 1024px) {
   .ab-cart-panel,
   .ab-checkout-panel {

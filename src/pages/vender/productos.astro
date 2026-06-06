@@ -5,113 +5,233 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
 <MainLayout title="Vender producto">
   <!-- Panel principal -->
-  <section class="ab-dark-panel">
-    <p class="ab-eyebrow">Publicación de producto</p>
-    <h1>Creá tu publicación</h1>
-    <p class="ab-muted-text"></p>
+  <section class="ab-dark-panel ab-product-publisher">
+    <div class="ab-product-publisher__header">
+      <div>
+        <p class="ab-eyebrow">Publicación de producto</p>
+        <h1>Creá tu publicación</h1>
+      </div>
+    </div>
 
     <!-- Formulario de producto -->
-    <form class="ab-form" id="product-form">
-      <label for="title" class="ab-required-label">Título</label>
-      <input
-        id="title"
-        name="title"
-        type="text"
-        placeholder="Ej: Martillo de acero 16oz"
-        required
-        class="ab-highlight-field"
-      />
+    <form class="ab-form ab-product-form" id="product-form">
+      <ol class="ab-product-steps" id="product-progress-count" aria-label="Estado de la publicación">
+        <li data-product-step="0">Datos</li>
+        <li data-product-step="1">Descripción</li>
+        <li data-product-step="2">Precio y foto</li>
+        <li data-product-step="3">Contacto</li>
+        <li data-product-step="4">Entrega</li>
+      </ol>
 
-      <label for="category">Categoría</label>
-      <select id="category" name="category"></select>
+      <div class="ab-product-form__grid">
+        <div class="ab-product-form__fields">
+          <div class="ab-product-step-panel" data-product-panel="0">
+            <h2>Datos básicos</h2>
+            <p class="ab-product-step-help">
+              Nombrá el producto de forma clara y elegí dónde debería aparecer en el catálogo.
+            </p>
+            <label for="title" class="ab-required-label">Título</label>
+            <input
+              id="title"
+              name="title"
+              type="text"
+              placeholder="Ej: Martillo de acero 16oz"
+              required
+              class="ab-highlight-field"
+            />
+            <p class="ab-form-help">Usá marca, modelo, medida o material si ayuda a identificarlo rápido.</p>
 
-      <label for="description">Descripción</label>
-      <textarea
-        id="description"
-        name="description"
-        rows="4"
-        placeholder="Detalles del producto."
-        required
-      ></textarea>
+            <label for="category">Categoría</label>
+            <select id="category" name="category" class="ab-category-native" aria-hidden="true" tabindex="-1"></select>
+            <div class="ab-category-picker" data-category-picker>
+              <button
+                type="button"
+                class="ab-category-picker__toggle"
+                id="category-picker-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span class="ab-category-picker__toggle-icon">
+                  <img id="category-picker-icon" src="/icons/destacado.svg" alt="" aria-hidden="true" />
+                </span>
+                <span id="category-picker-label">Elegí una categoría</span>
+              </button>
+              <div class="ab-category-picker__menu ab-is-hidden" id="category-picker-menu" role="listbox">
+              </div>
+            </div>
+            <p class="ab-form-help">La categoría ayuda a que compradores encuentren tu producto filtrando.</p>
 
-      <label for="price">Precio (ARS)</label>
-      <input id="price" name="price" type="number" placeholder="Ej: 18000" required />
+            <div class="ab-product-step-actions">
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-product-next>Siguiente</button>
+            </div>
+          </div>
 
-      <label for="images">Imágenes</label>
-      <label class="ab-upload-button" for="images">Subir imagen</label>
-      <input
-        id="images"
-        name="images"
-        type="file"
-        accept="image/*"
-        class="ab-upload-input"
-        required
-      />
-      <span class="ab-muted-text ab-upload-help">
-        Podés subir 1 foto (máximo 5MB).
-      </span>
-      <div class="ab-upload-previews" id="image-previews" aria-live="polite"></div>
+          <div class="ab-product-step-panel ab-is-hidden" data-product-panel="1">
+            <h2>Descripción</h2>
+            <p class="ab-product-step-help">
+              Contá lo necesario para que la persona entienda estado, uso, medidas y qué incluye.
+            </p>
+            <label for="description">Descripción</label>
+            <textarea
+              id="description"
+              name="description"
+              rows="5"
+              placeholder="Detalles del producto."
+              required
+            ></textarea>
+            <p class="ab-form-help">Ej: estado, medidas, material, color, cantidad disponible o detalles importantes.</p>
 
-      <label for="location">Ubicación</label>
-      <select id="location" name="location" required>
-        <option value="">Elegí una ubicación</option>
-        <option value="CAMPANA">CAMPANA</option>
-        <option value="ZARATE">ZARATE</option>
-        <option value="LIMA">LIMA</option>
-      </select>
+            <div class="ab-product-step-actions">
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-product-prev>Anterior</button>
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-product-next>Siguiente</button>
+            </div>
+          </div>
 
-      <label for="public-phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
-      <input
-        id="public-phone"
-        name="publicPhone"
-        type="tel"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        data-phone-input
-        placeholder="Sin teléfono en perfil"
-        readonly
-        required
-      />
+          <div class="ab-product-step-panel ab-is-hidden" data-product-panel="2">
+            <h2>Precio y foto</h2>
+            <p class="ab-product-step-help">
+              Definí el precio final en pesos y subí una foto donde se vea bien el producto.
+            </p>
+            <label for="price">Precio (ARS)</label>
+            <input id="price" name="price" type="number" placeholder="Ej: 18000" required />
+            <p class="ab-form-help">Ingresá solo números. El precio se mostrará en ARS.</p>
 
-      <label for="public-email">Email</label>
-      <input
-        id="public-email"
-        name="publicEmail"
-        type="email"
-        placeholder="Sin email en cuenta"
-        readonly
-        required
-      />
+            <label for="images">Imágenes</label>
+            <label class="ab-upload-button" for="images">Subir imagen</label>
+            <input
+              id="images"
+              name="images"
+              type="file"
+              accept="image/*"
+              class="ab-upload-input"
+              required
+            />
+            <span class="ab-muted-text ab-upload-help">
+              Podés subir 1 foto (máximo 5MB).
+            </span>
+            <div class="ab-upload-previews" id="image-previews" aria-live="polite"></div>
 
-      <label>Entrega</label>
-      <div class="ab-option-group" role="group" aria-label="Opciones de entrega">
-        <label class="ab-option">
-          <input type="checkbox" name="delivery" value="retiro" />
-          Retiro en local
-        </label>
-        <label class="ab-option">
-          <input type="checkbox" name="delivery" value="envio" />
-          Envío
-        </label>
+            <div class="ab-product-step-actions">
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-product-prev>Anterior</button>
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-product-next>Siguiente</button>
+            </div>
+          </div>
+
+          <div class="ab-product-step-panel ab-is-hidden" data-product-panel="3">
+            <h2>Ubicación y contacto</h2>
+            <p class="ab-product-step-help">
+              Confirmá desde dónde vendés y revisá los datos públicos que verá el comprador.
+            </p>
+            <label for="location">Ubicación</label>
+            <select id="location" name="location" required>
+              <option value="">Elegí una ubicación</option>
+              <option value="CAMPANA">CAMPANA</option>
+              <option value="ZARATE">ZARATE</option>
+              <option value="LIMA">LIMA</option>
+            </select>
+            <p class="ab-form-help">Esta ubicación se usa para orientar búsquedas y coordinación de entrega.</p>
+
+            <label for="public-phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
+            <input
+              id="public-phone"
+              name="publicPhone"
+              type="tel"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-phone-input
+              placeholder="Sin teléfono en perfil"
+              readonly
+              required
+            />
+            <p class="ab-form-help">Se toma desde Mis datos. Si está mal, actualizalo desde tu perfil.</p>
+
+            <label for="public-email">Email</label>
+            <input
+              id="public-email"
+              name="publicEmail"
+              type="email"
+              placeholder="Sin email en cuenta"
+              readonly
+              required
+            />
+            <p class="ab-form-help">También se muestra como canal de contacto para esta publicación.</p>
+
+            <div class="ab-product-step-actions">
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-product-prev>Anterior</button>
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-product-next>Siguiente</button>
+            </div>
+          </div>
+
+          <div class="ab-product-step-panel ab-is-hidden" data-product-panel="4">
+            <h2>Entrega</h2>
+            <p class="ab-product-step-help">
+              Elegí cómo puede recibir el producto el comprador y confirmá la dirección de retiro.
+            </p>
+            <label>Entrega</label>
+            <div class="ab-option-group" role="group" aria-label="Opciones de entrega">
+              <label class="ab-option">
+                <input type="checkbox" name="delivery" value="retiro" />
+                Retiro en local
+              </label>
+              <label class="ab-option">
+                <input type="checkbox" name="delivery" value="envio" />
+                Envío
+              </label>
+            </div>
+            <span class="ab-muted-text">Podés elegir una o ambas.</span>
+            <div id="pickup-address-wrap">
+              <label for="pickup-address">Dirección</label>
+              <input
+                id="pickup-address"
+                name="pickupAddress"
+                type="text"
+                placeholder="Sin dirección en perfil"
+                readonly
+                required
+              />
+            </div>
+            <p class="ab-form-help">La dirección se toma desde Mis datos para evitar cargarla cada vez.</p>
+
+            <div class="ab-product-step-actions">
+              <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-product-prev>Anterior</button>
+              <button type="submit" class="ab-provider-product-card__button ab-provider-product-card__button--buy" id="product-submit">
+                Enviar publicación
+              </button>
+            </div>
+          </div>
+
+          <p id="product-feedback" class="ab-muted-text" aria-live="polite"></p>
+        </div>
+
+        <aside class="ab-product-live-preview" aria-label="Vista previa de la publicación">
+          <p class="ab-product-live-preview__label">Vista previa</p>
+          <img id="product-preview-image" src="/logo2.svg" alt="" />
+          <div class="ab-product-live-preview__meta">
+            <span id="product-preview-category">Sin categoría</span>
+            <strong id="product-preview-price">$0 ARS</strong>
+          </div>
+          <h2 id="product-preview-title">Título del producto</h2>
+          <p id="product-preview-description">La descripción va apareciendo mientras cargás.</p>
+          <ul>
+            <li>Ubicación: <strong id="product-preview-location">Sin elegir</strong></li>
+            <li>Entrega: <strong id="product-preview-delivery">Sin elegir</strong></li>
+          </ul>
+        </aside>
       </div>
-      <span class="ab-muted-text">Podés elegir una o ambas.</span>
-      <div id="pickup-address-wrap">
-        <label for="pickup-address">Dirección</label>
-        <input
-          id="pickup-address"
-          name="pickupAddress"
-          type="text"
-          placeholder="Sin dirección en perfil"
-          readonly
-          required
-        />
-      </div>
-
-      <button type="submit" class="ab-cta-button" id="product-submit">
-        Enviar publicación
-      </button>
-      <p id="product-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
+
+    <div class="ab-product-success ab-is-hidden" id="product-success" aria-live="polite">
+      <h2>Felicitaciones, tu producto se ha publicado.</h2>
+      <p>La publicación ya está disponible para compradores.</p>
+      <div class="ab-product-success__actions">
+        <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" id="product-new">
+          Publicar otro producto
+        </button>
+        <a href="/" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-astro-reload>
+          Volver a inicio
+        </a>
+      </div>
+    </div>
   </section>
 </MainLayout>
 

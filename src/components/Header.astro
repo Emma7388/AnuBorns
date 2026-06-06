@@ -67,7 +67,6 @@ const { title = "" } = Astro.props;
             class="nav-avatar"
             href="/mis-datos"
             aria-label="Ir a mis datos"
-            data-ab-profile-link
           >
             <span id="sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>
             <img id="auth-avatar" alt="Avatar de usuario" />
@@ -109,10 +108,13 @@ const { title = "" } = Astro.props;
 <style>
 /* Layout general del header */
 .header {
+  --header-block-padding: clamp(8px, 1.4dvh, 14px);
   background: var(--color-surface);
   color: var(--color-text);
   min-height: var(--header-height);
-  padding: clamp(8px, 1.4dvh, 14px) 0;
+  height: var(--header-height);
+  box-sizing: border-box;
+  padding: var(--header-block-padding) 0;
   border-bottom: 1px solid var(--color-border-subtle);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -139,6 +141,18 @@ const { title = "" } = Astro.props;
   min-width: 0;
 }
 
+.header-zone--brand {
+  grid-column: 1;
+}
+
+.header-zone--title {
+  grid-column: 2;
+}
+
+.header-zone--nav {
+  grid-column: 3;
+}
+
 .brand-row {
   display: flex;
   align-items: center;
@@ -150,30 +164,45 @@ const { title = "" } = Astro.props;
 
 .ab-header-page-title {
   min-width: 0;
-  text-align: left;
+  text-align: right;
   justify-self: stretch;
   width: 100%;
+  height: calc(var(--header-height) - var(--header-block-padding) - var(--header-block-padding));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .ab-header-page-title:empty {
-  display: none;
+  visibility: hidden;
 }
 
 .ab-header-page-title :global(h1) {
   position: relative;
   margin: 0;
-  display: -webkit-box;
-  padding: 4px 6px 10px 2px;
-  font-size: clamp(0.92rem, 1.45vw, 1.24rem);
+  display: inline-block;
+  padding: 0 6px 7px 2px;
+  font-size: clamp(1.35rem, 2.8vw, 2.25rem);
   font-weight: 800;
   color: var(--color-text);
-  line-height: 1.12;
+  line-height: 1.02;
   max-width: 100%;
+  max-height: calc(100% - 2px);
   overflow: hidden;
   overflow-wrap: anywhere;
   text-wrap: balance;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+}
+
+.ab-header-page-title :global(h1)::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  width: min(82%, 260px);
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(72, 186, 161, 0.15), #48baa1 24%, #229478 100%);
+  box-shadow: 0 3px 8px rgba(34, 148, 120, 0.34);
 }
 
 .logo {
@@ -181,11 +210,11 @@ const { title = "" } = Astro.props;
   text-decoration: none;
   flex: 0 0 auto;
   width: auto;
-  height: 90px;
+  height: min(76px, calc(var(--header-height) - var(--header-block-padding) - var(--header-block-padding)));
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .logo img {
@@ -608,7 +637,7 @@ const { title = "" } = Astro.props;
 
 @media (max-width: 720px) {
   .header {
-    padding: clamp(7px, 1.2dvh, 10px) 0;
+    --header-block-padding: clamp(7px, 1.2dvh, 10px);
   }
 
   .header-inner {
@@ -624,7 +653,6 @@ const { title = "" } = Astro.props;
 
   .logo {
     width: auto;
-    height: 90px;
   }
 
   .logo img {
@@ -634,10 +662,10 @@ const { title = "" } = Astro.props;
 
   .ab-header-page-title :global(h1) {
     margin: 0;
-    text-align: left;
-    padding: 3px 3px 8px 1px;
-    font-size: clamp(0.72rem, 2.35vw, 0.92rem);
-    line-height: 1.08;
+    text-align: right;
+    padding: 0 3px 6px 1px;
+    font-size: clamp(1.22rem, 5.3vw, 1.78rem);
+    line-height: 1.02;
   }
 
   .nav {
@@ -687,7 +715,6 @@ const { title = "" } = Astro.props;
 
   .logo {
     width: auto;
-    height: 90;
   }
 
   .logo img {
@@ -696,8 +723,8 @@ const { title = "" } = Astro.props;
   }
 
   .ab-header-page-title :global(h1) {
-    padding-inline: 0 2px;
-    font-size: 0.72rem;
+    padding: 0 2px 6px 0;
+    font-size: clamp(1.1rem, 5.1vw, 1.45rem);
   }
 
   .nav-login,
@@ -720,7 +747,6 @@ const { title = "" } = Astro.props;
 
   .logo {
     width: auto;
-    height: 90px;
   }
 
   .logo img {

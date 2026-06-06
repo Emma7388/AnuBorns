@@ -18,29 +18,6 @@ import MainLayout from "../layouts/MainLayout.astro";
     <div id="orders-list" class="ab-orders-list"></div>
   </section>
 
-  <!-- Modal de confirmación para borrar una compra -->
-  <div
-    id="orders-delete-modal"
-    class="ab-orders-modal ab-is-hidden"
-    role="dialog"
-    aria-modal="true"
-    aria-hidden="true"
-    aria-labelledby="orders-delete-title"
-  >
-    <div class="ab-orders-modal__backdrop" data-orders-modal-close></div>
-    <div class="ab-orders-modal__panel" role="document">
-      <h2 id="orders-delete-title">Borrar compra</h2>
-      <p>¿Seguro que querés borrar esta compra? Esta acción no se puede deshacer.</p>
-      <div class="ab-orders-modal__actions">
-        <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-orders-modal-cancel>
-          Cancelar
-        </button>
-        <button type="button" class="ab-orders-delete-btn" data-orders-modal-confirm>
-          Sí, borrar
-        </button>
-      </div>
-    </div>
-  </div>
 </MainLayout>
 
 <!-- Script de órdenes -->

@@ -105,13 +105,20 @@ const bindImageModalEvents = () => {
   });
 };
 
+const bindImageModalLifecycleEvents = () => {
+  if (document.documentElement.dataset.abImageModalLifecycleBound === "true") return;
+  document.documentElement.dataset.abImageModalLifecycleBound = "true";
+
+  document.addEventListener("astro:page-load", prepareProductImages);
+  document.addEventListener("astro:after-swap", prepareProductImages);
+  window.addEventListener("pageshow", prepareProductImages);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!modalRoot || modalRoot.classList.contains("ab-is-hidden")) return;
+    closeImageModal();
+  });
+};
+
 bindImageModalEvents();
 prepareProductImages();
-document.addEventListener("astro:page-load", prepareProductImages);
-document.addEventListener("astro:after-swap", prepareProductImages);
-window.addEventListener("pageshow", prepareProductImages);
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  if (!modalRoot || modalRoot.classList.contains("ab-is-hidden")) return;
-  closeImageModal();
-});
+bindImageModalLifecycleEvents();

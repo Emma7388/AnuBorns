@@ -644,13 +644,63 @@ html.ab-profile-enter main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   text-decoration: none;
   cursor: pointer;
   transition: transform 0.14s ease;
 }
 
+.ab-order-card__provider-phone-link img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
 .ab-order-card__provider-phone-link:active {
   transform: scale(0.92);
+}
+
+.ab-order-product-card .ab-provider-product-card__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ab-order-product-card .ab-provider-product-card__button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.ab-order-product-card .ab-provider-product-card__button img {
+  width: 17px;
+  height: 17px;
+}
+
+.ab-order-product-card .ab-order-card__highlight {
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(180deg, rgba(72, 186, 161, 0.28), rgba(34, 148, 120, 0.18));
+  color: var(--color-text);
+  font-weight: 850;
+}
+
+.ab-order-product-card .ab-order-card__highlight strong {
+  color: var(--color-text);
+}
+
+.ab-order-product-card .ab-order-card__highlight--note {
+  background: linear-gradient(180deg, rgba(63, 143, 192, 0.28), rgba(30, 93, 146, 0.18));
+}
+
+@media (max-width: 420px) {
+  .ab-order-product-card .ab-provider-product-card__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Mis servicios */
@@ -724,21 +774,31 @@ html.ab-profile-enter main {
   font-size: 14px;
 }
 
-.ab-sales-link {
+.ab-sales-link,
+.ab-purchases-link {
   position: relative;
 }
 
-.ab-sales-link .ab-sales-notification-dot {
+.ab-sales-link .ab-sales-notification-dot,
+.ab-purchases-link .ab-purchase-notification-dot {
   position: absolute;
   top: -4px;
   right: -4px;
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #22c55e;
   border: 2px solid var(--color-bg);
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
   z-index: 2;
+}
+
+.ab-sales-link .ab-sales-notification-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.ab-purchases-link .ab-purchase-notification-dot {
+  background: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
 }
 
 @media (max-width: 1024px) {

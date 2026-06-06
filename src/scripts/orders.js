@@ -8,76 +8,50 @@ const ORDERS_KEY = "ab_orders_v1";
 let list = document.getElementById("orders-list");
 let emptyState = document.getElementById("orders-empty");
 let status = document.getElementById("orders-status");
-let deleteModal = document.getElementById("orders-delete-modal");
-let deleteModalClose = document.querySelector("[data-orders-modal-close]");
-let deleteModalCancel = document.querySelector("[data-orders-modal-cancel]");
-let deleteModalConfirm = document.querySelector("[data-orders-modal-confirm]");
-let pendingDeleteOrderId = "";
-let lastOrderDeleteModalTrigger = null;
 let currentUserId = "";
-let currentSource = "remote";
-let currentOrders = [];
 let syncInFlight = false;
+let purchaseRealtimeChannel = null;
+let purchaseRealtimeRefreshTimer = null;
+
+const PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS = 900;
 
 const refreshOrderNodes = () => {
   list = document.getElementById("orders-list");
   emptyState = document.getElementById("orders-empty");
   status = document.getElementById("orders-status");
-  deleteModal = document.getElementById("orders-delete-modal");
-  deleteModalClose = document.querySelector("[data-orders-modal-close]");
-  deleteModalCancel = document.querySelector("[data-orders-modal-cancel]");
-  deleteModalConfirm = document.querySelector("[data-orders-modal-confirm]");
 };
 
 const bindOrderEvents = () => {
   refreshOrderNodes();
-  if (list && list.dataset.abOrdersClickBound !== "true") {
-    list.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const button = target.closest("[data-order-delete]");
-      if (!(button instanceof HTMLButtonElement)) return;
-      const orderId = button.dataset.orderDelete ?? "";
-      if (!orderId) return;
-      openDeleteModal(orderId);
-    });
-    list.dataset.abOrdersClickBound = "true";
-  }
+  if (!list || list.dataset.pickupBound === "1") return;
+  list.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest("[data-confirm-pickup]");
+    if (!(button instanceof HTMLButtonElement)) return;
 
-  if (deleteModalCancel && deleteModalCancel.dataset.abOrdersCancelBound !== "true") {
-    deleteModalCancel.addEventListener("click", closeDeleteModal);
-    deleteModalCancel.dataset.abOrdersCancelBound = "true";
-  }
-  if (deleteModalClose && deleteModalClose.dataset.abOrdersCloseBound !== "true") {
-    deleteModalClose.addEventListener("click", closeDeleteModal);
-    deleteModalClose.dataset.abOrdersCloseBound = "true";
-  }
-  if (deleteModalConfirm && deleteModalConfirm.dataset.abOrdersConfirmBound !== "true") {
-    deleteModalConfirm.addEventListener("click", async () => {
-      const orderId = pendingDeleteOrderId;
-      if (!orderId) return;
-      if (deleteModalConfirm instanceof HTMLButtonElement) {
-        deleteModalConfirm.disabled = true;
-        deleteModalConfirm.setAttribute("aria-busy", "true");
-      }
-      const deleted = await deleteOrder(orderId);
-      if (deleteModalConfirm instanceof HTMLButtonElement) {
-        deleteModalConfirm.disabled = false;
-        deleteModalConfirm.removeAttribute("aria-busy");
-      }
-      if (deleted) closeDeleteModal();
-    });
-    deleteModalConfirm.dataset.abOrdersConfirmBound = "true";
-  }
+    const orderId = String(button.dataset.confirmPickup ?? "").trim();
+    const productIds = String(button.dataset.pickupProducts ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (!orderId || productIds.length === 0) return;
 
-  if (document.documentElement.dataset.abOrdersKeydownBound !== "true") {
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      if (deleteModal?.classList.contains("ab-is-hidden")) return;
-      closeDeleteModal();
-    });
-    document.documentElement.dataset.abOrdersKeydownBound = "true";
-  }
+    button.disabled = true;
+    const previousText = button.textContent;
+    button.textContent = "Confirmando...";
+    const result = await confirmPickupOnServer({ orderId, productIds });
+    if (!result.ok) {
+      button.disabled = false;
+      button.textContent = previousText || "Ya retiré";
+      if (status) status.textContent = result.error;
+      return;
+    }
+
+    if (status) status.textContent = "Retiro confirmado. Avisamos al vendedor.";
+    await loadOrders();
+  });
+  list.dataset.pickupBound = "1";
 };
 
 /* Formateo de precios ARS. */
@@ -109,6 +83,7 @@ const formatShippingStatus = (value, requested) => {
     delivered: "Entregado",
     pickup_pending: "Retiro pendiente",
     ready_for_pickup: "Listo para retirar",
+    picked_up: "Retirado",
     completed: "Completado",
     not_requested: "Sin envío",
   };
@@ -130,6 +105,134 @@ const normalizeProviderKey = (value) =>
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
+
+const getFulfillmentMapKey = (orderId, productId) => `${String(orderId ?? "").trim()}::${String(productId ?? "").trim()}`;
+
+const getItemFulfillmentStatus = (fulfillmentMap, orderId, productId, fallbackStatus) =>
+  String(fulfillmentMap?.[getFulfillmentMapKey(orderId, productId)]?.fulfillmentStatus ?? fallbackStatus ?? "").trim();
+
+const fetchPurchaseFulfillmentMap = async (orders = []) => {
+  const orderIds = [...new Set(
+    (Array.isArray(orders) ? orders : [])
+      .map((order) => String(order?.id ?? "").trim())
+      .filter(Boolean),
+  )];
+  if (orderIds.length === 0) return {};
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token ?? "";
+  if (!token) return {};
+
+  const response = await fetch(`/api/purchase-fulfillment?orderIds=${encodeURIComponent(orderIds.join(","))}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray(payload?.items)) return {};
+
+  const unreadItems = [];
+  const map = payload.items.reduce((nextMap, item) => {
+    const orderId = String(item?.orderId ?? "").trim();
+    const productId = String(item?.productId ?? "").trim();
+    const fulfillmentStatus = String(item?.fulfillmentStatus ?? "").trim();
+    if (!orderId || !productId) return nextMap;
+    nextMap[getFulfillmentMapKey(orderId, productId)] = {
+      fulfillmentStatus,
+      statusRead: Boolean(item?.statusRead),
+    };
+    if (payload?.hasAnyRead && fulfillmentStatus && !item?.statusRead) {
+      unreadItems.push({ orderId, productId, fulfillmentStatus });
+    }
+    return nextMap;
+  }, {});
+  Object.defineProperty(map, "__unreadItems", {
+    value: unreadItems,
+    enumerable: false,
+  });
+  return map;
+};
+
+const markPurchaseStatusesReadOnServer = async (items = []) => {
+  const reads = (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      orderId: String(item?.orderId ?? "").trim(),
+      productId: String(item?.productId ?? "").trim(),
+      fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+    }))
+    .filter((item) => item.orderId && item.productId && item.fulfillmentStatus);
+  if (reads.length === 0) return;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token ?? "";
+  if (!token) return;
+
+  await fetch("/api/purchase-fulfillment", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ items: reads }),
+  }).catch(() => {});
+};
+
+const markRenderedPurchaseStatusesRead = (fulfillmentMap = {}) => {
+  const unreadItems = Array.isArray(fulfillmentMap.__unreadItems) ? fulfillmentMap.__unreadItems : [];
+  if (unreadItems.length === 0) return;
+  void markPurchaseStatusesReadOnServer(unreadItems);
+};
+
+const confirmPickupOnServer = async ({ orderId, productIds }) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token ?? "";
+  if (!token) return { ok: false, error: "Tenés que iniciar sesión." };
+
+  const response = await fetch("/api/purchase-pickup", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ orderId, productIds }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { ok: false, error: String(payload?.error ?? "No se pudo confirmar el retiro.") };
+  }
+  return { ok: true };
+};
+
+const schedulePurchaseRealtimeRefresh = () => {
+  window.clearTimeout(purchaseRealtimeRefreshTimer);
+  purchaseRealtimeRefreshTimer = window.setTimeout(() => {
+    void loadOrders();
+  }, PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS);
+};
+
+const setupPurchaseRealtime = async () => {
+  if (!currentUserId || purchaseRealtimeChannel) return;
+  purchaseRealtimeChannel = supabase
+    .channel(`purchase-status-${currentUserId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${currentUserId}` },
+      schedulePurchaseRealtimeRefresh,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "sale_dispatches" },
+      schedulePurchaseRealtimeRefresh,
+    )
+    .subscribe();
+};
+
+const teardownPurchaseRealtime = async () => {
+  window.clearTimeout(purchaseRealtimeRefreshTimer);
+  purchaseRealtimeRefreshTimer = null;
+  if (!purchaseRealtimeChannel) return;
+  const channel = purchaseRealtimeChannel;
+  purchaseRealtimeChannel = null;
+  await supabase.removeChannel(channel);
+};
 
 const buildWhatsappUrl = (provider, phone) => {
   const digits = toWhatsappDigits(phone);
@@ -355,7 +458,7 @@ const hydrateOrderItemImages = async (history = []) => {
 };
 
 /* Renderiza lista de órdenes en el DOM. */
-const renderHistory = (history = [], providerMetaMap = {}) => {
+const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) => {
   if (!list) return;
   list.innerHTML = "";
   list.classList.add("ab-provider-products-grid");
@@ -372,7 +475,8 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
     const currency = String(order.currency ?? "ARS").trim() || "ARS";
     const shippingRequested = Boolean(order.shipping_requested);
     const shippingCost = Number(order.shipping_cost ?? 0);
-    const shippingStatus = formatShippingStatus(order.shipping_status, shippingRequested);
+    const orderShippingStatus = String(order.shipping_status ?? "").trim();
+    const shippingStatus = formatShippingStatus(orderShippingStatus, shippingRequested);
     const shippingAddress = String(order.shipping_address ?? "").trim();
     const shippingCity = String(order.shipping_city ?? "").trim();
     const shippingPhone = String(order.shipping_phone ?? "").trim();
@@ -394,14 +498,31 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
       const providerUserId = String(firstWithUser?.provider_user_id ?? "").trim() || providerMeta.userId || "";
       const providerProfileHref = providerUserId ? `/proveedor-publico/${encodeURIComponent(providerUserId)}` : "";
       const waLink = buildWhatsappUrl(provider, providerPhone);
-      const providerSubtotal = providerItems.reduce(
-        (sum, item) => sum + Number(item?.unit_price ?? 0) * Number(item?.qty ?? 1),
-        0,
-      );
-
       const card = document.createElement("article");
-      card.className = "ab-provider-product-card";
+      card.className = "ab-provider-product-card ab-order-product-card";
       const coverImage = escapeHtml(String(providerItems[0]?.image ?? "").trim() || "/logo2.svg");
+      const pickupProductIds = providerItems
+        .filter((item) =>
+          getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus) === "ready_for_pickup"
+        )
+        .map((item) => String(item?.product_id ?? "").trim())
+        .filter(Boolean);
+      const providerStatuses = providerItems
+        .map((item) => getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus))
+        .filter(Boolean);
+      const providerStatus = providerStatuses.length > 0 && providerStatuses.every((item) => item === providerStatuses[0])
+        ? formatShippingStatus(providerStatuses[0], shippingRequested)
+        : shippingStatus;
+      const confirmPickupButton = !shippingRequested && pickupProductIds.length > 0
+        ? `<button
+            type="button"
+            class="ab-provider-product-card__button ab-provider-product-card__button--buy"
+            data-confirm-pickup="${escapeHtml(orderId)}"
+            data-pickup-products="${escapeHtml(pickupProductIds.join(","))}"
+          >
+            Ya retiré
+          </button>`
+        : "";
       const providerNameMarkup = providerProfileHref
         ? `<a class="ab-order-card__provider-link" href="${providerProfileHref}">${escapeHtml(provider)}</a>`
         : `<span class="ab-order-card__provider-link ab-order-card__provider-link--disabled">${escapeHtml(provider)}</span>`;
@@ -413,19 +534,19 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
             <p class="ab-provider-product-card__label">Compra ${escapeHtml(orderId.slice(0, 8) || "N/A")}</p>
             <p class="ab-provider-product-card__code">${orderDate || "Sin fecha"}</p>
           </div>
-          <p class="ab-provider-product-card__price">$${formatPrice(providerSubtotal)} <span>${escapeHtml(currency)}</span></p>
         </div>
         <h2>${providerNameMarkup}</h2>
-        <p class="ab-provider-product-card__description">
-          ${waLink ? `<a class="ab-order-card__provider-phone-link" href="${waLink}" target="_blank" rel="noreferrer noopener">Contactar por WhatsApp</a>` : "Sin WhatsApp disponible"}
-        </p>
         <ul class="ab-provider-product-card__details">
           ${providerItems
             .map((item) => {
               const qty = Number(item?.qty ?? 1);
               const price = Number(item?.unit_price ?? 0);
               const subtotal = price * qty;
-              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} x ${qty} · $${formatPrice(subtotal)}</strong></li>`;
+              const itemStatus = getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus);
+              const itemStatusLabel = !shippingRequested && itemStatus
+                ? ` · ${formatShippingStatus(itemStatus, false)}`
+                : "";
+              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} x ${qty} · $${formatPrice(subtotal)}${escapeHtml(itemStatusLabel)}</strong></li>`;
             })
             .join("")}
           ${
@@ -434,15 +555,27 @@ const renderHistory = (history = [], providerMetaMap = {}) => {
                  <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>
                  <li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
                  ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
-              : `<li>Entrega: <strong>${escapeHtml(shippingStatus)}</strong></li>`
+              : `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>`
           }
-          <li>Total: <strong>$${formatPrice(order.total_amount ?? 0)}</strong></li>
-          ${buyerNote ? `<li>Nota: <strong>${escapeHtml(buyerNote)}</strong></li>` : ""}
+          <li class="ab-order-card__highlight">TOTAL: <strong>$${formatPrice(order.total_amount ?? 0)} ${escapeHtml(currency)}</strong></li>
+          ${buyerNote ? `<li class="ab-order-card__highlight ab-order-card__highlight--note">Nota: <strong>${escapeHtml(buyerNote)}</strong></li>` : ""}
         </ul>
         <div class="ab-provider-product-card__actions">
-          <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-order-delete="${escapeHtml(orderId)}">
-            Borrar compra
+          ${
+            waLink
+              ? `<a class="ab-provider-product-card__button ab-order-card__provider-phone-link" href="${waLink}" target="_blank" rel="noreferrer noopener">
+                  <img src="/icons/social.svg" alt="" aria-hidden="true" />
+                  <span>Contactá</span>
+                </a>`
+              : `<button type="button" class="ab-provider-product-card__button" disabled>
+                  <img src="/icons/social.svg" alt="" aria-hidden="true" />
+                  <span>Sin WhatsApp</span>
+                </button>`
+          }
+          <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
+            Ver factura
           </button>
+          ${confirmPickupButton}
         </div>
       `;
 
@@ -464,64 +597,12 @@ const renderOrders = () => {
   emptyState.style.display = "grid";
 };
 
-const openDeleteModal = (orderId) => {
-  if (!deleteModal || !orderId) return;
-  lastOrderDeleteModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  pendingDeleteOrderId = orderId;
-  deleteModal.classList.remove("ab-is-hidden");
-  deleteModal.setAttribute("aria-hidden", "false");
-  deleteModalConfirm?.focus();
-};
-
-const closeDeleteModal = () => {
-  if (!deleteModal) return;
-  if (deleteModal.contains(document.activeElement)) {
-    if (lastOrderDeleteModalTrigger instanceof HTMLElement) {
-      lastOrderDeleteModalTrigger.focus();
-    } else if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-  }
-  pendingDeleteOrderId = "";
-  lastOrderDeleteModalTrigger = null;
-  deleteModal.classList.add("ab-is-hidden");
-  deleteModal.setAttribute("aria-hidden", "true");
-};
-
-const deleteOrder = async (orderId) => {
-  if (!orderId) return false;
-
-  if (currentSource === "local" && currentUserId) {
-    const raw = window.localStorage.getItem(ORDERS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    const localOrders = Array.isArray(parsed[currentUserId]) ? parsed[currentUserId] : [];
-    parsed[currentUserId] = localOrders.filter((order) => String(order?.id ?? "") !== orderId);
-    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
-    currentOrders = parsed[currentUserId];
-  } else {
-    const { error } = await supabase
-      .from("orders")
-      .delete()
-      .eq("id", orderId)
-      .eq("user_id", currentUserId);
-    if (error) {
-      if (status) status.textContent = `No se pudo borrar la compra: ${error.message}`;
-      return false;
-    }
-    currentOrders = currentOrders.filter((order) => String(order?.id ?? "") !== orderId);
-  }
-
-  const providerMetaMap = await buildProviderMetaMap(currentOrders);
-  renderHistory(currentOrders, providerMetaMap);
-  renderOrders();
-  if (status) status.textContent = "";
-  return true;
-};
-
 /* Carga órdenes locales o desde Supabase. */
 const loadOrders = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session?.user) {
+    await teardownPurchaseRealtime();
+    currentUserId = "";
     if (status) status.textContent = "Tenés que iniciar sesión para ver tus compras.";
     window.location.href = "/login?returnTo=/mis-compras";
     return;
@@ -529,6 +610,9 @@ const loadOrders = async () => {
 
   /* Primero intenta usar órdenes locales guardadas. */
   const userId = sessionData.session.user.id;
+  if (currentUserId && currentUserId !== userId) {
+    await teardownPurchaseRealtime();
+  }
   currentUserId = userId;
   const syncResult = await syncLocalOrdersToServer(userId);
   if (syncResult.syncedCount > 0 && status) {
@@ -543,12 +627,14 @@ const loadOrders = async () => {
     const parsed = raw ? JSON.parse(raw) : {};
     const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
     if (localOrders.length > 0) {
-      currentSource = "local";
-      currentOrders = await hydrateOrderItemImages(localOrders);
+      const currentOrders = await hydrateOrderItemImages(localOrders);
       const providerMetaMap = await buildProviderMetaMap(currentOrders);
+      const fulfillmentMap = await fetchPurchaseFulfillmentMap(currentOrders);
       if (status) status.textContent = "";
-      renderHistory(currentOrders, providerMetaMap);
+      renderHistory(currentOrders, providerMetaMap, fulfillmentMap);
+      markRenderedPurchaseStatusesRead(fulfillmentMap);
       renderOrders();
+      await setupPurchaseRealtime();
       return;
     }
   } catch {
@@ -572,9 +658,7 @@ const loadOrders = async () => {
       rawMessage.includes("schema cache");
 
     if (missingOrdersTable) {
-      currentSource = "remote";
-      currentOrders = [];
-      renderHistory([], {});
+      renderHistory([], {}, {});
       renderOrders();
       if (status) {
         status.textContent =
@@ -589,13 +673,15 @@ const loadOrders = async () => {
 
   if (status) status.textContent = "";
   const safeData = await hydrateOrderItemImages(data ?? []);
-  currentSource = "remote";
-  currentOrders = safeData;
   const providerMetaMap = await buildProviderMetaMap(safeData);
-  renderHistory(safeData, providerMetaMap);
+  const fulfillmentMap = await fetchPurchaseFulfillmentMap(safeData);
+  renderHistory(safeData, providerMetaMap, fulfillmentMap);
+  markRenderedPurchaseStatusesRead(fulfillmentMap);
   renderOrders();
+  await setupPurchaseRealtime();
 };
 
+refreshOrderNodes();
 bindOrderEvents();
 
 document.addEventListener("astro:page-load", () => {
@@ -613,6 +699,7 @@ window.addEventListener("pageshow", () => {
   bindOrderEvents();
   loadOrders();
 });
+window.addEventListener("pagehide", teardownPurchaseRealtime);
 
 /* Inicialización. */
 loadOrders();

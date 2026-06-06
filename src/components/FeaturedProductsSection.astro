@@ -58,17 +58,17 @@ const serializeDelivery = (value) =>
           data-currency={item.currency}
           data-delivery={serializeDelivery(item.deliveryMethods)}
         >
+          <img
+            class="ab-provider-product-card__image"
+            src={item.imageUrl}
+            alt={item.title || "Producto"}
+            loading="lazy"
+          />
           <a
             href={getProductHref(item)}
             class="ab-featured-card-link"
             aria-disabled={item.productId || item.sellerUserId ? null : "true"}
           >
-            <img
-              class="ab-provider-product-card__image"
-              src={item.imageUrl}
-              alt={item.title || "Producto"}
-              loading="lazy"
-            />
             <div class="ab-provider-product-card__meta">
               <div>
                 <p class="ab-provider-product-card__label">

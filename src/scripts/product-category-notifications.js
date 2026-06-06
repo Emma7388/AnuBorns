@@ -110,15 +110,22 @@ const syncProductCategoryNotifications = async () => {
   applyDots(unseenSlugs);
 };
 
-syncProductCategoryNotifications();
-document.addEventListener("astro:page-load", syncProductCategoryNotifications);
-document.addEventListener("astro:after-swap", syncProductCategoryNotifications);
-window.addEventListener("pageshow", syncProductCategoryNotifications);
-window.addEventListener("storage", (event) => {
-  if (!event.key || !event.key.includes(STORAGE_KEY)) return;
-  syncProductCategoryNotifications();
-});
+const bindProductCategoryNotificationEvents = () => {
+  if (document.documentElement.dataset.abProductCategoryNotificationsBound === "true") return;
+  document.documentElement.dataset.abProductCategoryNotificationsBound = "true";
 
-supabase.auth.onAuthStateChange(() => {
-  syncProductCategoryNotifications();
-});
+  document.addEventListener("astro:page-load", syncProductCategoryNotifications);
+  document.addEventListener("astro:after-swap", syncProductCategoryNotifications);
+  window.addEventListener("pageshow", syncProductCategoryNotifications);
+  window.addEventListener("storage", (event) => {
+    if (!event.key || !event.key.includes(STORAGE_KEY)) return;
+    syncProductCategoryNotifications();
+  });
+
+  supabase.auth.onAuthStateChange(() => {
+    syncProductCategoryNotifications();
+  });
+};
+
+syncProductCategoryNotifications();
+bindProductCategoryNotificationEvents();

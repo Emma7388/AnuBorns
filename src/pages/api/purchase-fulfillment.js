@@ -1,0 +1,300 @@
+import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { checkRateLimit } from "../../lib/serverRateLimit.js";
+
+const parseCsv = (value) =>
+  String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const VALID_FULFILLMENT_STATUSES = new Set([
+  "pending",
+  "requested",
+  "preparing",
+  "shipped",
+  "delivered",
+  "pickup_pending",
+  "ready_for_pickup",
+  "picked_up",
+  "completed",
+]);
+
+const getAuthenticatedUser = async (request, supabaseAdmin) => {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { user: null, response: new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 }) };
+  }
+
+  const token = authHeader.replace("Bearer ", "").trim();
+  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  if (userError || !userData?.user) {
+    return { user: null, response: new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 }) };
+  }
+  return { user: userData.user, response: null };
+};
+
+/** @type {import("astro").APIRoute} */
+export const GET = async ({ request }) => {
+  try {
+    const rate = checkRateLimit({
+      request,
+      routeKey: "purchase-fulfillment",
+      windowMs: 60_000,
+      max: 80,
+    });
+    if (!rate.allowed) {
+      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
+        status: 429,
+      });
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+    }
+
+    const { user, response } = await getAuthenticatedUser(request, supabaseAdmin);
+    if (response) return response;
+
+    const url = new URL(request.url);
+    const orderIds = [...new Set(parseCsv(url.searchParams.get("orderIds")))];
+    if (orderIds.length === 0) {
+      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+    }
+
+    const buyerId = user.id;
+    const { data: orders, error: ordersError } = await supabaseAdmin
+      .from("orders")
+      .select("id, shipping_status, shipping_requested")
+      .eq("user_id", buyerId)
+      .in("id", orderIds);
+
+    if (ordersError) {
+      return new Response(JSON.stringify({ error: "No se pudieron validar las compras." }), { status: 500 });
+    }
+
+    const ownedOrderIds = [...new Set((orders ?? []).map((order) => String(order?.id ?? "").trim()).filter(Boolean))];
+    if (ownedOrderIds.length === 0) {
+      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+    }
+
+    const { data: orderItems, error: orderItemsError } = await supabaseAdmin
+      .from("order_items")
+      .select("order_id, product_id")
+      .in("order_id", ownedOrderIds);
+
+    if (orderItemsError) {
+      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+    }
+
+    const productIds = [...new Set((orderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean))];
+    if (productIds.length === 0) {
+      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+    }
+
+    const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
+      .from("sale_dispatches")
+      .select("order_id, product_id, fulfillment_status, status_updated_at")
+      .in("order_id", ownedOrderIds)
+      .in("product_id", productIds);
+
+    if (dispatchError) {
+      return new Response(JSON.stringify({ error: "No se pudieron cargar los estados de retiro." }), { status: 500 });
+    }
+
+    const dispatchMap = new Map(
+      (dispatchRows ?? []).map((row) => [
+        `${String(row?.order_id ?? "").trim()}::${String(row?.product_id ?? "").trim()}`,
+        row,
+      ]),
+    );
+    const orderFallbackStatus = new Map(
+      (orders ?? []).map((order) => {
+        const status = String(order?.shipping_status ?? "").trim();
+        const fallback = status || (order?.shipping_requested ? "requested" : "pickup_pending");
+        return [String(order?.id ?? "").trim(), fallback];
+      }),
+    );
+
+    const { data: readRows, error: readError } = await supabaseAdmin
+      .from("purchase_status_reads")
+      .select("order_id, product_id, fulfillment_status")
+      .eq("user_id", buyerId)
+      .in("order_id", ownedOrderIds);
+
+    if (readError) {
+      return new Response(JSON.stringify({ error: "No se pudieron cargar estados leidos." }), { status: 500 });
+    }
+
+    const readSet = new Set(
+      (readRows ?? []).map((row) =>
+        [
+          String(row?.order_id ?? "").trim(),
+          String(row?.product_id ?? "").trim(),
+          String(row?.fulfillment_status ?? "").trim(),
+        ].join("::")
+      ),
+    );
+
+    const items = (orderItems ?? []).map((item) => {
+      const orderId = String(item?.order_id ?? "").trim();
+      const productId = String(item?.product_id ?? "").trim();
+      const dispatch = dispatchMap.get(`${orderId}::${productId}`);
+      const fulfillmentStatus =
+        String(dispatch?.fulfillment_status ?? orderFallbackStatus.get(orderId) ?? "pickup_pending").trim() ||
+        "pickup_pending";
+      return {
+        orderId,
+        productId,
+        fulfillmentStatus,
+        statusUpdatedAt: dispatch?.status_updated_at ?? null,
+        statusRead: readSet.has(`${orderId}::${productId}::${fulfillmentStatus}`),
+      };
+    });
+
+    return new Response(JSON.stringify({ items, hasAnyRead: readSet.size > 0 }), { status: 200 });
+  } catch (error) {
+    console.error("[purchase-fulfillment] Unhandled error", error);
+    return new Response(JSON.stringify({ error: "No se pudieron cargar los estados de retiro." }), { status: 500 });
+  }
+};
+
+/** @type {import("astro").APIRoute} */
+export const POST = async ({ request }) => {
+  try {
+    const rate = checkRateLimit({
+      request,
+      routeKey: "purchase-fulfillment-read",
+      windowMs: 60_000,
+      max: 120,
+    });
+    if (!rate.allowed) {
+      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
+        status: 429,
+      });
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+    }
+
+    const { user, response } = await getAuthenticatedUser(request, supabaseAdmin);
+    if (response) return response;
+
+    const payload = await request.json().catch(() => ({}));
+    const reads = (Array.isArray(payload?.items) ? payload.items : [])
+      .map((item) => ({
+        orderId: String(item?.orderId ?? "").trim(),
+        productId: String(item?.productId ?? "").trim(),
+        fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+      }))
+      .filter((item) =>
+        item.orderId &&
+        item.productId &&
+        VALID_FULFILLMENT_STATUSES.has(item.fulfillmentStatus)
+      );
+
+    if (reads.length === 0) {
+      return new Response(JSON.stringify({ ok: true, inserted: 0 }), { status: 200 });
+    }
+
+    const orderIds = [...new Set(reads.map((item) => item.orderId))];
+    const productIds = [...new Set(reads.map((item) => item.productId))];
+    const buyerId = user.id;
+
+    const { data: orders, error: ordersError } = await supabaseAdmin
+      .from("orders")
+      .select("id, shipping_status, shipping_requested")
+      .eq("user_id", buyerId)
+      .in("id", orderIds);
+
+    if (ordersError) {
+      return new Response(JSON.stringify({ error: "No se pudieron validar las compras." }), { status: 500 });
+    }
+
+    const ownedOrderIds = new Set((orders ?? []).map((order) => String(order?.id ?? "").trim()).filter(Boolean));
+    if (ownedOrderIds.size === 0) {
+      return new Response(JSON.stringify({ error: "No autorizado para marcar estos estados." }), { status: 403 });
+    }
+
+    const { data: orderItems, error: orderItemsError } = await supabaseAdmin
+      .from("order_items")
+      .select("order_id, product_id")
+      .in("order_id", [...ownedOrderIds])
+      .in("product_id", productIds);
+
+    if (orderItemsError) {
+      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+    }
+
+    const validPairs = new Set(
+      (orderItems ?? []).map((item) =>
+        `${String(item?.order_id ?? "").trim()}::${String(item?.product_id ?? "").trim()}`
+      ),
+    );
+
+    const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
+      .from("sale_dispatches")
+      .select("order_id, product_id, fulfillment_status")
+      .in("order_id", [...ownedOrderIds])
+      .in("product_id", productIds);
+
+    if (dispatchError) {
+      return new Response(JSON.stringify({ error: "No se pudieron validar los estados actuales." }), { status: 500 });
+    }
+
+    const orderFallbackStatus = new Map(
+      (orders ?? []).map((order) => {
+        const status = String(order?.shipping_status ?? "").trim();
+        const fallback = status || (order?.shipping_requested ? "requested" : "pickup_pending");
+        return [String(order?.id ?? "").trim(), fallback];
+      }),
+    );
+    const currentStatusByPair = new Map(
+      (orderItems ?? []).map((item) => {
+        const orderId = String(item?.order_id ?? "").trim();
+        const productId = String(item?.product_id ?? "").trim();
+        return [`${orderId}::${productId}`, orderFallbackStatus.get(orderId) || "pickup_pending"];
+      }),
+    );
+    (dispatchRows ?? []).forEach((row) => {
+      const orderId = String(row?.order_id ?? "").trim();
+      const productId = String(row?.product_id ?? "").trim();
+      const status = String(row?.fulfillment_status ?? "").trim();
+      if (orderId && productId && status) {
+        currentStatusByPair.set(`${orderId}::${productId}`, status);
+      }
+    });
+
+    const rows = reads
+      .filter((item) => ownedOrderIds.has(item.orderId))
+      .filter((item) => {
+        const pairKey = `${item.orderId}::${item.productId}`;
+        return validPairs.has(pairKey) && currentStatusByPair.get(pairKey) === item.fulfillmentStatus;
+      })
+      .map((item) => ({
+        user_id: buyerId,
+        order_id: item.orderId,
+        product_id: item.productId,
+        fulfillment_status: item.fulfillmentStatus,
+      }));
+
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({ error: "No autorizado para marcar estos productos." }), { status: 403 });
+    }
+
+    const { error: upsertError } = await supabaseAdmin
+      .from("purchase_status_reads")
+      .upsert(rows, { onConflict: "user_id,order_id,product_id,fulfillment_status", ignoreDuplicates: true });
+
+    if (upsertError) {
+      return new Response(JSON.stringify({ error: "No se pudieron marcar los estados como leidos." }), { status: 500 });
+    }
+
+    return new Response(JSON.stringify({ ok: true, inserted: rows.length }), { status: 200 });
+  } catch (error) {
+    console.error("[purchase-fulfillment-read] Unhandled error", error);
+    return new Response(JSON.stringify({ error: "No se pudieron marcar los estados como leidos." }), { status: 500 });
+  }
+};

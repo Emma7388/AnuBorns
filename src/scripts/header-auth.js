@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { getCart, syncCartOnLogin } from "../lib/cart";
 import { fetchSalesSummary } from "../lib/salesSummaryClient";
+import { refreshHomePurchaseStatus, teardownPurchaseStatusNotifications } from "./purchase-status-notifications.js";
 
 /* Referencias DOM (se recalculan en cada navegación). */
 let guest = document.querySelector('[data-auth="guest"]');
@@ -146,7 +147,7 @@ const setSalesNotificationVisible = (visible) => {
   salesNotificationDot.classList.add("ab-is-hidden");
 };
 
-const getLatestSaleCursor = (items) => {
+const getSalesNotificationCursor = (items) => {
   if (!Array.isArray(items) || items.length === 0) return "";
   let latest = null;
   let latestTime = 0;
@@ -161,7 +162,30 @@ const getLatestSaleCursor = (items) => {
     }
   });
   if (!latest) return "";
-  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}`;
+  const state = items
+    .map((item) => {
+      const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
+      if (history.length === 0) {
+        return [
+          item?.productId ?? "",
+          item?.lastOrderId ?? "",
+          item?.lastSoldAt ?? "",
+          item?.fulfillmentStatus ?? "",
+        ].join("|");
+      }
+      return history
+        .map((sale) =>
+          [
+            sale?.productId ?? item?.productId ?? "",
+            sale?.orderId ?? "",
+            sale?.soldAt ?? "",
+            sale?.fulfillmentStatus ?? "",
+          ].join("|"),
+        )
+        .join(";");
+    })
+    .join("::");
+  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}::${state}`;
 };
 
 const refreshSalesNotification = async (session) => {
@@ -185,7 +209,7 @@ const refreshSalesNotification = async (session) => {
     }
 
     const items = payload.items;
-    const latestCursor = getLatestSaleCursor(items);
+    const latestCursor = getSalesNotificationCursor(items);
     if (!latestCursor) {
       setSalesNotificationVisible(false);
       return;
@@ -218,6 +242,7 @@ const resolveSession = async () => {
       if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
     await refreshSalesNotification(sessionData.session);
+    await refreshHomePurchaseStatus(sessionData.session);
     renderCartCount();
     return;
   }
@@ -233,12 +258,14 @@ const resolveSession = async () => {
       if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
     await refreshSalesNotification({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
+    await refreshHomePurchaseStatus({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
     renderCartCount();
     return;
   }
 
   setView(null);
   setSalesNotificationVisible(false);
+  void teardownPurchaseStatusNotifications();
   renderCartCount();
 };
 
@@ -286,59 +313,68 @@ const initHeaderAuth = () => {
   renderCartCount();
 };
 
-/* Reacciona a cambios de auth (login/logout). */
-supabase.auth.onAuthStateChange((_event, session) => {
-  setView(session);
-  const userId = session?.user?.id ?? "";
-  if (userId && userId !== lastSyncedUserId) {
-    lastSyncedUserId = userId;
-    if (cartSync) cartSync.classList.remove("ab-is-hidden");
-    syncCartOnLogin(userId).finally(() => {
-      if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
+const bindHeaderAuthEvents = () => {
+  if (document.documentElement.dataset.abHeaderAuthEventsBound === "true") return;
+  document.documentElement.dataset.abHeaderAuthEventsBound = "true";
+
+  /* Reacciona a cambios de auth (login/logout). */
+  supabase.auth.onAuthStateChange((_event, session) => {
+    setView(session);
+    const userId = session?.user?.id ?? "";
+    if (userId && userId !== lastSyncedUserId) {
+      lastSyncedUserId = userId;
+      if (cartSync) cartSync.classList.remove("ab-is-hidden");
+      syncCartOnLogin(userId).finally(() => {
+        if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
+        refreshSalesNotification(session);
+        refreshHomePurchaseStatus(session);
+        renderCartCount();
+      });
+    } else {
       refreshSalesNotification(session);
+      refreshHomePurchaseStatus(session);
       renderCartCount();
-    });
-  } else {
-    refreshSalesNotification(session);
+    }
+  });
+
+  /* Cierra modal con Escape. */
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeModal();
+    }
+  });
+
+  /* Re-inicializa en eventos de navegación Astro. */
+  document.addEventListener("astro:page-load", initHeaderAuth);
+  document.addEventListener("astro:after-swap", initHeaderAuth);
+  window.addEventListener("pageshow", initHeaderAuth);
+  window.addEventListener("ab-cart-updated", () => {
     renderCartCount();
-  }
-});
+  });
+  document.addEventListener("ab-cart-updated", () => {
+    renderCartCount();
+  });
+  window.addEventListener("ab-cart-own-items-removed", (event) => {
+    const count = Number(event?.detail?.count ?? 0);
+    if (!count) return;
+    const message = count === 1
+      ? "Se quitó un producto propio del carrito."
+      : `Se quitaron ${count} productos propios del carrito.`;
+    showCartSyncMessage(message, 3000);
+  });
 
-/* Cierra modal con Escape. */
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closeModal();
-  }
-});
+  /* Sincroniza sesión cuando cambia en otra pestaña. */
+  window.addEventListener("storage", (event) => {
+    if (!event.key) return;
+    if (
+      event.key.includes("supabase.auth.token") ||
+      event.key === "ab_auth_refresh" ||
+      event.key.includes("ab_last_seen_sale_at_v1")
+    ) {
+      resolveSession();
+    }
+  });
+};
 
-/* Re-inicializa en eventos de navegación Astro. */
 initHeaderAuth();
-document.addEventListener("astro:page-load", initHeaderAuth);
-document.addEventListener("astro:after-swap", initHeaderAuth);
-window.addEventListener("pageshow", initHeaderAuth);
-window.addEventListener("ab-cart-updated", () => {
-  renderCartCount();
-});
-document.addEventListener("ab-cart-updated", () => {
-  renderCartCount();
-});
-window.addEventListener("ab-cart-own-items-removed", (event) => {
-  const count = Number(event?.detail?.count ?? 0);
-  if (!count) return;
-  const message = count === 1
-    ? "Se quitó un producto propio del carrito."
-    : `Se quitaron ${count} productos propios del carrito.`;
-  showCartSyncMessage(message, 3000);
-});
-
-/* Sincroniza sesión cuando cambia en otra pestaña. */
-window.addEventListener("storage", (event) => {
-  if (!event.key) return;
-  if (
-    event.key.includes("supabase.auth.token") ||
-    event.key === "ab_auth_refresh" ||
-    event.key.includes("ab_last_seen_sale_at_v1")
-  ) {
-    resolveSession();
-  }
-});
+bindHeaderAuthEvents();

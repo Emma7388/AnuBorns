@@ -18,7 +18,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 
     <!-- Form de avatar -->
     <form class="ab-form" id="avatar-form">
-      <label for="avatar-upload">Actualizar avatar</label>
+      <label for="avatar-upload">Actualizar imagen de perfil</label>
       <input id="avatar-upload" name="avatar-upload" type="file" accept="image/*" />
       <p class="ab-muted-text" id="avatar-feedback" aria-live="polite"></p>
     </form>
@@ -68,7 +68,10 @@ import MainLayout from "../layouts/MainLayout.astro";
 
     <!-- Accesos a secciones relacionadas -->
     <div class="ab-actions">
-      <a class="ab-cta-button ab-profile-action ab-profile-action--buy" href="/mis-compras">Ver mis compras</a>
+      <a class="ab-cta-button ab-purchases-link ab-profile-action ab-profile-action--buy" href="/mis-compras">
+        Ver mis compras
+        <span id="my-purchases-notification-dot" class="ab-purchase-notification-dot ab-is-hidden" aria-hidden="true"></span>
+      </a>
       <a class="ab-cta-button ab-sales-link ab-profile-action ab-profile-action--sell" href="/mis-ventas">
         Ver mis ventas
         <span id="my-sales-notification-dot" class="ab-sales-notification-dot ab-is-hidden" aria-hidden="true"></span>

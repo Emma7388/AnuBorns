@@ -22,6 +22,7 @@ let cityInput = document.getElementById("profile-city");
 let provinceInput = document.getElementById("profile-province");
 let postalInput = document.getElementById("profile-postal-code");
 let salesNotificationDot = document.getElementById("my-sales-notification-dot");
+let purchasesNotificationDot = document.getElementById("my-purchases-notification-dot");
 const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 
@@ -44,6 +45,7 @@ const refreshProfileNodes = () => {
   provinceInput = document.getElementById("profile-province");
   postalInput = document.getElementById("profile-postal-code");
   salesNotificationDot = document.getElementById("my-sales-notification-dot");
+  purchasesNotificationDot = document.getElementById("my-purchases-notification-dot");
 };
 
 const bindProfileEvents = () => {
@@ -83,6 +85,19 @@ const formatRow = (label, value) => `
     <span class="ab-profile-data__value">${value || "-"}</span>
   </div>
 `;
+
+const formatProfileUpdatedAt = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 /* Controla que solo la última carga actualice la UI. */
 let loadRunId = 0;
@@ -171,8 +186,12 @@ const loadProfile = async () => {
   /* Sube avatar pendiente si fue guardado en registro. */
   await uploadPendingAvatar(session);
   await refreshSalesNotification(session);
+  await refreshPurchasesNotification(session);
   if (runId === loadRunId && status) {
-    status.textContent = "Información actualizada.";
+    const updatedAt = formatProfileUpdatedAt(user.updated_at);
+    status.textContent = updatedAt
+      ? `Información actualizada. Última actualización de datos: ${updatedAt}.`
+      : "Información actualizada.";
   }
 };
 
@@ -185,7 +204,16 @@ const setSalesDotVisible = (visible) => {
   salesNotificationDot.classList.add("ab-is-hidden");
 };
 
-const getLatestSaleCursor = (items) => {
+const setPurchasesDotVisible = (visible) => {
+  if (!purchasesNotificationDot) return;
+  if (visible) {
+    purchasesNotificationDot.classList.remove("ab-is-hidden");
+    return;
+  }
+  purchasesNotificationDot.classList.add("ab-is-hidden");
+};
+
+const getSalesNotificationCursor = (items) => {
   if (!Array.isArray(items) || items.length === 0) return "";
   let latest = null;
   let latestTime = 0;
@@ -200,7 +228,98 @@ const getLatestSaleCursor = (items) => {
     }
   });
   if (!latest) return "";
-  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}`;
+  const state = items
+    .map((item) => {
+      const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
+      if (history.length === 0) {
+        return [
+          item?.productId ?? "",
+          item?.lastOrderId ?? "",
+          item?.lastSoldAt ?? "",
+          item?.fulfillmentStatus ?? "",
+        ].join("|");
+      }
+      return history
+        .map((sale) =>
+          [
+            sale?.productId ?? item?.productId ?? "",
+            sale?.orderId ?? "",
+            sale?.soldAt ?? "",
+            sale?.fulfillmentStatus ?? "",
+          ].join("|"),
+        )
+        .join(";");
+    })
+    .join("::");
+  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}::${state}`;
+};
+
+const fetchPurchaseOrders = async (userId) => {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error || !Array.isArray(data)) return [];
+  return data;
+};
+
+const markPurchaseStatusesReadOnServer = async (token, items = []) => {
+  const reads = (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      orderId: String(item?.orderId ?? "").trim(),
+      productId: String(item?.productId ?? "").trim(),
+      fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+    }))
+    .filter((item) => item.orderId && item.productId && item.fulfillmentStatus);
+  if (!token || reads.length === 0) return;
+
+  await fetch("/api/purchase-fulfillment", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ items: reads }),
+  }).catch(() => {});
+};
+
+const refreshPurchasesNotification = async (session) => {
+  const userId = session?.user?.id ?? "";
+  const token = session?.access_token ?? "";
+  if (!userId || !token) {
+    setPurchasesDotVisible(false);
+    return;
+  }
+
+  try {
+    const orders = await fetchPurchaseOrders(userId);
+    const orderIds = [...new Set(orders.map((order) => String(order?.id ?? "").trim()).filter(Boolean))];
+    if (orderIds.length === 0) {
+      setPurchasesDotVisible(false);
+      return;
+    }
+
+    const response = await fetch(`/api/purchase-fulfillment?orderIds=${encodeURIComponent(orderIds.join(","))}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(payload?.items)) {
+      setPurchasesDotVisible(false);
+      return;
+    }
+
+    if (!payload.hasAnyRead) {
+      await markPurchaseStatusesReadOnServer(token, payload.items);
+      setPurchasesDotVisible(false);
+      return;
+    }
+
+    setPurchasesDotVisible(payload.items.some((item) => !item?.statusRead));
+  } catch {
+    setPurchasesDotVisible(false);
+  }
 };
 
 const refreshSalesNotification = async (session) => {
@@ -218,7 +337,7 @@ const refreshSalesNotification = async (session) => {
       return;
     }
     const items = payload.items;
-    const latestCursor = getLatestSaleCursor(items);
+    const latestCursor = getSalesNotificationCursor(items);
     if (!latestCursor) {
       setSalesDotVisible(false);
       return;
@@ -272,7 +391,7 @@ const uploadPendingAvatar = async (session) => {
         avatarImg.style.display = "block";
       }
       window.localStorage.removeItem("ab_pending_avatar");
-      if (avatarFeedback) avatarFeedback.textContent = "Avatar actualizado.";
+      if (avatarFeedback) avatarFeedback.textContent = "Imagen de perfil actualizada.";
     }
   } catch {
     // noop
@@ -384,11 +503,11 @@ async function handleAvatarChange(event) {
 
   const maxSize = 2 * 1024 * 1024;
   if (file.size > maxSize) {
-    if (avatarFeedback) avatarFeedback.textContent = "El avatar supera el tamaño máximo de 2MB.";
+    if (avatarFeedback) avatarFeedback.textContent = "La imagen de perfil supera el tamaño máximo de 2MB.";
     return;
   }
 
-  if (avatarFeedback) avatarFeedback.textContent = "Subiendo avatar...";
+  if (avatarFeedback) avatarFeedback.textContent = "Subiendo imagen de perfil...";
 
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
@@ -420,12 +539,12 @@ async function handleAvatarChange(event) {
         avatarImg.style.display = "block";
       }
       postAudit("avatar_update").catch(() => {});
-      if (avatarFeedback) avatarFeedback.textContent = "Avatar actualizado.";
+      if (avatarFeedback) avatarFeedback.textContent = "Imagen de perfil actualizada.";
     } else if (avatarFeedback) {
-      avatarFeedback.textContent = "No se pudo obtener URL del avatar.";
+      avatarFeedback.textContent = "No se pudo obtener la URL de la imagen de perfil.";
     }
   } catch (error) {
     console.error("Avatar upload error", error);
-    if (avatarFeedback) avatarFeedback.textContent = "Error subiendo avatar.";
+    if (avatarFeedback) avatarFeedback.textContent = "Error subiendo imagen de perfil.";
   }
 }

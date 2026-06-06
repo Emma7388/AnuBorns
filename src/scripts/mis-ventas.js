@@ -176,6 +176,7 @@ const formatFulfillmentStatus = (status, shippingRequested) => {
     pickup_pending: "Retiro pendiente",
     ready_for_pickup: "Listo para retirar",
     completed: "Completado",
+    picked_up: "Retirado por comprador",
   };
   return labels[raw] ?? labels.pending;
 };
@@ -193,7 +194,7 @@ const getNextFulfillmentAction = (status, shippingRequested) => {
   if (!raw || raw === "pending" || raw === "pickup_pending") {
     return { status: "ready_for_pickup", label: "Listo para retirar" };
   }
-  if (raw === "ready_for_pickup") return { status: "completed", label: "Completar retiro" };
+  if (raw === "picked_up") return { status: "completed", label: "Completar circuito" };
   return null;
 };
 
@@ -201,6 +202,29 @@ const getSaleOrderGroupKey = (sale) => {
   const orderId = String(sale?.orderId ?? "").trim();
   if (orderId) return `order:${orderId}`;
   return `single:${String(sale?.productId ?? "").trim()}:${String(sale?.soldAt ?? "").trim()}`;
+};
+
+const getSaleStatusPriority = (sale) => {
+  const shippingRequested = Boolean(sale?.shippingRequested);
+  const raw = String(sale?.fulfillmentStatus || (shippingRequested ? "requested" : "pickup_pending")).trim();
+  const priorities = {
+    pending: 0,
+    requested: 0,
+    pickup_pending: 0,
+    preparing: 1,
+    shipped: 2,
+    ready_for_pickup: 2,
+    delivered: 3,
+    picked_up: 3,
+    completed: 4,
+  };
+  return priorities[raw] ?? 1;
+};
+
+const compareSalesByImportance = (a, b) => {
+  const priorityDifference = getSaleStatusPriority(a) - getSaleStatusPriority(b);
+  if (priorityDifference !== 0) return priorityDifference;
+  return new Date(b?.soldAt ?? 0).getTime() - new Date(a?.soldAt ?? 0).getTime();
 };
 
 const escapeHtml = (value) =>
@@ -237,17 +261,53 @@ const getLatestSaleCursor = (items) => {
   };
 };
 
-const showUrgentSaleModal = ({ title, message }) => {
+const countOpenSalesCircuits = (soldItems) => {
+  const sales = [];
+  (Array.isArray(soldItems) ? soldItems : []).forEach((item) => {
+    const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
+    if (history.length === 0) {
+      sales.push({
+        shippingRequested: Boolean(item?.shippingRequested),
+        fulfillmentStatus: item?.fulfillmentStatus ?? (item?.shippingRequested ? "requested" : "pickup_pending"),
+      });
+      return;
+    }
+    history.forEach((sale) => {
+      sales.push({
+        shippingRequested: Boolean(sale?.shippingRequested),
+        fulfillmentStatus: sale?.fulfillmentStatus ?? (sale?.shippingRequested ? "requested" : "pickup_pending"),
+      });
+    });
+  });
+
+  return sales.filter((sale) =>
+    Boolean(getNextFulfillmentAction(sale.fulfillmentStatus, sale.shippingRequested))
+  ).length;
+};
+
+const formatOpenSalesCircuitCount = (count) => {
+  const safeCount = Number(count ?? 0);
+  if (!Number.isFinite(safeCount) || safeCount <= 0) {
+    return "No quedan productos pendientes de cerrar circuito.";
+  }
+  return `Quedan ${safeCount} ${safeCount === 1 ? "producto" : "productos"} con circuito pendiente.`;
+};
+
+const showUrgentSaleModal = ({ title, message, pendingCircuitCount = null }) => {
   const lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const modal = document.createElement("div");
   modal.className = "ab-orders-modal";
   modal.setAttribute("role", "dialog");
   modal.setAttribute("aria-modal", "true");
+  const pendingMessage = pendingCircuitCount === null
+    ? ""
+    : `<p class="ab-sales-pending-count">${escapeHtml(formatOpenSalesCircuitCount(pendingCircuitCount))}</p>`;
   modal.innerHTML = `
     <div class="ab-orders-modal__backdrop"></div>
     <div class="ab-orders-modal__panel" role="document">
       <h2>${escapeHtml(title)}</h2>
       <p>${escapeHtml(message)}</p>
+      ${pendingMessage}
       <div class="ab-orders-modal__actions">
         <button type="button" class="ab-orders-delete-btn">Entendido</button>
       </div>
@@ -270,14 +330,40 @@ const showUrgentSaleModal = ({ title, message }) => {
   document.body.appendChild(modal);
 };
 
+const buildSalesNotificationCursor = (soldItems, latestSale) => {
+  const latestSaleIso = String(latestSale?.lastSoldAt ?? "").trim();
+  const latestOrderId = String(latestSale?.lastOrderId ?? "").trim();
+  const state = (Array.isArray(soldItems) ? soldItems : [])
+    .map((item) => {
+      const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
+      if (history.length === 0) {
+        return [
+          item?.productId ?? "",
+          item?.lastOrderId ?? "",
+          item?.lastSoldAt ?? "",
+        ].join("|");
+      }
+      return history
+        .map((sale) =>
+          [
+            sale?.productId ?? item?.productId ?? "",
+            sale?.orderId ?? "",
+            sale?.soldAt ?? "",
+          ].join("|"),
+        )
+        .join(";");
+    })
+    .join("::");
+  return `${latestSaleIso}|${latestOrderId}::${state}`;
+};
+
 const notifyIfNewSale = (soldItems) => {
   if (!currentUserId || !Array.isArray(soldItems) || soldItems.length === 0) return;
 
   const { latestSale } = getLatestSaleCursor(soldItems);
   if (!latestSale) return;
-  const latestSaleIso = String(latestSale.lastSoldAt ?? "").trim();
-  const latestOrderId = String(latestSale.lastOrderId ?? "").trim();
-  const latestCursor = `${latestSaleIso}|${latestOrderId}`;
+  const latestCursor = buildSalesNotificationCursor(soldItems, latestSale);
+  const pendingCircuitCount = countOpenSalesCircuits(soldItems);
 
   const storageKey = getLastSeenSaleStorageKey();
   const previousCursor = window.localStorage.getItem(storageKey);
@@ -290,6 +376,7 @@ const notifyIfNewSale = (soldItems) => {
       showUrgentSaleModal({
         title: "Monitoreo de ventas activo",
         message: "Se detectaron ventas en tu cuenta. Te vamos a avisar cuando entre una compra nueva.",
+        pendingCircuitCount,
       });
       window.localStorage.setItem(bootstrapKey, "1");
     }
@@ -302,6 +389,7 @@ const notifyIfNewSale = (soldItems) => {
   showUrgentSaleModal({
     title: "Nueva compra recibida",
     message: "Recibiste una venta. Revisá la sección de productos vendidos.",
+    pendingCircuitCount,
   });
 };
 
@@ -546,16 +634,16 @@ const renderSoldProducts = (products) => {
 
   soldProductsEmpty.classList.add("ab-is-hidden");
 
+  const sortedSalesCards = [...salesCards].sort(compareSalesByImportance);
   const salesByOrder = new Map();
-  salesCards.forEach((sale) => {
+  sortedSalesCards.forEach((sale) => {
     const key = getSaleOrderGroupKey(sale);
     const group = salesByOrder.get(key) ?? [];
     group.push(sale);
     salesByOrder.set(key, group);
   });
 
-  const renderedCards = salesCards
-    .sort((a, b) => new Date(b.soldAt ?? 0).getTime() - new Date(a.soldAt ?? 0).getTime())
+  const renderedCards = sortedSalesCards
     .map((sale, index) => {
       const card = document.createElement("article");
       const saleOrderId = String(sale.orderId || "").trim();
@@ -646,7 +734,7 @@ const renderSoldProducts = (products) => {
   const groupedCards = [];
   const usedOrderGroups = new Set();
   renderedCards.forEach((card, index) => {
-    const sale = salesCards[index];
+    const sale = sortedSalesCards[index];
     const groupKey = getSaleOrderGroupKey(sale);
     const groupSales = salesByOrder.get(groupKey) ?? [];
     if (groupSales.length <= 1) {
@@ -656,7 +744,7 @@ const renderSoldProducts = (products) => {
     if (usedOrderGroups.has(groupKey)) return;
     usedOrderGroups.add(groupKey);
 
-    const orderCards = renderedCards.filter((_, cardIndex) => getSaleOrderGroupKey(salesCards[cardIndex]) === groupKey);
+    const orderCards = renderedCards.filter((_, cardIndex) => getSaleOrderGroupKey(sortedSalesCards[cardIndex]) === groupKey);
     const firstSale = groupSales[0] ?? {};
     const group = document.createElement("section");
     group.className = "ab-sale-order-group";

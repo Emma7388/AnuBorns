@@ -14,7 +14,20 @@ const orderStatusByFulfillment = {
   shipped: "shipped",
   delivered: "delivered",
   ready_for_pickup: "ready_for_pickup",
-  completed: "completed",
+};
+
+const getAggregateOrderStatus = (statuses) => {
+  const safeStatuses = Array.isArray(statuses) ? statuses.filter(Boolean) : [];
+  if (safeStatuses.length === 0) return "";
+  if (safeStatuses.every((status) => status === "completed")) return "completed";
+  if (safeStatuses.every((status) => ["picked_up", "completed"].includes(status))) return "picked_up";
+  if (safeStatuses.some((status) => ["ready_for_pickup", "picked_up", "completed"].includes(status))) {
+    return "ready_for_pickup";
+  }
+  if (safeStatuses.some((status) => status === "delivered")) return "delivered";
+  if (safeStatuses.some((status) => status === "shipped")) return "shipped";
+  if (safeStatuses.some((status) => status === "preparing")) return "preparing";
+  return "";
 };
 
 /** @type {import("astro").APIRoute} */
@@ -89,6 +102,26 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "La venta no coincide con el producto indicado." }), { status: 400 });
     }
 
+    if (status === "completed") {
+      const { data: currentDispatch, error: currentDispatchError } = await supabaseAdmin
+        .from("sale_dispatches")
+        .select("fulfillment_status")
+        .eq("seller_id", sellerId)
+        .eq("order_id", orderId)
+        .eq("product_id", productId)
+        .maybeSingle();
+
+      if (currentDispatchError) {
+        return new Response(JSON.stringify({ error: "No se pudo validar el estado actual." }), { status: 500 });
+      }
+      if (String(currentDispatch?.fulfillment_status ?? "").trim() !== "picked_up") {
+        return new Response(
+          JSON.stringify({ error: "El comprador debe confirmar el retiro antes de completar el circuito." }),
+          { status: 409 },
+        );
+      }
+    }
+
     const { error: upsertError } = await supabaseAdmin.from("sale_dispatches").upsert(
       {
         seller_id: sellerId,
@@ -105,7 +138,28 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudo guardar el estado de entrega." }), { status: 500 });
     }
 
-    const nextOrderStatus = orderStatusByFulfillment[status];
+    let nextOrderStatus = orderStatusByFulfillment[status];
+    if (status === "completed") {
+      const { data: allOrderItems } = await supabaseAdmin
+        .from("order_items")
+        .select("product_id")
+        .eq("order_id", orderId);
+      const allProductIds = [
+        ...new Set((allOrderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean)),
+      ];
+      const { data: allDispatchRows } = await supabaseAdmin
+        .from("sale_dispatches")
+        .select("product_id, fulfillment_status")
+        .eq("order_id", orderId)
+        .in("product_id", allProductIds);
+      const statusByProduct = new Map(
+        (allDispatchRows ?? []).map((row) => [
+          String(row?.product_id ?? "").trim(),
+          String(row?.fulfillment_status ?? "").trim(),
+        ]),
+      );
+      nextOrderStatus = getAggregateOrderStatus(allProductIds.map((productId) => statusByProduct.get(productId)));
+    }
     if (nextOrderStatus) {
       await supabaseAdmin
         .from("orders")

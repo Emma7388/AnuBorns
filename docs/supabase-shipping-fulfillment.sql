@@ -20,6 +20,7 @@ alter table public.orders
       'delivered',
       'pickup_pending',
       'ready_for_pickup',
+      'picked_up',
       'completed'
     )
   );
@@ -42,12 +43,60 @@ alter table public.sale_dispatches
       'delivered',
       'pickup_pending',
       'ready_for_pickup',
+      'picked_up',
       'completed'
     )
   );
 
 create index if not exists orders_shipping_status_idx on public.orders (shipping_status);
 create index if not exists sale_dispatches_status_idx on public.sale_dispatches (fulfillment_status);
+
+create table if not exists public.purchase_status_reads (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid not null,
+  fulfillment_status text not null,
+  read_at timestamptz not null default now(),
+  unique (user_id, order_id, product_id, fulfillment_status)
+);
+
+alter table public.purchase_status_reads
+  drop constraint if exists purchase_status_reads_fulfillment_status_check;
+
+alter table public.purchase_status_reads
+  add constraint purchase_status_reads_fulfillment_status_check
+  check (
+    fulfillment_status in (
+      'pending',
+      'requested',
+      'preparing',
+      'shipped',
+      'delivered',
+      'pickup_pending',
+      'ready_for_pickup',
+      'picked_up',
+      'completed'
+    )
+  );
+
+alter table public.purchase_status_reads enable row level security;
+
+create index if not exists purchase_status_reads_user_idx on public.purchase_status_reads (user_id);
+create index if not exists purchase_status_reads_lookup_idx
+  on public.purchase_status_reads (user_id, order_id, product_id, fulfillment_status);
+
+drop policy if exists purchase_status_reads_select_own on public.purchase_status_reads;
+create policy "purchase_status_reads_select_own"
+  on public.purchase_status_reads
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists purchase_status_reads_insert_own on public.purchase_status_reads;
+create policy "purchase_status_reads_insert_own"
+  on public.purchase_status_reads
+  for insert
+  with check (auth.uid() = user_id);
 
 drop policy if exists sale_dispatches_update_own on public.sale_dispatches;
 create policy "sale_dispatches_update_own"

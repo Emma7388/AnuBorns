@@ -379,17 +379,24 @@ const initCartPage = () => {
   renderCart();
 };
 
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  const { removeModal } = getCartDom();
-  if (removeModal?.classList.contains("ab-is-hidden")) return;
-  closeRemoveModal();
-});
+const bindCartLifecycleEvents = () => {
+  if (document.documentElement.dataset.abCartLifecycleBound === "true") return;
+  document.documentElement.dataset.abCartLifecycleBound = "true";
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const { removeModal } = getCartDom();
+    if (removeModal?.classList.contains("ab-is-hidden")) return;
+    closeRemoveModal();
+  });
+
+  window.addEventListener("ab-cart-updated", renderCart);
+  document.addEventListener("ab-cart-updated", renderCart);
+  document.addEventListener("astro:page-load", initCartPage);
+  document.addEventListener("astro:after-swap", initCartPage);
+  window.addEventListener("pageshow", initCartPage);
+};
 
 /* Render inicial. */
 initCartPage();
-window.addEventListener("ab-cart-updated", renderCart);
-document.addEventListener("ab-cart-updated", renderCart);
-document.addEventListener("astro:page-load", initCartPage);
-document.addEventListener("astro:after-swap", initCartPage);
-window.addEventListener("pageshow", initCartPage);
+bindCartLifecycleEvents();

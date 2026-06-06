@@ -7,8 +7,12 @@ import MainLayout from "../layouts/MainLayout.astro";
   <!-- Hero principal -->
   <section class="hero">
     <div class="hero-content">
-      <img class="hero-logo" src="/Logo_Final.webp" alt="Desoluciones.com" loading="eager" />
-      <h1>Comprá, vendé y ofertá en un solo lugar</h1>
+      <div class="hero-brand">
+        <div class="hero-logo-wrap">
+          <img class="hero-logo" src="/Logo_Final.webp" alt="Desoluciones.com" loading="eager" />
+        </div>
+        <h1>Comprá, vendé y ofertá en un solo lugar</h1>
+      </div>
 
       <!-- CTAs principales -->
       <div class="hero-buttons">
@@ -29,15 +33,20 @@ import MainLayout from "../layouts/MainLayout.astro";
 </MainLayout>
 
 <style>
+  :global(main[data-ab-pathname="/"]) {
+    min-height: calc(100dvh - var(--header-height) - var(--footer-height));
+    display: grid;
+    place-items: center;
+    padding: clamp(10px, 2dvh, 18px) var(--app-gutter);
+  }
+
   .hero {
     width: min(1180px, 100%);
-    min-height: calc(100dvh - var(--header-height) - var(--footer-height) - 32px);
-    margin: 0 auto;
+    min-height: min(680px, calc(100dvh - var(--header-height) - var(--footer-height) - clamp(20px, 4dvh, 36px)));
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: clamp(18px, 4vh, 42px) 16px;
     border-radius: 4px;
   }
 
@@ -45,12 +54,35 @@ import MainLayout from "../layouts/MainLayout.astro";
     width: min(900px, 100%);
     display: grid;
     justify-items: center;
-    gap: clamp(24px, 4.5vh, 48px);
+    gap: clamp(18px, 3.5dvh, 36px);
+  }
+
+  .hero-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(18px, 3vw, 34px);
+    min-width: 0;
+    min-height: clamp(210px, 36dvh, 360px);
+  }
+
+  .hero-logo-wrap {
+    width: min(34dvh, 340px);
+    aspect-ratio: 1;
+    display: inline-grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 6px;
+    border-radius: 50%;
+    grid-template-columns: 1fr;
+    flex: 0 0 min(34dvh, 340px);
+    background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0) 50%, transparent 100%);
   }
 
   .hero-logo {
-    width: min(520px, 84vw);
-    max-height: 190px;
+    display: block;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     object-position: center;
   }
@@ -58,10 +90,12 @@ import MainLayout from "../layouts/MainLayout.astro";
   .hero h1 {
     margin: 0;
     color: #4f958a;
-    font-size: clamp(2.1rem, 4.35vw, 3.65rem);
+    font-size: clamp(2.45rem, 4.85vw, 4.15rem);
     font-weight: 800;
     line-height: 1.05;
     letter-spacing: 0;
+    text-align: left;
+    flex: 0.8 1 0;
     text-shadow: 0 2px 0 rgba(255, 255, 255, 0.78);
   }
 
@@ -69,12 +103,15 @@ import MainLayout from "../layouts/MainLayout.astro";
     display: flex;
     gap: clamp(18px, 3vw, 30px);
     justify-content: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     width: 100%;
   }
 
   .hero-buttons .ab-cta-button {
-    width: clamp(210px, 25vw, 270px);
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    max-width: 270px;
     min-height: 78px;
     display: inline-flex;
     align-items: center;
@@ -129,12 +166,33 @@ import MainLayout from "../layouts/MainLayout.astro";
     }
 
     .hero-buttons .ab-cta-button {
-      width: min(310px, 100%);
       padding: 12px 18px;
     }
   }
 
   @media (max-width: 768px) {
+    :global(main[data-ab-pathname="/"]) {
+      padding-block: clamp(8px, 1.5dvh, 14px);
+    }
+
+    .hero {
+      min-height: calc(100dvh - var(--header-height) - var(--footer-height) - clamp(16px, 3dvh, 28px));
+    }
+
+    .hero-content {
+      gap: clamp(14px, 2.8dvh, 24px);
+    }
+
+    .hero-brand {
+      gap: clamp(10px, 3vw, 16px);
+      min-height: clamp(150px, 30dvh, 240px);
+    }
+
+    .hero-logo-wrap {
+      width: clamp(118px, 34vw, 180px);
+      flex-basis: clamp(118px, 34vw, 180px);
+    }
+
     .hero h1 {
       font-size: clamp(1.8rem, 8vw, 2.55rem);
     }
@@ -144,13 +202,31 @@ import MainLayout from "../layouts/MainLayout.astro";
     }
 
     .hero-buttons .ab-cta-button {
-      width: min(310px, 100%);
       min-height: 64px;
-      font-size: clamp(1.55rem, 8vw, 2.2rem);
+      font-size: clamp(1.15rem, 5.4vw, 2rem);
     }
   }
 
   @media (max-width: 420px) {
+    .hero-brand {
+      min-height: clamp(130px, 26dvh, 190px);
+    }
+
+    .hero-logo-wrap {
+      width: clamp(104px, 32vw, 138px);
+      flex-basis: clamp(104px, 32vw, 138px);
+    }
+
+    .hero-buttons {
+      gap: 8px;
+    }
+
+    .hero-buttons .ab-cta-button {
+      min-height: 54px;
+      padding: 10px 8px;
+      font-size: clamp(0.95rem, 5.6vw, 1.35rem);
+    }
+
     .hero h1 {
       font-size: clamp(1.45rem, 7.8vw, 1.8rem);
       margin-bottom: 0;

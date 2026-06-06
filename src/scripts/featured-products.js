@@ -208,13 +208,13 @@ const renderFeaturedSection = (section, items) => {
     card.dataset.currency = String(item?.currency ?? "ARS");
     card.dataset.delivery = serializeDelivery(item?.deliveryMethods);
     card.innerHTML = `
+      <img
+        class="ab-provider-product-card__image"
+        src="${escapeHtml(item?.imageUrl ?? "/logo2.svg")}"
+        alt="${escapeHtml(item?.title ?? "Producto")}"
+        loading="lazy"
+      />
       <a href="${href}" class="ab-featured-card-link" ${sellerUserId || productId ? "" : 'aria-disabled="true"'}>
-        <img
-          class="ab-provider-product-card__image"
-          src="${escapeHtml(item?.imageUrl ?? "/logo2.svg")}"
-          alt="${escapeHtml(item?.title ?? "Producto")}"
-          loading="lazy"
-        />
         <div class="ab-provider-product-card__meta">
           <div>
             <p class="ab-provider-product-card__label">
