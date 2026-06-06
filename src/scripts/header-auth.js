@@ -162,31 +162,10 @@ const getSalesNotificationCursor = (items) => {
     }
   });
   if (!latest) return "";
-  const state = items
-    .map((item) => {
-      const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
-      if (history.length === 0) {
-        return [
-          item?.productId ?? "",
-          item?.lastOrderId ?? "",
-          item?.lastSoldAt ?? "",
-          item?.fulfillmentStatus ?? "",
-        ].join("|");
-      }
-      return history
-        .map((sale) =>
-          [
-            sale?.productId ?? item?.productId ?? "",
-            sale?.orderId ?? "",
-            sale?.soldAt ?? "",
-            sale?.fulfillmentStatus ?? "",
-          ].join("|"),
-        )
-        .join(";");
-    })
-    .join("::");
-  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}::${state}`;
+  return `${String(latest.lastSoldAt ?? "").trim()}|${String(latest.lastOrderId ?? "").trim()}`;
 };
+
+const normalizeSaleCursor = (value) => String(value ?? "").split("::")[0] || "";
 
 const refreshSalesNotification = async (session) => {
   const userId = session?.user?.id ?? "";
@@ -223,7 +202,7 @@ const refreshSalesNotification = async (session) => {
       return;
     }
 
-    setSalesNotificationVisible(previousCursor !== latestCursor);
+    setSalesNotificationVisible(normalizeSaleCursor(previousCursor) !== latestCursor);
   } catch {
     setSalesNotificationVisible(false);
   }
