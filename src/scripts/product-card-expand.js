@@ -3,6 +3,7 @@ const DETAILS_SELECTOR = ".ab-provider-product-card__details";
 const DESCRIPTION_SELECTOR = ".ab-provider-product-card__description";
 const ACTIONS_SELECTOR = ".ab-provider-product-card__actions";
 const EXPAND_BUTTON_CLASS = "ab-provider-product-card__expand";
+const DETAIL_CARD_CLASS = "ab-provider-product-card--detail";
 
 let refreshTimer = 0;
 
@@ -43,6 +44,12 @@ const ensureExpandButton = (card) => {
 
 const refreshCard = (card) => {
   if (!(card instanceof HTMLElement)) return;
+  if (card.classList.contains(DETAIL_CARD_CLASS)) {
+    card.classList.remove("ab-card-can-expand", "is-expanded");
+    card.querySelector(`.${EXPAND_BUTTON_CLASS}`)?.remove();
+    return;
+  }
+
   const nodes = getExpandableNodes(card);
   const details = card.querySelector(DETAILS_SELECTOR);
   if (!details || nodes.length === 0) return;

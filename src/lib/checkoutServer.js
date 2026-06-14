@@ -1,10 +1,11 @@
 export const SHIPPING_FEE = 5000;
+const SOLD_ORDER_STATUSES = ["approved"];
 
 export const sanitizeCheckoutItems = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
       product_id: String(item?.product_id ?? item?.id ?? "").trim(),
-      qty: Math.max(1, Math.min(999, Number(item?.qty ?? item?.quantity ?? 1))),
+      qty: 1,
     }))
     .filter((item) => item.product_id);
 
@@ -53,10 +54,26 @@ export const buildCheckoutContext = async (
   if (items.length === 0) {
     return { ok: false, status: 400, error: "El carrito esta vacio." };
   }
-
   const requestedShippingGroups = parseRequestedShippingGroups(shipping);
   const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
   const productIds = [...new Set(items.map((item) => item.product_id))];
+
+  const { data: soldRows, error: soldError } = await supabaseAdmin
+    .from("order_items")
+    .select("product_id, orders!inner(status)")
+    .in("product_id", productIds)
+    .in("orders.status", SOLD_ORDER_STATUSES);
+
+  if (soldError) {
+    return { ok: false, status: 500, error: "No se pudo validar la disponibilidad de los productos." };
+  }
+  const soldProductIds = new Set(
+    (soldRows ?? []).map((row) => String(row?.product_id ?? "").trim()).filter(Boolean),
+  );
+  if (productIds.some((productId) => soldProductIds.has(productId))) {
+    return { ok: false, status: 409, error: "Uno o mas productos ya fueron vendidos." };
+  }
+
   const { data: products, error: productsError } = await supabaseAdmin
     .from("products")
     .select("id, title, price, currency, seller_name, contact, user_id, image_url, delivery_methods")

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { getCart, syncCartOnLogin } from "../lib/cart";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
+import { uploadPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
 import { refreshPurchaseStatusNotifications, teardownPurchaseStatusNotifications } from "./purchase-status-notifications.js";
 
 /* Referencias DOM (se recalculan en cada navegación). */
@@ -123,7 +124,7 @@ const renderCartCount = async () => {
   if (!cartCount) return;
   try {
     const items = await getCart();
-    const totalQty = items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+    const totalQty = items.length;
     cartCount.textContent = String(totalQty);
   } catch {
     cartCount.textContent = "0";
@@ -327,21 +328,27 @@ const setupSalesRealtime = async (session) => {
     .subscribe();
 };
 
+const resolvePendingAvatar = async (session) => {
+  const result = await uploadPendingAvatar(session).catch(() => ({ ok: false, avatarUrl: "" }));
+  return result?.avatarUrl ? withAvatarUrl(session, result.avatarUrl) : session;
+};
+
 /* Resuelve la sesión actual y sincroniza carrito si aplica. */
 const resolveSession = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session) {
-    setView(sessionData.session);
-    const userId = sessionData.session.user?.id ?? "";
+    const session = await resolvePendingAvatar(sessionData.session);
+    setView(session);
+    const userId = session.user?.id ?? "";
     if (userId && userId !== lastSyncedUserId) {
       lastSyncedUserId = userId;
       if (cartSync) cartSync.classList.remove("ab-is-hidden");
       await syncCartOnLogin(userId);
       if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
-    await refreshSalesNotification(sessionData.session);
-    await setupSalesRealtime(sessionData.session);
-    await refreshPurchaseStatusNotifications(sessionData.session);
+    await refreshSalesNotification(session);
+    await setupSalesRealtime(session);
+    await refreshPurchaseStatusNotifications(session);
     renderCartCount();
     return;
   }
@@ -419,7 +426,8 @@ const bindHeaderAuthEvents = () => {
   document.documentElement.dataset.abHeaderAuthEventsBound = "true";
 
   /* Reacciona a cambios de auth (login/logout). */
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange(async (_event, incomingSession) => {
+    const session = await resolvePendingAvatar(incomingSession);
     setView(session);
     const userId = session?.user?.id ?? "";
     if (userId && userId !== lastSyncedUserId) {

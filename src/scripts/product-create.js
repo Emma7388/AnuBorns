@@ -1,6 +1,7 @@
 /* Formulario de publicación de producto con imágenes y validaciones. */
 import { supabase } from "../lib/supabaseClient";
 import { categories as localCategories } from "../data/categories";
+import { PRODUCT_IMAGE_MAX_BYTES, resizeProductImage } from "../lib/imageResize";
 
 /* Referencias DOM principales. */
 let form = document.getElementById("product-form");
@@ -40,10 +41,9 @@ let categoryDocumentClickBound = false;
 
 /* Límites y configuración de imágenes. */
 const MAX_FILES = 1;
-const MAX_TOTAL_BYTES = 5 * 1024 * 1024;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_TOTAL_BYTES = PRODUCT_IMAGE_MAX_BYTES;
+const MAX_IMAGE_BYTES = PRODUCT_IMAGE_MAX_BYTES;
 const IMAGE_BUCKET = "product-images";
-const MAX_DIMENSION = 1600;
 let previewUrls = [];
 let currentStep = 0;
 let activeSession = null;
@@ -447,10 +447,10 @@ const validateImages = (files) => {
   }
   const totalSize = files.reduce((sum, file) => sum + (file.size ?? 0), 0);
   if (totalSize > MAX_TOTAL_BYTES) {
-    return "El total de las fotos supera los 5MB. Sugerencia: descargá la foto de WhatsApp para que pese menos.";
+    return "La foto supera los 20MB. Elegí una imagen más liviana.";
   }
   if (files.some((file) => (file.size ?? 0) > MAX_IMAGE_BYTES)) {
-    return "Alguna foto supera los 5MB. Elegí una más liviana.";
+    return "La foto supera los 20MB. Elegí una imagen más liviana.";
   }
   return "";
 };
@@ -620,54 +620,11 @@ const showSuccessState = () => {
   if (progressCount) progressCount.setAttribute("aria-label", "Producto publicado");
 };
 
-/* Carga bitmap para optimizar tamaño. */
-const loadImageBitmap = async (file) => {
-  try {
-    return await createImageBitmap(file);
-  } catch {
-    return null;
-  }
-};
-
-/* Redimensiona la imagen si supera el máximo. */
-const resizeImage = async (file) => {
-  const bitmap = await loadImageBitmap(file);
-  if (!bitmap) return file;
-  const { width, height } = bitmap;
-  const maxSide = Math.max(width, height);
-  if (maxSide <= MAX_DIMENSION) return file;
-  const scale = MAX_DIMENSION / maxSide;
-  const targetW = Math.round(width * scale);
-  const targetH = Math.round(height * scale);
-  const canvas = document.createElement("canvas");
-  canvas.width = targetW;
-  canvas.height = targetH;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, targetW, targetH);
-  return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          resolve(file);
-          return;
-        }
-        const optimized = new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
-          type: "image/jpeg",
-        });
-        resolve(optimized);
-      },
-      "image/jpeg",
-      0.82
-    );
-  });
-};
-
 /* Aplica optimización a todas las imágenes. */
 const optimizeImages = async (files) => {
   const optimized = [];
   for (const file of files) {
-    const next = await resizeImage(file);
+    const next = await resizeProductImage(file);
     optimized.push(next);
   }
   return optimized;

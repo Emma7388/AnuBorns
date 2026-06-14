@@ -433,7 +433,7 @@ const normalizeOrderItemsForManualCheckout = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
       product_id: String(item?.product_id ?? "").trim() || null,
-      qty: Math.max(1, Number(item?.qty ?? 1)),
+      qty: 1,
     }))
     .filter((item) => item.product_id);
 
@@ -734,9 +734,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
           <li>Pago: <strong>${escapeHtml(orderPaymentStatus)}</strong></li>
           ${providerItems
             .map((item) => {
-              const qty = Number(item?.qty ?? 1);
               const price = Number(item?.unit_price ?? 0);
-              const subtotal = price * qty;
               const itemStatus = getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus);
               const itemShippingRequested =
                 isShippingFulfillmentStatus(itemStatus) ||
@@ -744,7 +742,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
               const itemStatusLabel = itemStatus
                 ? ` · ${formatShippingStatus(itemStatus, itemShippingRequested)}`
                 : "";
-              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} x ${qty} · $${formatPrice(subtotal)}${escapeHtml(itemStatusLabel)}</strong></li>`;
+              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} · $${formatPrice(price)}${escapeHtml(itemStatusLabel)}</strong></li>`;
             })
             .join("")}
           ${

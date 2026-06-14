@@ -20,12 +20,8 @@ const emitOwnCartItemsRemoved = (count) => {
   document.dispatchEvent(new CustomEvent("ab-cart-own-items-removed", { detail }));
 };
 
-/* Normaliza cantidades a enteros válidos. */
-const normalizeQuantity = (value) => {
-  const qty = Number(value ?? 0);
-  if (!Number.isFinite(qty) || qty <= 0) return 0;
-  return Math.round(qty);
-};
+/* El marketplace usa publicaciones de producto unico: la cantidad siempre es 1. */
+const SINGLE_ITEM_QTY = 1;
 
 /* Normaliza precios a números positivos. */
 const normalizePrice = (value) => {
@@ -85,7 +81,7 @@ const loadLocalCart = () => {
     return items
       .map((item) => ({
         product_id: String(item?.product_id ?? ""),
-        quantity: normalizeQuantity(item?.quantity),
+        quantity: SINGLE_ITEM_QTY,
         price_snapshot: normalizePrice(item?.price_snapshot),
         product_snapshot: normalizeProductSnapshot(item?.product_snapshot),
       }))
@@ -188,14 +184,14 @@ const mergeLocalIntoDb = async (cartId, localItems) => {
       inserts.push({
         cart_id: cartId,
         product_id: item.product_id,
-        quantity: item.quantity,
+        quantity: SINGLE_ITEM_QTY,
         price_snapshot: item.price_snapshot,
       });
       return;
     }
     updates.push({
       id: existing.id,
-      quantity: (existing.quantity ?? 0) + item.quantity,
+      quantity: SINGLE_ITEM_QTY,
     });
   });
 
@@ -241,14 +237,14 @@ export const addToCart = async (product) => {
     const items = loadLocalCart();
     const existing = items.find((item) => item.product_id === productId);
     if (existing) {
-      existing.quantity += 1;
+      existing.quantity = SINGLE_ITEM_QTY;
       if (!existing.product_snapshot && productSnapshot) {
         existing.product_snapshot = productSnapshot;
       }
     } else {
       items.push({
         product_id: productId,
-        quantity: 1,
+        quantity: SINGLE_ITEM_QTY,
         price_snapshot: priceSnapshot,
         product_snapshot: productSnapshot,
       });
@@ -269,22 +265,22 @@ export const addToCart = async (product) => {
   if (existing?.id) {
     await supabase
       .from("cart_items")
-      .update({ quantity: (existing.quantity ?? 0) + 1 })
+      .update({ quantity: SINGLE_ITEM_QTY })
       .eq("id", existing.id);
   } else {
     await supabase.from("cart_items").insert({
       cart_id: cartId,
       product_id: productId,
-      quantity: 1,
+      quantity: SINGLE_ITEM_QTY,
       price_snapshot: priceSnapshot,
     });
   }
   emitCartUpdate();
 };
 
-/* Actualiza la cantidad de un producto en el carrito. */
+/* Mantiene compatibilidad: solo permite conservar una unidad o eliminar. */
 export const updateQuantity = async (productId, quantity) => {
-  const normalized = normalizeQuantity(quantity);
+  const shouldRemove = Number(quantity ?? 0) <= 0;
   const userId = await getSessionUserId();
 
   /* Sin sesión: operar sobre localStorage. */
@@ -292,12 +288,12 @@ export const updateQuantity = async (productId, quantity) => {
     const items = loadLocalCart();
     const item = items.find((entry) => entry.product_id === productId);
     if (!item) return;
-    if (normalized <= 0) {
+    if (shouldRemove) {
       saveLocalCart(items.filter((entry) => entry.product_id !== productId));
       emitCartUpdate();
       return;
     }
-    item.quantity = normalized;
+    item.quantity = SINGLE_ITEM_QTY;
     saveLocalCart(items);
     emitCartUpdate();
     return;
@@ -305,7 +301,7 @@ export const updateQuantity = async (productId, quantity) => {
 
   /* Con sesión: operar sobre la base de datos. */
   const cartId = await getOrCreateCart(userId);
-  if (normalized <= 0) {
+  if (shouldRemove) {
     await supabase
       .from("cart_items")
       .delete()
@@ -316,7 +312,7 @@ export const updateQuantity = async (productId, quantity) => {
   }
   await supabase
     .from("cart_items")
-    .update({ quantity: normalized })
+    .update({ quantity: SINGLE_ITEM_QTY })
     .eq("cart_id", cartId)
     .eq("product_id", productId);
   emitCartUpdate();
@@ -368,7 +364,7 @@ export const getCart = async () => {
     .eq("cart_id", cartId);
   const normalized = (data ?? []).map((item) => ({
     product_id: item.product_id,
-    quantity: item.quantity,
+    quantity: SINGLE_ITEM_QTY,
     price_snapshot: normalizePrice(item.price_snapshot),
     product: item.products ?? null,
   }));

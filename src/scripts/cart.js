@@ -1,6 +1,6 @@
 /* UI del carrito: render, acciones y navegación. */
 import { supabase } from "../lib/supabaseClient";
-import { getCart, updateQuantity, removeFromCart } from "../lib/cart";
+import { getCart, removeFromCart } from "../lib/cart";
 import {
   SHIPPING_FEE,
   clearUnavailableProviderShippingPreferences,
@@ -67,9 +67,8 @@ const groupItemsByProvider = (items) => {
       });
     }
     const group = groups.get(key);
-    const qty = item.quantity ?? 1;
     const price = Number(item.price_snapshot ?? 0);
-    group.subtotal += price * qty;
+    group.subtotal += price;
     group.items.push(item);
   });
   return [...groups.values()];
@@ -204,7 +203,6 @@ const renderCart = async () => {
 
     const groupItemsWrap = section.querySelector(".ab-cart-provider-group__items");
     group.items.forEach((item) => {
-      const qty = item.quantity ?? 1;
       const price = Number(item.price_snapshot ?? 0);
       const product = item.product ?? null;
       const title = product?.title ?? item.product_id ?? "Producto";
@@ -224,15 +222,10 @@ const renderCart = async () => {
           <h2 class="ab-cart-item__title">${safeTitle}</h2>
           <ul class="ab-cart-item__details">
             <li>Entrega: <strong>${safeSelectedDelivery}</strong></li>
-            <li>Precio unitario: <strong>$${formatPrice(price)} ${safeCurrency}</strong></li>
+            <li>Precio: <strong>$${formatPrice(price)} ${safeCurrency}</strong></li>
           </ul>
         </div>
         <div class="ab-cart-item__actions">
-          <div class="ab-cart-item__qty">
-            <button type="button" data-action="dec" aria-label="Quitar uno">-</button>
-            <span>${qty}</span>
-            <button type="button" data-action="inc" aria-label="Sumar uno">+</button>
-          </div>
           <button class="ab-cart-item__remove" type="button" data-action="remove" aria-label="Quitar producto" title="Quitar producto">
             <img src="/icons/borrar.svg" alt="" aria-hidden="true" />
           </button>
@@ -266,7 +259,7 @@ const initCartPage = () => {
   }
   itemsWrap.dataset.abCartBound = "true";
 
-  /* Delegación de eventos para incrementar, decrementar o quitar. */
+  /* Delegación de eventos para quitar productos. */
   itemsWrap.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
@@ -278,24 +271,10 @@ const initCartPage = () => {
     if (!id) return;
 
     const action = button.dataset.action;
-    if (action === "inc") {
-      const items = await getCart();
-      const item = items.find((entry) => entry.product_id === id);
-      const nextQty = (item?.quantity ?? 1) + 1;
-      await updateQuantity(id, nextQty);
-    }
-    if (action === "dec") {
-      const items = await getCart();
-      const item = items.find((entry) => entry.product_id === id);
-      const nextQty = (item?.quantity ?? 1) - 1;
-      await updateQuantity(id, nextQty);
-    }
     if (action === "remove") {
       openRemoveModal(id);
       return;
     }
-
-    await renderCart();
   });
 
   /* Vaciar carrito completo. */

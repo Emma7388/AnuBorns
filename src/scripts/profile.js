@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { fetchSalesSummary } from "../lib/salesSummaryClient";
 import { shouldNotifyPurchaseStatus } from "../lib/purchaseStatusMessages";
+import { uploadPendingAvatar as uploadStoredPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
+import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
 
 /* Referencias DOM principales. */
 let status = document.getElementById("profile-status");
@@ -24,7 +26,6 @@ let provinceInput = document.getElementById("profile-province");
 let postalInput = document.getElementById("profile-postal-code");
 let salesNotificationDot = document.getElementById("my-sales-notification-dot");
 let purchasesNotificationDot = document.getElementById("my-purchases-notification-dot");
-const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 
 const isProfilePageActive = () => window.location.pathname === "/mis-datos";
@@ -66,20 +67,6 @@ const bindProfileEvents = () => {
     avatarInput.dataset.abProfileEventsBound = "true";
   }
 }
-
-/* Convierte dataURL a Blob para subir a storage. */
-const dataUrlToBlob = (dataUrl) => {
-  const parts = dataUrl.split(",");
-  const match = parts[0].match(/data:(.*);base64/);
-  if (!match) return null;
-  const contentType = match[1];
-  const byteString = atob(parts[1]);
-  const buffer = new Uint8Array(byteString.length);
-  for (let i = 0; i < byteString.length; i += 1) {
-    buffer[i] = byteString.charCodeAt(i);
-  }
-  return new Blob([buffer], { type: contentType });
-};
 
 /* Render de filas del resumen en la tarjeta. */
 const formatRow = (label, value) => `
@@ -150,6 +137,18 @@ const loadProfile = async () => {
   }
 
   /* Datos base y metadata de perfil. */
+  const pendingAvatarResult = await uploadStoredPendingAvatar(session, {
+    onAvatarUrl: (avatarUrl) => {
+      if (avatarImg) {
+        avatarImg.src = avatarUrl;
+        avatarImg.style.display = "block";
+      }
+    },
+  });
+  if (pendingAvatarResult?.avatarUrl) {
+    session = withAvatarUrl(session, pendingAvatarResult.avatarUrl);
+  }
+
   const user = session.user;
   const metadata = user.user_metadata ?? {};
   const avatarUrl = metadata.avatar_url;
@@ -188,8 +187,6 @@ const loadProfile = async () => {
   if (provinceInput) provinceInput.value = metadata.province ?? "";
   if (postalInput) postalInput.value = metadata.postal_code ?? "";
 
-  /* Sube avatar pendiente si fue guardado en registro. */
-  await uploadPendingAvatar(session);
   await refreshSalesNotification(session);
   await refreshPurchasesNotification(session);
   if (runId === loadRunId && status) {
@@ -353,49 +350,6 @@ const refreshSalesNotification = async (session) => {
   }
 };
 
-/* Sube avatar que quedó pendiente en localStorage. */
-const uploadPendingAvatar = async (session) => {
-  try {
-    const raw = window.localStorage.getItem("ab_pending_avatar");
-    if (!raw) return;
-    const pending = JSON.parse(raw);
-    const savedAt = Number(pending?.savedAt ?? 0);
-    if (!savedAt || Date.now() - savedAt > PENDING_AVATAR_MAX_AGE_MS) {
-      window.localStorage.removeItem("ab_pending_avatar");
-      return;
-    }
-    if (!pending?.dataUrl || !pending?.type) return;
-    const blob = dataUrlToBlob(pending.dataUrl);
-    if (!blob) return;
-
-    const extension = (pending.name || "avatar.jpg").split(".").pop() || "jpg";
-    const filePath = `${session.user.id}/avatar-${Date.now()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from("avatar")
-      .upload(filePath, blob, { upsert: true, contentType: pending.type });
-
-    if (uploadError) {
-      return;
-    }
-
-    const { data: publicData } = supabase.storage.from("avatar").getPublicUrl(filePath);
-    const avatarUrl = publicData?.publicUrl ?? "";
-    if (avatarUrl) {
-      await supabase.auth.updateUser({
-        data: { avatar_url: avatarUrl },
-      });
-      if (avatarImg) {
-        avatarImg.src = avatarUrl;
-        avatarImg.style.display = "block";
-      }
-      window.localStorage.removeItem("ab_pending_avatar");
-      if (avatarFeedback) avatarFeedback.textContent = "Imagen de perfil actualizada.";
-    }
-  } catch {
-    // noop
-  }
-};
-
 /* Alterna entre modo lectura y edición. */
 const setFormVisible = (isVisible) => {
   refreshProfileNodes();
@@ -491,9 +445,8 @@ async function handleAvatarChange(event) {
     return;
   }
 
-  const maxSize = 2 * 1024 * 1024;
-  if (file.size > maxSize) {
-    if (avatarFeedback) avatarFeedback.textContent = "La imagen de perfil supera el tamaño máximo de 2MB.";
+  if (file.size > AVATAR_MAX_BYTES) {
+    if (avatarFeedback) avatarFeedback.textContent = "La imagen de perfil supera el tamaño máximo de 5MB.";
     return;
   }
 
@@ -507,11 +460,12 @@ async function handleAvatarChange(event) {
   }
 
   try {
-    const extension = file.name.split(".").pop() || "jpg";
+    const optimizedFile = await resizeAvatarImage(file);
+    const extension = optimizedFile.name.split(".").pop() || "jpg";
     const filePath = `${session.user.id}/avatar-${Date.now()}.${extension}`;
     const { error: uploadError } = await supabase.storage
       .from("avatar")
-      .upload(filePath, file, { upsert: true, contentType: file.type });
+      .upload(filePath, optimizedFile, { upsert: true, contentType: optimizedFile.type });
 
     if (uploadError) {
       if (avatarFeedback) avatarFeedback.textContent = "No se pudo subir el avatar.";
@@ -524,6 +478,7 @@ async function handleAvatarChange(event) {
       await supabase.auth.updateUser({
         data: { avatar_url: avatarUrl },
       });
+      window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
       if (avatarImg) {
         avatarImg.src = avatarUrl;
         avatarImg.style.display = "block";

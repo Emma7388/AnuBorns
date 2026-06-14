@@ -41,6 +41,37 @@ const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
   return true;
 };
 
+const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
+  const { data: orderItems, error: itemsError } = await supabaseAdmin
+    .from("order_items")
+    .select("product_id")
+    .eq("order_id", orderId);
+
+  if (itemsError) {
+    return { ok: false, error: itemsError.message };
+  }
+
+  const productIds = [
+    ...new Set((orderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean)),
+  ];
+  if (productIds.length === 0) {
+    return { ok: true, conflicts: [] };
+  }
+
+  const { data: approvedRows, error: approvedError } = await supabaseAdmin
+    .from("order_items")
+    .select("product_id, order_id, orders!inner(status)")
+    .in("product_id", productIds)
+    .eq("orders.status", "approved")
+    .neq("order_id", orderId);
+
+  if (approvedError) {
+    return { ok: false, error: approvedError.message };
+  }
+
+  return { ok: true, conflicts: approvedRows ?? [] };
+};
+
 /* Parsea el header x-signature en { ts, v1 }. */
 const parseSignatureHeader = (header) => {
   if (!header) return null;
@@ -219,6 +250,34 @@ export const POST = async ({ request }) => {
         if (!dispatchesOk) return new Response("Sale dispatch initialization failed", { status: 500 });
       }
       return new Response("Idempotent", { status: 200 });
+    }
+
+    if (mappedStatus === "approved") {
+      const availability = await findApprovedProductConflicts(supabaseAdmin, order.id);
+      if (!availability.ok) {
+        console.error("[mp-webhook] Product availability check failed", {
+          orderId: order.id,
+          error: availability.error,
+        });
+        return new Response("Product availability check failed", { status: 500 });
+      }
+      if (availability.conflicts.length > 0) {
+        await supabaseAdmin
+          .from("orders")
+          .update({
+            status: "rejected",
+            payment_status: paymentStatus,
+            payment_id: paymentId,
+            payment_detail: "product_already_sold",
+          })
+          .eq("id", order.id);
+
+        console.warn("[mp-webhook] Approved payment rejected because product was already sold", {
+          orderId: order.id,
+          conflicts: availability.conflicts.length,
+        });
+        return new Response("Product already sold", { status: 200 });
+      }
     }
 
     /* Actualiza la orden con el estado más reciente. */

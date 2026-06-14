@@ -208,7 +208,7 @@ export const GET = async ({ request }) => {
         .toLowerCase();
       if (!allowedOrderStatuses.has(orderStatus)) return;
 
-      const qty = toPositiveNumber(row?.qty, 1) || 1;
+      const qty = 1;
       const unitPrice = toPositiveNumber(row?.unit_price, 0);
       const orderCreatedAt = order?.created_at ?? null;
       const buyerNote = extractBuyerNote(order?.payment_detail);

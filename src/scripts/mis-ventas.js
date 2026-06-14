@@ -543,7 +543,7 @@ const renderSoldProducts = (products) => {
         soldAt: product.lastSoldAt,
         orderId: product.lastOrderId || "",
         productId: product.productId || "",
-        qty: product.quantity ?? 0,
+        qty: 1,
         subtotal: product.revenue ?? 0,
         buyerName: product.lastBuyerName || "",
         buyerUserId: product.lastBuyerUserId || "",
@@ -567,7 +567,7 @@ const renderSoldProducts = (products) => {
         soldAt: sale?.soldAt ?? null,
         orderId: sale?.orderId ?? "",
         productId: sale?.productId ?? product.productId ?? "",
-        qty: sale?.qty ?? 1,
+        qty: 1,
         subtotal: sale?.subtotal ?? 0,
         buyerName: sale?.buyerName ?? "",
         buyerUserId: sale?.buyerUserId ?? "",
@@ -649,7 +649,6 @@ const renderSoldProducts = (products) => {
         <h2>${sale.title}</h2>
         <p class="ab-provider-product-card__description">Fecha: ${formatDate(sale.soldAt)}</p>
         <ul class="ab-provider-product-card__details">
-          <li>Cantidad: <strong>${sale.qty}</strong></li>
           ${
             safeBuyerName
               ? `<li>Cliente: <strong>${

@@ -140,9 +140,8 @@ const renderSummary = async () => {
   /* Cálculo de total y filas del resumen. */
   let total = 0;
   items.forEach((item) => {
-    const qty = item.quantity ?? 1;
     const price = Number(item.price_snapshot ?? 0);
-    total += price * qty;
+    total += price;
     const title = item.product?.title ?? item.product_id ?? "Producto";
     const deliveryMethods = item.product?.delivery_methods ?? [];
     const deliveryLabel = deliveryMethods.includes("envio")
@@ -156,8 +155,8 @@ const renderSummary = async () => {
     const row = document.createElement("div");
     row.className = "ab-checkout-item";
     row.innerHTML = `
-      <span>${safeTitle} x ${qty}<small>${safeDeliveryLabel}</small></span>
-      <strong>$${formatPrice(price * qty)}</strong>
+      <span>${safeTitle}<small>${safeDeliveryLabel}</small></span>
+      <strong>$${formatPrice(price)}</strong>
     `;
     itemsWrap.appendChild(row);
   });
@@ -219,7 +218,7 @@ const initCheckoutPage = () => {
     const orderItems = items.map((item) => ({
       product_id: item.product_id ?? "",
       name: item.product?.title ?? "Producto",
-      qty: item.quantity ?? 1,
+      qty: 1,
       unit_price: item.price_snapshot ?? 0,
       provider: item.product?.seller_name ?? "N/A",
       provider_whatsapp: item.product?.contact ?? "",

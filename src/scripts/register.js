@@ -1,5 +1,6 @@
 /* Formulario de registro: validaciones y alta de usuario. */
 import { supabase } from "../lib/supabaseClient";
+import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
 
 /* Referencias DOM (re-consultadas en navegación SPA). */
 let registerForm = document.getElementById("register-form");
@@ -60,6 +61,7 @@ const handleRegisterSubmit = async (event) => {
   const password = passwordInput.value;
   const confirm = passwordConfirm.value;
   const avatarFile = avatarInput?.files?.[0] ?? null;
+  let optimizedAvatarFile = null;
 
   if (!email || !password) {
     feedback.textContent = "Email y contraseña son obligatorios.";
@@ -79,15 +81,15 @@ const handleRegisterSubmit = async (event) => {
   /* Validación de avatar si se adjunta. */
   if (avatarFile) {
     const isImage = avatarFile.type.startsWith("image/");
-    const maxSize = 2 * 1024 * 1024;
     if (!isImage) {
       feedback.textContent = "El avatar debe ser una imagen.";
       return;
     }
-    if (avatarFile.size > maxSize) {
-      feedback.textContent = "El avatar supera el tamaño máximo de 2MB.";
+    if (avatarFile.size > AVATAR_MAX_BYTES) {
+      feedback.textContent = "El avatar supera el tamaño máximo de 5MB.";
       return;
     }
+    optimizedAvatarFile = await resizeAvatarImage(avatarFile);
   }
 
   /* Registro en Supabase. */
@@ -118,13 +120,13 @@ const handleRegisterSubmit = async (event) => {
   /* Si hay sesión, sube avatar y actualiza perfil. */
   if (data?.session) {
     const userId = data.session.user.id;
-    if (avatarFile) {
+    if (optimizedAvatarFile) {
       try {
-        const extension = avatarFile.name.split(".").pop() || "jpg";
+        const extension = optimizedAvatarFile.name.split(".").pop() || "jpg";
         const filePath = `${userId}/avatar-${Date.now()}.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from("avatar")
-          .upload(filePath, avatarFile, { upsert: true, contentType: avatarFile.type });
+          .upload(filePath, optimizedAvatarFile, { upsert: true, contentType: optimizedAvatarFile.type });
 
         if (uploadError) {
           console.warn("Avatar upload error", uploadError);
@@ -148,13 +150,13 @@ const handleRegisterSubmit = async (event) => {
   }
 
   /* Si no hay sesión inmediata, guarda avatar para subir luego. */
-  if (avatarFile) {
+  if (optimizedAvatarFile) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const payload = {
-          name: avatarFile.name,
-          type: avatarFile.type,
+          name: optimizedAvatarFile.name,
+          type: optimizedAvatarFile.type,
           dataUrl: reader.result,
           savedAt: Date.now(),
         };
@@ -163,7 +165,7 @@ const handleRegisterSubmit = async (event) => {
         // noop
       }
     };
-    reader.readAsDataURL(avatarFile);
+    reader.readAsDataURL(optimizedAvatarFile);
   }
 
   /* Mensaje final cuando requiere confirmación por email. */

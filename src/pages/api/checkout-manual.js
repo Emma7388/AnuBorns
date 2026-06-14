@@ -42,7 +42,6 @@ export const POST = async ({ request }) => {
       rawItems: payload?.items,
       shipping,
       buyerId: userData.user.id,
-      requirePositivePrice: false,
     });
     if (!checkout.ok) {
       return new Response(JSON.stringify({ error: checkout.error }), { status: checkout.status });

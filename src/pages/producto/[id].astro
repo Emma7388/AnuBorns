@@ -128,12 +128,29 @@ const shortId = (value) => {
 <style>
   .ab-provider-product-card--detail {
     margin: 0 auto;
-    max-width: min(100%, 360px);
-    padding: 10px;
+    width: min(100%, 680px);
+    max-width: none;
+    height: auto;
+    overflow: visible;
+    padding: 14px;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__image {
-    height: 220px;
+    height: min(320px, 42dvh);
+    min-height: 220px;
+  }
+
+  .ab-provider-product-card--detail .ab-provider-product-card__description,
+  .ab-provider-product-card--detail .ab-provider-product-card__details {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ab-provider-product-card--detail .ab-provider-product-card__description {
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__actions {

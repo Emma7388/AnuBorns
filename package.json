@@ -12,9 +12,9 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/vercel": "^10.0.6",
+    "@astrojs/vercel": "^10.0.8",
     "@supabase/supabase-js": "^2.49.1",
-    "astro": "^6.2.1",
+    "astro": "^6.4.6",
     "mercadopago": "^2.4.0"
   }
 }

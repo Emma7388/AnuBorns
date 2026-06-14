@@ -42,7 +42,7 @@ const aggregateSalesRows = (rows) => {
     if (!productId) return;
     const orderStatus = String(row?.orders?.status ?? "").trim().toLowerCase();
     if (!ALLOWED_ORDER_STATUSES.has(orderStatus)) return;
-    const qty = Math.max(1, toSafeNumber(row?.qty, 1));
+    const qty = 1;
     const unitPrice = Math.max(0, toSafeNumber(row?.unit_price, 0));
     const current = aggregate.get(productId) ?? { soldQty: 0, revenue: 0 };
     current.soldQty += qty;

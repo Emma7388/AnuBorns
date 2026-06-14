@@ -46,14 +46,6 @@ const shortId = (value) => {
             <input id="search-query" type="search" placeholder="Nombre o ID" />
           </label>
           <label>
-            Disponibilidad
-            <select id="stock-filter">
-              <option value="all">Todos</option>
-              <option value="in">Solo con stock</option>
-              <option value="out">Solo sin stock</option>
-            </select>
-          </label>
-          <label>
             Ordenar por precio
             <select id="price-sort">
               <option value="default">Relevancia</option>
@@ -87,11 +79,9 @@ const shortId = (value) => {
         </p>
         <div class="ab-provider-products-grid" id="provider-products-grid">
           {products.map((product) => {
-            const hasStock = (product.stock ?? 0) > 0;
             return (
               <article
                 class="ab-provider-product-card"
-                data-stock={hasStock ? "in" : "out"}
                 data-price={product.price}
                 data-name={product.name}
                 data-sku={shortId(product.id)}
@@ -138,8 +128,6 @@ const shortId = (value) => {
                   <button
                     type="button"
                     class="ab-provider-product-card__button ab-provider-product-card__button--buy"
-                    disabled={!hasStock}
-                    aria-disabled={!hasStock}
                     data-action="buy"
                   >
                     Comprar
@@ -184,7 +172,6 @@ const shortId = (value) => {
 
   const initProviderProducts = () => {
     const grid = document.getElementById("provider-products-grid");
-    const stockFilter = document.getElementById("stock-filter");
     const priceSort = document.getElementById("price-sort");
     const pageSizeSelect = document.getElementById("page-size");
     const searchQuery = document.getElementById("search-query");
@@ -204,7 +191,6 @@ const shortId = (value) => {
 
     if (
       !grid ||
-      !stockFilter ||
       !priceSort ||
       !pageSizeSelect ||
       !searchQuery ||
@@ -236,16 +222,13 @@ const shortId = (value) => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
 
-    const allowedStock = new Set(["all", "in", "out"]);
     const allowedSort = new Set(["default", "asc", "desc"]);
 
-    const initialStock = params.get("stock") ?? "all";
     const initialSort = params.get("sort") ?? "default";
     const initialQuery = params.get("q") ?? "";
     const initialPageSize = Number(params.get("ipp") ?? "6");
     const initialPage = Number(params.get("p") ?? "1");
 
-    stockFilter.value = allowedStock.has(initialStock) ? initialStock : "all";
     priceSort.value = allowedSort.has(initialSort) ? initialSort : "default";
     searchQuery.value = initialQuery;
     pageSize = allowedPageSizes.includes(initialPageSize) ? initialPageSize : 6;
@@ -254,8 +237,7 @@ const shortId = (value) => {
 
     const updateCartCount = async () => {
       const items = await getCart();
-      const totalQty = items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
-      cartCount.textContent = String(totalQty);
+      cartCount.textContent = String(items.length);
     };
 
     const showCartFeedback = (message) => {
@@ -278,12 +260,10 @@ const shortId = (value) => {
 
     const syncUrl = (totalPages) => {
       const next = new URL(window.location.href);
-      const stock = stockFilter.value;
       const sort = priceSort.value;
       const query = searchQuery.value.trim();
 
-      if (stock !== "all") next.searchParams.set("stock", stock);
-      else next.searchParams.delete("stock");
+      next.searchParams.delete("stock");
 
       if (sort !== "default") next.searchParams.set("sort", sort);
       else next.searchParams.delete("sort");
@@ -302,12 +282,10 @@ const shortId = (value) => {
 
     const renderActiveFilters = () => {
       const items = [];
-      const stock = stockFilter.value;
       const sort = priceSort.value;
       const query = searchQuery.value.trim();
 
       if (query) items.push({ key: "q", label: `Búsqueda: ${query}` });
-      if (stock !== "all") items.push({ key: "stock", label: `Stock: ${stock === "in" ? "con stock" : "sin stock"}` });
       if (sort !== "default") items.push({ key: "sort", label: `Orden: ${sort === "asc" ? "menor a mayor" : "mayor a menor"}` });
 
       activeFilters.innerHTML = "";
@@ -328,7 +306,6 @@ const shortId = (value) => {
     };
 
     const resetFilters = () => {
-      stockFilter.value = "all";
       priceSort.value = "default";
       searchQuery.value = "";
       pageSize = 6;
@@ -339,14 +316,10 @@ const shortId = (value) => {
 
     const renderCards = () => {
       grid.classList.add("is-updating");
-      const stockValue = stockFilter.value;
       const sortValue = priceSort.value;
       const query = searchQuery.value.trim().toLowerCase();
 
-      let visible = cards.filter((card) => {
-        if (stockValue === "all") return true;
-        return card.dataset.stock === stockValue;
-      });
+      let visible = [...cards];
 
       if (query.length > 0) {
         visible = visible.filter((card) => {
@@ -392,7 +365,6 @@ const shortId = (value) => {
       renderCards();
     };
 
-    stockFilter.addEventListener("change", resetToFirstPageAndRender);
     priceSort.addEventListener("change", resetToFirstPageAndRender);
     searchQuery.addEventListener("input", resetToFirstPageAndRender);
     pageSizeSelect.addEventListener("change", () => {
@@ -459,7 +431,6 @@ const shortId = (value) => {
       if (!key) return;
 
       if (key === "q") searchQuery.value = "";
-      if (key === "stock") stockFilter.value = "all";
       if (key === "sort") priceSort.value = "default";
 
       currentPage = 1;
