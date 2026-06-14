@@ -28,7 +28,15 @@ drop policy if exists sale_dispatches_select_own on public.sale_dispatches;
 create policy "sale_dispatches_select_own"
   on public.sale_dispatches
   for select
-  using (auth.uid() = seller_id);
+  using (
+    auth.uid() = seller_id
+    or exists (
+      select 1
+      from public.orders as buyer_order
+      where buyer_order.id = sale_dispatches.order_id
+        and buyer_order.user_id = auth.uid()
+    )
+  );
 
 drop policy if exists sale_dispatches_insert_own on public.sale_dispatches;
 create policy "sale_dispatches_insert_own"

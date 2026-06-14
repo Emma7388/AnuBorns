@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "./supabaseServer.js";
 
-const ALLOWED_ORDER_STATUSES = new Set(["approved", "pending"]);
+const ALLOWED_ORDER_STATUSES = new Set(["approved"]);
 const DAYS_WINDOW = 7;
 const MAX_ITEMS = 10;
 const QUERY_TIMEOUT_MS = 6_000;

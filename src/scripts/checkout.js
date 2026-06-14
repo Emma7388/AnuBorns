@@ -9,8 +9,6 @@ import {
   itemSupportsShipping,
 } from "../lib/shippingPreference";
 
-/* Clave de almacenamiento local para historial de compras offline. */
-const ORDERS_KEY = "ab_orders_v1";
 let checkoutConfirmed = false;
 let currentSubtotal = 0;
 let currentShippingGroups = [];
@@ -228,7 +226,6 @@ const initCheckoutPage = () => {
       provider_user_id: item.product?.user_id ?? "",
     }));
 
-    const total = orderItems.reduce((sum, item) => sum + (item.unit_price ?? 0) * (item.qty ?? 1), 0);
     const requestedShippingGroups = getRequestedShippingGroups(items);
     const shippingRequested = requestedShippingGroups.length > 0;
     const shippingCost = requestedShippingGroups.length * SHIPPING_FEE;
@@ -253,7 +250,6 @@ const initCheckoutPage = () => {
     };
     const buyerNote = String(document.getElementById("notes")?.value ?? "").trim().slice(0, 500);
 
-    let persistedRemotely = false;
     try {
       const response = await fetch("/api/checkout-manual", {
         method: "POST",
@@ -267,32 +263,16 @@ const initCheckoutPage = () => {
           buyer_note: buyerNote,
         }),
       });
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error("manual-checkout-failed");
+        throw new Error(String(payload?.error ?? "No se pudo registrar la compra."));
       }
-      persistedRemotely = true;
-    } catch {
-      /* Fallback local para no bloquear compra si falla backend. */
-      const rawOrders = window.localStorage.getItem(ORDERS_KEY);
-      const parsed = rawOrders ? JSON.parse(rawOrders) : {};
-      const userId = data.session.user.id;
-      const userOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
-      const newOrder = {
-        id: `LOCAL-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        total_amount: total + shippingCost,
-        shipping_requested: shipping.requested,
-        shipping_cost: shippingCost,
-        shipping_status: shipping.requested ? "requested" : "pickup_pending",
-        shipping_full_name: shipping.fullName || "",
-        shipping_address: shipping.address || "",
-        shipping_city: shipping.city || "",
-        shipping_phone: shipping.phone || "",
-        buyer_note: buyerNote || "",
-        order_items: orderItems,
-      };
-      parsed[userId] = [newOrder, ...userOrders];
-      window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
+    } catch (error) {
+      feedback.textContent =
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar la compra. Intentá nuevamente.";
+      return;
     }
 
     /* Vacía el carrito luego de confirmar. */
@@ -304,9 +284,7 @@ const initCheckoutPage = () => {
     /* UI de éxito y redirección. */
     if (form) form.classList.add("ab-is-hidden");
     if (successNotice) successNotice.classList.remove("ab-is-hidden");
-    if (!persistedRemotely) {
-      feedback.textContent = "Compra confirmada. Se guardo localmente por un problema temporal del servidor.";
-    }
+    feedback.textContent = "Compra confirmada. Avisamos al vendedor.";
     window.setTimeout(() => {
       window.location.href = "/mis-compras";
     }, 900);

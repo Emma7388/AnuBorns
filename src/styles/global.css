@@ -1634,7 +1634,43 @@ input[type="submit"] {
   color: var(--color-text-muted);
 }
 
-  .ab-provider-product-card__details li {
+.ab-provider-product-card.ab-card-can-expand:not(.is-expanded) .ab-provider-product-card__description {
+  max-height: 34px;
+  overflow: hidden;
+}
+
+.ab-provider-product-card.ab-card-can-expand:not(.is-expanded) .ab-provider-product-card__details {
+  max-height: 82px;
+  overflow: hidden;
+}
+
+.ab-sales-product-card.ab-card-can-expand:not(.is-expanded) {
+  height: 376px;
+  overflow: hidden;
+}
+
+.ab-sales-product-card.is-expanded {
+  height: auto;
+  overflow: visible;
+}
+
+.ab-sales-product-card.ab-card-can-expand:not(.is-expanded) .ab-provider-product-card__description {
+  max-height: 30px;
+}
+
+.ab-sales-product-card.ab-card-can-expand:not(.is-expanded) .ab-provider-product-card__details {
+  max-height: 70px;
+}
+
+.ab-provider-product-card__expand {
+  width: 100%;
+  min-height: 34px;
+  margin: 3px 0 6px;
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.ab-provider-product-card__details li {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -1745,6 +1781,45 @@ input[type="submit"] {
   margin-top: auto;
   display: flex;
   gap: 8px;
+}
+
+.ab-provider-product-card__actions > .ab-featured-products-detail,
+.ab-provider-product-card__actions > .ab-provider-product-card__add,
+.ab-provider-product-card__actions > .ab-provider-product-card__button {
+  height: 44px;
+  min-height: 44px;
+}
+
+.ab-provider-product-card__actions--split {
+  align-items: stretch;
+}
+
+.ab-provider-product-card__actions--split .ab-featured-products-detail,
+.ab-provider-product-card__actions--split .ab-provider-product-card__add,
+.ab-provider-product-card__actions--split .ab-provider-product-card__button {
+  flex: 1 1 0;
+  height: 44px;
+  min-height: 44px;
+  min-width: 0;
+  width: auto;
+  margin-top: 0;
+}
+
+.ab-provider-product-card__actions--split .ab-featured-products-detail,
+.ab-provider-product-card__actions--split .ab-provider-product-card__button {
+  padding: 8px 9px;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.ab-provider-product-card__actions--split .ab-featured-products-detail {
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.ab-provider-product-card__actions--split .ab-featured-products-detail img {
+  width: 18px;
+  height: 18px;
 }
 
 .ab-provider-product-card__button {

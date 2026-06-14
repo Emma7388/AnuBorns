@@ -1,32 +1,8 @@
 /* API: checkout manual (sin MercadoPago) para registrar compras reales. */
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
-
-const SHIPPING_FEE = 5000;
-
-/* Normaliza items y descarta valores inválidos. */
-const sanitizeItems = (items) =>
-  items
-    .map((item) => ({
-      product_id: String(item?.product_id ?? "").trim(),
-      qty: Math.max(1, Math.min(999, Number(item?.qty ?? 1))),
-    }))
-    .filter((item) => item.product_id);
-
-/* Normaliza y limita nota del comprador. */
-const sanitizeBuyerNote = (value) => {
-  const note = String(value ?? "").trim();
-  if (!note) return "";
-  return note.slice(0, 500);
-};
-
-const normalizeDeliveryMethods = (value) => {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
-  return String(value ?? "")
-    .split(/[,+]/)
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-};
+import { buildCheckoutContext, buildOrderItems, sanitizeBuyerNote } from "../../lib/checkoutServer.js";
+import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
@@ -60,117 +36,32 @@ export const POST = async ({ request }) => {
     }
 
     const payload = await request.json().catch(() => ({}));
-    const items = sanitizeItems(Array.isArray(payload?.items) ? payload.items : []);
     const shipping = payload?.shipping ?? {};
-    const shippingGroups = Array.isArray(shipping?.groups) ? shipping.groups : [];
-    const requestedShippingGroups = shippingGroups
-      .map((group) => ({
-        providerKey: String(group?.provider_key ?? "").trim(),
-        provider: String(group?.provider ?? "").trim(),
-        address: String(group?.address ?? "").trim(),
-        city: String(group?.city ?? "").trim(),
-      }))
-      .filter((group) => group.providerKey);
-    const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
     const buyerNote = sanitizeBuyerNote(payload?.buyer_note);
-
-    if (items.length === 0) {
-      return new Response(JSON.stringify({ error: "El carrito esta vacio." }), { status: 400 });
-    }
-
-    const productIds = [...new Set(items.map((item) => item.product_id))];
-    const { data: products, error: productsError } = await supabaseAdmin
-      .from("products")
-      .select("id, title, price, currency, seller_name, contact, user_id, image_url, delivery_methods")
-      .in("id", productIds);
-
-    if (productsError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
-    }
-
-    const productsMap = new Map((products ?? []).map((product) => [String(product.id), product]));
-    if (productsMap.size !== productIds.length) {
-      return new Response(JSON.stringify({ error: "Hay productos invalidos o no disponibles." }), { status: 400 });
-    }
-
-    const serverItems = items.map((item) => {
-      const product = productsMap.get(item.product_id);
-      const unitPrice = Number(product?.price ?? 0);
-      const safePrice = Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0;
-      return {
-        product_id: item.product_id,
-        name: String(product?.title ?? "Producto"),
-        qty: item.qty,
-        unit_price: safePrice,
-        provider: String(product?.seller_name ?? "").trim(),
-        provider_whatsapp: String(product?.contact ?? "").trim(),
-        provider_user_id: String(product?.user_id ?? "").trim(),
-        currency: String(product?.currency ?? "ARS").toUpperCase(),
-        image: String(product?.image_url ?? "").trim(),
-        delivery_methods: normalizeDeliveryMethods(product?.delivery_methods),
-      };
+    const checkout = await buildCheckoutContext(supabaseAdmin, {
+      rawItems: payload?.items,
+      shipping,
+      buyerId: userData.user.id,
+      requirePositivePrice: false,
     });
-
-    const hasMixedCurrency = new Set(serverItems.map((item) => item.currency)).size > 1;
-    if (hasMixedCurrency) {
-      return new Response(JSON.stringify({ error: "No se puede comprar productos con distintas monedas." }), {
-        status: 400,
-      });
+    if (!checkout.ok) {
+      return new Response(JSON.stringify({ error: checkout.error }), { status: checkout.status });
     }
-
-    const hasOwnProducts = serverItems.some((item) => item.provider_user_id && item.provider_user_id === userData.user.id);
-    if (hasOwnProducts) {
-      return new Response(JSON.stringify({ error: "No podes comprar tus propios productos." }), { status: 400 });
-    }
-
-    if (shippingRequested) {
-      if (requestedShippingGroups.length === 0) {
-        const allItemsSupportShipping = serverItems.every((item) => item.delivery_methods.includes("envio"));
-        if (!allItemsSupportShipping) {
-          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
-        }
-        if (!String(shipping?.address ?? "").trim() || !String(shipping?.city ?? "").trim()) {
-          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para el envío." }), { status: 400 });
-        }
-      }
-      for (const group of requestedShippingGroups) {
-        if (!group.address || !group.city) {
-          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para un proveedor." }), { status: 400 });
-        }
-        const providerUserId = group.providerKey.startsWith("id:") ? group.providerKey.slice(3) : "";
-        const providerItems = serverItems.filter((item) =>
-          providerUserId
-            ? item.provider_user_id === providerUserId
-            : `name:${String(item.provider ?? "").trim().toLowerCase() || "n/a"}` === group.providerKey,
-        );
-        if (providerItems.length === 0 || providerItems.some((item) => !item.delivery_methods.includes("envio"))) {
-          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
-        }
-      }
-    }
-
-    const orderCurrency = serverItems[0]?.currency || "ARS";
-    const shippingCost = requestedShippingGroups.length
-      ? requestedShippingGroups.length * SHIPPING_FEE
-      : shippingRequested
-        ? SHIPPING_FEE
-        : 0;
-    const totalAmount = serverItems.reduce((sum, item) => sum + item.unit_price * item.qty, 0) + shippingCost;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
         user_id: userData.user.id,
         status: "approved",
-        total_amount: totalAmount,
-        currency: orderCurrency,
+        total_amount: checkout.totalAmount,
+        currency: checkout.orderCurrency,
         shipping_full_name: String(shipping?.fullName ?? "").trim() || null,
         shipping_address: String(shipping?.address ?? "").trim() || null,
         shipping_city: String(shipping?.city ?? "").trim() || null,
         shipping_phone: String(shipping?.phone ?? "").trim() || null,
-        shipping_requested: shippingRequested,
-        shipping_cost: shippingCost,
-        shipping_status: shippingRequested ? "requested" : "pickup_pending",
+        shipping_requested: checkout.shippingRequested,
+        shipping_cost: checkout.shippingCost,
+        shipping_status: checkout.shippingRequested ? "requested" : "pickup_pending",
         payment_status: "manual",
         payment_detail: buyerNote ? `manual_checkout|note:${buyerNote}` : "manual_checkout",
       })
@@ -181,16 +72,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudo crear la orden." }), { status: 500 });
     }
 
-    const orderItems = serverItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      name: item.name,
-      qty: item.qty,
-      unit_price: item.unit_price,
-      provider: item.provider || null,
-      unit: null,
-      image: item.image || null,
-    }));
+    const orderItems = buildOrderItems(order.id, checkout.serverItems);
 
     const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);
     if (itemsError) {
@@ -198,18 +80,31 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudieron guardar los items." }), { status: 500 });
     }
 
+    const dispatchResult = await createInitialSaleDispatches(supabaseAdmin, {
+      orderId: order.id,
+      shippingRequested: checkout.shippingRequested,
+      shippingProductIds: checkout.shippingProductIds,
+    });
+    if (!dispatchResult.ok) {
+      await supabaseAdmin.from("orders").delete().eq("id", order.id);
+      return new Response(
+        JSON.stringify({ error: dispatchResult.error ?? "No se pudo inicializar la venta." }),
+        { status: 500 },
+      );
+    }
+
     /* Auditoría best-effort de compra manual. */
     await supabaseAdmin.from("audit_logs").insert({
       user_id: userData.user.id,
       event: "manual_checkout_created",
       metadata: {
-              order_id: order.id,
-              items_count: orderItems.length,
-              total_amount: totalAmount,
-              currency: orderCurrency,
-              shipping_requested: shippingRequested,
-              shipping_cost: shippingCost,
-            },
+        order_id: order.id,
+        items_count: orderItems.length,
+        total_amount: checkout.totalAmount,
+        currency: checkout.orderCurrency,
+        shipping_requested: checkout.shippingRequested,
+        shipping_cost: checkout.shippingCost,
+      },
       ip_address:
         request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
         request.headers.get("x-real-ip") ??

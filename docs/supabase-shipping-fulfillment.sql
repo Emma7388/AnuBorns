@@ -55,11 +55,36 @@ create table if not exists public.purchase_status_reads (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   order_id uuid not null references public.orders(id) on delete cascade,
-  product_id uuid not null,
+  product_id text not null,
   fulfillment_status text not null,
+  status_updated_at timestamptz not null default '1970-01-01 00:00:00+00',
   read_at timestamptz not null default now(),
-  unique (user_id, order_id, product_id, fulfillment_status)
+  constraint purchase_status_reads_unique
+    unique (user_id, order_id, product_id, fulfillment_status, status_updated_at)
 );
+
+alter table public.purchase_status_reads
+  add column if not exists status_updated_at timestamptz not null default '1970-01-01 00:00:00+00';
+
+alter table public.purchase_status_reads
+  alter column product_id type text using product_id::text;
+
+update public.purchase_status_reads as reads
+set status_updated_at = dispatches.status_updated_at
+from public.sale_dispatches as dispatches
+where reads.order_id = dispatches.order_id
+  and reads.product_id = dispatches.product_id
+  and reads.status_updated_at = '1970-01-01 00:00:00+00';
+
+alter table public.purchase_status_reads
+  drop constraint if exists purchase_status_reads_user_id_order_id_product_id_fulfillment_status_key;
+
+alter table public.purchase_status_reads
+  drop constraint if exists purchase_status_reads_unique;
+
+alter table public.purchase_status_reads
+  add constraint purchase_status_reads_unique
+  unique (user_id, order_id, product_id, fulfillment_status, status_updated_at);
 
 alter table public.purchase_status_reads
   drop constraint if exists purchase_status_reads_fulfillment_status_check;
@@ -84,7 +109,7 @@ alter table public.purchase_status_reads enable row level security;
 
 create index if not exists purchase_status_reads_user_idx on public.purchase_status_reads (user_id);
 create index if not exists purchase_status_reads_lookup_idx
-  on public.purchase_status_reads (user_id, order_id, product_id, fulfillment_status);
+  on public.purchase_status_reads (user_id, order_id, product_id, fulfillment_status, status_updated_at);
 
 drop policy if exists purchase_status_reads_select_own on public.purchase_status_reads;
 create policy "purchase_status_reads_select_own"

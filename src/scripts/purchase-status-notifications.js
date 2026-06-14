@@ -1,4 +1,10 @@
 import { supabase } from "../lib/supabaseClient";
+import {
+  getPurchaseStatusMessage,
+  getPurchaseStatusReadKey,
+  getPurchaseStatusToastStorageKey,
+  shouldNotifyPurchaseStatus,
+} from "../lib/purchaseStatusMessages";
 
 let purchaseStatusToast = null;
 let purchaseStatusToastMessage = null;
@@ -6,20 +12,17 @@ let purchaseStatusToastTimer = 0;
 let purchaseRealtimeChannel = null;
 let purchaseRealtimeRefreshTimer = 0;
 let purchaseRealtimeUserId = "";
+let lastPurchaseStatusRefreshAt = 0;
+let lastPurchaseStatusRefreshUserId = "";
 const announcedPurchaseStatusKeys = new Set();
 
 const PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS = 900;
+const PURCHASE_STATUS_MIN_REFRESH_MS = 2500;
 
-const isHomePage = () => window.location.pathname === "/";
+const isPurchasesPageActive = () => window.location.pathname === "/mis-compras";
+
 const getFulfillmentMapKey = (orderId, productId) =>
   `${String(orderId ?? "").trim()}::${String(productId ?? "").trim()}`;
-
-const getPurchaseStatusReadKey = (item) =>
-  [
-    String(item?.orderId ?? "").trim(),
-    String(item?.productId ?? "").trim(),
-    String(item?.fulfillmentStatus ?? item?.status ?? "").trim(),
-  ].join("::");
 
 const markPurchaseStatusesReadOnServer = async (token, items = []) => {
   const reads = (Array.isArray(items) ? items : [])
@@ -27,6 +30,7 @@ const markPurchaseStatusesReadOnServer = async (token, items = []) => {
       orderId: String(item?.orderId ?? "").trim(),
       productId: String(item?.productId ?? "").trim(),
       fulfillmentStatus: String(item?.fulfillmentStatus ?? item?.status ?? "").trim(),
+      statusUpdatedAt: String(item?.statusUpdatedAt ?? "").trim(),
     }))
     .filter((item) => item.orderId && item.productId && item.fulfillmentStatus);
   if (!token || reads.length === 0) return;
@@ -39,25 +43,6 @@ const markPurchaseStatusesReadOnServer = async (token, items = []) => {
     },
     body: JSON.stringify({ items: reads }),
   }).catch(() => {});
-};
-
-const formatPurchaseStatus = (value, requested) => {
-  const statusValue = String(value ?? "").trim();
-  if (!requested && (!statusValue || statusValue === "not_requested" || statusValue === "pickup_pending")) {
-    return "Retiro pendiente";
-  }
-  const labels = {
-    requested: "Envío solicitado",
-    preparing: "Preparando envío",
-    shipped: "Enviado",
-    delivered: "Entregado",
-    pickup_pending: "Retiro pendiente",
-    ready_for_pickup: "Listo para retirar",
-    picked_up: "Retirado",
-    completed: "Completado",
-    not_requested: "Sin envío",
-  };
-  return labels[statusValue] ?? labels.requested;
 };
 
 const ensurePurchaseStatusToast = () => {
@@ -74,18 +59,16 @@ const ensurePurchaseStatusToast = () => {
       </svg>
     </span>
     <span class="ab-cart-toast__message">Estado actualizado</span>
+    <a class="ab-cart-toast__link" href="/mis-compras">Ver</a>
   `;
   document.body.appendChild(purchaseStatusToast);
   purchaseStatusToastMessage = purchaseStatusToast.querySelector(".ab-cart-toast__message");
 };
 
-const showPurchaseStatusToast = ({ changedCount, latestStatusLabel }) => {
+const showPurchaseStatusToast = ({ changedCount, latestItem }) => {
   ensurePurchaseStatusToast();
   if (!purchaseStatusToast) return;
-  const safeChangedCount = Math.max(1, Number(changedCount ?? 1));
-  const message = safeChangedCount === 1
-    ? `Producto actualizado: ${latestStatusLabel || "estado actualizado"}.`
-    : `${safeChangedCount} productos actualizaron su estado.`;
+  const message = getPurchaseStatusMessage(latestItem, changedCount);
   if (purchaseStatusToastMessage) purchaseStatusToastMessage.textContent = message;
 
   if (purchaseStatusToastTimer) window.clearTimeout(purchaseStatusToastTimer);
@@ -96,7 +79,7 @@ const showPurchaseStatusToast = ({ changedCount, latestStatusLabel }) => {
   purchaseStatusToastTimer = window.setTimeout(() => {
     purchaseStatusToast?.classList.remove("is-visible");
     purchaseStatusToastTimer = 0;
-  }, 2000);
+  }, 5000);
 };
 
 const fetchPurchaseOrders = async (userId) => {
@@ -110,11 +93,21 @@ const fetchPurchaseOrders = async (userId) => {
   return data;
 };
 
-const refreshPurchaseStatusToast = async (session) => {
-  if (!isHomePage()) return;
+const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   const userId = session?.user?.id ?? "";
   const token = session?.access_token ?? "";
   if (!userId || !token) return;
+
+  const now = Date.now();
+  if (
+    !force &&
+    lastPurchaseStatusRefreshUserId === userId &&
+    now - lastPurchaseStatusRefreshAt < PURCHASE_STATUS_MIN_REFRESH_MS
+  ) {
+    return;
+  }
+  lastPurchaseStatusRefreshUserId = userId;
+  lastPurchaseStatusRefreshAt = now;
 
   const orders = await fetchPurchaseOrders(userId);
   const orderIds = [...new Set(orders.map((order) => String(order?.id ?? "").trim()).filter(Boolean))];
@@ -131,6 +124,7 @@ const refreshPurchaseStatusToast = async (session) => {
       getFulfillmentMapKey(item?.orderId, item?.productId),
       {
         fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+        statusUpdatedAt: String(item?.statusUpdatedAt ?? "").trim(),
         statusRead: Boolean(item?.statusRead),
       },
     ]),
@@ -150,6 +144,7 @@ const refreshPurchaseStatusToast = async (session) => {
           productId,
           shippingRequested,
           fulfillmentStatus: state?.fulfillmentStatus || fallbackStatus || (shippingRequested ? "requested" : "pickup_pending"),
+          statusUpdatedAt: state?.statusUpdatedAt || "",
           statusRead: Boolean(state?.statusRead),
         };
       })
@@ -157,25 +152,32 @@ const refreshPurchaseStatusToast = async (session) => {
   });
   if (currentItems.length === 0) return;
 
-  if (!payload.hasAnyRead) {
-    await markPurchaseStatusesReadOnServer(token, currentItems);
-    return;
-  }
-
   const unreadItems = currentItems.filter((item) => !item.statusRead);
   if (unreadItems.length === 0) return;
+  const baselineItems = unreadItems.filter((item) => !shouldNotifyPurchaseStatus(item));
+  if (baselineItems.length > 0) {
+    await markPurchaseStatusesReadOnServer(token, baselineItems);
+  }
 
-  const unannouncedItems = unreadItems.filter((item) => {
+  const notifiableUnreadItems = unreadItems.filter(shouldNotifyPurchaseStatus);
+  if (notifiableUnreadItems.length === 0) return;
+
+  const unannouncedItems = notifiableUnreadItems.filter((item) => {
     const key = getPurchaseStatusReadKey(item);
-    return key && !announcedPurchaseStatusKeys.has(key);
+    const storageKey = getPurchaseStatusToastStorageKey(item);
+    return key && !announcedPurchaseStatusKeys.has(key) && !window.sessionStorage.getItem(storageKey);
   });
   if (unannouncedItems.length === 0) return;
 
-  unannouncedItems.forEach((item) => announcedPurchaseStatusKeys.add(getPurchaseStatusReadKey(item)));
+  unannouncedItems.forEach((item) => {
+    announcedPurchaseStatusKeys.add(getPurchaseStatusReadKey(item));
+    window.sessionStorage.setItem(getPurchaseStatusToastStorageKey(item), "1");
+  });
+  await markPurchaseStatusesReadOnServer(token, unannouncedItems);
   const latest = unannouncedItems[unannouncedItems.length - 1];
   showPurchaseStatusToast({
     changedCount: unannouncedItems.length,
-    latestStatusLabel: formatPurchaseStatus(latest.fulfillmentStatus, latest.shippingRequested),
+    latestItem: latest,
   });
 };
 
@@ -183,7 +185,8 @@ const schedulePurchaseStatusRefresh = () => {
   window.clearTimeout(purchaseRealtimeRefreshTimer);
   purchaseRealtimeRefreshTimer = window.setTimeout(async () => {
     const { data } = await supabase.auth.getSession();
-    await refreshPurchaseStatusToast(data?.session);
+    purchaseRealtimeRefreshTimer = 0;
+    await refreshPurchaseStatusToast(data?.session, { force: true });
   }, PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS);
 };
 
@@ -210,6 +213,8 @@ export const teardownPurchaseStatusNotifications = async () => {
   window.clearTimeout(purchaseRealtimeRefreshTimer);
   purchaseRealtimeRefreshTimer = 0;
   purchaseRealtimeUserId = "";
+  lastPurchaseStatusRefreshAt = 0;
+  lastPurchaseStatusRefreshUserId = "";
   announcedPurchaseStatusKeys.clear();
   if (!purchaseRealtimeChannel) return;
   const channel = purchaseRealtimeChannel;
@@ -217,15 +222,15 @@ export const teardownPurchaseStatusNotifications = async () => {
   await supabase.removeChannel(channel);
 };
 
-export const refreshHomePurchaseStatus = async (session) => {
+export const refreshPurchaseStatusNotifications = async (session, options = {}) => {
   const userId = session?.user?.id ?? "";
-  if (!isHomePage() || !userId) {
+  if (!userId || isPurchasesPageActive()) {
     await teardownPurchaseStatusNotifications();
     return;
   }
   if (purchaseRealtimeUserId && purchaseRealtimeUserId !== userId) {
     await teardownPurchaseStatusNotifications();
   }
-  await refreshPurchaseStatusToast(session);
+  await refreshPurchaseStatusToast(session, options);
   await setupPurchaseStatusRealtime(session);
 };

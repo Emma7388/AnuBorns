@@ -1,5 +1,10 @@
 /* Historial de compras: local o remoto. */
 import { supabase } from "../lib/supabaseClient";
+import {
+  getPurchaseStatusMessage,
+  getPurchaseStatusToastStorageKey,
+  shouldNotifyPurchaseStatus,
+} from "../lib/purchaseStatusMessages";
 
 /* Clave de órdenes locales offline. */
 const ORDERS_KEY = "ab_orders_v1";
@@ -12,8 +17,13 @@ let currentUserId = "";
 let syncInFlight = false;
 let purchaseRealtimeChannel = null;
 let purchaseRealtimeRefreshTimer = null;
+let purchaseStatusToast = null;
+let purchaseStatusToastMessage = null;
+let purchaseStatusToastTimer = 0;
 
 const PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS = 900;
+
+const isOrdersPageActive = () => window.location.pathname === "/mis-compras";
 
 const refreshOrderNodes = () => {
   list = document.getElementById("orders-list");
@@ -23,35 +33,61 @@ const refreshOrderNodes = () => {
 
 const bindOrderEvents = () => {
   refreshOrderNodes();
-  if (!list || list.dataset.pickupBound === "1") return;
+  if (!list || list.dataset.fulfillmentBound === "1") return;
   list.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const button = target.closest("[data-confirm-pickup]");
-    if (!(button instanceof HTMLButtonElement)) return;
 
-    const orderId = String(button.dataset.confirmPickup ?? "").trim();
-    const productIds = String(button.dataset.pickupProducts ?? "")
+    const pickupButton = target.closest("[data-confirm-pickup]");
+    if (pickupButton instanceof HTMLButtonElement) {
+      const orderId = String(pickupButton.dataset.confirmPickup ?? "").trim();
+      const productIds = String(pickupButton.dataset.pickupProducts ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (!orderId || productIds.length === 0) return;
+
+      pickupButton.disabled = true;
+      const previousText = pickupButton.textContent;
+      pickupButton.textContent = "Confirmando...";
+      const result = await confirmPickupOnServer({ orderId, productIds });
+      if (!result.ok) {
+        pickupButton.disabled = false;
+        pickupButton.textContent = previousText || "Ya retiré";
+        if (status) status.textContent = result.error;
+        return;
+      }
+
+      if (status) status.textContent = "Retiro confirmado. Avisamos al vendedor.";
+      await loadOrders();
+      return;
+    }
+
+    const deliveryButton = target.closest("[data-confirm-delivery]");
+    if (!(deliveryButton instanceof HTMLButtonElement)) return;
+
+    const orderId = String(deliveryButton.dataset.confirmDelivery ?? "").trim();
+    const productIds = String(deliveryButton.dataset.deliveryProducts ?? "")
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
     if (!orderId || productIds.length === 0) return;
 
-    button.disabled = true;
-    const previousText = button.textContent;
-    button.textContent = "Confirmando...";
-    const result = await confirmPickupOnServer({ orderId, productIds });
+    deliveryButton.disabled = true;
+    const previousText = deliveryButton.textContent;
+    deliveryButton.textContent = "Confirmando...";
+    const result = await confirmDeliveryOnServer({ orderId, productIds });
     if (!result.ok) {
-      button.disabled = false;
-      button.textContent = previousText || "Ya retiré";
+      deliveryButton.disabled = false;
+      deliveryButton.textContent = previousText || "Ya recibí";
       if (status) status.textContent = result.error;
       return;
     }
 
-    if (status) status.textContent = "Retiro confirmado. Avisamos al vendedor.";
+    if (status) status.textContent = "Recepcion confirmada. Avisamos al vendedor.";
     await loadOrders();
   });
-  list.dataset.pickupBound = "1";
+  list.dataset.fulfillmentBound = "1";
 };
 
 /* Formateo de precios ARS. */
@@ -90,6 +126,70 @@ const formatShippingStatus = (value, requested) => {
   return labels[statusValue] ?? labels.requested;
 };
 
+const formatOrderPaymentStatus = (value) => {
+  const labels = {
+    approved: "Pago aprobado",
+    pending: "Pago pendiente",
+    rejected: "Pago rechazado",
+    cancelled: "Pago cancelado",
+    refunded: "Pago reembolsado",
+  };
+  const statusValue = String(value ?? "").trim().toLowerCase();
+  return labels[statusValue] ?? "Compra registrada";
+};
+
+const isOrderPaymentApproved = (order) => {
+  const statusValue = String(order?.status ?? "").trim().toLowerCase();
+  return !statusValue || statusValue === "approved";
+};
+
+const SHIPPING_FULFILLMENT_STATUSES = new Set(["requested", "preparing", "shipped", "delivered"]);
+const PICKUP_FULFILLMENT_STATUSES = new Set(["pickup_pending", "ready_for_pickup", "picked_up"]);
+const FULFILLMENT_STATUS_PRIORITY = {
+  pending: 0,
+  requested: 0,
+  pickup_pending: 0,
+  preparing: 1,
+  shipped: 2,
+  ready_for_pickup: 2,
+  delivered: 3,
+  picked_up: 3,
+  completed: 4,
+};
+
+const isShippingFulfillmentStatus = (status) =>
+  SHIPPING_FULFILLMENT_STATUSES.has(String(status ?? "").trim());
+
+const isPickupFulfillmentStatus = (status) =>
+  PICKUP_FULFILLMENT_STATUSES.has(String(status ?? "").trim());
+
+const getProviderShippingRequested = (statuses = [], orderShippingRequested = false) => {
+  const safeStatuses = (Array.isArray(statuses) ? statuses : [])
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+  if (safeStatuses.some(isShippingFulfillmentStatus)) return true;
+  if (safeStatuses.some(isPickupFulfillmentStatus)) return false;
+  return Boolean(orderShippingRequested);
+};
+
+const getAggregateFulfillmentStatus = (statuses = [], fallbackStatus = "", shippingRequested = false) => {
+  const safeStatuses = (Array.isArray(statuses) ? statuses : [])
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+  if (safeStatuses.length === 0) {
+    return String(fallbackStatus ?? "").trim() || (shippingRequested ? "requested" : "pickup_pending");
+  }
+  if (safeStatuses.every((item) => item === "completed")) return "completed";
+
+  const activeStatuses = safeStatuses.filter((item) => item !== "completed");
+  const candidates = activeStatuses.length > 0 ? activeStatuses : safeStatuses;
+  return candidates.reduce((best, item) => {
+    const bestPriority = FULFILLMENT_STATUS_PRIORITY[best] ?? 0;
+    const itemPriority = FULFILLMENT_STATUS_PRIORITY[item] ?? 0;
+    return itemPriority > bestPriority ? item : best;
+  }, candidates[0]);
+};
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -110,6 +210,50 @@ const getFulfillmentMapKey = (orderId, productId) => `${String(orderId ?? "").tr
 
 const getItemFulfillmentStatus = (fulfillmentMap, orderId, productId, fallbackStatus) =>
   String(fulfillmentMap?.[getFulfillmentMapKey(orderId, productId)]?.fulfillmentStatus ?? fallbackStatus ?? "").trim();
+
+const ensurePurchaseStatusToast = () => {
+  if (purchaseStatusToast) return;
+  purchaseStatusToast = document.createElement("div");
+  purchaseStatusToast.className = "ab-cart-toast ab-purchase-status-toast";
+  purchaseStatusToast.setAttribute("role", "status");
+  purchaseStatusToast.setAttribute("aria-live", "polite");
+  purchaseStatusToast.setAttribute("aria-atomic", "true");
+  purchaseStatusToast.innerHTML = `
+    <span class="ab-cart-toast__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </span>
+    <span class="ab-cart-toast__message">Estado actualizado</span>
+  `;
+  document.body.appendChild(purchaseStatusToast);
+  purchaseStatusToastMessage = purchaseStatusToast.querySelector(".ab-cart-toast__message");
+};
+
+const showRenderedPurchaseStatusToast = (items = []) => {
+  const notifiableItems = (Array.isArray(items) ? items : []).filter(shouldNotifyPurchaseStatus);
+  const unannouncedItems = notifiableItems.filter((item) => !window.sessionStorage.getItem(getPurchaseStatusToastStorageKey(item)));
+  if (unannouncedItems.length === 0) return;
+
+  unannouncedItems.forEach((item) => {
+    window.sessionStorage.setItem(getPurchaseStatusToastStorageKey(item), "1");
+  });
+  ensurePurchaseStatusToast();
+  if (!purchaseStatusToast) return;
+  const latest = unannouncedItems[unannouncedItems.length - 1];
+  if (purchaseStatusToastMessage) {
+    purchaseStatusToastMessage.textContent = getPurchaseStatusMessage(latest, unannouncedItems.length);
+  }
+  if (purchaseStatusToastTimer) window.clearTimeout(purchaseStatusToastTimer);
+  purchaseStatusToast.classList.remove("is-visible");
+  window.requestAnimationFrame(() => {
+    purchaseStatusToast?.classList.add("is-visible");
+  });
+  purchaseStatusToastTimer = window.setTimeout(() => {
+    purchaseStatusToast?.classList.remove("is-visible");
+    purchaseStatusToastTimer = 0;
+  }, 5000);
+};
 
 const fetchPurchaseFulfillmentMap = async (orders = []) => {
   const orderIds = [...new Set(
@@ -137,10 +281,22 @@ const fetchPurchaseFulfillmentMap = async (orders = []) => {
     if (!orderId || !productId) return nextMap;
     nextMap[getFulfillmentMapKey(orderId, productId)] = {
       fulfillmentStatus,
+      statusUpdatedAt: String(item?.statusUpdatedAt ?? "").trim(),
       statusRead: Boolean(item?.statusRead),
     };
-    if (payload?.hasAnyRead && fulfillmentStatus && !item?.statusRead) {
-      unreadItems.push({ orderId, productId, fulfillmentStatus });
+    const nextItem = {
+      orderId,
+      productId,
+      fulfillmentStatus,
+      statusUpdatedAt: String(item?.statusUpdatedAt ?? "").trim(),
+      statusRead: Boolean(item?.statusRead),
+    };
+    if (
+      fulfillmentStatus &&
+      !item?.statusRead &&
+      (payload?.hasAnyRead || shouldNotifyPurchaseStatus(nextItem))
+    ) {
+      unreadItems.push(nextItem);
     }
     return nextMap;
   }, {});
@@ -157,6 +313,7 @@ const markPurchaseStatusesReadOnServer = async (items = []) => {
       orderId: String(item?.orderId ?? "").trim(),
       productId: String(item?.productId ?? "").trim(),
       fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+      statusUpdatedAt: String(item?.statusUpdatedAt ?? "").trim(),
     }))
     .filter((item) => item.orderId && item.productId && item.fulfillmentStatus);
   if (reads.length === 0) return;
@@ -178,6 +335,7 @@ const markPurchaseStatusesReadOnServer = async (items = []) => {
 const markRenderedPurchaseStatusesRead = (fulfillmentMap = {}) => {
   const unreadItems = Array.isArray(fulfillmentMap.__unreadItems) ? fulfillmentMap.__unreadItems : [];
   if (unreadItems.length === 0) return;
+  showRenderedPurchaseStatusToast(unreadItems);
   void markPurchaseStatusesReadOnServer(unreadItems);
 };
 
@@ -197,6 +355,26 @@ const confirmPickupOnServer = async ({ orderId, productIds }) => {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     return { ok: false, error: String(payload?.error ?? "No se pudo confirmar el retiro.") };
+  }
+  return { ok: true };
+};
+
+const confirmDeliveryOnServer = async ({ orderId, productIds }) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token ?? "";
+  if (!token) return { ok: false, error: "Tenés que iniciar sesión." };
+
+  const response = await fetch("/api/purchase-delivery", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ orderId, productIds }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { ok: false, error: String(payload?.error ?? "No se pudo confirmar la recepcion.") };
   }
   return { ok: true };
 };
@@ -251,18 +429,23 @@ const extractBuyerNote = (order) => {
   return detail.slice(index + marker.length).trim();
 };
 
-const normalizeOrderItemsForInsert = (items) =>
+const normalizeOrderItemsForManualCheckout = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
       product_id: String(item?.product_id ?? "").trim() || null,
-      name: String(item?.name ?? "").trim() || "Producto",
       qty: Math.max(1, Number(item?.qty ?? 1)),
-      unit_price: Math.max(0, Number(item?.unit_price ?? 0)),
-      provider: String(item?.provider ?? "").trim() || null,
-      unit: null,
-      image: String(item?.image ?? "").trim() || null,
     }))
-    .filter((item) => item.name);
+    .filter((item) => item.product_id);
+
+const normalizeLocalShippingGroups = (localOrder) =>
+  (Array.isArray(localOrder?.shipping_groups) ? localOrder.shipping_groups : [])
+    .map((group) => ({
+      provider_key: String(group?.provider_key ?? "").trim(),
+      provider: String(group?.provider ?? "").trim(),
+      address: String(group?.address ?? "").trim(),
+      city: String(group?.city ?? "").trim(),
+    }))
+    .filter((group) => group.provider_key);
 
 const syncLocalOrdersToServer = async (userId) => {
   if (!userId || syncInFlight) return { syncedCount: 0, remainingCount: 0 };
@@ -275,50 +458,40 @@ const syncLocalOrdersToServer = async (userId) => {
       return { syncedCount: 0, remainingCount: 0 };
     }
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token ?? "";
+    if (!token) {
+      return { syncedCount: 0, remainingCount: localOrders.length };
+    }
+
     let syncedCount = 0;
     const remaining = [];
 
     for (const localOrder of localOrders) {
-      const safeItems = normalizeOrderItemsForInsert(localOrder?.order_items);
+      const safeItems = normalizeOrderItemsForManualCheckout(localOrder?.order_items);
       if (safeItems.length === 0) continue;
 
-      const orderPayload = {
-        user_id: userId,
-        status: "approved",
-        total_amount: Math.max(0, Number(localOrder?.total_amount ?? 0)),
-        currency: String(localOrder?.currency ?? "ARS").trim() || "ARS",
-        shipping_full_name: String(localOrder?.shipping_full_name ?? "").trim() || null,
-        shipping_address: String(localOrder?.shipping_address ?? "").trim() || null,
-        shipping_city: String(localOrder?.shipping_city ?? "").trim() || null,
-        shipping_phone: String(localOrder?.shipping_phone ?? "").trim() || null,
-        shipping_requested: Boolean(localOrder?.shipping_requested),
-        shipping_cost: Math.max(0, Number(localOrder?.shipping_cost ?? 0)),
-        shipping_status: String(localOrder?.shipping_status ?? "").trim() || (localOrder?.shipping_requested ? "requested" : "pickup_pending"),
-        payment_status: "manual",
-        payment_detail: extractBuyerNote(localOrder)
-          ? `offline_sync|note:${extractBuyerNote(localOrder)}`
-          : "offline_sync",
-      };
+      const response = await fetch("/api/checkout-manual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items: safeItems,
+          shipping: {
+            requested: Boolean(localOrder?.shipping_requested),
+            fullName: String(localOrder?.shipping_full_name ?? "").trim(),
+            address: String(localOrder?.shipping_address ?? "").trim(),
+            city: String(localOrder?.shipping_city ?? "").trim(),
+            phone: String(localOrder?.shipping_phone ?? "").trim(),
+            groups: normalizeLocalShippingGroups(localOrder),
+          },
+          buyer_note: extractBuyerNote(localOrder),
+        }),
+      });
 
-      const { data: createdOrder, error: createOrderError } = await supabase
-        .from("orders")
-        .insert(orderPayload)
-        .select("id")
-        .single();
-
-      if (createOrderError || !createdOrder?.id) {
-        remaining.push(localOrder);
-        continue;
-      }
-
-      const orderItemsPayload = safeItems.map((item) => ({
-        order_id: createdOrder.id,
-        ...item,
-      }));
-
-      const { error: createItemsError } = await supabase.from("order_items").insert(orderItemsPayload);
-      if (createItemsError) {
-        await supabase.from("orders").delete().eq("id", createdOrder.id);
+      if (!response.ok) {
         remaining.push(localOrder);
         continue;
       }
@@ -471,12 +644,13 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
     const items = Array.isArray(order.order_items) ? order.order_items : [];
     const buyerNote = extractBuyerNote(order);
     const orderId = String(order.id ?? "").trim();
+    const orderPaymentApproved = isOrderPaymentApproved(order);
+    const orderPaymentStatus = formatOrderPaymentStatus(order.status);
     const orderDate = formatDate(order.created_at);
     const currency = String(order.currency ?? "ARS").trim() || "ARS";
     const shippingRequested = Boolean(order.shipping_requested);
     const shippingCost = Number(order.shipping_cost ?? 0);
     const orderShippingStatus = String(order.shipping_status ?? "").trim();
-    const shippingStatus = formatShippingStatus(orderShippingStatus, shippingRequested);
     const shippingAddress = String(order.shipping_address ?? "").trim();
     const shippingCity = String(order.shipping_city ?? "").trim();
     const shippingPhone = String(order.shipping_phone ?? "").trim();
@@ -510,10 +684,20 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
       const providerStatuses = providerItems
         .map((item) => getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus))
         .filter(Boolean);
+      const providerShippingRequested = getProviderShippingRequested(providerStatuses, shippingRequested);
+      const deliveryProductIds = providerItems
+        .filter((item) =>
+          getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus) === "shipped"
+        )
+        .map((item) => String(item?.product_id ?? "").trim())
+        .filter(Boolean);
       const providerStatus = providerStatuses.length > 0 && providerStatuses.every((item) => item === providerStatuses[0])
-        ? formatShippingStatus(providerStatuses[0], shippingRequested)
-        : shippingStatus;
-      const confirmPickupButton = !shippingRequested && pickupProductIds.length > 0
+        ? formatShippingStatus(providerStatuses[0], providerShippingRequested)
+        : formatShippingStatus(
+            getAggregateFulfillmentStatus(providerStatuses, orderShippingStatus, providerShippingRequested),
+            providerShippingRequested,
+          );
+      const confirmPickupButton = orderPaymentApproved && !providerShippingRequested && pickupProductIds.length > 0
         ? `<button
             type="button"
             class="ab-provider-product-card__button ab-provider-product-card__button--buy"
@@ -521,6 +705,16 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
             data-pickup-products="${escapeHtml(pickupProductIds.join(","))}"
           >
             Ya retiré
+          </button>`
+        : "";
+      const confirmDeliveryButton = orderPaymentApproved && providerShippingRequested && deliveryProductIds.length > 0
+        ? `<button
+            type="button"
+            class="ab-provider-product-card__button ab-provider-product-card__button--buy"
+            data-confirm-delivery="${escapeHtml(orderId)}"
+            data-delivery-products="${escapeHtml(deliveryProductIds.join(","))}"
+          >
+            Ya recibí
           </button>`
         : "";
       const providerNameMarkup = providerProfileHref
@@ -537,21 +731,25 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
         </div>
         <h2>${providerNameMarkup}</h2>
         <ul class="ab-provider-product-card__details">
+          <li>Pago: <strong>${escapeHtml(orderPaymentStatus)}</strong></li>
           ${providerItems
             .map((item) => {
               const qty = Number(item?.qty ?? 1);
               const price = Number(item?.unit_price ?? 0);
               const subtotal = price * qty;
               const itemStatus = getItemFulfillmentStatus(fulfillmentMap, orderId, item?.product_id, orderShippingStatus);
-              const itemStatusLabel = !shippingRequested && itemStatus
-                ? ` · ${formatShippingStatus(itemStatus, false)}`
+              const itemShippingRequested =
+                isShippingFulfillmentStatus(itemStatus) ||
+                (shippingRequested && !isPickupFulfillmentStatus(itemStatus));
+              const itemStatusLabel = itemStatus
+                ? ` · ${formatShippingStatus(itemStatus, itemShippingRequested)}`
                 : "";
               return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} x ${qty} · $${formatPrice(subtotal)}${escapeHtml(itemStatusLabel)}</strong></li>`;
             })
             .join("")}
           ${
-            shippingRequested
-              ? `<li>Entrega: <strong>${escapeHtml(shippingStatus)}</strong></li>
+            providerShippingRequested
+              ? `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>
                  <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>
                  <li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
                  ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
@@ -576,6 +774,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
             Ver factura
           </button>
           ${confirmPickupButton}
+          ${confirmDeliveryButton}
         </div>
       `;
 
@@ -599,6 +798,13 @@ const renderOrders = () => {
 
 /* Carga órdenes locales o desde Supabase. */
 const loadOrders = async () => {
+  refreshOrderNodes();
+  if (!isOrdersPageActive()) {
+    await teardownPurchaseRealtime();
+    return;
+  }
+  if (!list || !emptyState) return;
+
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session?.user) {
     await teardownPurchaseRealtime();
@@ -681,25 +887,18 @@ const loadOrders = async () => {
   await setupPurchaseRealtime();
 };
 
-refreshOrderNodes();
-bindOrderEvents();
+const initOrdersPage = () => {
+  refreshOrderNodes();
+  if (!isOrdersPageActive()) {
+    void teardownPurchaseRealtime();
+    return;
+  }
+  bindOrderEvents();
+  void loadOrders();
+};
 
-document.addEventListener("astro:page-load", () => {
-  refreshOrderNodes();
-  bindOrderEvents();
-  loadOrders();
-});
-document.addEventListener("astro:after-swap", () => {
-  refreshOrderNodes();
-  bindOrderEvents();
-  loadOrders();
-});
-window.addEventListener("pageshow", () => {
-  refreshOrderNodes();
-  bindOrderEvents();
-  loadOrders();
-});
+initOrdersPage();
+document.addEventListener("astro:page-load", initOrdersPage);
+document.addEventListener("astro:after-swap", initOrdersPage);
+window.addEventListener("pageshow", initOrdersPage);
 window.addEventListener("pagehide", teardownPurchaseRealtime);
-
-/* Inicialización. */
-loadOrders();

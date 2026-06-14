@@ -1,6 +1,7 @@
 /* API: webhook de Mercado Pago con validación de firma y actualización de órdenes. */
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 
 /* Tokens requeridos para consultar la API y validar firma. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -27,6 +28,18 @@ const statusMap = {
 
 /* Estados finales que no deberían re-procesarse. */
 const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded"]);
+
+const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
+  const dispatchResult = await createInitialSaleDispatches(supabaseAdmin, { orderId });
+  if (!dispatchResult.ok) {
+    console.error("[mp-webhook] Sale dispatch initialization failed", {
+      orderId,
+      error: dispatchResult.error,
+    });
+    return false;
+  }
+  return true;
+};
 
 /* Parsea el header x-signature en { ts, v1 }. */
 const parseSignatureHeader = (header) => {
@@ -192,16 +205,24 @@ export const POST = async ({ request }) => {
       if (order.status === "approved" && mappedStatus === "refunded") {
         // Allow chargeback/refund updates.
       } else {
+        if (order.status === "approved" && mappedStatus === "approved") {
+          const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);
+          if (!dispatchesOk) return new Response("Sale dispatch initialization failed", { status: 500 });
+        }
         return new Response("Already processed", { status: 200 });
       }
     }
 
     if (order.payment_id && order.payment_id === paymentId && order.status === mappedStatus) {
+      if (mappedStatus === "approved") {
+        const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);
+        if (!dispatchesOk) return new Response("Sale dispatch initialization failed", { status: 500 });
+      }
       return new Response("Idempotent", { status: 200 });
     }
 
     /* Actualiza la orden con el estado más reciente. */
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("orders")
       .update({
         status: mappedStatus,
@@ -210,6 +231,20 @@ export const POST = async ({ request }) => {
         payment_detail: paymentData?.status_detail ?? null,
       })
       .eq("id", order.id);
+
+    if (updateError) {
+      console.error("[mp-webhook] Order update failed", {
+        orderId: order.id,
+        status: mappedStatus,
+        error: updateError.message,
+      });
+      return new Response("Order update failed", { status: 500 });
+    }
+
+    if (mappedStatus === "approved") {
+      const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);
+      if (!dispatchesOk) return new Response("Sale dispatch initialization failed", { status: 500 });
+    }
 
     console.info("[mp-webhook] Order updated", {
       orderId: order.id,

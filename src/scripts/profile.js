@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { fetchSalesSummary } from "../lib/salesSummaryClient";
+import { shouldNotifyPurchaseStatus } from "../lib/purchaseStatusMessages";
 
 /* Referencias DOM principales. */
 let status = document.getElementById("profile-status");
@@ -25,6 +26,8 @@ let salesNotificationDot = document.getElementById("my-sales-notification-dot");
 let purchasesNotificationDot = document.getElementById("my-purchases-notification-dot");
 const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
+
+const isProfilePageActive = () => window.location.pathname === "/mis-datos";
 
 const refreshProfileNodes = () => {
   status = document.getElementById("profile-status");
@@ -114,6 +117,8 @@ const withTimeout = (promise, ms) =>
 /* Carga datos del usuario y actualiza la UI. */
 const loadProfile = async () => {
   refreshProfileNodes();
+  if (!isProfilePageActive()) return;
+
   const runId = (loadRunId += 1);
   if (status) status.textContent = "Cargando información del usuario...";
 
@@ -250,6 +255,7 @@ const markPurchaseStatusesReadOnServer = async (token, items = []) => {
       orderId: String(item?.orderId ?? "").trim(),
       productId: String(item?.productId ?? "").trim(),
       fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+      statusUpdatedAt: String(item?.statusUpdatedAt ?? "").trim(),
     }))
     .filter((item) => item.orderId && item.productId && item.fulfillmentStatus);
   if (!token || reads.length === 0) return;
@@ -289,13 +295,27 @@ const refreshPurchasesNotification = async (session) => {
       return;
     }
 
+    const unreadItems = payload.items.filter((item) => !item?.statusRead);
     if (!payload.hasAnyRead) {
-      await markPurchaseStatusesReadOnServer(token, payload.items);
+      const baselineItems = unreadItems.filter((item) => !shouldNotifyPurchaseStatus(item));
+      if (baselineItems.length > 0) {
+        await markPurchaseStatusesReadOnServer(token, baselineItems);
+      }
+      setPurchasesDotVisible(unreadItems.some(shouldNotifyPurchaseStatus));
+      return;
+    }
+
+    const baselineItems = unreadItems.filter((item) => !shouldNotifyPurchaseStatus(item));
+    if (baselineItems.length > 0) {
+      await markPurchaseStatusesReadOnServer(token, baselineItems);
+    }
+    const hasUnreadNotifiableItems = unreadItems.some(shouldNotifyPurchaseStatus);
+    if (!hasUnreadNotifiableItems) {
       setPurchasesDotVisible(false);
       return;
     }
 
-    setPurchasesDotVisible(payload.items.some((item) => !item?.statusRead));
+    setPurchasesDotVisible(true);
   } catch {
     setPurchasesDotVisible(false);
   }
@@ -324,8 +344,7 @@ const refreshSalesNotification = async (session) => {
     const key = `${LAST_SEEN_SALE_KEY}:${userId}`;
     const previousCursor = window.localStorage.getItem(key);
     if (!previousCursor) {
-      window.localStorage.setItem(key, latestCursor);
-      setSalesDotVisible(false);
+      setSalesDotVisible(true);
       return;
     }
     setSalesDotVisible(normalizeSaleCursor(previousCursor) !== latestCursor);
@@ -386,40 +405,32 @@ const setFormVisible = (isVisible) => {
   profileToggle.setAttribute("aria-expanded", String(isVisible));
 };
 
-/* Estado inicial del formulario. */
-refreshProfileNodes();
-setFormVisible(false);
-bindProfileEvents();
-
 const resetProfileView = () => {
   refreshProfileNodes();
   setFormVisible(false);
 };
 
+const initProfilePage = () => {
+  if (!isProfilePageActive()) return;
+  refreshProfileNodes();
+  bindProfileEvents();
+  resetProfileView();
+  loadProfile();
+};
+
+/* Estado inicial del formulario. */
+initProfilePage();
+
 /* Re-carga en navegación Astro. */
-document.addEventListener("astro:page-load", () => {
-  refreshProfileNodes();
-  bindProfileEvents();
-  resetProfileView();
-  loadProfile();
-});
-document.addEventListener("astro:after-swap", () => {
-  refreshProfileNodes();
-  bindProfileEvents();
-  resetProfileView();
-  loadProfile();
-});
+document.addEventListener("astro:page-load", initProfilePage);
+document.addEventListener("astro:after-swap", initProfilePage);
 document.addEventListener("astro:before-swap", () => {
   loadRunId += 1;
+  if (!isProfilePageActive()) return;
   refreshProfileNodes();
   resetProfileView();
 });
-window.addEventListener("pageshow", () => {
-  refreshProfileNodes();
-  bindProfileEvents();
-  resetProfileView();
-  loadProfile();
-});
+window.addEventListener("pageshow", initProfilePage);
 window.addEventListener("storage", (event) => {
   if (!event.key) return;
   if (event.key.includes("ab_last_seen_sale_at_v1")) {

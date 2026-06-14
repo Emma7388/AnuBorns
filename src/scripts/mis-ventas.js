@@ -65,8 +65,10 @@ const bindMySalesEvents = () => {
         return;
       }
       if (soldProductsStatus) soldProductsStatus.textContent = "";
+      showSalesStatusToast(`Estado actualizado: ${formatFulfillmentStatus(nextStatus, false)}.`);
       invalidateSalesSummaryCache();
       lastSoldProductsSignature = "";
+      suppressNextSalesStatusToast = true;
       await loadSoldProducts();
     });
     soldProductsList.dataset.dispatchBound = "1";
@@ -133,9 +135,14 @@ let soldProductsResizeBound = false;
 let soldProductsFilterBound = false;
 let lastSoldProductsItems = [];
 let soldProductCards = [];
+let salesStatusToast = null;
+let salesStatusToastMessage = null;
+let salesStatusToastTimer = 0;
+let lastSalesStatusStateSignature = "";
+let lastSaleOnlyCursor = "";
+let suppressNextSalesStatusToast = false;
 
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
-const SALES_BOOTSTRAP_NOTICE_KEY = "ab_sales_bootstrap_notice_v1";
 const SALES_MIN_GAP_MS = 4000;
 const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
 const SOLD_PRODUCTS_VISIBLE_CARD_COUNT = 3;
@@ -172,13 +179,47 @@ const formatFulfillmentStatus = (status, shippingRequested) => {
     requested: "Envío solicitado",
     preparing: "Preparando envío",
     shipped: "Enviado",
-    delivered: "Entregado",
+    delivered: "Recibido por comprador",
     pickup_pending: "Retiro pendiente",
     ready_for_pickup: "Listo para retirar",
     completed: "Completado",
     picked_up: "Retirado por comprador",
   };
   return labels[raw] ?? labels.pending;
+};
+
+const ensureSalesStatusToast = () => {
+  if (salesStatusToast) return;
+  salesStatusToast = document.createElement("div");
+  salesStatusToast.className = "ab-cart-toast ab-sales-status-toast";
+  salesStatusToast.setAttribute("role", "status");
+  salesStatusToast.setAttribute("aria-live", "polite");
+  salesStatusToast.setAttribute("aria-atomic", "true");
+  salesStatusToast.innerHTML = `
+    <span class="ab-cart-toast__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </span>
+    <span class="ab-cart-toast__message">Estado actualizado</span>
+  `;
+  document.body.appendChild(salesStatusToast);
+  salesStatusToastMessage = salesStatusToast.querySelector(".ab-cart-toast__message");
+};
+
+const showSalesStatusToast = (message) => {
+  ensureSalesStatusToast();
+  if (!salesStatusToast) return;
+  if (salesStatusToastMessage) salesStatusToastMessage.textContent = message;
+  if (salesStatusToastTimer) window.clearTimeout(salesStatusToastTimer);
+  salesStatusToast.classList.remove("is-visible");
+  window.requestAnimationFrame(() => {
+    salesStatusToast?.classList.add("is-visible");
+  });
+  salesStatusToastTimer = window.setTimeout(() => {
+    salesStatusToast?.classList.remove("is-visible");
+    salesStatusToastTimer = 0;
+  }, 3000);
 };
 
 const getNextFulfillmentAction = (status, shippingRequested) => {
@@ -188,7 +229,7 @@ const getNextFulfillmentAction = (status, shippingRequested) => {
       return { status: "preparing", label: "Preparar envío" };
     }
     if (raw === "preparing") return { status: "shipped", label: "Marcar enviado" };
-    if (raw === "shipped") return { status: "delivered", label: "Marcar entregado" };
+    if (raw === "delivered") return { status: "completed", label: "Completar circuito" };
     return null;
   }
   if (!raw || raw === "pending" || raw === "pickup_pending") {
@@ -196,6 +237,12 @@ const getNextFulfillmentAction = (status, shippingRequested) => {
   }
   if (raw === "picked_up") return { status: "completed", label: "Completar circuito" };
   return null;
+};
+
+const formatFulfillmentActionLabel = (status, shippingRequested) => {
+  const raw = String(status ?? "").trim();
+  if (shippingRequested && raw === "shipped") return "Esperando recepcion";
+  return formatFulfillmentStatus(raw, shippingRequested);
 };
 
 const getSaleOrderGroupKey = (sale) => {
@@ -235,8 +282,12 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
+const getProductDetailHref = (productId) => {
+  const safeProductId = String(productId ?? "").trim();
+  return safeProductId ? `/producto/${encodeURIComponent(safeProductId)}` : "#";
+};
+
 const getLastSeenSaleStorageKey = () => `${LAST_SEEN_SALE_KEY}:${currentUserId || "anonymous"}`;
-const getBootstrapNoticeStorageKey = () => `${SALES_BOOTSTRAP_NOTICE_KEY}:${currentUserId || "anonymous"}`;
 
 const getLatestSaleCursor = (items) => {
   if (!Array.isArray(items) || items.length === 0) return { cursor: "", latestSale: null };
@@ -261,136 +312,17 @@ const getLatestSaleCursor = (items) => {
   };
 };
 
-const countOpenSalesCircuits = (soldItems) => {
-  const sales = [];
-  (Array.isArray(soldItems) ? soldItems : []).forEach((item) => {
-    const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
-    if (history.length === 0) {
-      sales.push({
-        shippingRequested: Boolean(item?.shippingRequested),
-        fulfillmentStatus: item?.fulfillmentStatus ?? (item?.shippingRequested ? "requested" : "pickup_pending"),
-      });
-      return;
-    }
-    history.forEach((sale) => {
-      sales.push({
-        shippingRequested: Boolean(sale?.shippingRequested),
-        fulfillmentStatus: sale?.fulfillmentStatus ?? (sale?.shippingRequested ? "requested" : "pickup_pending"),
-      });
-    });
-  });
+const buildSalesNotificationCursor = (_soldItems, latestSale) =>
+  `${String(latestSale?.lastSoldAt ?? "").trim()}|${String(latestSale?.lastOrderId ?? "").trim()}`;
 
-  return sales.filter((sale) =>
-    Boolean(getNextFulfillmentAction(sale.fulfillmentStatus, sale.shippingRequested))
-  ).length;
-};
-
-const formatOpenSalesCircuitCount = (count) => {
-  const safeCount = Number(count ?? 0);
-  if (!Number.isFinite(safeCount) || safeCount <= 0) {
-    return "No quedan productos pendientes de cerrar circuito.";
-  }
-  return `Quedan ${safeCount} ${safeCount === 1 ? "producto" : "productos"} con circuito pendiente.`;
-};
-
-const showUrgentSaleModal = ({ title, message, pendingCircuitCount = null }) => {
-  const lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const modal = document.createElement("div");
-  modal.className = "ab-orders-modal";
-  modal.setAttribute("role", "dialog");
-  modal.setAttribute("aria-modal", "true");
-  const pendingMessage = pendingCircuitCount === null
-    ? ""
-    : `<p class="ab-sales-pending-count">${escapeHtml(formatOpenSalesCircuitCount(pendingCircuitCount))}</p>`;
-  modal.innerHTML = `
-    <div class="ab-orders-modal__backdrop"></div>
-    <div class="ab-orders-modal__panel" role="document">
-      <h2>${escapeHtml(title)}</h2>
-      <p>${escapeHtml(message)}</p>
-      ${pendingMessage}
-      <div class="ab-orders-modal__actions">
-        <button type="button" class="ab-orders-delete-btn">Entendido</button>
-      </div>
-    </div>
-  `;
-
-  const close = () => {
-    if (modal.contains(document.activeElement)) {
-      if (lastTrigger instanceof HTMLElement && document.contains(lastTrigger)) {
-        lastTrigger.focus();
-      } else if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-    }
-    modal.remove();
-  };
-
-  modal.querySelector(".ab-orders-modal__backdrop")?.addEventListener("click", close);
-  modal.querySelector(".ab-orders-delete-btn")?.addEventListener("click", close);
-  document.body.appendChild(modal);
-};
-
-const buildSalesNotificationCursor = (soldItems, latestSale) => {
-  const latestSaleIso = String(latestSale?.lastSoldAt ?? "").trim();
-  const latestOrderId = String(latestSale?.lastOrderId ?? "").trim();
-  const state = (Array.isArray(soldItems) ? soldItems : [])
-    .map((item) => {
-      const history = Array.isArray(item?.salesHistory) ? item.salesHistory : [];
-      if (history.length === 0) {
-        return [
-          item?.productId ?? "",
-          item?.lastOrderId ?? "",
-          item?.lastSoldAt ?? "",
-        ].join("|");
-      }
-      return history
-        .map((sale) =>
-          [
-            sale?.productId ?? item?.productId ?? "",
-            sale?.orderId ?? "",
-            sale?.soldAt ?? "",
-          ].join("|"),
-        )
-        .join(";");
-    })
-    .join("::");
-  return `${latestSaleIso}|${latestOrderId}::${state}`;
-};
-
-const notifyIfNewSale = (soldItems) => {
+const markLatestSaleSeen = (soldItems) => {
   if (!currentUserId || !Array.isArray(soldItems) || soldItems.length === 0) return;
 
   const { latestSale } = getLatestSaleCursor(soldItems);
   if (!latestSale) return;
   const latestCursor = buildSalesNotificationCursor(soldItems, latestSale);
-  const pendingCircuitCount = countOpenSalesCircuits(soldItems);
-
-  const storageKey = getLastSeenSaleStorageKey();
-  const previousCursor = window.localStorage.getItem(storageKey);
-
-  /* Primera carga: registra baseline y muestra un aviso inicial si hay ventas. */
-  if (!previousCursor) {
-    window.localStorage.setItem(storageKey, latestCursor);
-    const bootstrapKey = getBootstrapNoticeStorageKey();
-    if (!window.localStorage.getItem(bootstrapKey)) {
-      showUrgentSaleModal({
-        title: "Monitoreo de ventas activo",
-        message: "Se detectaron ventas en tu cuenta. Te vamos a avisar cuando entre una compra nueva.",
-        pendingCircuitCount,
-      });
-      window.localStorage.setItem(bootstrapKey, "1");
-    }
-    return;
-  }
-
-  if (latestCursor === previousCursor) return;
-  window.localStorage.setItem(storageKey, latestCursor);
-
-  showUrgentSaleModal({
-    title: "Nueva compra recibida",
-    message: "Recibiste una venta. Revisá la sección de productos vendidos.",
-    pendingCircuitCount,
-  });
+  if (!latestCursor) return;
+  window.localStorage.setItem(getLastSeenSaleStorageKey(), latestCursor);
 };
 
 const isSalesPageActive = () => {
@@ -405,7 +337,7 @@ const scheduleRealtimeRefresh = () => {
   }
   salesRealtimeRefreshTimer = window.setTimeout(() => {
     salesRealtimeRefreshTimer = null;
-    loadMyProducts();
+    loadMyProducts({ force: true });
   }, SALES_REALTIME_REFRESH_DEBOUNCE_MS);
 };
 
@@ -503,6 +435,33 @@ const buildSoldProductsSignature = (products) => {
     })
     .join("::");
   return `${cursor || "empty"}::${dispatchState}`;
+};
+
+const buildSalesStatusStateSignature = (products) => {
+  if (!Array.isArray(products) || products.length === 0) return "empty";
+  return products
+    .map((product) => {
+      const history = Array.isArray(product?.salesHistory) ? product.salesHistory : [];
+      if (history.length === 0) {
+        return [
+          product?.productId ?? "",
+          product?.lastOrderId ?? "",
+          product?.fulfillmentStatus ?? "",
+          product?.dispatchedAt ?? "",
+        ].join("|");
+      }
+      return history
+        .map((sale) =>
+          [
+            sale?.productId ?? product?.productId ?? "",
+            sale?.orderId ?? "",
+            sale?.fulfillmentStatus ?? "",
+            sale?.dispatchedAt ?? "",
+          ].join("|"),
+        )
+        .join(";");
+    })
+    .join("::");
 };
 
 const updateSoldProductsScrollWindow = () => {
@@ -657,7 +616,7 @@ const renderSoldProducts = (products) => {
       const isCompleted = !nextAction;
       const isLatestSale = index === 0;
       const isPendingDispatch = Boolean(saleOrderId) && !isCompleted;
-      card.className = `ab-provider-product-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
+      card.className = `ab-provider-product-card ab-sales-product-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
       card.dataset.salePendingDispatch = isPendingDispatch ? "true" : "false";
       const safeBuyerName = escapeHtml(sale.buyerName || "");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
@@ -714,7 +673,15 @@ const renderSoldProducts = (products) => {
               : `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, false)}</strong></li>`
           }
         </ul>
-        <div class="ab-provider-product-card__actions">
+        <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
+          <a
+            class="ab-featured-products-detail"
+            href="${escapeHtml(getProductDetailHref(saleProductId))}"
+            ${saleProductId ? "" : 'aria-disabled="true"'}
+          >
+            <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+            <span>Detalle</span>
+          </a>
           <button
             type="button"
             class="ab-provider-product-card__button ${isPendingDispatch ? "ab-provider-product-card__button--buy" : "ab-provider-product-card__button--ghost"}"
@@ -723,7 +690,7 @@ const renderSoldProducts = (products) => {
             data-next-fulfillment-status="${escapeHtml(nextAction?.status ?? "")}"
             ${!saleOrderId || !saleProductId || !nextAction ? "disabled aria-disabled=\"true\"" : ""}
           >
-            ${nextAction?.label ?? formatFulfillmentStatus(fulfillmentStatus, shippingRequested)}
+            ${nextAction?.label ?? formatFulfillmentActionLabel(fulfillmentStatus, shippingRequested)}
           </button>
         </div>
       `;
@@ -780,7 +747,7 @@ const renderMyProducts = (products) => {
   productsEmpty.classList.add("ab-is-hidden");
   products.forEach((product) => {
     const card = document.createElement("article");
-    card.className = "ab-provider-product-card";
+    card.className = "ab-provider-product-card ab-sales-product-card";
     const shortId = (product.id || "").toString().replace(/-/g, "").slice(0, 6).toUpperCase() || "N/A";
     const safeImageUrl = escapeHtml(product.image_url || "/logo2.svg");
     const safeTitle = escapeHtml(product.title || "Sin título");
@@ -788,6 +755,7 @@ const renderMyProducts = (products) => {
     const safeCurrency = escapeHtml(product.currency || "ARS");
     const safeLocation = escapeHtml(product.location || "Sin especificar");
     const safePickupAddress = escapeHtml(product.pickup_address || "");
+    const safeProductId = String(product.id || "").trim();
     card.innerHTML = `
       <img
         class="ab-provider-product-card__image"
@@ -814,7 +782,15 @@ const renderMyProducts = (products) => {
         ${safePickupAddress ? `<li>Dirección: <strong>${safePickupAddress}</strong></li>` : ""}
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
       </ul>
-      <div class="ab-provider-product-card__actions">
+      <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
+        <a
+          class="ab-featured-products-detail"
+          href="${escapeHtml(getProductDetailHref(safeProductId))}"
+          ${safeProductId ? "" : 'aria-disabled="true"'}
+        >
+          <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+          <span>Detalle</span>
+        </a>
         <button
           type="button"
           class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
@@ -941,13 +917,26 @@ const loadSoldProducts = async () => {
     }
 
     const nextSoldSignature = buildSoldProductsSignature(items);
+    const { latestSale } = getLatestSaleCursor(items);
+    const nextSaleOnlyCursor = latestSale ? buildSalesNotificationCursor(items, latestSale) : "";
+    const nextSalesStatusStateSignature = buildSalesStatusStateSignature(items);
+    const isStatusOnlyChange =
+      Boolean(lastSalesStatusStateSignature) &&
+      nextSalesStatusStateSignature !== lastSalesStatusStateSignature &&
+      nextSaleOnlyCursor === lastSaleOnlyCursor;
     soldProductsStatus.textContent = "";
     lastSoldProductsItems = items;
     if (nextSoldSignature !== lastSoldProductsSignature) {
       renderSoldProducts(items);
       lastSoldProductsSignature = nextSoldSignature;
     }
-    notifyIfNewSale(items);
+    if (isStatusOnlyChange && !suppressNextSalesStatusToast) {
+      showSalesStatusToast("Estado de venta actualizado.");
+    }
+    lastSalesStatusStateSignature = nextSalesStatusStateSignature;
+    lastSaleOnlyCursor = nextSaleOnlyCursor;
+    suppressNextSalesStatusToast = false;
+    markLatestSaleSeen(items);
   } catch {
     soldProductsStatus.textContent = "";
     renderSoldProducts([]);
@@ -955,12 +944,12 @@ const loadSoldProducts = async () => {
 };
 
 /* Carga productos del usuario autenticado. */
-const loadMyProducts = async () => {
+const loadMyProducts = async ({ force = false } = {}) => {
   if (!productsGrid || !productsEmpty) return;
   if (!isSalesPageActive()) return;
   const now = Date.now();
   if (salesLoadInFlight) return;
-  if (now - lastSalesLoadAt < SALES_MIN_GAP_MS) return;
+  if (!force && now - lastSalesLoadAt < SALES_MIN_GAP_MS) return;
   salesLoadInFlight = true;
   lastSalesLoadAt = now;
   try {
@@ -975,6 +964,9 @@ const loadMyProducts = async () => {
       lastPublishedProductsSignature = "empty";
       lastSoldProductsSignature = "empty";
       lastSoldProductsItems = [];
+      lastSalesStatusStateSignature = "";
+      lastSaleOnlyCursor = "";
+      suppressNextSalesStatusToast = false;
       return;
     }
     const nextUserId = session.user.id;
@@ -982,6 +974,9 @@ const loadMyProducts = async () => {
       await teardownSalesRealtime();
       lastPublishedProductsSignature = "";
       lastSoldProductsSignature = "";
+      lastSalesStatusStateSignature = "";
+      lastSaleOnlyCursor = "";
+      suppressNextSalesStatusToast = false;
     }
     currentUserId = nextUserId;
     const { data, error } = await supabase

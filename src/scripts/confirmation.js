@@ -21,7 +21,7 @@ let orderLabel = document.getElementById("confirmation-order");
 
 const params = () => new URLSearchParams(window.location.search);
 const orderId = () => params().get("orderId");
-const status = () => params().get("status");
+const status = () => String(params().get("status") ?? "").trim().toLowerCase();
 
 const bindConfirmationElements = () => {
   title = document.getElementById("confirmation-title");
@@ -67,10 +67,17 @@ const renderStatus = (value) => {
   if (message) message.textContent = info.message;
 };
 
+const getEffectiveStatus = (orderStatus, urlStatus) => {
+  const safeOrderStatus = String(orderStatus ?? "").trim().toLowerCase();
+  if (safeOrderStatus) return safeOrderStatus;
+  return String(urlStatus ?? "").trim().toLowerCase();
+};
+
 /* Carga y muestra información resumida de la orden. */
 const loadOrder = async () => {
   bindConfirmationElements();
-  renderStatus(status());
+  const urlStatus = status();
+  renderStatus(urlStatus);
   const id = orderId();
   if (!id) return;
   const { data, error } = await supabase
@@ -78,15 +85,21 @@ const loadOrder = async () => {
     .select("id, status, total_amount")
     .eq("id", id)
     .maybeSingle();
-  if (!error && data && orderLabel) {
-    orderLabel.textContent = `Orden ${data.id.slice(0, 8)} · Total $${Number(data.total_amount).toLocaleString("es-AR")}`;
+  if (!error && data) {
+    const effectiveStatus = getEffectiveStatus(data.status, urlStatus);
+    renderStatus(effectiveStatus);
+    if (orderLabel) {
+      orderLabel.textContent = `Orden ${data.id.slice(0, 8)} · Total $${Number(data.total_amount).toLocaleString("es-AR")}`;
+    }
+    if (effectiveStatus === "approved") {
+      await clearCart();
+    }
   }
 };
 
 /* Inicialización y hooks SPA. */
 bindConfirmationElements();
 loadOrder();
-clearCart();
 document.addEventListener("astro:page-load", () => {
   bindConfirmationElements();
   loadOrder();

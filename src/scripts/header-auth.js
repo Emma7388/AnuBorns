@@ -2,8 +2,8 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { getCart, syncCartOnLogin } from "../lib/cart";
-import { fetchSalesSummary } from "../lib/salesSummaryClient";
-import { refreshHomePurchaseStatus, teardownPurchaseStatusNotifications } from "./purchase-status-notifications.js";
+import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
+import { refreshPurchaseStatusNotifications, teardownPurchaseStatusNotifications } from "./purchase-status-notifications.js";
 
 /* Referencias DOM (se recalculan en cada navegación). */
 let guest = document.querySelector('[data-auth="guest"]');
@@ -21,7 +21,17 @@ let salesNotificationDot = document.getElementById("sales-notification-dot");
 let isSigningOut = false;
 let lastSyncedUserId = "";
 let cartSyncTimeout = 0;
+let salesRealtimeChannel = null;
+let salesRealtimeUserId = "";
+let salesRealtimeRefreshTimer = 0;
+let salesNoticeToast = null;
+let salesNoticeToastMessage = null;
+let salesNoticeToastTimer = 0;
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
+const SALES_NOTICE_SHOWN_KEY = "ab_sales_notice_shown_v1";
+const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
+
+const isSalesPageActive = () => window.location.pathname === "/mis-ventas";
 
 /* Modal de confirmación para cerrar sesión. */
 const openModal = () => {
@@ -137,6 +147,8 @@ const showCartSyncMessage = (message, durationMs = 3000) => {
 };
 
 const getLastSeenSaleStorageKey = (userId) => `${LAST_SEEN_SALE_KEY}:${userId || "anonymous"}`;
+const getSalesNoticeShownStorageKey = (userId, cursor) =>
+  `${SALES_NOTICE_SHOWN_KEY}:${userId || "anonymous"}:${String(cursor ?? "").trim()}`;
 
 const setSalesNotificationVisible = (visible) => {
   if (!salesNotificationDot) return;
@@ -167,6 +179,47 @@ const getSalesNotificationCursor = (items) => {
 
 const normalizeSaleCursor = (value) => String(value ?? "").split("::")[0] || "";
 
+const ensureSalesNoticeToast = () => {
+  if (salesNoticeToast) return;
+  salesNoticeToast = document.createElement("div");
+  salesNoticeToast.className = "ab-cart-toast ab-sales-status-toast";
+  salesNoticeToast.setAttribute("role", "status");
+  salesNoticeToast.setAttribute("aria-live", "polite");
+  salesNoticeToast.setAttribute("aria-atomic", "true");
+  salesNoticeToast.innerHTML = `
+    <span class="ab-cart-toast__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </span>
+    <span class="ab-cart-toast__message">Nueva compra recibida</span>
+    <a class="ab-cart-toast__link" href="/mis-ventas">Ver</a>
+  `;
+  document.body.appendChild(salesNoticeToast);
+  salesNoticeToastMessage = salesNoticeToast.querySelector(".ab-cart-toast__message");
+};
+
+const showSalesNoticeToast = ({ userId, cursor, message }) => {
+  const safeCursor = String(cursor ?? "").trim();
+  if (!userId || !safeCursor || window.location.pathname === "/mis-ventas") return;
+  const storageKey = getSalesNoticeShownStorageKey(userId, safeCursor);
+  if (window.sessionStorage.getItem(storageKey)) return;
+  window.sessionStorage.setItem(storageKey, "1");
+
+  ensureSalesNoticeToast();
+  if (!salesNoticeToast) return;
+  if (salesNoticeToastMessage) salesNoticeToastMessage.textContent = message;
+  if (salesNoticeToastTimer) window.clearTimeout(salesNoticeToastTimer);
+  salesNoticeToast.classList.remove("is-visible");
+  window.requestAnimationFrame(() => {
+    salesNoticeToast?.classList.add("is-visible");
+  });
+  salesNoticeToastTimer = window.setTimeout(() => {
+    salesNoticeToast?.classList.remove("is-visible");
+    salesNoticeToastTimer = 0;
+  }, 5000);
+};
+
 const refreshSalesNotification = async (session) => {
   const userId = session?.user?.id ?? "";
   const token = session?.access_token ?? "";
@@ -175,7 +228,7 @@ const refreshSalesNotification = async (session) => {
     return;
   }
 
-  if (window.location.pathname === "/mis-ventas") {
+  if (isSalesPageActive()) {
     setSalesNotificationVisible(false);
     return;
   }
@@ -197,15 +250,81 @@ const refreshSalesNotification = async (session) => {
     const storageKey = getLastSeenSaleStorageKey(userId);
     const previousCursor = window.localStorage.getItem(storageKey);
     if (!previousCursor) {
-      window.localStorage.setItem(storageKey, latestCursor);
-      setSalesNotificationVisible(false);
+      setSalesNotificationVisible(true);
+      showSalesNoticeToast({
+        userId,
+        cursor: latestCursor,
+        message: "Nueva compra recibida.",
+      });
       return;
     }
 
-    setSalesNotificationVisible(normalizeSaleCursor(previousCursor) !== latestCursor);
+    const hasUnseenSale = normalizeSaleCursor(previousCursor) !== latestCursor;
+    setSalesNotificationVisible(hasUnseenSale);
+    if (hasUnseenSale) {
+      showSalesNoticeToast({
+        userId,
+        cursor: latestCursor,
+        message: "Nueva compra recibida.",
+      });
+    }
   } catch {
     setSalesNotificationVisible(false);
   }
+};
+
+const scheduleSalesRealtimeRefresh = () => {
+  window.clearTimeout(salesRealtimeRefreshTimer);
+  salesRealtimeRefreshTimer = window.setTimeout(async () => {
+    salesRealtimeRefreshTimer = 0;
+    try {
+      invalidateSalesSummaryCache();
+      const { data } = await supabase.auth.getSession();
+      await refreshSalesNotification(data?.session);
+    } catch {
+      setSalesNotificationVisible(false);
+    }
+  }, SALES_REALTIME_REFRESH_DEBOUNCE_MS);
+};
+
+const teardownSalesRealtime = async () => {
+  window.clearTimeout(salesRealtimeRefreshTimer);
+  salesRealtimeRefreshTimer = 0;
+  salesRealtimeUserId = "";
+  if (!salesRealtimeChannel) return;
+  const channel = salesRealtimeChannel;
+  salesRealtimeChannel = null;
+  try {
+    await supabase.removeChannel(channel);
+  } catch {
+    /* noop */
+  }
+};
+
+const setupSalesRealtime = async (session) => {
+  const userId = session?.user?.id ?? "";
+  if (!userId || isSalesPageActive()) {
+    await teardownSalesRealtime();
+    return;
+  }
+  if (salesRealtimeChannel && salesRealtimeUserId === userId) return;
+  if (salesRealtimeChannel) {
+    await teardownSalesRealtime();
+  }
+  salesRealtimeUserId = userId;
+  salesRealtimeChannel = supabase
+    .channel(`ab-header-sales-${userId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "products", filter: `user_id=eq.${userId}` },
+      scheduleSalesRealtimeRefresh,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "sale_dispatches", filter: `seller_id=eq.${userId}` },
+      scheduleSalesRealtimeRefresh,
+    )
+    .subscribe();
 };
 
 /* Resuelve la sesión actual y sincroniza carrito si aplica. */
@@ -221,7 +340,8 @@ const resolveSession = async () => {
       if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
     await refreshSalesNotification(sessionData.session);
-    await refreshHomePurchaseStatus(sessionData.session);
+    await setupSalesRealtime(sessionData.session);
+    await refreshPurchaseStatusNotifications(sessionData.session);
     renderCartCount();
     return;
   }
@@ -237,13 +357,15 @@ const resolveSession = async () => {
       if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
     }
     await refreshSalesNotification({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
-    await refreshHomePurchaseStatus({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
+    await setupSalesRealtime({ user: userData.user });
+    await refreshPurchaseStatusNotifications({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
     renderCartCount();
     return;
   }
 
   setView(null);
   setSalesNotificationVisible(false);
+  void teardownSalesRealtime();
   void teardownPurchaseStatusNotifications();
   renderCartCount();
 };
@@ -306,12 +428,14 @@ const bindHeaderAuthEvents = () => {
       syncCartOnLogin(userId).finally(() => {
         if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
         refreshSalesNotification(session);
-        refreshHomePurchaseStatus(session);
+        setupSalesRealtime(session);
+        refreshPurchaseStatusNotifications(session);
         renderCartCount();
       });
     } else {
       refreshSalesNotification(session);
-      refreshHomePurchaseStatus(session);
+      setupSalesRealtime(session);
+      refreshPurchaseStatusNotifications(session);
       renderCartCount();
     }
   });
@@ -327,6 +451,7 @@ const bindHeaderAuthEvents = () => {
   document.addEventListener("astro:page-load", initHeaderAuth);
   document.addEventListener("astro:after-swap", initHeaderAuth);
   window.addEventListener("pageshow", initHeaderAuth);
+  window.addEventListener("pagehide", teardownSalesRealtime);
   window.addEventListener("ab-cart-updated", () => {
     renderCartCount();
   });

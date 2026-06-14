@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
-/* Estados de orden que cuentan como venta real. */
-const allowedOrderStatuses = new Set(["approved", "pending"]);
+/* Estados de orden que cuentan como venta operativa para el vendedor. */
+const allowedOrderStatuses = new Set(["approved"]);
 const SHIPPING_FEE = 5000;
 
 /* Parsea cantidad y precio a números seguros. */

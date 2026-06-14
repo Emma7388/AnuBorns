@@ -65,6 +65,10 @@ const formatDelivery = (value) => {
 };
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
+const getProductHref = (product) => {
+  const productId = String(product?.id ?? "").trim();
+  return productId ? `/producto/${encodeURIComponent(productId)}` : "#";
+};
 const shortId = (value) => {
   const raw = String(value ?? "").replace(/-/g, "");
   return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
@@ -147,14 +151,24 @@ const shortId = (value) => {
                 ) : null}
                 <li>Entrega: <strong>{formatDelivery(product.delivery_methods)}</strong></li>
               </ul>
-              <button
-                type="button"
-                class="ab-provider-product-card__add"
-                aria-label="Agregar al carrito"
-                title="Agregar al carrito"
+              <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
+                <a
+                  class="ab-featured-products-detail"
+                  href={getProductHref(product)}
+                  aria-disabled={product.id ? null : "true"}
                 >
-                  <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
-                </button>
+                  <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+                  <span>Detalle</span>
+                </a>
+                <button
+                  type="button"
+                  class="ab-provider-product-card__add"
+                  aria-label="Agregar al carrito"
+                  title="Agregar al carrito"
+                  >
+                    <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+                  </button>
+              </div>
             </article>
           ))}
         </div>

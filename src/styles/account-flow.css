@@ -595,6 +595,7 @@ html.ab-profile-enter main {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .ab-order-card__provider-link {
@@ -662,17 +663,19 @@ html.ab-profile-enter main {
 
 .ab-order-product-card .ab-provider-product-card__actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
   gap: 6px;
 }
 
 .ab-order-product-card .ab-provider-product-card__button {
   min-width: 0;
-  min-height: 36px;
+  height: 44px;
+  min-height: 44px;
   padding: 8px 9px;
   border-radius: 10px;
   font-size: 0.78rem;
-  white-space: nowrap;
+  line-height: 1.15;
+  white-space: normal;
 }
 
 .ab-order-product-card .ab-provider-product-card__button img {
@@ -695,12 +698,6 @@ html.ab-profile-enter main {
 
 .ab-order-product-card .ab-order-card__highlight--note {
   background: linear-gradient(180deg, rgba(63, 143, 192, 0.28), rgba(30, 93, 146, 0.18));
-}
-
-@media (max-width: 420px) {
-  .ab-order-product-card .ab-provider-product-card__actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* Mis servicios */

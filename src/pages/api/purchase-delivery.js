@@ -7,7 +7,7 @@ export const POST = async ({ request }) => {
   try {
     const rate = checkRateLimit({
       request,
-      routeKey: "purchase-pickup",
+      routeKey: "purchase-delivery",
       windowMs: 60_000,
       max: 40,
     });
@@ -42,7 +42,7 @@ export const POST = async ({ request }) => {
     )];
 
     if (!orderId || productIds.length === 0) {
-      return new Response(JSON.stringify({ error: "Faltan datos para confirmar el retiro." }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Faltan datos para confirmar la recepcion." }), { status: 400 });
     }
 
     const buyerId = userData.user.id;
@@ -59,6 +59,10 @@ export const POST = async ({ request }) => {
     if (!order) {
       return new Response(JSON.stringify({ error: "No autorizado para confirmar esta compra." }), { status: 403 });
     }
+    if (!Boolean(order.shipping_requested)) {
+      return new Response(JSON.stringify({ error: "Esta confirmacion aplica solo a envios." }), { status: 400 });
+    }
+
     const { data: orderItems, error: orderItemsError } = await supabaseAdmin
       .from("order_items")
       .select("product_id")
@@ -74,25 +78,6 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "La compra no coincide con los productos indicados." }), { status: 400 });
     }
 
-    const { data: products, error: productsError } = await supabaseAdmin
-      .from("products")
-      .select("id, user_id")
-      .in("id", validProductIds);
-
-    if (productsError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el vendedor." }), { status: 500 });
-    }
-
-    const productSellerMap = new Map(
-      (products ?? [])
-        .map((product) => [String(product?.id ?? "").trim(), String(product?.user_id ?? "").trim()])
-        .filter(([productId, sellerId]) => productId && sellerId),
-    );
-
-    if (productSellerMap.size !== validProductIds.length) {
-      return new Response(JSON.stringify({ error: "Faltan datos del vendedor." }), { status: 400 });
-    }
-
     const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
       .from("sale_dispatches")
       .select("seller_id, product_id, fulfillment_status")
@@ -100,31 +85,35 @@ export const POST = async ({ request }) => {
       .in("product_id", validProductIds);
 
     if (dispatchError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el estado de retiro." }), { status: 500 });
+      return new Response(JSON.stringify({ error: "No se pudo validar el estado de envio." }), { status: 500 });
     }
 
-    const readyProducts = new Set(
+    const receivableRows = new Map(
       (dispatchRows ?? [])
         .filter((row) => {
           const status = String(row?.fulfillment_status ?? "").trim();
-          return status === "ready_for_pickup" || status === "picked_up";
+          return status === "shipped" || status === "delivered";
         })
-        .map((row) => String(row?.product_id ?? "").trim())
-        .filter(Boolean),
+        .map((row) => [
+          String(row?.product_id ?? "").trim(),
+          {
+            sellerId: String(row?.seller_id ?? "").trim(),
+            status: String(row?.fulfillment_status ?? "").trim(),
+          },
+        ])
+        .filter(([productId, row]) => productId && row.sellerId),
     );
 
-    if (validProductIds.some((productId) => !readyProducts.has(productId))) {
-      return new Response(JSON.stringify({ error: "El vendedor todavia no marco esta compra como lista para retirar." }), {
-        status: 409,
-      });
+    if (validProductIds.some((productId) => !receivableRows.has(productId))) {
+      return new Response(JSON.stringify({ error: "El envio todavia no figura como enviado." }), { status: 409 });
     }
 
     const now = new Date().toISOString();
     const rows = validProductIds.map((productId) => ({
-      seller_id: productSellerMap.get(productId),
+      seller_id: receivableRows.get(productId).sellerId,
       order_id: orderId,
       product_id: productId,
-      fulfillment_status: "picked_up",
+      fulfillment_status: "delivered",
       dispatched_at: now,
       status_updated_at: now,
     }));
@@ -134,18 +123,18 @@ export const POST = async ({ request }) => {
       .upsert(rows, { onConflict: "seller_id,order_id,product_id" });
 
     if (upsertError) {
-      return new Response(JSON.stringify({ error: "No se pudo confirmar el retiro." }), { status: 500 });
+      return new Response(JSON.stringify({ error: "No se pudo confirmar la recepcion." }), { status: 500 });
     }
 
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
-      console.error("[purchase-pickup] Could not refresh order shipping status", refreshResult.error);
+      console.error("[purchase-delivery] Could not refresh order shipping status", refreshResult.error);
       return new Response(JSON.stringify({ error: "No se pudo actualizar el resumen de entrega." }), { status: 500 });
     }
 
     return new Response(JSON.stringify({ ok: true, shippingStatus: refreshResult.status }), { status: 200 });
   } catch (error) {
-    console.error("[purchase-pickup] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo confirmar el retiro." }), { status: 500 });
+    console.error("[purchase-delivery] Unhandled error", error);
+    return new Response(JSON.stringify({ error: "No se pudo confirmar la recepcion." }), { status: 500 });
   }
 };

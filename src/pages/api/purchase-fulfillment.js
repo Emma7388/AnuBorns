@@ -19,6 +19,16 @@ const VALID_FULFILLMENT_STATUSES = new Set([
   "completed",
 ]);
 
+const DEFAULT_STATUS_UPDATED_AT = "1970-01-01T00:00:00.000Z";
+
+const normalizeStatusUpdatedAt = (value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return DEFAULT_STATUS_UPDATED_AT;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return DEFAULT_STATUS_UPDATED_AT;
+  return date.toISOString();
+};
+
 const getAuthenticatedUser = async (request, supabaseAdmin) => {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -118,7 +128,7 @@ export const GET = async ({ request }) => {
 
     const { data: readRows, error: readError } = await supabaseAdmin
       .from("purchase_status_reads")
-      .select("order_id, product_id, fulfillment_status")
+      .select("order_id, product_id, fulfillment_status, status_updated_at")
       .eq("user_id", buyerId)
       .in("order_id", ownedOrderIds);
 
@@ -132,6 +142,7 @@ export const GET = async ({ request }) => {
           String(row?.order_id ?? "").trim(),
           String(row?.product_id ?? "").trim(),
           String(row?.fulfillment_status ?? "").trim(),
+          normalizeStatusUpdatedAt(row?.status_updated_at),
         ].join("::")
       ),
     );
@@ -143,12 +154,13 @@ export const GET = async ({ request }) => {
       const fulfillmentStatus =
         String(dispatch?.fulfillment_status ?? orderFallbackStatus.get(orderId) ?? "pickup_pending").trim() ||
         "pickup_pending";
+      const statusUpdatedAt = normalizeStatusUpdatedAt(dispatch?.status_updated_at);
       return {
         orderId,
         productId,
         fulfillmentStatus,
-        statusUpdatedAt: dispatch?.status_updated_at ?? null,
-        statusRead: readSet.has(`${orderId}::${productId}::${fulfillmentStatus}`),
+        statusUpdatedAt,
+        statusRead: readSet.has(`${orderId}::${productId}::${fulfillmentStatus}::${statusUpdatedAt}`),
       };
     });
 
@@ -188,6 +200,7 @@ export const POST = async ({ request }) => {
         orderId: String(item?.orderId ?? "").trim(),
         productId: String(item?.productId ?? "").trim(),
         fulfillmentStatus: String(item?.fulfillmentStatus ?? "").trim(),
+        statusUpdatedAt: normalizeStatusUpdatedAt(item?.statusUpdatedAt),
       }))
       .filter((item) =>
         item.orderId &&
@@ -236,7 +249,7 @@ export const POST = async ({ request }) => {
 
     const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
       .from("sale_dispatches")
-      .select("order_id, product_id, fulfillment_status")
+      .select("order_id, product_id, fulfillment_status, status_updated_at")
       .in("order_id", [...ownedOrderIds])
       .in("product_id", productIds);
 
@@ -251,11 +264,17 @@ export const POST = async ({ request }) => {
         return [String(order?.id ?? "").trim(), fallback];
       }),
     );
-    const currentStatusByPair = new Map(
+    const currentStateByPair = new Map(
       (orderItems ?? []).map((item) => {
         const orderId = String(item?.order_id ?? "").trim();
         const productId = String(item?.product_id ?? "").trim();
-        return [`${orderId}::${productId}`, orderFallbackStatus.get(orderId) || "pickup_pending"];
+        return [
+          `${orderId}::${productId}`,
+          {
+            fulfillmentStatus: orderFallbackStatus.get(orderId) || "pickup_pending",
+            statusUpdatedAt: DEFAULT_STATUS_UPDATED_AT,
+          },
+        ];
       }),
     );
     (dispatchRows ?? []).forEach((row) => {
@@ -263,7 +282,10 @@ export const POST = async ({ request }) => {
       const productId = String(row?.product_id ?? "").trim();
       const status = String(row?.fulfillment_status ?? "").trim();
       if (orderId && productId && status) {
-        currentStatusByPair.set(`${orderId}::${productId}`, status);
+        currentStateByPair.set(`${orderId}::${productId}`, {
+          fulfillmentStatus: status,
+          statusUpdatedAt: normalizeStatusUpdatedAt(row?.status_updated_at),
+        });
       }
     });
 
@@ -271,13 +293,19 @@ export const POST = async ({ request }) => {
       .filter((item) => ownedOrderIds.has(item.orderId))
       .filter((item) => {
         const pairKey = `${item.orderId}::${item.productId}`;
-        return validPairs.has(pairKey) && currentStatusByPair.get(pairKey) === item.fulfillmentStatus;
+        const currentState = currentStateByPair.get(pairKey);
+        return (
+          validPairs.has(pairKey) &&
+          currentState?.fulfillmentStatus === item.fulfillmentStatus &&
+          currentState?.statusUpdatedAt === item.statusUpdatedAt
+        );
       })
       .map((item) => ({
         user_id: buyerId,
         order_id: item.orderId,
         product_id: item.productId,
         fulfillment_status: item.fulfillmentStatus,
+        status_updated_at: item.statusUpdatedAt,
       }));
 
     if (rows.length === 0) {
@@ -286,7 +314,7 @@ export const POST = async ({ request }) => {
 
     const { error: upsertError } = await supabaseAdmin
       .from("purchase_status_reads")
-      .upsert(rows, { onConflict: "user_id,order_id,product_id,fulfillment_status", ignoreDuplicates: true });
+      .upsert(rows, { onConflict: "user_id,order_id,product_id,fulfillment_status,status_updated_at", ignoreDuplicates: true });
 
     if (upsertError) {
       return new Response(JSON.stringify({ error: "No se pudieron marcar los estados como leidos." }), { status: 500 });

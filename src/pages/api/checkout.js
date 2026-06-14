@@ -1,38 +1,16 @@
 /* API: crea orden y preferencia de pago en Mercado Pago. */
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { buildCheckoutContext, buildOrderItems } from "../../lib/checkoutServer.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 /* Configuración de Mercado Pago desde variables de entorno. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-const SHIPPING_FEE = 5000;
 
 if (!accessToken) {
   throw new Error("Missing MERCADOPAGO_ACCESS_TOKEN.");
 }
 
 const mpClient = new MercadoPagoConfig({ accessToken });
-
-/* Normaliza items del carrito y descarta inválidos. */
-const sanitizeItems = (items) =>
-  items
-    .map((item) => ({
-      id: String(item.id ?? ""),
-      name: String(item.name ?? "").trim(),
-      price: Number(item.price ?? 0),
-      qty: Math.max(1, Number(item.qty ?? 1)),
-      unit: String(item.unit ?? "").trim(),
-      provider: String(item.provider ?? "").trim(),
-      image: String(item.image ?? "").trim(),
-    }))
-    .filter((item) => item.id && item.name && item.price > 0);
-
-const normalizeDeliveryMethods = (value) => {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
-  return String(value ?? "")
-    .split(/[,+]/)
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-};
 
 export const POST = async ({ request }) => {
   try {
@@ -54,86 +32,30 @@ export const POST = async ({ request }) => {
 
     /* Parseo y validación del payload. */
     const payload = await request.json();
-    const items = sanitizeItems(Array.isArray(payload?.items) ? payload.items : []);
-
-    if (items.length === 0) {
-      return new Response(JSON.stringify({ error: "El carrito está vacío." }), { status: 400 });
-    }
-
-    /* Crea orden en base de datos para referencia interna. */
     const shipping = payload?.shipping ?? {};
-    const shippingGroups = Array.isArray(shipping?.groups) ? shipping.groups : [];
-    const requestedShippingGroups = shippingGroups
-      .map((group) => ({
-        providerKey: String(group?.provider_key ?? "").trim(),
-        address: String(group?.address ?? "").trim(),
-        city: String(group?.city ?? "").trim(),
-      }))
-      .filter((group) => group.providerKey);
-    const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
-    const productIds = [...new Set(items.map((item) => item.id).filter(Boolean))];
-    if (shippingRequested) {
-      const { data: products, error: productsError } = await supabaseAdmin
-        .from("products")
-        .select("id, seller_name, user_id, delivery_methods")
-        .in("id", productIds);
-
-      if (productsError) {
-        return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
-      }
-
-      const productMap = new Map((products ?? []).map((product) => [String(product.id), product]));
-      if (requestedShippingGroups.length === 0) {
-        const allItemsSupportShipping = items.every((item) =>
-          normalizeDeliveryMethods(productMap.get(item.id)?.delivery_methods).includes("envio"),
-        );
-        if (!allItemsSupportShipping) {
-          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
-        }
-        if (!String(shipping?.address ?? "").trim() || !String(shipping?.city ?? "").trim()) {
-          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para el envío." }), { status: 400 });
-        }
-      }
-      for (const group of requestedShippingGroups) {
-        if (!group.address || !group.city) {
-          return new Response(JSON.stringify({ error: "Faltan dirección y ciudad para un proveedor." }), { status: 400 });
-        }
-        const providerItems = items.filter((item) => {
-          const product = productMap.get(item.id);
-          const providerKey = product?.user_id
-            ? `id:${String(product.user_id).trim()}`
-            : `name:${String(product?.seller_name ?? "").trim().toLowerCase() || "n/a"}`;
-          return providerKey === group.providerKey;
-        });
-        const providerSupportsShipping = providerItems.length > 0 && providerItems.every((item) =>
-          normalizeDeliveryMethods(productMap.get(item.id)?.delivery_methods).includes("envio"),
-        );
-        if (!providerSupportsShipping) {
-          return new Response(JSON.stringify({ error: "Hay productos que no aceptan envío." }), { status: 400 });
-        }
-      }
+    const checkout = await buildCheckoutContext(supabaseAdmin, {
+      rawItems: payload?.items,
+      shipping,
+      buyerId: userData.user.id,
+    });
+    if (!checkout.ok) {
+      return new Response(JSON.stringify({ error: checkout.error }), { status: checkout.status });
     }
-    const shippingCost = requestedShippingGroups.length
-      ? requestedShippingGroups.length * SHIPPING_FEE
-      : shippingRequested
-        ? SHIPPING_FEE
-        : 0;
-    const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0) + shippingCost;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
         user_id: userData.user.id,
         status: "pending",
-        total_amount: totalAmount,
-        currency: "ARS",
+        total_amount: checkout.totalAmount,
+        currency: checkout.orderCurrency,
         shipping_full_name: String(shipping.fullName ?? "").trim(),
         shipping_address: String(shipping.address ?? "").trim(),
         shipping_city: String(shipping.city ?? "").trim(),
         shipping_phone: String(shipping.phone ?? "").trim(),
-        shipping_requested: shippingRequested,
-        shipping_cost: shippingCost,
-        shipping_status: shippingRequested ? "requested" : "pickup_pending",
+        shipping_requested: checkout.shippingRequested,
+        shipping_cost: checkout.shippingCost,
+        shipping_status: checkout.shippingRequested ? "requested" : "pickup_pending",
       })
       .select()
       .single();
@@ -143,16 +65,7 @@ export const POST = async ({ request }) => {
     }
 
     /* Inserta los items de la orden. */
-    const orderItems = items.map((item) => ({
-      order_id: order.id,
-      product_id: item.id,
-      name: item.name,
-      qty: item.qty,
-      unit_price: item.price,
-      unit: item.unit,
-      provider: item.provider,
-      image: item.image,
-    }));
+    const orderItems = buildOrderItems(order.id, checkout.serverItems);
 
     const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);
     if (itemsError) {
@@ -169,41 +82,48 @@ export const POST = async ({ request }) => {
 
     /* Crea preferencia de pago en Mercado Pago. */
     const preference = new Preference(mpClient);
-    const mpResponse = await preference.create({
-      body: {
-        items: [
-          ...items.map((item) => ({
-            id: item.id,
-            title: item.name,
-            quantity: item.qty,
-            unit_price: item.price,
-            currency_id: "ARS",
-          })),
-          ...(shippingCost
-            ? [
-                {
-                  id: "shipping",
-                  title: "Envío a domicilio",
-                  quantity: 1,
-                  unit_price: shippingCost,
-                  currency_id: "ARS",
-                },
-              ]
-            : []),
-        ],
-        external_reference: order.id,
-        back_urls: {
-          success: `${siteUrl}/compra-confirmada?status=approved&orderId=${order.id}`,
-          failure: `${siteUrl}/compra-confirmada?status=rejected&orderId=${order.id}`,
-          pending: `${siteUrl}/compra-confirmada?status=pending&orderId=${order.id}`,
+    let mpResponse;
+    try {
+      mpResponse = await preference.create({
+        body: {
+          items: [
+            ...checkout.serverItems.map((item) => ({
+              id: item.product_id,
+              title: item.name,
+              quantity: item.qty,
+              unit_price: item.unit_price,
+              currency_id: checkout.orderCurrency,
+            })),
+            ...(checkout.shippingCost
+              ? [
+                  {
+                    id: "shipping",
+                    title: "Envío a domicilio",
+                    quantity: 1,
+                    unit_price: checkout.shippingCost,
+                    currency_id: checkout.orderCurrency,
+                  },
+                ]
+              : []),
+          ],
+          external_reference: order.id,
+          back_urls: {
+            success: `${siteUrl}/compra-confirmada?status=approved&orderId=${order.id}`,
+            failure: `${siteUrl}/compra-confirmada?status=rejected&orderId=${order.id}`,
+            pending: `${siteUrl}/compra-confirmada?status=pending&orderId=${order.id}`,
+          },
+          auto_return: "approved",
+          notification_url: notificationUrl,
+          payer: {
+            email: userData.user.email ?? undefined,
+          },
         },
-        auto_return: "approved",
-        notification_url: notificationUrl,
-        payer: {
-          email: userData.user.email ?? undefined,
-        },
-      },
-    });
+      });
+    } catch (error) {
+      await supabaseAdmin.from("orders").delete().eq("id", order.id);
+      console.error("[checkout] Mercado Pago preference error", error);
+      return new Response(JSON.stringify({ error: "No se pudo crear la preferencia de pago." }), { status: 502 });
+    }
 
     /* Guarda el id de preferencia para trazabilidad. */
     await supabaseAdmin
