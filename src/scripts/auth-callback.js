@@ -45,7 +45,7 @@ const completeAuthCallback = async () => {
   window.location.replace(getReturnTo());
 };
 
-/* Inicialización y hooks SPA */
+/* Inicialización y eventos de navegación de Astro. */
 bindAuthCallbackElements();
 completeAuthCallback().catch(() => {
   setFeedback("No se pudo completar la verificación. Probá iniciar sesión.");

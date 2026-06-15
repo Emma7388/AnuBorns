@@ -9,7 +9,7 @@ const saveTheme = (theme) => {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
-    // ignore
+    // Ignora errores de almacenamiento privado o bloqueado.
   }
 };
 

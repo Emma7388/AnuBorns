@@ -1,3 +1,4 @@
+/* Expansión progresiva para tarjetas de producto con texto largo. */
 const CARD_SELECTOR = ".ab-provider-product-card";
 const DETAILS_SELECTOR = ".ab-provider-product-card__details";
 const DESCRIPTION_SELECTOR = ".ab-provider-product-card__description";
@@ -7,19 +8,23 @@ const DETAIL_CARD_CLASS = "ab-provider-product-card--detail";
 
 let refreshTimer = 0;
 
+/* Nodos que pueden desbordar dentro de una tarjeta. */
 const getExpandableNodes = (card) => [
   card.querySelector(DESCRIPTION_SELECTOR),
   card.querySelector(DETAILS_SELECTOR),
 ].filter(Boolean);
 
+/* Tolerancia pequeña para evitar falsos positivos por subpíxeles. */
 const hasOverflow = (node) => node.scrollHeight > node.clientHeight + 2;
 
+/* Mantiene clase visual, texto y estado ARIA sincronizados. */
 const setExpanded = (card, button, expanded) => {
   card.classList.toggle("is-expanded", expanded);
   button.textContent = expanded ? "Ver menos" : "Ver más";
   button.setAttribute("aria-expanded", String(expanded));
 };
 
+/* Crea el botón solo cuando la tarjeta realmente lo necesita. */
 const ensureExpandButton = (card) => {
   let button = card.querySelector(`.${EXPAND_BUTTON_CLASS}`);
   if (button) return button;
@@ -42,6 +47,7 @@ const ensureExpandButton = (card) => {
   return button;
 };
 
+/* Recalcula una tarjeta; las tarjetas de detalle quedan siempre auto-altas. */
 const refreshCard = (card) => {
   if (!(card instanceof HTMLElement)) return;
   if (card.classList.contains(DETAIL_CARD_CLASS)) {
@@ -70,16 +76,19 @@ const refreshCard = (card) => {
   setExpanded(card, nextButton, wasExpanded);
 };
 
+/* Revisa todas las tarjetas visibles luego de cambios de layout/DOM. */
 const refreshExpandableCards = () => {
   refreshTimer = 0;
   document.querySelectorAll(CARD_SELECTOR).forEach(refreshCard);
 };
 
+/* Agrupa refrescos para evitar medir layout demasiadas veces seguidas. */
 const scheduleRefresh = () => {
   if (refreshTimer) window.clearTimeout(refreshTimer);
   refreshTimer = window.setTimeout(refreshExpandableCards, 80);
 };
 
+/* Observa mutaciones y navegaciones Astro sin duplicar listeners. */
 const bindProductCardExpand = () => {
   if (document.documentElement.dataset.abProductCardExpandBound === "true") return;
   document.documentElement.dataset.abProductCardExpandBound = "true";

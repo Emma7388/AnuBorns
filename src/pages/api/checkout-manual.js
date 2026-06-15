@@ -44,7 +44,13 @@ export const POST = async ({ request }) => {
       buyerId: userData.user.id,
     });
     if (!checkout.ok) {
-      return new Response(JSON.stringify({ error: checkout.error }), { status: checkout.status });
+      return new Response(
+        JSON.stringify({
+          error: checkout.error,
+          sold_product_ids: Array.isArray(checkout.soldProductIds) ? checkout.soldProductIds : [],
+        }),
+        { status: checkout.status },
+      );
     }
 
     const { data: order, error: orderError } = await supabaseAdmin
@@ -92,7 +98,7 @@ export const POST = async ({ request }) => {
       );
     }
 
-    /* Auditoría best-effort de compra manual. */
+    /* Auditoría de mejor esfuerzo para compra manual. */
     await supabaseAdmin.from("audit_logs").insert({
       user_id: userData.user.id,
       event: "manual_checkout_created",

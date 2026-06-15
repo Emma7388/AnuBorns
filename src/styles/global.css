@@ -2167,3 +2167,17 @@ input[type="submit"] {
 .ab-provider-product-card__button[aria-disabled="true"]:hover {
   transform: none;
 }
+
+.ab-sales-product-card .ab-provider-product-card__actions > .ab-featured-products-detail,
+.ab-sales-product-card .ab-provider-product-card__actions > .ab-provider-product-card__button,
+.ab-sales-product-card .ab-provider-product-card__actions--split .ab-featured-products-detail,
+.ab-sales-product-card .ab-provider-product-card__actions--split .ab-provider-product-card__button {
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  padding: 8px 10px;
+  line-height: 1.15;
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

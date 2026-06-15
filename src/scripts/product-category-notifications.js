@@ -36,7 +36,7 @@ const writeSeenMap = async (userId, value) => {
     const key = getStorageKey(userId);
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // ignore
+    // Ignora errores de storage para no interrumpir la navegación.
   }
 };
 

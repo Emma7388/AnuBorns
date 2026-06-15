@@ -1,11 +1,14 @@
+/* Optimización de imágenes en navegador antes de subirlas a Storage. */
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 export const PRODUCT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 
+/* Conserva el nombre base y fuerza la extensión del formato de salida. */
 const getOutputName = (file, extension = "jpg") => {
   const name = String(file?.name ?? "image").replace(/\.[^.]+$/, "");
   return `${name}.${extension}`;
 };
 
+/* Redimensiona una imagen con canvas y devuelve un File listo para subir. */
 export const resizeImageFile = async (
   file,
   {
@@ -15,6 +18,7 @@ export const resizeImageFile = async (
     alwaysConvert = true,
   } = {},
 ) => {
+  /* Si no es imagen o el navegador no puede decodificarla, se usa el archivo original. */
   if (!file?.type?.startsWith("image/")) return file;
 
   let bitmap = null;
@@ -25,6 +29,7 @@ export const resizeImageFile = async (
   }
 
   const { width, height } = bitmap;
+  /* Mantiene proporción y limita solo el lado más largo. */
   const maxSide = Math.max(width, height);
   const scale = maxSide > maxDimension ? maxDimension / maxSide : 1;
   const targetW = Math.max(1, Math.round(width * scale));
@@ -47,6 +52,7 @@ export const resizeImageFile = async (
   ctx.drawImage(bitmap, 0, 0, targetW, targetH);
   bitmap.close?.();
 
+  /* Canvas entrega Blob por callback; se envuelve en Promise para el flujo async. */
   return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {
@@ -63,6 +69,7 @@ export const resizeImageFile = async (
   });
 };
 
+/* Avatar liviano: suficiente resolución para interfaz y carga rápida. */
 export const resizeAvatarImage = (file) =>
   resizeImageFile(file, {
     maxDimension: 512,
@@ -71,6 +78,7 @@ export const resizeAvatarImage = (file) =>
     alwaysConvert: true,
   });
 
+/* Producto: más resolución para inspección visual, con compresión controlada. */
 export const resizeProductImage = (file) =>
   resizeImageFile(file, {
     maxDimension: 1800,

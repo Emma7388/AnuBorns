@@ -1,3 +1,4 @@
+/* Modal accesible para ampliar imágenes de productos, carrito y compras. */
 let modalRoot = null;
 let modalImage = null;
 let modalClose = null;
@@ -9,6 +10,7 @@ const IMAGE_MODAL_SELECTOR = [
   ".ab-order-card__thumb img",
 ].join(", ");
 
+/* Construye el modal bajo demanda para no cargar DOM innecesario. */
 const ensureModal = () => {
   if (modalRoot) return modalRoot;
 
@@ -37,6 +39,7 @@ const ensureModal = () => {
   return modalRoot;
 };
 
+/* Abre la imagen seleccionada y conserva el foco para devolverlo al cerrar. */
 const openImageModal = (image, trigger) => {
   if (!(image instanceof HTMLImageElement)) return;
   const root = ensureModal();
@@ -51,6 +54,7 @@ const openImageModal = (image, trigger) => {
   modalClose?.focus();
 };
 
+/* Cierra el modal, limpia la imagen y restaura foco si corresponde. */
 function closeImageModal() {
   if (!modalRoot) return;
   const focusTarget = lastTrigger instanceof HTMLElement && document.contains(lastTrigger) ? lastTrigger : null;
@@ -70,12 +74,14 @@ function closeImageModal() {
   }
 }
 
+/* Detecta si el evento nació en una imagen ampliable. */
 const findModalImage = (target) => {
   if (!(target instanceof Element)) return null;
   const image = target.closest(IMAGE_MODAL_SELECTOR);
   return image instanceof HTMLImageElement ? image : null;
 };
 
+/* Hace las imágenes enfocables para permitir apertura por teclado. */
 const prepareProductImages = () => {
   document.querySelectorAll(IMAGE_MODAL_SELECTOR).forEach((image) => {
     if (!(image instanceof HTMLImageElement)) return;
@@ -83,6 +89,7 @@ const prepareProductImages = () => {
   });
 };
 
+/* Delegación global: funciona con tarjetas renderizadas dinámicamente. */
 const bindImageModalEvents = () => {
   if (document.body.dataset.abImageModalDelegated === "true") return;
   document.body.dataset.abImageModalDelegated = "true";
@@ -105,6 +112,7 @@ const bindImageModalEvents = () => {
   });
 };
 
+/* Ciclo de vida para navegación Astro y cierre con Escape. */
 const bindImageModalLifecycleEvents = () => {
   if (document.documentElement.dataset.abImageModalLifecycleBound === "true") return;
   document.documentElement.dataset.abImageModalLifecycleBound = "true";

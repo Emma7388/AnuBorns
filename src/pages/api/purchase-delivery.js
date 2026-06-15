@@ -1,3 +1,4 @@
+/* API comprador: confirma recepción de productos enviados. */
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
@@ -46,6 +47,7 @@ export const POST = async ({ request }) => {
     }
 
     const buyerId = userData.user.id;
+    /* El comprador solo puede confirmar recepciones de sus propias órdenes. */
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select("id, user_id, shipping_requested, shipping_status")
@@ -63,6 +65,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "Esta confirmacion aplica solo a envios." }), { status: 400 });
     }
 
+    /* Valida que todos los productos enviados pertenezcan a la orden. */
     const { data: orderItems, error: orderItemsError } = await supabaseAdmin
       .from("order_items")
       .select("product_id")
@@ -78,6 +81,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "La compra no coincide con los productos indicados." }), { status: 400 });
     }
 
+    /* Solo se puede confirmar recepción cuando el vendedor ya marcó enviado. */
     const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
       .from("sale_dispatches")
       .select("seller_id, product_id, fulfillment_status")
@@ -118,6 +122,7 @@ export const POST = async ({ request }) => {
       status_updated_at: now,
     }));
 
+    /* La recepción del comprador avanza el producto a delivered. */
     const { error: upsertError } = await supabaseAdmin
       .from("sale_dispatches")
       .upsert(rows, { onConflict: "seller_id,order_id,product_id" });
@@ -126,6 +131,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudo confirmar la recepcion." }), { status: 500 });
     }
 
+    /* Recalcula el estado agregado de la orden completa. */
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
       console.error("[purchase-delivery] Could not refresh order shipping status", refreshResult.error);

@@ -1,3 +1,4 @@
+/* Notificaciones globales para cambios de estado en compras del usuario. */
 import { supabase } from "../lib/supabaseClient";
 import {
   getPurchaseStatusMessage,
@@ -19,11 +20,14 @@ const announcedPurchaseStatusKeys = new Set();
 const PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS = 900;
 const PURCHASE_STATUS_MIN_REFRESH_MS = 2500;
 
+/* En Mis compras la página ya muestra los cambios; no hace falta toast global. */
 const isPurchasesPageActive = () => window.location.pathname === "/mis-compras";
 
+/* Clave por orden-producto para cruzar datos de orders y sale_dispatches. */
 const getFulfillmentMapKey = (orderId, productId) =>
   `${String(orderId ?? "").trim()}::${String(productId ?? "").trim()}`;
 
+/* Marca estados como leídos sin bloquear la navegación. */
 const markPurchaseStatusesReadOnServer = async (token, items = []) => {
   const reads = (Array.isArray(items) ? items : [])
     .map((item) => ({
@@ -45,6 +49,7 @@ const markPurchaseStatusesReadOnServer = async (token, items = []) => {
   }).catch(() => {});
 };
 
+/* Crea el toast una sola vez y lo reutiliza. */
 const ensurePurchaseStatusToast = () => {
   if (purchaseStatusToast) return;
   purchaseStatusToast = document.createElement("div");
@@ -65,6 +70,7 @@ const ensurePurchaseStatusToast = () => {
   purchaseStatusToastMessage = purchaseStatusToast.querySelector(".ab-cart-toast__message");
 };
 
+/* Muestra una notificación breve con enlace a Mis compras. */
 const showPurchaseStatusToast = ({ changedCount, latestItem }) => {
   ensurePurchaseStatusToast();
   if (!purchaseStatusToast) return;
@@ -82,6 +88,7 @@ const showPurchaseStatusToast = ({ changedCount, latestItem }) => {
   }, 5000);
 };
 
+/* Trae órdenes propias con sus productos para consultar estados por producto. */
 const fetchPurchaseOrders = async (userId) => {
   if (!userId) return [];
   const { data, error } = await supabase
@@ -93,12 +100,14 @@ const fetchPurchaseOrders = async (userId) => {
   return data;
 };
 
+/* Refresca estados, filtra los no notificables y marca lecturas válidas. */
 const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   const userId = session?.user?.id ?? "";
   const token = session?.access_token ?? "";
   if (!userId || !token) return;
 
   const now = Date.now();
+  /* Evita ráfagas por eventos realtime sucesivos. */
   if (
     !force &&
     lastPurchaseStatusRefreshUserId === userId &&
@@ -130,6 +139,7 @@ const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
     ]),
   );
 
+  /* Combina estado real por producto con respaldo de la orden. */
   const currentItems = orders.flatMap((order) => {
     const orderId = String(order?.id ?? "").trim();
     const fallbackStatus = String(order?.shipping_status ?? "").trim();
@@ -154,6 +164,7 @@ const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
 
   const unreadItems = currentItems.filter((item) => !item.statusRead);
   if (unreadItems.length === 0) return;
+  /* Estados base se marcan como leídos sin molestar al comprador. */
   const baselineItems = unreadItems.filter((item) => !shouldNotifyPurchaseStatus(item));
   if (baselineItems.length > 0) {
     await markPurchaseStatusesReadOnServer(token, baselineItems);
@@ -162,6 +173,7 @@ const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   const notifiableUnreadItems = unreadItems.filter(shouldNotifyPurchaseStatus);
   if (notifiableUnreadItems.length === 0) return;
 
+  /* Deduplica por memoria y sessionStorage para no repetir toasts. */
   const unannouncedItems = notifiableUnreadItems.filter((item) => {
     const key = getPurchaseStatusReadKey(item);
     const storageKey = getPurchaseStatusToastStorageKey(item);
@@ -181,6 +193,7 @@ const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   });
 };
 
+/* Antirrebote para eventos realtime de orders/sale_dispatches. */
 const schedulePurchaseStatusRefresh = () => {
   window.clearTimeout(purchaseRealtimeRefreshTimer);
   purchaseRealtimeRefreshTimer = window.setTimeout(async () => {
@@ -190,6 +203,7 @@ const schedulePurchaseStatusRefresh = () => {
   }, PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS);
 };
 
+/* Suscripción realtime acotada al usuario comprador activo. */
 const setupPurchaseStatusRealtime = async (session) => {
   const userId = session?.user?.id ?? "";
   if (!userId || purchaseRealtimeChannel) return;
@@ -209,6 +223,7 @@ const setupPurchaseStatusRealtime = async (session) => {
     .subscribe();
 };
 
+/* Limpia timers/canales cuando cambia usuario o la página ya cubre el caso. */
 export const teardownPurchaseStatusNotifications = async () => {
   window.clearTimeout(purchaseRealtimeRefreshTimer);
   purchaseRealtimeRefreshTimer = 0;
@@ -222,6 +237,7 @@ export const teardownPurchaseStatusNotifications = async () => {
   await supabase.removeChannel(channel);
 };
 
+/* Punto de entrada usado por el header para activar o refrescar notificaciones. */
 export const refreshPurchaseStatusNotifications = async (session, options = {}) => {
   const userId = session?.user?.id ?? "";
   if (!userId || isPurchasesPageActive()) {

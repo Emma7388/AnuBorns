@@ -2,7 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 
-/* Referencias DOM (re-consultadas en navegación SPA). */
+/* Referencias DOM (re-consultadas en navegación de Astro). */
 let loginForm = document.getElementById("login-form");
 let feedback = document.getElementById("login-feedback");
 let emailInput = document.getElementById("email");
@@ -92,7 +92,7 @@ const handleLoginSubmit = async (event) => {
   feedback.textContent = "Ingresando...";
 
   try {
-    /* Auth con timeout por resiliencia. */
+    /* Autenticación con timeout por resiliencia. */
     const { data, error } = await withTimeout(
       supabase.auth.signInWithPassword({
         email: emailInput.value,
@@ -106,7 +106,7 @@ const handleLoginSubmit = async (event) => {
       return;
     }
 
-    /* Log de auditoría y navegación post-login. */
+    /* Registro de auditoría y navegación posterior al login. */
     postAudit("login_success").catch(() => {});
     const displayName = resolveDisplayName(data?.user);
     feedback.textContent = `Listo. Bienvenido, ${displayName}.`;
@@ -123,7 +123,7 @@ const handleLoginSubmit = async (event) => {
   }
 };
 
-/* Inicialización y hooks SPA. */
+/* Inicialización y eventos de navegación de Astro. */
 bindLoginElements();
 bindLoginEvents();
 document.addEventListener("astro:page-load", () => {

@@ -87,7 +87,7 @@ const setFormDisabled = (isDisabled) => {
   });
 };
 
-/* Re-bindea elementos tras navegación SPA. */
+/* Vuelve a vincular elementos tras navegación de Astro. */
 const bindFormElements = () => {
   form = document.getElementById("product-form");
   feedback = document.getElementById("product-feedback");
@@ -320,7 +320,7 @@ const bindOnce = (element, key, eventName, handler) => {
   element.dataset[flag] = "true";
 };
 
-/* Handler de imágenes: valida y genera previews. */
+/* Manejador de imágenes: valida y genera previews. */
 const onImagesChange = () => {
   const files = collectImages();
   const error = validateImages(files);
@@ -335,7 +335,7 @@ const onImagesChange = () => {
   updatePublisherUi();
 };
 
-/* Handler de entrega. */
+/* Manejador de entrega. */
 const onDeliveryChange = () => {
   updatePickupAddressVisibility();
   updatePublisherUi();
@@ -379,7 +379,7 @@ const onNewProduct = () => {
   setFeedback("");
 };
 
-/* Handler de submit. */
+/* Manejador de envío del formulario. */
 const onSubmit = (event) => {
   event.preventDefault();
   submitProduct();
@@ -761,7 +761,7 @@ const submitProduct = async () => {
         .eq("id", productId);
     }
 
-    /* Reset de UI luego de publicar. */
+    /* Reinicio de interfaz luego de publicar. */
     form.reset();
     clearPreviews();
     deliveryInputs.forEach((input) => {

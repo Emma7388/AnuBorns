@@ -29,6 +29,7 @@ const statusMap = {
 /* Estados finales que no deberían re-procesarse. */
 const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded"]);
 
+/* Garantiza que una orden aprobada tenga filas de despacho iniciales. */
 const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
   const dispatchResult = await createInitialSaleDispatches(supabaseAdmin, { orderId });
   if (!dispatchResult.ok) {
@@ -41,6 +42,7 @@ const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
   return true;
 };
 
+/* Busca si otro pago aprobado ya vendió alguno de los productos de la orden. */
 const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
   const { data: orderItems, error: itemsError } = await supabaseAdmin
     .from("order_items")
@@ -234,7 +236,7 @@ export const POST = async ({ request }) => {
     /* Evita doble procesamiento si ya está finalizado. */
     if (terminalStatuses.has(order.status)) {
       if (order.status === "approved" && mappedStatus === "refunded") {
-        // Allow chargeback/refund updates.
+        // Permite actualizar contracargos y reembolsos aunque la orden esté finalizada.
       } else {
         if (order.status === "approved" && mappedStatus === "approved") {
           const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);
@@ -253,6 +255,7 @@ export const POST = async ({ request }) => {
     }
 
     if (mappedStatus === "approved") {
+      /* Última defensa: si otro webhook aprobó antes, no se duplica la venta. */
       const availability = await findApprovedProductConflicts(supabaseAdmin, order.id);
       if (!availability.ok) {
         console.error("[mp-webhook] Product availability check failed", {

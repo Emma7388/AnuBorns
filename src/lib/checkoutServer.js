@@ -1,6 +1,8 @@
+/* Validaciones compartidas por checkout manual y Mercado Pago. */
 export const SHIPPING_FEE = 5000;
 const SOLD_ORDER_STATUSES = ["approved"];
 
+/* El carrito puede mandar datos legacy, pero cantidad siempre queda fija en 1. */
 export const sanitizeCheckoutItems = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
@@ -9,12 +11,14 @@ export const sanitizeCheckoutItems = (items) =>
     }))
     .filter((item) => item.product_id);
 
+/* Nota del comprador acotada para guardarla segura en payment_detail. */
 export const sanitizeBuyerNote = (value) => {
   const note = String(value ?? "").trim();
   if (!note) return "";
   return note.slice(0, 500);
 };
 
+/* Normaliza métodos de entrega provenientes de Supabase o payloads antiguos. */
 export const normalizeDeliveryMethods = (value) => {
   if (Array.isArray(value)) return value.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
   return String(value ?? "")
@@ -23,6 +27,7 @@ export const normalizeDeliveryMethods = (value) => {
     .filter(Boolean);
 };
 
+/* Lee grupos de envío por proveedor desde el payload validado por frontend. */
 const parseRequestedShippingGroups = (shipping = {}) =>
   (Array.isArray(shipping?.groups) ? shipping.groups : [])
     .map((group) => ({
@@ -33,6 +38,7 @@ const parseRequestedShippingGroups = (shipping = {}) =>
     }))
     .filter((group) => group.providerKey);
 
+/* Encuentra productos de un proveedor por user_id o por nombre legacy. */
 const getProviderGroupItems = (serverItems, providerKey) => {
   const providerUserId = providerKey.startsWith("id:") ? providerKey.slice(3) : "";
   return serverItems.filter((item) =>
@@ -42,6 +48,7 @@ const getProviderGroupItems = (serverItems, providerKey) => {
   );
 };
 
+/* Construye el contexto confiable del checkout desde datos del servidor. */
 export const buildCheckoutContext = async (
   supabaseAdmin,
   { rawItems = [], shipping = {}, buyerId = "", requirePositivePrice = true } = {},
@@ -58,6 +65,7 @@ export const buildCheckoutContext = async (
   const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
   const productIds = [...new Set(items.map((item) => item.product_id))];
 
+  /* Producto único: una orden approved bloquea nuevas compras del mismo producto. */
   const { data: soldRows, error: soldError } = await supabaseAdmin
     .from("order_items")
     .select("product_id, orders!inner(status)")
@@ -71,9 +79,15 @@ export const buildCheckoutContext = async (
     (soldRows ?? []).map((row) => String(row?.product_id ?? "").trim()).filter(Boolean),
   );
   if (productIds.some((productId) => soldProductIds.has(productId))) {
-    return { ok: false, status: 409, error: "Uno o mas productos ya fueron vendidos." };
+    return {
+      ok: false,
+      status: 409,
+      error: "Uno o mas productos ya fueron vendidos.",
+      soldProductIds: productIds.filter((productId) => soldProductIds.has(productId)),
+    };
   }
 
+  /* Se vuelven a leer productos para ignorar precios/nombres enviados por el cliente. */
   const { data: products, error: productsError } = await supabaseAdmin
     .from("products")
     .select("id, title, price, currency, seller_name, contact, user_id, image_url, delivery_methods")
@@ -88,6 +102,7 @@ export const buildCheckoutContext = async (
     return { ok: false, status: 400, error: "Hay productos invalidos o no disponibles." };
   }
 
+  /* Snapshot de items que se guardará en order_items y se enviará a MercadoPago. */
   const serverItems = items.map((item) => {
     const product = productsMap.get(item.product_id);
     const unitPrice = Number(product?.price ?? 0);
@@ -106,6 +121,7 @@ export const buildCheckoutContext = async (
     };
   });
 
+  /* Reglas de integridad antes de crear orden/preferencia. */
   if (requirePositivePrice && serverItems.some((item) => item.unit_price <= 0)) {
     return { ok: false, status: 400, error: "Hay productos sin precio valido." };
   }
@@ -121,6 +137,7 @@ export const buildCheckoutContext = async (
   }
 
   if (shippingRequested) {
+    /* Compatibilidad con checkout viejo: envío único sin grupos por proveedor. */
     if (requestedShippingGroups.length === 0) {
       const allItemsSupportShipping = serverItems.every((item) => item.delivery_methods.includes("envio"));
       if (!allItemsSupportShipping) {
@@ -131,6 +148,7 @@ export const buildCheckoutContext = async (
       }
     }
 
+    /* Validación por proveedor para compras multiproveedor. */
     for (const group of requestedShippingGroups) {
       if (!group.address || !group.city) {
         return { ok: false, status: 400, error: "Faltan direccion y ciudad para un proveedor." };
@@ -142,6 +160,7 @@ export const buildCheckoutContext = async (
     }
   }
 
+  /* Totales finales derivados del servidor. */
   const orderCurrency = serverItems[0]?.currency || "ARS";
   const shippingCost = requestedShippingGroups.length
     ? requestedShippingGroups.length * SHIPPING_FEE
@@ -170,6 +189,7 @@ export const buildCheckoutContext = async (
   };
 };
 
+/* Convierte el contexto validado en filas para order_items. */
 export const buildOrderItems = (orderId, serverItems = []) =>
   serverItems.map((item) => ({
     order_id: orderId,

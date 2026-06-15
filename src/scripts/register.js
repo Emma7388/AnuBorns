@@ -2,7 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
 
-/* Referencias DOM (re-consultadas en navegación SPA). */
+/* Referencias DOM (re-consultadas en navegación de Astro). */
 let registerForm = document.getElementById("register-form");
 let feedback = document.getElementById("register-feedback");
 let emailInput = document.getElementById("email");
@@ -25,7 +25,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
   }
 });
 
-/* Rebind helpers para navegaciones SPA. */
+/* Ayudantes para volver a vincular elementos tras navegaciones de Astro. */
 const bindRegisterElements = () => {
   registerForm = document.getElementById("register-form");
   feedback = document.getElementById("register-feedback");
@@ -50,7 +50,7 @@ const bindRegisterEvents = () => {
   registerForm.addEventListener("submit", handleRegisterSubmit);
 };
 
-/* Submit del formulario de registro (handler reutilizable). */
+/* Envío del formulario de registro (manejador reutilizable). */
 const handleRegisterSubmit = async (event) => {
   event.preventDefault();
   if (!emailInput || !passwordInput || !passwordConfirm || !feedback) return;
@@ -162,7 +162,7 @@ const handleRegisterSubmit = async (event) => {
         };
         window.localStorage.setItem("ab_pending_avatar", JSON.stringify(payload));
       } catch {
-        // noop
+        // Sin acción: si no se puede guardar, el registro igual continúa.
       }
     };
     reader.readAsDataURL(optimizedAvatarFile);
@@ -173,7 +173,7 @@ const handleRegisterSubmit = async (event) => {
     "Cuenta creada. Revisá tu email para confirmar el acceso. El avatar se subirá cuando inicies sesión.";
 };
 
-/* Inicialización y hooks Astro SPA. */
+/* Inicialización y eventos de navegación de Astro. */
 bindRegisterElements();
 bindRegisterEvents();
 document.addEventListener("astro:page-load", () => {

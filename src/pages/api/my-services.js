@@ -1,7 +1,9 @@
+/* API temporal de servicios del usuario: persistencia simple en Supabase. */
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
+/* Datos de muestra cuando el usuario todavía no guardó servicios. */
 const seedData = {
   active: {
     title: "Reparación de aire acondicionado",
@@ -16,6 +18,7 @@ const seedData = {
   ],
 };
 
+/* Cliente público solo para validar el JWT recibido desde el navegador. */
 const getPublicAuthClient = () => {
   const env = import.meta.env ?? {};
   const url =
@@ -32,6 +35,7 @@ const getPublicAuthClient = () => {
   });
 };
 
+/* Resuelve el usuario autenticado sin exponer service role al cliente. */
 const getSellerFromToken = async (request) => {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -50,6 +54,7 @@ const getSellerFromToken = async (request) => {
   return { user: data.user, error: "", status: 200 };
 };
 
+/* Devuelve servicios guardados o datos de muestra iniciales. */
 export const GET = async ({ request }) => {
   try {
     const rate = checkRateLimit({ request, routeKey: "my-services-get", windowMs: 60_000, max: 60 });
@@ -87,6 +92,7 @@ export const GET = async ({ request }) => {
   }
 };
 
+/* Guarda el estado de servicios para el usuario autenticado. */
 export const PUT = async ({ request }) => {
   try {
     const rate = checkRateLimit({ request, routeKey: "my-services-put", windowMs: 60_000, max: 30 });

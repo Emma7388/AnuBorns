@@ -1,12 +1,15 @@
+/* API comprador: lee estados por producto y marca notificaciones como vistas. */
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
+/* Parsea listas de ids desde query params. */
 const parseCsv = (value) =>
   String(value ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 
+/* Estados que pueden almacenarse como leídos por el comprador. */
 const VALID_FULFILLMENT_STATUSES = new Set([
   "pending",
   "requested",
@@ -21,6 +24,7 @@ const VALID_FULFILLMENT_STATUSES = new Set([
 
 const DEFAULT_STATUS_UPDATED_AT = "1970-01-01T00:00:00.000Z";
 
+/* Normaliza fechas para que las claves de lectura sean comparables. */
 const normalizeStatusUpdatedAt = (value) => {
   const raw = String(value ?? "").trim();
   if (!raw) return DEFAULT_STATUS_UPDATED_AT;
@@ -29,6 +33,7 @@ const normalizeStatusUpdatedAt = (value) => {
   return date.toISOString();
 };
 
+/* Autenticación compartida para GET/POST. */
 const getAuthenticatedUser = async (request, supabaseAdmin) => {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -73,6 +78,7 @@ export const GET = async ({ request }) => {
     }
 
     const buyerId = user.id;
+    /* Solo se devuelven estados de órdenes propias. */
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from("orders")
       .select("id, shipping_status, shipping_requested")
@@ -102,6 +108,7 @@ export const GET = async ({ request }) => {
       return new Response(JSON.stringify({ items: [] }), { status: 200 });
     }
 
+    /* sale_dispatches tiene el estado real por producto. */
     const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
       .from("sale_dispatches")
       .select("order_id, product_id, fulfillment_status, status_updated_at")
@@ -118,6 +125,7 @@ export const GET = async ({ request }) => {
         row,
       ]),
     );
+    /* Fallback para órdenes antiguas sin fila por producto. */
     const orderFallbackStatus = new Map(
       (orders ?? []).map((order) => {
         const status = String(order?.shipping_status ?? "").trim();
@@ -126,6 +134,7 @@ export const GET = async ({ request }) => {
       }),
     );
 
+    /* Lecturas previas evitan repetir toasts ya vistos. */
     const { data: readRows, error: readError } = await supabaseAdmin
       .from("purchase_status_reads")
       .select("order_id, product_id, fulfillment_status, status_updated_at")
@@ -195,6 +204,7 @@ export const POST = async ({ request }) => {
     if (response) return response;
 
     const payload = await request.json().catch(() => ({}));
+    /* Solo se aceptan marcas de lectura completas y con estado válido. */
     const reads = (Array.isArray(payload?.items) ? payload.items : [])
       .map((item) => ({
         orderId: String(item?.orderId ?? "").trim(),
@@ -231,6 +241,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No autorizado para marcar estos estados." }), { status: 403 });
     }
 
+    /* Valida pares orden-producto para impedir marcar estados ajenos. */
     const { data: orderItems, error: orderItemsError } = await supabaseAdmin
       .from("order_items")
       .select("order_id, product_id")
@@ -264,6 +275,7 @@ export const POST = async ({ request }) => {
         return [String(order?.id ?? "").trim(), fallback];
       }),
     );
+    /* Estado actual autorizado: fallback de orden y luego valor real de dispatch. */
     const currentStateByPair = new Map(
       (orderItems ?? []).map((item) => {
         const orderId = String(item?.order_id ?? "").trim();
@@ -289,6 +301,7 @@ export const POST = async ({ request }) => {
       }
     });
 
+    /* Solo se insertan lecturas que coinciden con el estado actual exacto. */
     const rows = reads
       .filter((item) => ownedOrderIds.has(item.orderId))
       .filter((item) => {

@@ -1,16 +1,20 @@
+/* Consulta productos destacados en base a ventas aprobadas. */
 import { getSupabaseAdmin } from "./supabaseServer.js";
 
+/* Solo ventas aprobadas cuentan como señal real de popularidad. */
 const ALLOWED_ORDER_STATUSES = new Set(["approved"]);
 const DAYS_WINDOW = 7;
 const MAX_ITEMS = 10;
 const QUERY_TIMEOUT_MS = 6_000;
 
+/* Convierte valores externos a números seguros para métricas. */
 const toSafeNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return parsed;
 };
 
+/* Registro estructurado para diagnosticar errores de Supabase sin exponer datos sensibles. */
 const logSupabaseError = (context, error) => {
   console.error(`[featured-products] ${context}`, {
     code: error?.code,
@@ -20,12 +24,14 @@ const logSupabaseError = (context, error) => {
   });
 };
 
+/* AbortController evita que una consulta lenta deje colgada la página. */
 const createTimeoutSignal = () => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
   return { signal: controller.signal, timeout };
 };
 
+/* Ejecuta queries PostgREST con timeout compartido. */
 const runWithTimeout = async (query) => {
   const timeout = createTimeoutSignal();
   try {
@@ -35,6 +41,7 @@ const runWithTimeout = async (query) => {
   }
 };
 
+/* Agrupa order_items por producto y calcula cantidad/recaudación. */
 const aggregateSalesRows = (rows) => {
   const aggregate = new Map();
   (rows ?? []).forEach((row) => {
@@ -101,6 +108,7 @@ const buildItemsFromAggregate = async (supabaseAdmin, aggregate) => {
   return { items, error: "" };
 };
 
+/* En el respaldo histórico se muestra un producto fuerte por vendedor. */
 const pickTopHistoricalProductPerSeller = (items) => {
   const bySeller = new Map();
   items.forEach((item) => {
@@ -123,6 +131,7 @@ const pickTopHistoricalProductPerSeller = (items) => {
     .slice(0, MAX_ITEMS);
 };
 
+/* Primer criterio: ventas recientes dentro de la ventana definida. */
 const getRecentFeaturedProducts = async (supabaseAdmin) => {
   const fromDate = new Date(Date.now() - DAYS_WINDOW * 24 * 60 * 60 * 1000).toISOString();
   const { data: rows, error: rowsError } = await runWithTimeout(
@@ -141,6 +150,7 @@ const getRecentFeaturedProducts = async (supabaseAdmin) => {
   return buildItemsFromAggregate(supabaseAdmin, aggregateSalesRows(rows));
 };
 
+/* Respaldo cuando no hay ventas recientes: ranking histórico acotado. */
 const getHistoricalFeaturedProductsBySeller = async (supabaseAdmin) => {
   const { data: rows, error: rowsError } = await runWithTimeout(
     supabaseAdmin
@@ -159,6 +169,7 @@ const getHistoricalFeaturedProductsBySeller = async (supabaseAdmin) => {
   return { items: pickTopHistoricalProductPerSeller(result.items), error: "" };
 };
 
+/* API interna consumida por endpoints/componentes de destacados. */
 export const getFeaturedProducts = async () => {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {

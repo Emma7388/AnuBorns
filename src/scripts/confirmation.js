@@ -1,4 +1,4 @@
-/* UI de confirmación de compra y limpieza de carrito. */
+/* Interfaz de confirmación de compra y limpieza de carrito. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
 
@@ -10,7 +10,7 @@ const clearCart = async () => {
       await removeFromCart(item.product_id);
     }
   } catch {
-    // noop
+    // Sin acción: limpiar carrito no debe bloquear la confirmación visual.
   }
 };
 
@@ -57,7 +57,7 @@ const statusMap = {
   },
 };
 
-/* Renderiza la UI según estado. */
+/* Renderiza la interfaz según estado. */
 const renderStatus = (value) => {
   const info = statusMap[value ?? ""] ?? {
     title: "Estado del pago",
@@ -97,7 +97,7 @@ const loadOrder = async () => {
   }
 };
 
-/* Inicialización y hooks SPA. */
+/* Inicialización y eventos de navegación de Astro. */
 bindConfirmationElements();
 loadOrder();
 document.addEventListener("astro:page-load", () => {

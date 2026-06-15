@@ -1,4 +1,4 @@
-/* UI del carrito: render, acciones y navegación. */
+/* Interfaz del carrito: render, acciones y navegación. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
 import {
@@ -83,7 +83,7 @@ const preloadShippingFromProfile = async () => {
     profileShippingAddress = String(metadata.address ?? "").trim();
     profileShippingCity = String(metadata.city ?? "").trim();
   } catch {
-    // noop
+    // Sin acción: la dirección de perfil es opcional para renderizar el carrito.
   }
 };
 
@@ -370,7 +370,6 @@ const bindCartLifecycleEvents = () => {
   });
 
   window.addEventListener("ab-cart-updated", renderCart);
-  document.addEventListener("ab-cart-updated", renderCart);
   document.addEventListener("astro:page-load", initCartPage);
   document.addEventListener("astro:after-swap", initCartPage);
   window.addEventListener("pageshow", initCartPage);

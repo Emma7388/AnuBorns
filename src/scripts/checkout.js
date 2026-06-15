@@ -1,4 +1,4 @@
-/* UI del checkout: resumen, validaciones y confirmación local. */
+/* Interfaz del checkout: resumen, validaciones y confirmación local. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart } from "../lib/cart";
 import { removeFromCart } from "../lib/cart";
@@ -208,13 +208,13 @@ const initCheckoutPage = () => {
   };
 
   const processCheckout = async () => {
-    /* Feedback UI inmediato. */
+    /* Mensaje inmediato para el usuario. */
     feedback.textContent = "Procesando compra...";
 
     const items = await getCart();
     const { data } = await supabase.auth.getSession();
 
-    /* Normaliza items para persistir orden y fallback local. */
+    /* Normaliza items para persistir orden y respaldo local. */
     const orderItems = items.map((item) => ({
       product_id: item.product_id ?? "",
       name: item.product?.title ?? "Producto",
@@ -264,6 +264,16 @@ const initCheckoutPage = () => {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (response.status === 409) {
+          const soldProductIds = Array.isArray(payload?.sold_product_ids) ? payload.sold_product_ids : [];
+          for (const productId of soldProductIds) {
+            await removeFromCart(productId);
+          }
+          if (soldProductIds.length > 0) {
+            await renderSummary();
+          }
+          throw new Error("Alguno de los productos ya fue vendido. Quitalo del carrito para continuar.");
+        }
         throw new Error(String(payload?.error ?? "No se pudo registrar la compra."));
       }
     } catch (error) {
@@ -280,7 +290,7 @@ const initCheckoutPage = () => {
     }
     clearShippingPreference();
 
-    /* UI de éxito y redirección. */
+    /* Interfaz de éxito y redirección. */
     if (form) form.classList.add("ab-is-hidden");
     if (successNotice) successNotice.classList.remove("ab-is-hidden");
     feedback.textContent = "Compra confirmada. Avisamos al vendedor.";
@@ -386,7 +396,6 @@ const preloadUser = async () => {
 /* Inicialización. */
 initCheckoutPage();
 window.addEventListener("ab-shipping-preference-updated", renderSummary);
-document.addEventListener("ab-shipping-preference-updated", renderSummary);
 document.addEventListener("astro:page-load", initCheckoutPage);
 document.addEventListener("astro:after-swap", initCheckoutPage);
 window.addEventListener("pageshow", initCheckoutPage);

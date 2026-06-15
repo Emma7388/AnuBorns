@@ -5,19 +5,17 @@ import { supabase } from "./supabaseClient";
 const CART_KEY = "ab_cart_v1";
 const CART_LOCAL_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 días
 
-/* Dispara un evento global para que la UI reaccione a cambios de carrito. */
+/* Dispara un evento global para que la interfaz reaccione a cambios de carrito. */
 const emitCartUpdate = () => {
   if (typeof window === "undefined") return;
   const event = new CustomEvent("ab-cart-updated");
   window.dispatchEvent(event);
-  document.dispatchEvent(new CustomEvent("ab-cart-updated"));
 };
 
 const emitOwnCartItemsRemoved = (count) => {
   if (typeof window === "undefined" || !count) return;
   const detail = { count: Number(count) || 0 };
   window.dispatchEvent(new CustomEvent("ab-cart-own-items-removed", { detail }));
-  document.dispatchEvent(new CustomEvent("ab-cart-own-items-removed", { detail }));
 };
 
 /* El marketplace usa publicaciones de producto unico: la cantidad siempre es 1. */
@@ -220,7 +218,7 @@ export const syncCartOnLogin = async (userId) => {
     emitOwnCartItemsRemoved(removedCount);
     emitCartUpdate();
   } catch {
-    // keep local cart if sync fails
+    // Conserva el carrito local si falla la sincronización.
   }
 };
 

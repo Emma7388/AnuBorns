@@ -12,7 +12,7 @@ export const postAudit = async (event, metadata = {}) => {
     const token = data?.session?.access_token;
     if (!token) return;
 
-    /* Envío best-effort (keepalive para no bloquear navegación). */
+    /* Envío de mejor esfuerzo (keepalive para no bloquear navegación). */
     await fetch(AUDIT_ENDPOINT, {
       method: "POST",
       headers: {
@@ -30,6 +30,6 @@ export const postAudit = async (event, metadata = {}) => {
       keepalive: true,
     });
   } catch {
-    // noop
+    // Sin acción: auditoría no debe bloquear la experiencia.
   }
 };

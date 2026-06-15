@@ -66,7 +66,7 @@ const getDisplayName = (authUser) => {
   return email.split("@")[0] || email;
 };
 
-/* Muestra u oculta la UI según estado de sesión. */
+/* Muestra u oculta la interfaz según estado de sesión. */
 const setView = (session) => {
   if (!guest || !user) return;
   if (session?.user) {
@@ -94,7 +94,7 @@ const setView = (session) => {
   }
 };
 
-/* Re-bindea elementos tras navegación SPA. */
+/* Vuelve a vincular elementos tras navegación de Astro. */
 const bindElements = () => {
   guest = document.querySelector('[data-auth="guest"]');
   user = document.querySelector('[data-auth="user"]');
@@ -298,7 +298,7 @@ const teardownSalesRealtime = async () => {
   try {
     await supabase.removeChannel(channel);
   } catch {
-    /* noop */
+    /* Sin acción: si no hay cursor previo, no hace falta limpiar notificaciones. */
   }
 };
 
@@ -377,7 +377,7 @@ const resolveSession = async () => {
   renderCartCount();
 };
 
-/* Inicializa listeners y UI del header. */
+/* Inicializa listeners e interfaz del header. */
 const initHeaderAuth = () => {
   bindElements();
   if (!guest || !user) return;
@@ -461,9 +461,6 @@ const bindHeaderAuthEvents = () => {
   window.addEventListener("pageshow", initHeaderAuth);
   window.addEventListener("pagehide", teardownSalesRealtime);
   window.addEventListener("ab-cart-updated", () => {
-    renderCartCount();
-  });
-  document.addEventListener("ab-cart-updated", () => {
     renderCartCount();
   });
   window.addEventListener("ab-cart-own-items-removed", (event) => {

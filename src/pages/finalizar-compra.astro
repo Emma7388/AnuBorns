@@ -33,16 +33,16 @@ import MainLayout from "../layouts/MainLayout.astro";
     <form id="checkout-form" class="ab-form ab-checkout-form">
       <h2>Datos de entrega</h2>
       <label for="full-name">Nombre completo</label>
-      <input id="full-name" name="full-name" type="text" placeholder="Ej: Maria Lopez" required />
+      <input id="full-name" name="full-name" type="text" autocomplete="name" placeholder="Ej: Maria Lopez" required />
 
       <label for="email">Email (opcional)</label>
-      <input id="email" name="email" type="email" placeholder="Ej: maria@email.com" />
+      <input id="email" name="email" type="email" autocomplete="email" placeholder="Ej: maria@email.com" />
 
       <label for="phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
-      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input placeholder="Ej: 3415551234" required />
+      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="tel-national" data-phone-input placeholder="Ej: 3415551234" required />
 
       <label for="notes">Nota/Comentario (opcional)</label>
-      <textarea id="notes" name="notes" rows="3" placeholder="Ej: Dejar en porteria por la tarde."></textarea>
+      <textarea id="notes" name="notes" rows="3" autocomplete="off" placeholder="Ej: Dejar en porteria por la tarde."></textarea>
 
       <button class="ab-cta-button ab-checkout-action" type="submit">
         FINALIZAR COMPRA

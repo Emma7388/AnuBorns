@@ -1,3 +1,4 @@
+/* Menú desplegable para alternar categorías/acciones de compra. */
 const closeProductMenus = (exceptSwitch = null) => {
   document.querySelectorAll("[data-buy-switch]").forEach((switchEl) => {
     if (switchEl === exceptSwitch) return;
@@ -9,6 +10,7 @@ const closeProductMenus = (exceptSwitch = null) => {
   });
 };
 
+/* Vincula cada trigger una sola vez para soportar navegación Astro. */
 const initBuySwitchMenus = () => {
   document.querySelectorAll("[data-buy-switch-trigger]").forEach((trigger) => {
     if (trigger.dataset.buySwitchBound === "true") return;
@@ -30,11 +32,13 @@ const initBuySwitchMenus = () => {
   });
 };
 
+/* Cierra menús cuando el usuario hace click fuera. */
 const closeMenusFromOutside = (event) => {
   if (event.target?.closest?.("[data-buy-switch]")) return;
   closeProductMenus();
 };
 
+/* Escape cierra cualquier menú abierto. */
 const closeMenusWithEscape = (event) => {
   if (event.key !== "Escape") return;
   closeProductMenus();
@@ -42,6 +46,7 @@ const closeMenusWithEscape = (event) => {
 
 initBuySwitchMenus();
 
+/* Eventos globales compartidos por todas las navegaciones de la app. */
 if (!window.__abBuySwitchMenusBound) {
   document.addEventListener("click", closeMenusFromOutside);
   document.addEventListener("keydown", closeMenusWithEscape);

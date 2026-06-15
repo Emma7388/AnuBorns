@@ -352,7 +352,7 @@ const teardownSalesRealtime = async () => {
   try {
     await supabase.removeChannel(channel);
   } catch {
-    /* noop */
+    /* Sin acción: si no hay cursor previo, no hace falta limpiar notificaciones. */
   }
 };
 

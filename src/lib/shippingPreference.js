@@ -1,15 +1,19 @@
+/* Preferencias locales de envío por proveedor para carrito y checkout. */
 export const SHIPPING_FEE = 5000;
 
 const SHIPPING_KEY = "ab_shipping_preference_v1";
 
+/* Preferencia vacía usada como valor seguro por defecto. */
 const emptyPreference = () => ({ requested: false, address: "", city: "" });
 
+/* Normaliza datos leídos desde localStorage. */
 const normalizePreference = (value) => ({
   requested: Boolean(value?.requested),
   address: String(value?.address ?? "").trim(),
   city: String(value?.city ?? "").trim(),
 });
 
+/* Lee el storage tolerando JSON corrupto o entornos sin window. */
 const readRawPreference = () => {
   if (typeof window === "undefined") return {};
   try {
@@ -20,17 +24,19 @@ const readRawPreference = () => {
   }
 };
 
+/* Notifica cambios una sola vez por window para evitar renders duplicados. */
 const emitShippingPreferenceUpdate = (detail) => {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("ab-shipping-preference-updated", { detail }));
-  document.dispatchEvent(new CustomEvent("ab-shipping-preference-updated", { detail }));
 };
 
+/* API legacy de preferencia simple. */
 export const getShippingPreference = () => {
   if (typeof window === "undefined") return emptyPreference();
   return normalizePreference(readRawPreference());
 };
 
+/* Guarda preferencia simple y avisa a la UI. */
 export const setShippingPreference = (preference) => {
   if (typeof window === "undefined") return;
   const next = normalizePreference(preference);
@@ -38,6 +44,7 @@ export const setShippingPreference = (preference) => {
   emitShippingPreferenceUpdate(next);
 };
 
+/* Devuelve preferencias agrupadas por proveedor. */
 export const getProviderShippingPreferences = () => {
   const parsed = readRawPreference();
   const rawGroups = parsed?.groups && typeof parsed.groups === "object" ? parsed.groups : {};
@@ -52,9 +59,11 @@ export const getProviderShippingPreferences = () => {
   );
 };
 
+/* Preferencia segura para un proveedor puntual. */
 export const getProviderShippingPreference = (providerKey) =>
   getProviderShippingPreferences()[providerKey] ?? emptyPreference();
 
+/* Guarda o actualiza la preferencia de envío de un proveedor. */
 export const setProviderShippingPreference = (providerKey, preference) => {
   if (typeof window === "undefined" || !providerKey) return;
   const groups = getProviderShippingPreferences();
@@ -71,6 +80,7 @@ export const setProviderShippingPreference = (providerKey, preference) => {
   emitShippingPreferenceUpdate(next);
 };
 
+/* Elimina preferencias de proveedores que ya no están en el carrito. */
 export const clearUnavailableProviderShippingPreferences = (activeProviderKeys) => {
   if (typeof window === "undefined") return;
   const active = new Set(activeProviderKeys);
@@ -79,17 +89,21 @@ export const clearUnavailableProviderShippingPreferences = (activeProviderKeys) 
   window.localStorage.setItem(SHIPPING_KEY, JSON.stringify({ groups: nextGroups }));
 };
 
+/* Lista solo los proveedores que solicitaron envío. */
 export const getRequestedProviderShippingPreferences = () =>
   Object.entries(getProviderShippingPreferences())
     .filter(([, preference]) => preference.requested)
     .map(([providerKey, preference]) => ({ providerKey, ...preference }));
 
+/* Limpia preferencias de forma idempotente para no disparar loops de render. */
 export const clearShippingPreference = () => {
   if (typeof window === "undefined") return;
+  if (!window.localStorage.getItem(SHIPPING_KEY)) return;
   window.localStorage.removeItem(SHIPPING_KEY);
   emitShippingPreferenceUpdate();
 };
 
+/* Normaliza métodos de entrega para comparar retiro/envío. */
 export const normalizeDeliveryMethods = (value) => {
   const normalizeItem = (item) =>
     String(item ?? "")
@@ -105,5 +119,6 @@ export const normalizeDeliveryMethods = (value) => {
     .filter(Boolean);
 };
 
+/* Determina si un item permite envío a domicilio. */
 export const itemSupportsShipping = (item) =>
   normalizeDeliveryMethods(item?.product?.delivery_methods).includes("envio");

@@ -1,4 +1,4 @@
-/* UI de tarjetas de productos: botón de carrito con animación. */
+/* Interfaz de tarjetas de productos: botón de carrito con animación. */
 import { supabase } from "../lib/supabaseClient";
 import { addToCart } from "../lib/cart";
 import { confirmAddToCart } from "../lib/cartConfirm";
@@ -88,7 +88,7 @@ const initBuyButtons = async () => {
   });
 };
 
-/* Boot para distintos ciclos de navegación. */
+/* Arranque para distintos ciclos de navegación. */
 const init = () => {
   initBuyButtons();
 };

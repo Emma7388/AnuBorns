@@ -1,5 +1,7 @@
+/* Cliente con cache corta para el resumen de ventas del header y Mis ventas. */
 const CACHE_TTL_MS = 5000;
 
+/* Store global por pestaña: comparte payload/promesa entre navegaciones Astro. */
 const getStore = () => {
   if (typeof window === "undefined") {
     return { tokenKey: "", fetchedAt: 0, payload: null, promise: null };
@@ -13,11 +15,13 @@ const getStore = () => {
   return window.__abSalesSummaryStore;
 };
 
+/* Normaliza respuestas del endpoint para evitar checks repetidos en la UI. */
 const normalizePayload = (payload) => ({
   items: Array.isArray(payload?.items) ? payload.items : [],
   error: String(payload?.error ?? ""),
 });
 
+/* Trae ventas del usuario y deduplica requests simultáneas por token. */
 export const fetchSalesSummary = async (token, { force = false } = {}) => {
   const safeToken = String(token ?? "").trim();
   if (!safeToken) return { items: [], error: "" };
@@ -26,6 +30,7 @@ export const fetchSalesSummary = async (token, { force = false } = {}) => {
   const tokenKey = safeToken.slice(-16);
   const now = Date.now();
 
+  /* Cache caliente: evita reconsultas al navegar o refrescar el header. */
   if (
     !force &&
     store.payload &&
@@ -35,6 +40,7 @@ export const fetchSalesSummary = async (token, { force = false } = {}) => {
     return store.payload;
   }
 
+  /* Si ya hay una consulta en curso para el mismo token, se reutiliza. */
   if (!force && store.promise && store.tokenKey === tokenKey) {
     return store.promise;
   }
@@ -65,6 +71,7 @@ export const fetchSalesSummary = async (token, { force = false } = {}) => {
   return store.promise;
 };
 
+/* Invalida cache cuando una acción de ventas cambia datos relevantes. */
 export const invalidateSalesSummaryCache = () => {
   const store = getStore();
   store.fetchedAt = 0;

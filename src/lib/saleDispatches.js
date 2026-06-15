@@ -1,8 +1,10 @@
+/* Inicialización de estados por producto para el circuito vendedor-comprador. */
 const INITIAL_FULFILLMENT_BY_DELIVERY = {
   shipping: "requested",
   pickup: "pickup_pending",
 };
 
+/* Normaliza listas externas y elimina duplicados/vacíos. */
 const uniqueStrings = (values = []) => [
   ...new Set(
     (Array.isArray(values) ? values : [])
@@ -11,6 +13,7 @@ const uniqueStrings = (values = []) => [
   ),
 ];
 
+/* Normaliza nombres de proveedor para comparar texto de envío guardado. */
 const normalizeProviderName = (value) =>
   String(value ?? "")
     .trim()
@@ -18,6 +21,7 @@ const normalizeProviderName = (value) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+/* Extrae proveedores con envío desde el resumen serializado de dirección. */
 const getShippingProviderNames = (shippingAddress) =>
   String(shippingAddress ?? "")
     .split("|")
@@ -25,6 +29,7 @@ const getShippingProviderNames = (shippingAddress) =>
     .map(normalizeProviderName)
     .filter(Boolean);
 
+/* Crea un despacho por producto comprado; sale_dispatches queda como fuente de verdad. */
 export const createInitialSaleDispatches = async (
   supabaseAdmin,
   { orderId, shippingRequested = null, shippingProductIds = [] } = {},
@@ -75,6 +80,7 @@ export const createInitialSaleDispatches = async (
       .map((product) => [String(product?.id ?? "").trim(), product])
       .filter(([productId]) => productId),
   );
+  /* order_items conserva el nombre de proveedor usado al momento de la compra. */
   const providerByProduct = new Map(
     (orderItems ?? [])
       .map((item) => [String(item?.product_id ?? "").trim(), String(item?.provider ?? "").trim()])
@@ -88,12 +94,15 @@ export const createInitialSaleDispatches = async (
   const requestedProviderNames = getShippingProviderNames(order.shipping_address);
 
   const getProductFulfillmentStatus = (productId) => {
+    /* Sin envío solicitado, el comprador debe confirmar retiro. */
     if (!hasShipping) return INITIAL_FULFILLMENT_BY_DELIVERY.pickup;
+    /* Cuando checkout informa productos con envío, se respeta esa lista explícita. */
     if (explicitShippingProductIds.size > 0) {
       return explicitShippingProductIds.has(productId)
         ? INITIAL_FULFILLMENT_BY_DELIVERY.shipping
         : INITIAL_FULFILLMENT_BY_DELIVERY.pickup;
     }
+    /* Compatibilidad con órdenes que solo guardaron proveedores en shipping_address. */
     if (requestedProviderNames.length > 0) {
       const product = productsById.get(productId);
       const providerName = providerByProduct.get(productId) || String(product?.seller_name ?? "");
@@ -101,6 +110,7 @@ export const createInitialSaleDispatches = async (
         ? INITIAL_FULFILLMENT_BY_DELIVERY.shipping
         : INITIAL_FULFILLMENT_BY_DELIVERY.pickup;
     }
+    /* Respaldo para órdenes antiguas con shipping_requested=true. */
     return INITIAL_FULFILLMENT_BY_DELIVERY.shipping;
   };
 

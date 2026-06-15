@@ -447,24 +447,36 @@ const normalizeLocalShippingGroups = (localOrder) =>
     }))
     .filter((group) => group.provider_key);
 
+const getLocalSyncStatusMessage = ({ syncedCount = 0, remainingCount = 0, conflictCount = 0 } = {}) => {
+  if (syncedCount === 0 && remainingCount === 0 && conflictCount === 0) return "";
+  const messages = [];
+  if (syncedCount > 0) messages.push(`Sincronizamos ${syncedCount} compra(s) locales al servidor.`);
+  if (conflictCount > 0) {
+    messages.push(`${conflictCount} compra(s) locales no se sincronizaron porque el producto ya fue vendido.`);
+  }
+  if (remainingCount > 0) messages.push(`Quedan ${remainingCount} compra(s) pendientes por reintentar.`);
+  return messages.join(" ");
+};
+
 const syncLocalOrdersToServer = async (userId) => {
-  if (!userId || syncInFlight) return { syncedCount: 0, remainingCount: 0 };
+  if (!userId || syncInFlight) return { syncedCount: 0, remainingCount: 0, conflictCount: 0 };
   syncInFlight = true;
   try {
     const raw = window.localStorage.getItem(ORDERS_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
     if (localOrders.length === 0) {
-      return { syncedCount: 0, remainingCount: 0 };
+      return { syncedCount: 0, remainingCount: 0, conflictCount: 0 };
     }
 
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token ?? "";
     if (!token) {
-      return { syncedCount: 0, remainingCount: localOrders.length };
+      return { syncedCount: 0, remainingCount: localOrders.length, conflictCount: 0 };
     }
 
     let syncedCount = 0;
+    let conflictCount = 0;
     const remaining = [];
 
     for (const localOrder of localOrders) {
@@ -492,6 +504,10 @@ const syncLocalOrdersToServer = async (userId) => {
       });
 
       if (!response.ok) {
+        if (response.status === 409) {
+          conflictCount += 1;
+          continue;
+        }
         remaining.push(localOrder);
         continue;
       }
@@ -501,9 +517,9 @@ const syncLocalOrdersToServer = async (userId) => {
 
     parsed[userId] = remaining;
     window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
-    return { syncedCount, remainingCount: remaining.length };
+    return { syncedCount, remainingCount: remaining.length, conflictCount };
   } catch {
-    return { syncedCount: 0, remainingCount: 0 };
+    return { syncedCount: 0, remainingCount: 0, conflictCount: 0 };
   } finally {
     syncInFlight = false;
   }
@@ -572,7 +588,7 @@ const buildProviderMetaMap = async (history = []) => {
     });
   }
 
-  /* Fallback amplio para matchear nombres con pequeñas diferencias. */
+  /* Respaldo amplio para matchear nombres con pequeñas diferencias. */
   if (Object.keys(map).length === 0 && providerNames.length > 0) {
     const { data: allProducts, error: allProductsError } = await supabase
       .from("products")
@@ -819,12 +835,7 @@ const loadOrders = async () => {
   }
   currentUserId = userId;
   const syncResult = await syncLocalOrdersToServer(userId);
-  if (syncResult.syncedCount > 0 && status) {
-    status.textContent =
-      syncResult.remainingCount > 0
-        ? `Sincronizamos ${syncResult.syncedCount} compra(s). Quedan ${syncResult.remainingCount} pendientes por reintentar.`
-        : `Sincronizamos ${syncResult.syncedCount} compra(s) locales al servidor.`;
-  }
+  const syncMessage = getLocalSyncStatusMessage(syncResult);
 
   try {
     const raw = window.localStorage.getItem(ORDERS_KEY);
@@ -834,7 +845,7 @@ const loadOrders = async () => {
       const currentOrders = await hydrateOrderItemImages(localOrders);
       const providerMetaMap = await buildProviderMetaMap(currentOrders);
       const fulfillmentMap = await fetchPurchaseFulfillmentMap(currentOrders);
-      if (status) status.textContent = "";
+      if (status) status.textContent = syncMessage;
       renderHistory(currentOrders, providerMetaMap, fulfillmentMap);
       markRenderedPurchaseStatusesRead(fulfillmentMap);
       renderOrders();
@@ -842,7 +853,7 @@ const loadOrders = async () => {
       return;
     }
   } catch {
-    // fall through to remote
+    // Continúa con la carga remota.
   }
 
   /* Si no hay locales, trae órdenes remotas. */
@@ -875,7 +886,7 @@ const loadOrders = async () => {
     return;
   }
 
-  if (status) status.textContent = "";
+  if (status) status.textContent = syncMessage;
   const safeData = await hydrateOrderItemImages(data ?? []);
   const providerMetaMap = await buildProviderMetaMap(safeData);
   const fulfillmentMap = await fetchPurchaseFulfillmentMap(safeData);

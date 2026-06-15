@@ -1,3 +1,4 @@
+/* Mis servicios: renderiza servicios activos e historial del usuario. */
 import { supabase } from "../lib/supabaseClient";
 
 let activeContainer = document.getElementById("service-active");
@@ -6,6 +7,7 @@ let emptyState = document.getElementById("services-empty");
 let historyTitle = document.getElementById("service-history-title");
 let resetButton = document.getElementById("services-reset");
 
+/* Reconsulta referencias porque Astro puede reemplazar el DOM. */
 const refreshServiceNodes = () => {
   activeContainer = document.getElementById("service-active");
   list = document.getElementById("service-list");
@@ -14,6 +16,7 @@ const refreshServiceNodes = () => {
   resetButton = document.getElementById("services-reset");
 };
 
+/* Vincula acciones de la página sin duplicar listeners. */
 const bindServiceEvents = () => {
   refreshServiceNodes();
   if (resetButton && resetButton.dataset.abServiceEventsBound !== "true") {
@@ -26,11 +29,13 @@ const bindServiceEvents = () => {
   }
 };
 
+/* Muestra un valor legible aunque el dato venga vacío. */
 const formatServiceValue = (value, fallback = "Sin datos") => {
   const safe = String(value ?? "").trim();
   return safe || fallback;
 };
 
+/* Renderiza el servicio en curso. */
 const renderActive = (active) => {
   if (!activeContainer) return;
   if (!active) {
@@ -61,6 +66,7 @@ const renderActive = (active) => {
   `;
 };
 
+/* Renderiza servicios finalizados. */
 const renderHistory = (history) => {
   if (!list || !historyTitle) return;
   list.innerHTML = "";
@@ -91,6 +97,7 @@ const renderHistory = (history) => {
   });
 };
 
+/* Coordina estado activo, historial y vacío. */
 const renderServices = ({ active, history }) => {
   renderActive(active ?? null);
   renderHistory(Array.isArray(history) ? history : []);
@@ -100,6 +107,7 @@ const renderServices = ({ active, history }) => {
   emptyState.style.display = hasActive || hasHistory ? "none" : "grid";
 };
 
+/* Carga servicios del usuario autenticado. */
 const fetchServices = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -117,6 +125,7 @@ const fetchServices = async () => {
   return payload;
 };
 
+/* Restaura los datos de muestra desde el backend. */
 const resetServices = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -138,6 +147,7 @@ const resetServices = async () => {
   return payload;
 };
 
+/* Inicialización de datos para la vista. */
 const initServices = async () => {
   const payload = await fetchServices();
   if (!payload) return;

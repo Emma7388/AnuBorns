@@ -1,9 +1,11 @@
+/* Utilidades para sincronizar estado agregado de una orden con sus productos. */
 export const normalizeFulfillmentStatus = (value, shippingRequested = false) => {
   const raw = String(value ?? "").trim();
   if (raw) return raw;
   return shippingRequested ? "requested" : "pickup_pending";
 };
 
+/* Prioridad de avance: el resumen de orden refleja el producto más avanzado pendiente. */
 const AGGREGATE_PRIORITY = {
   pending: 0,
   requested: 0,
@@ -16,6 +18,7 @@ const AGGREGATE_PRIORITY = {
   completed: 4,
 };
 
+/* Calcula el estado agregado para orders.shipping_status. */
 export const getAggregateOrderStatus = (statuses = [], { shippingRequested = false } = {}) => {
   const safeStatuses = (Array.isArray(statuses) ? statuses : [])
     .map((status) => normalizeFulfillmentStatus(status, shippingRequested))
@@ -33,6 +36,7 @@ export const getAggregateOrderStatus = (statuses = [], { shippingRequested = fal
   }, candidates[0]);
 };
 
+/* Recalcula orders.shipping_status desde sale_dispatches. */
 export const refreshOrderShippingStatus = async (supabaseAdmin, orderId) => {
   const safeOrderId = String(orderId ?? "").trim();
   if (!supabaseAdmin || !safeOrderId) {
@@ -61,6 +65,7 @@ export const refreshOrderShippingStatus = async (supabaseAdmin, orderId) => {
   ];
 
   if (productIds.length === 0) {
+    /* Orden legacy sin items: conserva un estado normalizado para no romper vistas. */
     const fallbackStatus = normalizeFulfillmentStatus(order.shipping_status, shippingRequested);
     return { ok: true, status: fallbackStatus };
   }
@@ -79,6 +84,7 @@ export const refreshOrderShippingStatus = async (supabaseAdmin, orderId) => {
       String(row?.fulfillment_status ?? "").trim(),
     ]),
   );
+  /* Si falta dispatch para algún producto, usa el estado inicial esperado. */
   const statuses = productIds.map((productId) =>
     normalizeFulfillmentStatus(statusByProduct.get(productId), shippingRequested)
   );

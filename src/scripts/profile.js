@@ -124,7 +124,7 @@ const loadProfile = async () => {
         session = { user: userData.user };
       }
     } catch {
-      // ignore
+      // Ignora errores de timeout; la carga activa decide el estado final.
     }
   }
 

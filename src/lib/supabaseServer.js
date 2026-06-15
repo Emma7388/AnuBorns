@@ -62,7 +62,7 @@ export const getSupabaseAdmin = () => {
     }
     return null;
   }
-  /* Cliente sin persistencia de sesión (server-side). */
+  /* Cliente sin persistencia de sesión para uso del servidor. */
   cachedAdmin = createClient(config.supabaseUrl, config.supabaseServiceKey, {
     auth: {
       persistSession: false,

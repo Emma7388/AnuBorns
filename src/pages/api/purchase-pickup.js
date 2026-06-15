@@ -1,3 +1,4 @@
+/* API comprador: confirma que retiró productos listos para retirar. */
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
@@ -46,6 +47,7 @@ export const POST = async ({ request }) => {
     }
 
     const buyerId = userData.user.id;
+    /* El comprador solo puede confirmar retiros de sus propias órdenes. */
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select("id, user_id, shipping_requested, shipping_status")
@@ -59,6 +61,7 @@ export const POST = async ({ request }) => {
     if (!order) {
       return new Response(JSON.stringify({ error: "No autorizado para confirmar esta compra." }), { status: 403 });
     }
+    /* Valida que todos los productos enviados pertenezcan a la orden. */
     const { data: orderItems, error: orderItemsError } = await supabaseAdmin
       .from("order_items")
       .select("product_id")
@@ -74,6 +77,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "La compra no coincide con los productos indicados." }), { status: 400 });
     }
 
+    /* Se resuelve vendedor por producto para mantener sale_dispatches consistente. */
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
       .select("id, user_id")
@@ -93,6 +97,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "Faltan datos del vendedor." }), { status: 400 });
     }
 
+    /* El comprador solo puede confirmar si el vendedor ya marcó listo para retirar. */
     const { data: dispatchRows, error: dispatchError } = await supabaseAdmin
       .from("sale_dispatches")
       .select("seller_id, product_id, fulfillment_status")
@@ -129,6 +134,7 @@ export const POST = async ({ request }) => {
       status_updated_at: now,
     }));
 
+    /* La confirmación del comprador avanza el producto a picked_up. */
     const { error: upsertError } = await supabaseAdmin
       .from("sale_dispatches")
       .upsert(rows, { onConflict: "seller_id,order_id,product_id" });
@@ -137,6 +143,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudo confirmar el retiro." }), { status: 500 });
     }
 
+    /* Recalcula el estado agregado de la orden completa. */
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
       console.error("[purchase-pickup] Could not refresh order shipping status", refreshResult.error);

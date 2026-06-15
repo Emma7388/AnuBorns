@@ -1,3 +1,4 @@
+/* Avatar pendiente: conserva una imagen elegida antes de confirmar/iniciar sesión. */
 import { supabase } from "./supabaseClient";
 import { resizeAvatarImage } from "./imageResize";
 
@@ -6,6 +7,7 @@ const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
 
 let pendingAvatarPromise = null;
 
+/* Convierte un data URL guardado en localStorage a Blob para subirlo a Storage. */
 const dataUrlToBlob = (dataUrl) => {
   const parts = String(dataUrl ?? "").split(",");
   const match = parts[0]?.match(/data:(.*);base64/);
@@ -19,6 +21,7 @@ const dataUrlToBlob = (dataUrl) => {
   return new Blob([buffer], { type: contentType });
 };
 
+/* Lee y descarta avatares pendientes vencidos o corruptos. */
 const readPendingAvatar = () => {
   try {
     const raw = window.localStorage.getItem(PENDING_AVATAR_KEY);
@@ -36,6 +39,7 @@ const readPendingAvatar = () => {
   }
 };
 
+/* Sube el avatar pendiente una sola vez cuando ya hay sesión válida. */
 export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
   if (typeof window === "undefined") return { ok: true, avatarUrl: "" };
   if (pendingAvatarPromise) return pendingAvatarPromise;
@@ -48,6 +52,7 @@ export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
     const blob = dataUrlToBlob(pending.dataUrl);
     if (!blob) return { ok: false, avatarUrl: "", error: "invalid_avatar_data" };
 
+    /* Se vuelve a optimizar por seguridad antes de subir. */
     const pendingFile = new File([blob], pending.name || "avatar.jpg", { type: pending.type });
     const optimizedFile = await resizeAvatarImage(pendingFile);
     const extension = (optimizedFile.name || "avatar.jpg").split(".").pop() || "jpg";
@@ -72,6 +77,7 @@ export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
     }
 
     window.localStorage.removeItem(PENDING_AVATAR_KEY);
+    /* Señal para que otras pestañas refresquen metadata de auth. */
     window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
     onAvatarUrl?.(avatarUrl);
     return { ok: true, avatarUrl };
@@ -84,6 +90,7 @@ export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
   }
 };
 
+/* Devuelve una sesión clonada con avatar actualizado para pintar interfaz inmediata. */
 export const withAvatarUrl = (session, avatarUrl) => {
   if (!session?.user || !avatarUrl) return session;
   return {

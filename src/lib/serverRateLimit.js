@@ -1,4 +1,4 @@
-/* Rate limit en memoria para endpoints API (best-effort). */
+/* Límite de requests en memoria para endpoints API; defensa de mejor esfuerzo. */
 const buckets = new Map();
 
 const nowMs = () => Date.now();

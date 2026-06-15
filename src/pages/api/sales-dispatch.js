@@ -1,7 +1,9 @@
+/* API vendedor: avanza el estado de entrega/retiro por producto vendido. */
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
 
+/* Estados que el vendedor puede marcar desde Mis ventas. */
 const allowedStatuses = new Set([
   "preparing",
   "shipped",
@@ -35,6 +37,7 @@ export const POST = async ({ request }) => {
     }
 
     const token = authHeader.replace("Bearer ", "").trim();
+    /* El token del navegador define el vendedor que intenta operar. */
     const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 });
@@ -53,6 +56,7 @@ export const POST = async ({ request }) => {
     }
 
     const sellerId = userData.user.id;
+    /* Seguridad: el producto debe pertenecer al vendedor autenticado. */
     const { data: ownProduct, error: ownProductError } = await supabaseAdmin
       .from("products")
       .select("id")
@@ -67,6 +71,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No autorizado para despachar este producto." }), { status: 403 });
     }
 
+    /* Seguridad: la orden debe contener exactamente el producto indicado. */
     const { data: orderItem, error: orderItemError } = await supabaseAdmin
       .from("order_items")
       .select("id")
@@ -82,6 +87,7 @@ export const POST = async ({ request }) => {
     }
 
     if (status === "completed") {
+      /* El vendedor cierra el circuito solo después de confirmación del comprador. */
       const { data: currentDispatch, error: currentDispatchError } = await supabaseAdmin
         .from("sale_dispatches")
         .select("fulfillment_status")
@@ -102,6 +108,7 @@ export const POST = async ({ request }) => {
       }
     }
 
+    /* sale_dispatches guarda el estado por producto y vendedor. */
     const { error: upsertError } = await supabaseAdmin.from("sale_dispatches").upsert(
       {
         seller_id: sellerId,
@@ -118,6 +125,7 @@ export const POST = async ({ request }) => {
       return new Response(JSON.stringify({ error: "No se pudo guardar el estado de entrega." }), { status: 500 });
     }
 
+    /* orders.shipping_status queda como resumen agregado para vistas rápidas. */
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
       console.error("[sales-dispatch] Could not refresh order shipping status", refreshResult.error);
