@@ -37,7 +37,7 @@ const createCarouselButton = (direction) => {
   const isPrev = direction === "prev";
   button.type = "button";
   button.className = `ab-featured-products-nav ab-featured-products-nav--${direction}`;
-  button.setAttribute("aria-label", isPrev ? "Ver producto destacado anterior" : "Ver siguiente producto destacado");
+  button.setAttribute("aria-label", isPrev ? "Ver vendedor destacado anterior" : "Ver siguiente vendedor destacado");
   button.setAttribute(isPrev ? "data-featured-products-prev" : "data-featured-products-next", "");
   button.innerHTML = `<img src="/icons/${isPrev ? "atras2" : "adelante"}.svg" alt="" aria-hidden="true" />`;
   return button;
@@ -219,7 +219,7 @@ const renderFeaturedSection = (section, items) => {
           <div>
             <p class="ab-provider-product-card__label">
               <img src="/icons/destacado.svg" alt="" aria-hidden="true" />
-              <span>Destacado</span>
+              <span>Vendedor destacado</span>
             </p>
             <p class="ab-provider-product-card__code">${escapeHtml(item?.sellerName ?? "Proveedor")}</p>
           </div>
@@ -254,10 +254,11 @@ const renderFeaturedSection = (section, items) => {
         <button
           type="button"
           class="ab-provider-product-card__add"
-          aria-label="Agregar al carrito"
-          title="Agregar al carrito"
+          aria-label="Enviar al carrito"
+          title="Enviar al carrito"
         >
           <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+          <span>Enviar al carrito</span>
         </button>
       </div>
     `;
@@ -303,13 +304,13 @@ const loadFeaturedSection = async (section) => {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      status.textContent = "No se pudieron cargar los productos destacados.";
+      status.textContent = "No se pudieron cargar los vendedores destacados.";
       return;
     }
     renderFeaturedSection(section, Array.isArray(payload?.items) ? payload.items : []);
   } catch (error) {
     if (error?.name === "AbortError") return;
-    status.textContent = "No se pudieron cargar los productos destacados.";
+    status.textContent = "No se pudieron cargar los vendedores destacados.";
   } finally {
     if (section.__abFeaturedController === controller) {
       delete section.__abFeaturedController;

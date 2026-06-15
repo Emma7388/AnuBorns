@@ -1,4 +1,4 @@
-/* API pública: productos destacados calculados desde ventas aprobadas. */
+/* API pública: productos disponibles de vendedores destacados. */
 import { getFeaturedProducts } from "../../lib/featuredProducts.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 

@@ -51,6 +51,47 @@ const normalizeProductSnapshot = (value) => {
   };
 };
 
+export const fetchSoldProductIds = async (productIds = []) => {
+  const ids = [...new Set(
+    (Array.isArray(productIds) ? productIds : [])
+      .map((productId) => String(productId ?? "").trim())
+      .filter(Boolean),
+  )];
+  if (ids.length === 0 || typeof fetch !== "function") return new Set();
+
+  try {
+    const response = await fetch("/api/sold-products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_ids: ids }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return new Set();
+    return new Set(
+      (Array.isArray(payload?.sold_product_ids) ? payload.sold_product_ids : [])
+        .map((productId) => String(productId ?? "").trim())
+        .filter(Boolean),
+    );
+  } catch {
+    return new Set();
+  }
+};
+
+export const isProductSold = async (productId) => {
+  const productIds = await fetchSoldProductIds([productId]);
+  return productIds.has(String(productId ?? "").trim());
+};
+
+const splitSoldProductsFromItems = async (items = []) => {
+  const soldProductIds = await fetchSoldProductIds(items.map((item) => item.product_id));
+  if (soldProductIds.size === 0) return { availableItems: items, removedCount: 0 };
+  const availableItems = items.filter((item) => !soldProductIds.has(String(item.product_id ?? "").trim()));
+  return {
+    availableItems,
+    removedCount: items.length - availableItems.length,
+  };
+};
+
 /* Lee el carrito local y lo limpia de datos inválidos. */
 const loadLocalCart = () => {
   try {
@@ -225,7 +266,8 @@ export const syncCartOnLogin = async (userId) => {
 /* Agrega un producto al carrito (local o persistente). */
 export const addToCart = async (product) => {
   const productId = String(product?.id ?? "");
-  if (!productId) return;
+  if (!productId) return false;
+  if (await isProductSold(productId)) return false;
   const priceSnapshot = normalizePrice(product?.price);
   const productSnapshot = normalizeProductSnapshot(product);
 
@@ -248,7 +290,7 @@ export const addToCart = async (product) => {
       });
     }
     saveLocalCart(items);
-    return;
+    return true;
   }
 
   /* Si hay sesión, se actualiza el carrito en base de datos. */
@@ -274,6 +316,7 @@ export const addToCart = async (product) => {
     });
   }
   emitCartUpdate();
+  return true;
 };
 
 /* Mantiene compatibilidad: solo permite conservar una unidad o eliminar. */
@@ -344,12 +387,22 @@ export const getCart = async () => {
   if (!userId) {
     const localItems = loadLocalCart();
     try {
-      return await enrichWithProducts(localItems);
+      const enriched = await enrichWithProducts(localItems);
+      const { availableItems, removedCount } = await splitSoldProductsFromItems(enriched);
+      if (removedCount > 0) {
+        saveLocalCart(availableItems);
+      }
+      return availableItems;
     } catch {
-      return localItems.map((item) => ({
+      const fallbackItems = localItems.map((item) => ({
         ...item,
         product: item.product_snapshot ?? null,
       }));
+      const { availableItems, removedCount } = await splitSoldProductsFromItems(fallbackItems);
+      if (removedCount > 0) {
+        saveLocalCart(availableItems);
+      }
+      return availableItems;
     }
   }
 
@@ -366,5 +419,17 @@ export const getCart = async () => {
     price_snapshot: normalizePrice(item.price_snapshot),
     product: item.products ?? null,
   }));
-  return normalized;
+  const { availableItems, removedCount } = await splitSoldProductsFromItems(normalized);
+  if (removedCount > 0) {
+    const soldIds = normalized
+      .filter((item) => !availableItems.some((available) => available.product_id === item.product_id))
+      .map((item) => item.product_id);
+    await supabase
+      .from("cart_items")
+      .delete()
+      .eq("cart_id", cartId)
+      .in("product_id", soldIds);
+    emitCartUpdate();
+  }
+  return availableItems;
 };

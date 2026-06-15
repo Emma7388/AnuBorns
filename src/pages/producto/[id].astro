@@ -2,6 +2,8 @@
 export const prerender = false;
 
 import MainLayout from "../../layouts/MainLayout.astro";
+import { getSoldProductIds } from "../../lib/soldProducts.js";
+import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 const { id } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -28,7 +30,14 @@ const product = supabaseUrl && supabaseAnonKey && safeId
     )
   : null;
 
-const current = Array.isArray(product) ? product[0] : null;
+const rawCurrent = Array.isArray(product) ? product[0] : null;
+const supabaseAdmin = getSupabaseAdmin();
+const soldProductIds = supabaseAdmin && rawCurrent?.id
+  ? await getSoldProductIds(supabaseAdmin, [rawCurrent.id])
+  : new Set();
+const current = rawCurrent && !soldProductIds.has(String(rawCurrent.id ?? "").trim())
+  ? rawCurrent
+  : null;
 const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent(current.user_id)}` : "";
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
@@ -105,10 +114,11 @@ const shortId = (value) => {
           <button
             type="button"
             class="ab-provider-product-card__add"
-            aria-label="Agregar al carrito"
-            title="Agregar al carrito"
+            aria-label="Enviar al carrito"
+            title="Enviar al carrito"
             >
               <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+              <span>Enviar al carrito</span>
             </button>
         </div>
       </article>

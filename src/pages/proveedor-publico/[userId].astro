@@ -3,6 +3,8 @@
 export const prerender = false;
 
 import MainLayout from "../../layouts/MainLayout.astro";
+import { filterAvailableProducts } from "../../lib/soldProducts.js";
+import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 const { userId } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -29,8 +31,12 @@ const products = supabaseUrl && supabaseAnonKey && safeUserId
     )
   : [];
 
-const safeProducts = Array.isArray(products) ? products : [];
-const first = safeProducts[0] ?? null;
+const rawProducts = Array.isArray(products) ? products : [];
+const supabaseAdmin = getSupabaseAdmin();
+const safeProducts = supabaseAdmin
+  ? await filterAvailableProducts(supabaseAdmin, rawProducts)
+  : rawProducts;
+const first = rawProducts[0] ?? null;
 
 const sellerName = first?.seller_name || "Proveedor";
 const rawContact = String(first?.contact ?? "").trim();
@@ -87,7 +93,7 @@ const shortId = (value) => {
           <strong>Teléfono:</strong>{" "}
           {publicPhone ? (
             <a
-              href={`https://wa.me/${phoneDigits}?text=${encodeURIComponent(`Hola ${sellerName}, te contacto por AnuBorns.`)}`}
+              href={`https://wa.me/${phoneDigits}?text=${encodeURIComponent(`Hola ${sellerName}, te contacto por Desoluciones.`)}`}
               target="_blank"
               rel="noreferrer noopener"
             >
@@ -163,10 +169,11 @@ const shortId = (value) => {
                 <button
                   type="button"
                   class="ab-provider-product-card__add"
-                  aria-label="Agregar al carrito"
-                  title="Agregar al carrito"
+                  aria-label="Enviar al carrito"
+                  title="Enviar al carrito"
                   >
                     <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+                    <span>Enviar al carrito</span>
                   </button>
               </div>
             </article>

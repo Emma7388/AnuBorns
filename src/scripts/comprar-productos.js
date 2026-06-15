@@ -6,7 +6,7 @@ import { showCartToast } from "../lib/cartToast";
 
 /* Convierte la tarjeta DOM a item de carrito. */
 const addCardToCart = async (card) => {
-  await addToCart({
+  return addToCart({
     id: card.dataset.cartId,
     price: card.dataset.price,
     title: card.dataset.title,
@@ -15,6 +15,16 @@ const addCardToCart = async (card) => {
     currency: card.dataset.currency,
     delivery_methods: card.dataset.delivery,
   });
+};
+
+const removeUnavailableCard = (card) => {
+  const row = card.closest(".ab-card-row");
+  const sellerRow = card.closest(".ab-order-card");
+  card.remove();
+  if (row && row.querySelectorAll(".ab-provider-product-card").length === 0) {
+    sellerRow?.remove();
+  }
+  document.dispatchEvent(new CustomEvent("ab-products-rendered"));
 };
 
 /* Efecto visual al agregar al carrito. */
@@ -30,8 +40,8 @@ const animateAddButton = (button) => {
     button.title = "Producto agregado";
     window.setTimeout(() => {
       button.classList.remove("is-added");
-      button.setAttribute("aria-label", "Agregar al carrito");
-      button.title = "Agregar al carrito";
+      button.setAttribute("aria-label", "Enviar al carrito");
+      button.title = "Enviar al carrito";
     }, 900);
   }, 220);
 };
@@ -78,7 +88,11 @@ const initBuyButtons = async () => {
       try {
         const accepted = await confirmAddToCart();
         if (!accepted) return;
-        await addCardToCart(card);
+        const added = await addCardToCart(card);
+        if (!added) {
+          removeUnavailableCard(card);
+          return;
+        }
         animateAddButton(button);
         showCartToast();
       } finally {

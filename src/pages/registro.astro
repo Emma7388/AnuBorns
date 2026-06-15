@@ -15,35 +15,37 @@ import MainLayout from "../layouts/MainLayout.astro";
     <!-- Formulario de registro -->
     <form class="ab-form" id="register-form">
       <label for="avatar">Avatar (opcional)</label>
-      <input id="avatar" name="avatar" type="file" accept="image/*" />
+      <label class="ab-upload-button" for="avatar">Subir imagen</label>
+      <input id="avatar" name="avatar" type="file" accept="image/*" class="ab-upload-input" />
+      <span class="ab-muted-text ab-upload-help">Podés sumar una foto de perfil ahora o cargarla después.</span>
 
       <label for="first-name">Nombre</label>
-      <input id="first-name" name="first-name" type="text" placeholder="Ej: María" />
+      <input id="first-name" name="first-name" type="text" placeholder="Ej: María" autocomplete="given-name" />
 
       <label for="last-name">Apellido</label>
-      <input id="last-name" name="last-name" type="text" placeholder="Ej: López" />
+      <input id="last-name" name="last-name" type="text" placeholder="Ej: López" autocomplete="family-name" />
 
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" placeholder="tu@email.com" required />
+      <input id="email" name="email" type="email" placeholder="tu@email.com" autocomplete="email" required />
       <p class="ab-form-help">Usamos tu email para tu cuenta y para avisos importantes.</p>
 
       <label for="phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
-      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input placeholder="Ej: 1123456789" />
+      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input placeholder="Ej: 1123456789" autocomplete="tel" />
 
       <label for="dni">DNI</label>
       <input id="dni" name="dni" type="text" placeholder="Ej: 12345678" />
 
       <label for="address">Dirección</label>
-      <input id="address" name="address" type="text" placeholder="Ej: Av. Siempre Viva 742" />
+      <input id="address" name="address" type="text" placeholder="Ej: Av. Siempre Viva 742" autocomplete="street-address" />
 
       <label for="city">Ciudad</label>
-      <input id="city" name="city" type="text" placeholder="Ej: Buenos Aires" />
+      <input id="city" name="city" type="text" placeholder="Ej: Buenos Aires" autocomplete="address-level2" />
 
       <label for="province">Provincia</label>
-      <input id="province" name="province" type="text" placeholder="Ej: Buenos Aires" />
+      <input id="province" name="province" type="text" placeholder="Ej: Buenos Aires" autocomplete="address-level1" />
 
       <label for="postal-code">Código postal</label>
-      <input id="postal-code" name="postal-code" type="text" placeholder="Ej: B1675" />
+      <input id="postal-code" name="postal-code" type="text" placeholder="Ej: B1675" autocomplete="postal-code" />
 
       <label for="password">Contraseña para Desoluciones</label>
       <input
@@ -51,6 +53,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         name="password"
         type="password"
         placeholder="Elegí una contraseña nueva"
+        autocomplete="new-password"
         minlength="6"
         required
       />
@@ -62,6 +65,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         name="password-confirm"
         type="password"
         placeholder="Repetí tu contraseña"
+        autocomplete="new-password"
         minlength="6"
         required
       />

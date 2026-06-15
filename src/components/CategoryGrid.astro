@@ -60,15 +60,24 @@ if (supabaseUrl && supabaseAnonKey) {
 </section>
 
 <style>
+  .category-page {
+    width: min(1000px, 100%);
+    margin: 0 auto;
+  }
+
   .category-page h1 {
+    margin-bottom: 18px;
+    color: var(--color-text);
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    font-weight: 850;
     text-align: center;
   }
 
   .grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(120px, 1fr));
-    gap: 30px;
-    max-width: 1000px;
+    gap: 14px;
+    max-width: 980px;
     margin: 0 auto;
     padding: 0 6px;
   }
@@ -77,44 +86,63 @@ if (supabaseUrl && supabaseAnonKey) {
     aspect-ratio: 1 / 1;
     height: auto;
     width: 100%;
-    max-width: 300px;
+    max-width: 240px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
+    padding: 16px 12px;
+    border: var(--card-border);
+    border-radius: var(--card-radius);
+    background: var(--card-bg);
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     text-decoration: none;
     color: var(--color-text);
-    font-weight: 600;
-    font-size: 18px;
-    transition: 0.25s ease;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.15;
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease;
   }
 
   .category-card__icon {
-    width: 32px;
-    height: 32px;
+    width: 54px;
+    height: 54px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 12px;
+    border: 1px solid rgba(72, 186, 161, 0.28);
+    background: rgba(72, 186, 161, 0.14);
   }
 
   .category-card__icon img {
-    width: 100%;
-    height: 100%;
+    width: 38px;
+    height: 38px;
     object-fit: contain;
     filter: drop-shadow(0 6px 10px var(--color-shadow));
   }
 
   .category-card__label {
     text-align: center;
+    overflow-wrap: anywhere;
   }
 
   .category-card:hover {
+    border-color: var(--glass-green-border);
+    background: var(--color-panel-tint-strong);
     box-shadow: var(--card-hover-shadow);
+    transform: translateY(-2px);
   }
 
   .category-card:active {
-    transform: translateY(2px);
+    transform: translateY(1px);
   }
 
   @media (max-width: 900px) {
@@ -131,15 +159,25 @@ if (supabaseUrl && supabaseAnonKey) {
 
     .category-card {
       max-width: none;
-      font-size: 1rem;
-      gap: 8px;
+      gap: 10px;
+      padding: 14px 10px;
     }
   }
 
   @media (max-width: 560px) {
     .grid {
       grid-template-columns: repeat(2, minmax(120px, 1fr));
-      gap: 18px;
+      gap: 10px;
+    }
+
+    .category-card__icon {
+      width: 48px;
+      height: 48px;
+    }
+
+    .category-card__icon img {
+      width: 34px;
+      height: 34px;
     }
   }
 </style>

@@ -5,7 +5,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 
 <MainLayout title="Mis servicios" backHref="/mis-datos">
   <section class="ab-dark-panel ab-services-panel">
-    <p class="ab-eyebrow">Usuario base</p>
+    <p class="ab-eyebrow">Servicios</p>
     <h1>Mis servicios</h1>
     <p class="ab-muted-text">
       Historial de servicios finalizados y el servicio activo primero.
@@ -18,7 +18,9 @@ import MainLayout from "../layouts/MainLayout.astro";
 
     <h2 id="service-history-title">Servicios finalizados</h2>
     <div class="ab-actions">
-      <button id="services-reset" type="button">Resetear datos</button>
+      <button id="services-reset" class="ab-cta-button ab-profile-action ab-profile-action--edit" type="button">
+        Reiniciar datos
+      </button>
     </div>
     <div id="service-list" class="ab-service-list"></div>
   </section>

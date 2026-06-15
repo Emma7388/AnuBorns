@@ -988,7 +988,15 @@ const loadMyProducts = async ({ force = false } = {}) => {
       await loadSoldProducts();
       return;
     }
-    const safeProducts = data ?? [];
+    const soldSummary = await fetchSoldProductsSummary();
+    const soldProductIds = new Set(
+      (Array.isArray(soldSummary.items) ? soldSummary.items : [])
+        .map((item) => String(item?.productId ?? "").trim())
+        .filter(Boolean),
+    );
+    const safeProducts = (data ?? []).filter(
+      (product) => !soldProductIds.has(String(product?.id ?? "").trim()),
+    );
     const nextPublishedSignature = buildPublishedProductsSignature(safeProducts);
     if (nextPublishedSignature !== lastPublishedProductsSignature) {
       renderMyProducts(safeProducts);

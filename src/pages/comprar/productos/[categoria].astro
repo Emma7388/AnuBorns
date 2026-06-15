@@ -3,6 +3,8 @@
 export const prerender = false;
 
 import MainLayout from "../../../layouts/MainLayout.astro";
+import { filterAvailableProducts } from "../../../lib/soldProducts.js";
+import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 
 // Evita cache para reflejar cambios en tiempo real.
 Astro.response.headers.set("Cache-Control", "no-store");
@@ -45,8 +47,11 @@ const products = supabaseUrl && supabaseAnonKey
     )
   : [];
 
-// Agrupa productos por vendedor y helpers de formato.
-const safeProducts = Array.isArray(products) ? products : [];
+// Agrupa productos disponibles por vendedor y helpers de formato.
+const supabaseAdmin = getSupabaseAdmin();
+const safeProducts = supabaseAdmin
+  ? await filterAvailableProducts(supabaseAdmin, products)
+  : Array.isArray(products) ? products : [];
 const groupBySeller = safeProducts.reduce((acc, product) => {
   const key = product.seller_name || product.user_id || "Vendedor";
   if (!acc[key]) acc[key] = [];
@@ -209,10 +214,11 @@ const resolveCategoryName = (product) => {
                     <button
                       type="button"
                       class="ab-provider-product-card__add"
-                      aria-label="Agregar al carrito"
-                      title="Agregar al carrito"
+                      aria-label="Enviar al carrito"
+                      title="Enviar al carrito"
                     >
                       <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+                      <span>Enviar al carrito</span>
                     </button>
                   </div>
                 </article>
@@ -256,8 +262,10 @@ const resolveCategoryName = (product) => {
     const resizeInput = (target) => {
       const base = 140;
       const max = 420;
+      const containerWidth = target.closest(".ab-provider-products-toolbar__search")?.clientWidth || max;
+      const safeMax = Math.max(0, Math.min(max, containerWidth));
       const content = target.value || target.placeholder || "";
-      const next = Math.min(max, Math.max(base, 14 + content.length * 8));
+      const next = Math.min(safeMax, Math.max(Math.min(base, safeMax), 14 + content.length * 8));
       target.style.width = `${next}px`;
     };
 
@@ -358,6 +366,10 @@ const resolveCategoryName = (product) => {
     providerInput?.addEventListener("input", () => {
       resizeInput(providerInput);
       applySearch();
+    });
+    window.addEventListener("resize", () => {
+      resizeInput(input);
+      if (providerInput) resizeInput(providerInput);
     });
     bindLocationMenu();
     resizeInput(input);

@@ -1,7 +1,7 @@
 ---
 import { getFeaturedProducts } from "../lib/featuredProducts.js";
 
-const { title = "PRODUCTOS DESTACADOS", featured } = Astro.props;
+const { title = "VENDEDORES DESTACADOS", featured } = Astro.props;
 const result = featured ?? await getFeaturedProducts();
 const items = Array.isArray(result?.items) ? result.items : [];
 const error = String(result?.error ?? "");
@@ -40,7 +40,7 @@ const serializeDelivery = (value) =>
     <button
       type="button"
       class="ab-featured-products-nav ab-featured-products-nav--prev"
-      aria-label="Ver producto destacado anterior"
+      aria-label="Ver vendedor destacado anterior"
       data-featured-products-prev
     >
       <img src="/icons/atras2.svg" alt="" aria-hidden="true" />
@@ -73,7 +73,7 @@ const serializeDelivery = (value) =>
               <div>
                 <p class="ab-provider-product-card__label">
                   <img src="/icons/destacado.svg" alt="" aria-hidden="true" />
-                  <span>Destacado</span>
+                  <span>Vendedor destacado</span>
                 </p>
                 <p class="ab-provider-product-card__code">{item.sellerName || "Proveedor"}</p>
               </div>
@@ -108,10 +108,11 @@ const serializeDelivery = (value) =>
             <button
               type="button"
               class="ab-provider-product-card__add"
-              aria-label="Agregar al carrito"
-              title="Agregar al carrito"
+              aria-label="Enviar al carrito"
+              title="Enviar al carrito"
             >
               <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
+              <span>Enviar al carrito</span>
             </button>
           </div>
         </article>
@@ -120,14 +121,14 @@ const serializeDelivery = (value) =>
     <button
       type="button"
       class="ab-featured-products-nav ab-featured-products-nav--next"
-      aria-label="Ver siguiente producto destacado"
+      aria-label="Ver siguiente vendedor destacado"
       data-featured-products-next
     >
       <img src="/icons/adelante.svg" alt="" aria-hidden="true" />
     </button>
   </div>
   <div class:list={["ab-cart-empty", { "ab-is-hidden": items.length > 0 || error }] } data-featured-products-empty>
-    <p>Aún no hay productos destacados para mostrar.</p>
+    <p>Aún no hay vendedores destacados para mostrar.</p>
   </div>
 </section>
 

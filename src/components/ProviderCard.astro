@@ -63,42 +63,61 @@ const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComp
 
 <style>
   .ab-provider-card {
-    padding: var(--card-padding);
     position: relative;
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: var(--card-border);
+    border-radius: var(--card-radius);
+    background: var(--card-bg);
     color: var(--color-text);
-    transition: 0.25s ease;
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease;
   }
 
   .ab-provider-card:hover {
-    border-color: rgba(22, 199, 132, 0.45);
+    border-color: var(--glass-green-border);
+    background: var(--color-panel-tint-strong);
+    box-shadow: var(--card-hover-shadow);
+    transform: translateY(-2px);
   }
 
   .ab-provider-card:active {
-    transform: translateY(2px);
+    transform: translateY(1px);
   }
 
   .ab-provider-card__ranking-badge {
     position: absolute;
     top: -12px;
     left: 20px;
-    background: var(--color-accent);
+    background: var(--glass-green-bg);
+    border: 1px solid var(--glass-green-border);
     padding: 6px 12px;
-    border-radius: 12px;
+    border-radius: 999px;
     font-size: 12px;
-    font-weight: 700;
-    color: var(--color-on-accent);
+    font-weight: 800;
+    color: var(--color-text);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   .ab-provider-card__sponsor-badge {
     position: absolute;
     top: -12px;
     right: 20px;
-    background: gold;
-    color: var(--color-on-accent);
+    background: var(--chip-warning-bg);
+    border: 1px solid var(--chip-warning-border);
+    color: var(--chip-warning-text);
     padding: 6px 12px;
-    border-radius: 12px;
+    border-radius: 999px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 850;
   }
 
   .ab-provider-card__name {
@@ -107,7 +126,7 @@ const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComp
   }
 
   .ab-provider-card__average {
-    margin: 8px 0;
+    margin: 0;
     color: var(--color-text-soft);
   }
 
@@ -115,7 +134,7 @@ const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComp
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   .ab-provider-card__avatar {
@@ -137,13 +156,40 @@ const productsHref = `${productsBasePath}/${slug}/productos?from=${encodeURIComp
   }
 
   .ab-provider-card__daily {
-    margin: 4px 0 0;
+    margin: 0;
     color: var(--color-text-soft);
   }
 
   .ab-provider-card__location {
     color: var(--color-text-muted);
     font-size: 14px;
-    margin-bottom: 12px;
+    margin: 0 0 4px;
+  }
+
+  .ab-provider-card :global(.ab-cta-button) {
+    width: 100%;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-color: var(--button-elevated-border);
+    background: var(--action-primary);
+    color: #ffffff;
+    border-radius: 12px;
+    font-weight: 850;
+    text-shadow: var(--button-elevated-text-shadow);
+    box-shadow: var(--button-elevated-shadow);
+  }
+
+  .ab-provider-card :global(.ab-cta-button + .ab-cta-button) {
+    background: var(--action-secondary);
+  }
+
+  .ab-provider-card :global(.ab-cta-button:hover),
+  .ab-provider-card :global(.ab-cta-button:focus-visible) {
+    color: #ffffff;
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+    box-shadow: var(--button-elevated-shadow-hover);
   }
 </style>

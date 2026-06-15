@@ -97,58 +97,6 @@
   gap: 10px;
 }
 
-.ab-profile-action,
-.ab-profile-data .ab-form input[type="file"]::file-selector-button {
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 18px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #ffffff;
-  font-size: 0.92rem;
-  font-weight: 850;
-  line-height: 1;
-  text-decoration: none;
-  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
-    0 7px 12px rgba(32, 74, 91, 0.22);
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    filter 0.18s ease;
-}
-
-.ab-profile-action--edit,
-.ab-profile-action--service {
-  background: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
-}
-
-.ab-profile-action--save,
-.ab-profile-action--sell,
-.ab-profile-data .ab-form input[type="file"]::file-selector-button {
-  background: linear-gradient(180deg, #48baa1 0%, #229478 100%);
-}
-
-.ab-profile-action--buy,
-.ab-profile-action--pro {
-  background: linear-gradient(180deg, #69ba75 0%, #2f8d58 100%);
-}
-
-.ab-profile-action:hover,
-.ab-profile-action:focus-visible,
-.ab-profile-data .ab-form input[type="file"]::file-selector-button:hover {
-  filter: brightness(1.04);
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
-    0 11px 18px rgba(32, 74, 91, 0.26);
-}
-
 .ab-profile-avatar {
   width: 64px;
   height: 64px;
@@ -304,7 +252,7 @@ html.ab-profile-enter main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 3px;
   cursor: pointer;
 }
 
@@ -386,7 +334,7 @@ html.ab-profile-enter main {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 9px;
   padding: 6px 12px;
-  background: linear-gradient(180deg, #5fba63 0%, #2f9a58 100%);
+  background: var(--glass-green-bg);
   color: #ffffff;
   text-align: left;
   font-size: 0.86rem;
@@ -402,18 +350,6 @@ html.ab-profile-enter main {
     transform 0.16s ease,
     box-shadow 0.16s ease,
     filter 0.16s ease;
-}
-
-.ab-location-filter__option:nth-child(2) {
-  background: linear-gradient(180deg, #3fa2d0 0%, #1974ac 100%);
-}
-
-.ab-location-filter__option:nth-child(3) {
-  background: linear-gradient(180deg, #5fba63 0%, #2f9a58 100%);
-}
-
-.ab-location-filter__option:nth-child(4) {
-  background: linear-gradient(180deg, #48bdb2 0%, #20938c 100%);
 }
 
 .ab-location-filter__option:hover,
@@ -443,10 +379,16 @@ html.ab-profile-enter main {
 .ab-provider-products-empty__reset,
 .ab-location-filter__toggle,
 .ab-location-filter__option {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--glass-green-border);
   border-radius: 999px;
   background: var(--glass-green-bg);
   color: var(--color-text);
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
   box-shadow: none;
   text-shadow: none;
   backdrop-filter: blur(12px);
@@ -456,12 +398,6 @@ html.ab-profile-enter main {
     box-shadow 0.2s ease,
     background-color 0.2s ease,
     border-color 0.2s ease;
-}
-
-.ab-location-filter__option:nth-child(2),
-.ab-location-filter__option:nth-child(3),
-.ab-location-filter__option:nth-child(4) {
-  background: var(--glass-green-bg);
 }
 
 .ab-provider-product-card__button:hover,
@@ -515,41 +451,6 @@ html.ab-profile-enter main {
   background: var(--glass-green-bg);
   box-shadow: none;
   transform: none;
-}
-
-.ab-orders-delete-btn {
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: linear-gradient(180deg, #48baa1 0%, #229478 100%);
-  color: #ffffff;
-  border-radius: 12px;
-  padding: 10px 18px;
-  font-size: 0.92rem;
-  font-weight: 850;
-  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
-    0 7px 12px rgba(32, 74, 91, 0.22);
-}
-
-.ab-orders-delete-btn:hover {
-  filter: brightness(1.04);
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
-    0 11px 18px rgba(32, 74, 91, 0.26);
-}
-
-.ab-orders-delete-btn--ghost {
-  background: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
-  color: #ffffff;
-}
-
-.ab-orders-delete-btn--ghost:hover {
-  filter: brightness(1.04);
-  color: #ffffff;
 }
 
 .ab-orders-modal {
@@ -645,7 +546,7 @@ html.ab-profile-enter main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   text-decoration: none;
   cursor: pointer;
   transition: transform 0.14s ease;
