@@ -13,6 +13,14 @@ import MainLayout from "../../layouts/MainLayout.astro";
       </div>
     </div>
 
+    <div class="ab-cart-empty">
+      <p>Conectá tu cuenta de Mercado Pago para recibir cobros de tus ventas.</p>
+      <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-mp-connect>
+        Conectar Mercado Pago
+      </button>
+      <p class="ab-muted-text" data-mp-connect-status aria-live="polite"></p>
+    </div>
+
     <!-- Formulario de producto -->
     <form class="ab-form ab-product-form" id="product-form">
       <ol class="ab-product-steps" id="product-progress-count" aria-label="Estado de la publicación">
@@ -237,5 +245,6 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
 <!-- Script de creación de producto -->
 <script>
+  import "../../scripts/mercadopago-connect.js";
   import "../../scripts/product-create.js";
 </script>
