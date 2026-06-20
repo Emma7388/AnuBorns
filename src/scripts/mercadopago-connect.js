@@ -3,9 +3,25 @@ import { supabase } from "../lib/supabaseClient";
 const initMercadoPagoConnect = () => {
   const button = document.querySelector("[data-mp-connect]");
   const status = document.querySelector("[data-mp-connect-status]");
+  const account = document.querySelector("[data-mp-connect-account]");
   if (!(button instanceof HTMLButtonElement)) return;
   if (button.dataset.abMpConnectBound === "true") return;
   button.dataset.abMpConnectBound = "true";
+
+  const renderAccount = (payload) => {
+    if (!(account instanceof HTMLElement)) return;
+    const label = String(payload?.account_label ?? "").trim();
+    const mpUserId = String(payload?.mp_user_id ?? "").trim();
+    if (!label && !mpUserId) {
+      account.textContent = "";
+      account.classList.add("ab-is-hidden");
+      return;
+    }
+    account.textContent = label
+      ? `Cuenta conectada: ${label}${mpUserId ? ` - Usuario MP ${mpUserId}` : ""}`
+      : `Cuenta conectada: Usuario MP ${mpUserId}`;
+    account.classList.remove("ab-is-hidden");
+  };
 
   const params = new URLSearchParams(window.location.search);
   const oauthStatus = params.get("mp_oauth");
@@ -25,9 +41,11 @@ const initMercadoPagoConnect = () => {
       });
       const payload = await response.json().catch(() => ({}));
       if (payload?.connected) {
+        renderAccount(payload);
         button.textContent = "Mercado Pago conectado";
         button.disabled = true;
-        if (status && !status.textContent) status.textContent = "Tu cuenta ya está conectada.";
+      } else {
+        renderAccount(null);
       }
     } catch {
       // El estado de conexión es informativo; no bloquea el formulario.
@@ -41,6 +59,7 @@ const initMercadoPagoConnect = () => {
     const previousText = button.textContent;
     button.textContent = "Conectando...";
     if (status) status.textContent = "";
+    renderAccount(null);
 
     try {
       const { data } = await supabase.auth.getSession();

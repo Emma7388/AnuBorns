@@ -1,6 +1,7 @@
 /* Interfaz de confirmación de compra y limpieza de carrito. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
+import { clearShippingPreference } from "../lib/shippingPreference";
 
 /* Limpia el carrito local/persistente tras la confirmación. */
 const clearCart = async () => {
@@ -9,6 +10,7 @@ const clearCart = async () => {
     for (const item of items) {
       await removeFromCart(item.product_id);
     }
+    clearShippingPreference();
   } catch {
     // Sin acción: limpiar carrito no debe bloquear la confirmación visual.
   }

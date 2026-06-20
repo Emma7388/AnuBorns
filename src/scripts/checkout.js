@@ -25,7 +25,6 @@ const getCheckoutDom = () => ({
   totalLabel: document.getElementById("checkout-total"),
   form: document.getElementById("checkout-form"),
   feedback: document.getElementById("checkout-feedback"),
-  successNotice: document.getElementById("checkout-success"),
   checkoutConfirmModal: document.getElementById("checkout-confirm-modal"),
   checkoutModalClose: document.querySelector("[data-checkout-modal-close]"),
   checkoutModalCancel: document.querySelector("[data-checkout-modal-cancel]"),
@@ -170,7 +169,6 @@ const initCheckoutPage = () => {
   const {
     form,
     feedback,
-    successNotice,
     checkoutConfirmModal,
     checkoutModalClose,
     checkoutModalCancel,
@@ -250,7 +248,7 @@ const initCheckoutPage = () => {
     const buyerNote = String(document.getElementById("notes")?.value ?? "").trim().slice(0, 500);
 
     try {
-      const response = await fetch("/api/checkout-manual", {
+      const response = await fetch("/api/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -276,6 +274,14 @@ const initCheckoutPage = () => {
         }
         throw new Error(String(payload?.error ?? "No se pudo registrar la compra."));
       }
+      const initPoint = String(payload?.init_point ?? "").trim();
+      if (!initPoint) {
+        throw new Error("No se pudo iniciar el pago.");
+      }
+
+      feedback.textContent = "Redirigiendo a Mercado Pago...";
+      window.location.href = initPoint;
+      return;
     } catch (error) {
       feedback.textContent =
         error instanceof Error
@@ -283,20 +289,6 @@ const initCheckoutPage = () => {
           : "No se pudo registrar la compra. Intentá nuevamente.";
       return;
     }
-
-    /* Vacía el carrito luego de confirmar. */
-    for (const item of items) {
-      await removeFromCart(item.product_id);
-    }
-    clearShippingPreference();
-
-    /* Interfaz de éxito y redirección. */
-    if (form) form.classList.add("ab-is-hidden");
-    if (successNotice) successNotice.classList.remove("ab-is-hidden");
-    feedback.textContent = "Compra confirmada. Avisamos al vendedor.";
-    window.setTimeout(() => {
-      window.location.href = "/mis-compras";
-    }, 900);
   };
 
   /* Submit del checkout: validación, guardado local y redirección. */

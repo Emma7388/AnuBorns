@@ -42,6 +42,58 @@ const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
   return true;
 };
 
+/* Obtiene el token OAuth del vendedor para consultar pagos marketplace. */
+const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
+  const safeOrderId = String(orderId ?? "").trim();
+  if (!safeOrderId) return "";
+
+  const { data: orderItems, error: itemsError } = await supabaseAdmin
+    .from("order_items")
+    .select("product_id")
+    .eq("order_id", safeOrderId);
+
+  if (itemsError) {
+    console.error("[mp-webhook] Order items lookup failed", { orderId: safeOrderId, error: itemsError.message });
+    return "";
+  }
+
+  const productIds = [
+    ...new Set((orderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean)),
+  ];
+  if (productIds.length === 0) return "";
+
+  const { data: products, error: productsError } = await supabaseAdmin
+    .from("products")
+    .select("user_id")
+    .in("id", productIds);
+
+  if (productsError) {
+    console.error("[mp-webhook] Products lookup failed", { orderId: safeOrderId, error: productsError.message });
+    return "";
+  }
+
+  const sellerIds = [
+    ...new Set((products ?? []).map((product) => String(product?.user_id ?? "").trim()).filter(Boolean)),
+  ];
+  if (sellerIds.length !== 1) return "";
+
+  const { data: account, error: accountError } = await supabaseAdmin
+    .from("seller_mercadopago_accounts")
+    .select("access_token")
+    .eq("user_id", sellerIds[0])
+    .maybeSingle();
+
+  if (accountError) {
+    console.error("[mp-webhook] Seller MP account lookup failed", {
+      orderId: safeOrderId,
+      error: accountError.message,
+    });
+    return "";
+  }
+
+  return String(account?.access_token ?? "").trim();
+};
+
 /* Busca si otro pago aprobado ya vendió alguno de los productos de la orden. */
 const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
   const { data: orderItems, error: itemsError } = await supabaseAdmin
@@ -131,6 +183,7 @@ export const POST = async ({ request }) => {
     const queryTopic = url.searchParams.get("topic") || url.searchParams.get("type");
     const queryId = url.searchParams.get("id");
     const queryDataId = url.searchParams.get("data.id") || url.searchParams.get("data_id");
+    const queryOrderId = url.searchParams.get("order_id");
 
     let payload = {};
     try {
@@ -168,9 +221,11 @@ export const POST = async ({ request }) => {
     }
 
     /* Consulta la API de MP para obtener el pago completo. */
+    const sellerAccessToken = await getSellerAccessTokenForOrder(supabaseAdmin, queryOrderId);
+    const paymentAccessToken = sellerAccessToken || accessToken;
     const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${paymentAccessToken}`,
       },
     });
 
@@ -193,7 +248,7 @@ export const POST = async ({ request }) => {
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .select("id, status, total_amount, currency, payment_id")
+      .select("id, status, total_amount, currency, payment_id, payment_detail")
       .eq("id", externalReference)
       .maybeSingle();
 
@@ -235,7 +290,13 @@ export const POST = async ({ request }) => {
 
     /* Evita doble procesamiento si ya está finalizado. */
     if (terminalStatuses.has(order.status)) {
-      if (order.status === "approved" && mappedStatus === "refunded") {
+      const isRecoveringAbandonedPayment =
+        order.status === "cancelled" &&
+        order.payment_detail === "checkout_abandoned" &&
+        mappedStatus === "approved";
+      if (isRecoveringAbandonedPayment) {
+        // Permite recuperar una preferencia abandonada si MP aprueba el pago tarde.
+      } else if (order.status === "approved" && mappedStatus === "refunded") {
         // Permite actualizar contracargos y reembolsos aunque la orden esté finalizada.
       } else {
         if (order.status === "approved" && mappedStatus === "approved") {

@@ -379,6 +379,21 @@ const confirmDeliveryOnServer = async ({ orderId, productIds }) => {
   return { ok: true };
 };
 
+const cleanupPendingCheckoutOrders = async (token) => {
+  if (!token) return 0;
+  try {
+    const response = await fetch("/api/checkout-pending-cleanup", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return 0;
+    return Number(payload?.cancelled ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+};
+
 const schedulePurchaseRealtimeRefresh = () => {
   window.clearTimeout(purchaseRealtimeRefreshTimer);
   purchaseRealtimeRefreshTimer = window.setTimeout(() => {
@@ -830,6 +845,7 @@ const loadOrders = async () => {
 
   /* Primero intenta usar órdenes locales guardadas. */
   const userId = sessionData.session.user.id;
+  const cleanedPendingCount = await cleanupPendingCheckoutOrders(sessionData.session.access_token ?? "");
   if (currentUserId && currentUserId !== userId) {
     await teardownPurchaseRealtime();
   }
@@ -886,7 +902,12 @@ const loadOrders = async () => {
     return;
   }
 
-  if (status) status.textContent = syncMessage;
+  if (status) {
+    const cleanupMessage = cleanedPendingCount > 0
+      ? `Limpiamos ${cleanedPendingCount} compra(s) pendiente(s) abandonada(s).`
+      : "";
+    status.textContent = [syncMessage, cleanupMessage].filter(Boolean).join(" ");
+  }
   const safeData = await hydrateOrderItemImages(data ?? []);
   const providerMetaMap = await buildProviderMetaMap(safeData);
   const fulfillmentMap = await fetchPurchaseFulfillmentMap(safeData);

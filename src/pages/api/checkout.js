@@ -1,16 +1,63 @@
 /* API: crea orden y preferencia de pago en Mercado Pago. */
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { cancelAbandonedCheckoutOrders } from "../../lib/checkoutPendingOrders.js";
 import { buildCheckoutContext, buildOrderItems } from "../../lib/checkoutServer.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
-/* Configuración de Mercado Pago desde variables de entorno. */
-const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+/* Comisión marketplace configurable desde variables de entorno. */
+const marketplaceFeeAmount = Number(process.env.MERCADOPAGO_MARKETPLACE_FEE_AMOUNT ?? 0);
+const marketplaceFeePercent = Number(process.env.MERCADOPAGO_MARKETPLACE_FEE_PERCENT ?? 0);
 
-if (!accessToken) {
-  throw new Error("Missing MERCADOPAGO_ACCESS_TOKEN.");
-}
+const getMarketplaceFee = (totalAmount) => {
+  if (Number.isFinite(marketplaceFeeAmount) && marketplaceFeeAmount > 0) {
+    return Math.min(marketplaceFeeAmount, totalAmount);
+  }
+  if (Number.isFinite(marketplaceFeePercent) && marketplaceFeePercent > 0) {
+    return Math.min(totalAmount, Math.round(totalAmount * marketplaceFeePercent) / 100);
+  }
+  return 0;
+};
 
-const mpClient = new MercadoPagoConfig({ accessToken });
+const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
+  const sellerIds = [
+    ...new Set(
+      (serverItems ?? [])
+        .map((item) => String(item?.provider_user_id ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  if (sellerIds.length === 0) {
+    return { ok: false, status: 400, error: "No se pudo identificar el vendedor." };
+  }
+  if (sellerIds.length > 1) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Por ahora solo podés finalizar productos de un vendedor por compra.",
+    };
+  }
+
+  const sellerId = sellerIds[0];
+  const { data, error } = await supabaseAdmin
+    .from("seller_mercadopago_accounts")
+    .select("user_id, access_token, mp_user_id")
+    .eq("user_id", sellerId)
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, status: 500, error: "No se pudo validar Mercado Pago del vendedor." };
+  }
+  if (!data?.access_token) {
+    return {
+      ok: false,
+      status: 409,
+      error: "El vendedor todavía no tiene Mercado Pago conectado.",
+    };
+  }
+
+  return { ok: true, sellerId, account: data };
+};
 
 export const POST = async ({ request }) => {
   try {
@@ -29,6 +76,10 @@ export const POST = async ({ request }) => {
     if (userError || !userData.user) {
       return new Response(JSON.stringify({ error: "Sesión inválida." }), { status: 401 });
     }
+    const cleanupResult = await cancelAbandonedCheckoutOrders(supabaseAdmin, { userId: userData.user.id });
+    if (!cleanupResult.ok) {
+      console.warn("[checkout] Pending order cleanup failed", { error: cleanupResult.error });
+    }
 
     /* Parseo y validación del payload. */
     const payload = await request.json();
@@ -40,6 +91,10 @@ export const POST = async ({ request }) => {
     });
     if (!checkout.ok) {
       return new Response(JSON.stringify({ error: checkout.error }), { status: checkout.status });
+    }
+    const sellerAccount = await getSingleSellerAccount(supabaseAdmin, checkout.serverItems);
+    if (!sellerAccount.ok) {
+      return new Response(JSON.stringify({ error: sellerAccount.error }), { status: sellerAccount.status });
     }
 
     const { data: order, error: orderError } = await supabaseAdmin
@@ -78,10 +133,12 @@ export const POST = async ({ request }) => {
     if (!siteUrl) {
       return new Response(JSON.stringify({ error: "Falta configurar SITE_URL." }), { status: 500 });
     }
-    const notificationUrl = siteUrl ? `${siteUrl}/api/mercadopago-webhook` : undefined;
+    const notificationUrl = siteUrl ? `${siteUrl}/api/mercadopago-webhook?order_id=${order.id}` : undefined;
 
-    /* Crea preferencia de pago en Mercado Pago. */
-    const preference = new Preference(mpClient);
+    /* Crea preferencia de pago en Mercado Pago usando token OAuth del vendedor. */
+    const sellerMpClient = new MercadoPagoConfig({ accessToken: sellerAccount.account.access_token });
+    const preference = new Preference(sellerMpClient);
+    const marketplaceFee = getMarketplaceFee(checkout.totalAmount);
     let mpResponse;
     try {
       mpResponse = await preference.create({
@@ -114,6 +171,7 @@ export const POST = async ({ request }) => {
           },
           auto_return: "approved",
           notification_url: notificationUrl,
+          ...(marketplaceFee > 0 ? { marketplace_fee: marketplaceFee } : {}),
           payer: {
             email: userData.user.email ?? undefined,
           },
