@@ -42,8 +42,8 @@ const initMercadoPagoConnect = () => {
       const payload = await response.json().catch(() => ({}));
       if (payload?.connected) {
         renderAccount(payload);
-        button.textContent = "Mercado Pago conectado";
-        button.disabled = true;
+        button.textContent = "Reconectar Mercado Pago";
+        button.disabled = false;
       } else {
         renderAccount(null);
       }

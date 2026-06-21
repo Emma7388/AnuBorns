@@ -90,7 +90,7 @@ export const buildCheckoutContext = async (
   /* Se vuelven a leer productos para ignorar precios/nombres enviados por el cliente. */
   const { data: products, error: productsError } = await supabaseAdmin
     .from("products")
-    .select("id, title, price, currency, seller_name, contact, user_id, image_url, delivery_methods")
+    .select("id, title, description, price, currency, seller_name, contact, user_id, image_url, delivery_methods")
     .in("id", productIds);
 
   if (productsError) {
@@ -110,6 +110,7 @@ export const buildCheckoutContext = async (
     return {
       product_id: item.product_id,
       name: String(product?.title ?? "Producto"),
+      description: String(product?.description ?? "").trim(),
       qty: item.qty,
       unit_price: safePrice,
       provider: String(product?.seller_name ?? "").trim(),

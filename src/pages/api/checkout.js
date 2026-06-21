@@ -10,12 +10,24 @@ const marketplaceFeePercent = Number(process.env.MERCADOPAGO_MARKETPLACE_FEE_PER
 
 const getMarketplaceFee = (totalAmount) => {
   if (Number.isFinite(marketplaceFeeAmount) && marketplaceFeeAmount > 0) {
-    return Math.min(marketplaceFeeAmount, totalAmount);
+    return Math.min(Math.round(marketplaceFeeAmount), totalAmount);
   }
   if (Number.isFinite(marketplaceFeePercent) && marketplaceFeePercent > 0) {
-    return Math.min(totalAmount, Math.round(totalAmount * marketplaceFeePercent) / 100);
+    return Math.min(totalAmount, Math.round(totalAmount * (marketplaceFeePercent / 100)));
   }
   return 0;
+};
+
+const buildItemDescription = (item) => {
+  const description = String(item?.description ?? "").trim();
+  const provider = String(item?.provider ?? "").trim();
+  const fallback = [
+    description || `Producto publicado en AnuBorns: ${String(item?.name ?? "Producto").trim() || "Producto"}`,
+    provider ? `Vendedor: ${provider}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  return fallback.slice(0, 600);
 };
 
 const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
@@ -147,6 +159,7 @@ export const POST = async ({ request }) => {
             ...checkout.serverItems.map((item) => ({
               id: item.product_id,
               title: item.name,
+              description: buildItemDescription(item),
               quantity: item.qty,
               unit_price: item.unit_price,
               currency_id: checkout.orderCurrency,
@@ -156,6 +169,7 @@ export const POST = async ({ request }) => {
                   {
                     id: "shipping",
                     title: "Envío a domicilio",
+                    description: "Servicio de envío a domicilio coordinado desde AnuBorns",
                     quantity: 1,
                     unit_price: checkout.shippingCost,
                     currency_id: checkout.orderCurrency,
@@ -171,6 +185,7 @@ export const POST = async ({ request }) => {
           },
           auto_return: "approved",
           notification_url: notificationUrl,
+          statement_descriptor: "ANUBORNS",
           ...(marketplaceFee > 0 ? { marketplace_fee: marketplaceFee } : {}),
           payer: {
             email: userData.user.email ?? undefined,
@@ -188,6 +203,7 @@ export const POST = async ({ request }) => {
       .from("orders")
       .update({
         preference_id: mpResponse.id ?? null,
+        payment_detail: `mp_preference|marketplace_fee:${marketplaceFee}`,
       })
       .eq("id", order.id);
 

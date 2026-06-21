@@ -71,8 +71,12 @@ const renderStatus = (value) => {
 
 const getEffectiveStatus = (orderStatus, urlStatus) => {
   const safeOrderStatus = String(orderStatus ?? "").trim().toLowerCase();
+  const safeUrlStatus = String(urlStatus ?? "").trim().toLowerCase();
+  if (safeUrlStatus === "approved" && (!safeOrderStatus || safeOrderStatus === "pending")) {
+    return "approved";
+  }
   if (safeOrderStatus) return safeOrderStatus;
-  return String(urlStatus ?? "").trim().toLowerCase();
+  return safeUrlStatus;
 };
 
 /* Carga y muestra información resumida de la orden. */
