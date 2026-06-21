@@ -54,6 +54,17 @@
   justify-items: center;
 }
 
+.ab-confirmation-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.ab-confirmation-actions .ab-cta-button {
+  min-width: 180px;
+}
+
 .ab-checkmark {
   width: 88px;
   height: 88px;

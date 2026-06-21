@@ -20,6 +20,7 @@ let purchaseRealtimeRefreshTimer = null;
 let purchaseStatusToast = null;
 let purchaseStatusToastMessage = null;
 let purchaseStatusToastTimer = 0;
+let renderedOrdersById = new Map();
 
 const PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS = 900;
 
@@ -37,6 +38,14 @@ const bindOrderEvents = () => {
   list.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+
+    const invoiceButton = target.closest("[data-order-invoice]");
+    if (invoiceButton instanceof HTMLButtonElement) {
+      const orderId = String(invoiceButton.dataset.orderInvoice ?? "").trim();
+      if (!orderId) return;
+      openOrderInvoice(orderId);
+      return;
+    }
 
     const pickupButton = target.closest("[data-confirm-pickup]");
     if (pickupButton instanceof HTMLButtonElement) {
@@ -138,6 +147,19 @@ const formatOrderPaymentStatus = (value) => {
   return labels[statusValue] ?? "Compra registrada";
 };
 
+const formatInvoiceDateTime = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const isOrderPaymentApproved = (order) => {
   const statusValue = String(order?.status ?? "").trim().toLowerCase();
   return !statusValue || statusValue === "approved";
@@ -210,6 +232,226 @@ const getFulfillmentMapKey = (orderId, productId) => `${String(orderId ?? "").tr
 
 const getItemFulfillmentStatus = (fulfillmentMap, orderId, productId, fallbackStatus) =>
   String(fulfillmentMap?.[getFulfillmentMapKey(orderId, productId)]?.fulfillmentStatus ?? fallbackStatus ?? "").trim();
+
+const buildInvoiceItemsRows = (order) => {
+  const items = Array.isArray(order?.order_items) ? order.order_items : [];
+  if (items.length === 0) {
+    return `<tr><td colspan="5" class="muted">Sin productos registrados.</td></tr>`;
+  }
+
+  return items
+    .map((item) => {
+      const qty = Number(item?.qty ?? 1) || 1;
+      const unitPrice = Number(item?.unit_price ?? 0) || 0;
+      const lineTotal = qty * unitPrice;
+      return `
+        <tr>
+          <td>${escapeHtml(item?.name ?? "Producto")}</td>
+          <td>${escapeHtml(item?.provider ?? "Proveedor")}</td>
+          <td class="number">${escapeHtml(qty)}</td>
+          <td class="number">$${formatPrice(unitPrice)}</td>
+          <td class="number">$${formatPrice(lineTotal)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+};
+
+const buildOrderInvoiceHtml = (order) => {
+  const orderId = String(order?.id ?? "").trim();
+  const currency = String(order?.currency ?? "ARS").trim() || "ARS";
+  const paymentStatus = formatOrderPaymentStatus(order?.status);
+  const shippingRequested = Boolean(order?.shipping_requested);
+  const shippingCost = Number(order?.shipping_cost ?? 0) || 0;
+  const shippingAddress = [
+    String(order?.shipping_address ?? "").trim(),
+    String(order?.shipping_city ?? "").trim(),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const buyerNote = extractBuyerNote(order);
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Factura ${escapeHtml(orderId.slice(0, 8) || "AnuBorns")}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f5f1ea;
+      color: #241d1a;
+      font-family: Arial, sans-serif;
+      line-height: 1.45;
+    }
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 32px auto;
+      background: #fffaf3;
+      border: 1px solid #e6d8c4;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 18px 60px rgba(43, 34, 26, 0.12);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 1px solid #e6d8c4;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 16px; margin: 28px 0 10px; }
+    .brand { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .meta { text-align: right; }
+    .muted { color: #74675e; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 24px;
+      margin-bottom: 12px;
+    }
+    .field strong { display: block; font-size: 12px; text-transform: uppercase; color: #74675e; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border-bottom: 1px solid #eadfce;
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #74675e;
+    }
+    .number { text-align: right; white-space: nowrap; }
+    .totals {
+      width: min(360px, 100%);
+      margin-left: auto;
+      margin-top: 18px;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eadfce;
+    }
+    .total-row:last-child {
+      border-bottom: 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    button {
+      border: 0;
+      border-radius: 6px;
+      background: #7c3f2c;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 12px 18px;
+    }
+    @media (max-width: 680px) {
+      main { width: 100%; min-height: 100vh; margin: 0; border: 0; border-radius: 0; padding: 22px; }
+      header, .grid { grid-template-columns: 1fr; display: grid; }
+      .meta { text-align: left; }
+      table { font-size: 13px; }
+      th, td { padding: 8px 4px; }
+    }
+    @media print {
+      body { background: #fff; }
+      main { width: 100%; margin: 0; border: 0; box-shadow: none; }
+      .actions { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="brand">AnuBorns</p>
+        <h1>Factura de compra</h1>
+      </div>
+      <div class="meta">
+        <p><strong>Nro.</strong> ${escapeHtml(orderId || "Sin numero")}</p>
+        <p class="muted">${escapeHtml(formatInvoiceDateTime(order?.created_at))}</p>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="Datos de compra">
+      <p class="field"><strong>Estado de pago</strong>${escapeHtml(paymentStatus)}</p>
+      <p class="field"><strong>Moneda</strong>${escapeHtml(currency)}</p>
+      <p class="field"><strong>Entrega</strong>${shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
+      <p class="field"><strong>Direccion</strong>${escapeHtml(shippingAddress || "No informada")}</p>
+      ${order?.payment_id ? `<p class="field"><strong>Pago</strong>${escapeHtml(order.payment_id)}</p>` : ""}
+      ${order?.preference_id ? `<p class="field"><strong>Preferencia</strong>${escapeHtml(order.preference_id)}</p>` : ""}
+    </section>
+
+    <h2>Detalle</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Vendedor</th>
+          <th class="number">Cant.</th>
+          <th class="number">Unitario</th>
+          <th class="number">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${buildInvoiceItemsRows(order)}
+      </tbody>
+    </table>
+
+    <section class="totals" aria-label="Totales">
+      <div class="total-row"><span>Envio</span><strong>$${formatPrice(shippingCost)}</strong></div>
+      <div class="total-row"><span>Total</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
+    </section>
+
+    ${buyerNote ? `<h2>Nota</h2><p>${escapeHtml(buyerNote)}</p>` : ""}
+
+    <div class="actions">
+      <button type="button" onclick="window.print()">Imprimir</button>
+    </div>
+  </main>
+</body>
+</html>`;
+};
+
+const openOrderInvoice = (orderId) => {
+  const order = renderedOrdersById.get(orderId);
+  if (!order) {
+    if (status) status.textContent = "No pudimos encontrar los datos de esa factura. Recargá la página e intentá de nuevo.";
+    return;
+  }
+
+  const invoiceWindow = window.open("", "_blank");
+  if (!invoiceWindow) {
+    if (status) status.textContent = "El navegador bloqueó la factura. Permití ventanas emergentes para AnuBorns.";
+    return;
+  }
+
+  invoiceWindow.document.open();
+  invoiceWindow.document.write(buildOrderInvoiceHtml(order));
+  invoiceWindow.document.close();
+  invoiceWindow.opener = null;
+  invoiceWindow.focus();
+};
 
 const ensurePurchaseStatusToast = () => {
   if (purchaseStatusToast) return;
@@ -666,6 +908,11 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
   if (!list) return;
   list.innerHTML = "";
   list.classList.add("ab-provider-products-grid");
+  renderedOrdersById = new Map(
+    (Array.isArray(history) ? history : [])
+      .map((order) => [String(order?.id ?? "").trim(), order])
+      .filter(([orderId]) => orderId),
+  );
 
   if (!Array.isArray(history) || history.length === 0) {
     return;
@@ -799,7 +1046,11 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
                   <span>Sin WhatsApp</span>
                 </button>`
           }
-          <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost">
+          <button
+            type="button"
+            class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
+            data-order-invoice="${escapeHtml(orderId)}"
+          >
             Ver factura
           </button>
           ${confirmPickupButton}
@@ -876,7 +1127,7 @@ const loadOrders = async () => {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, created_at, total_amount, currency, status, payment_detail, shipping_requested, shipping_cost, shipping_status, shipping_full_name, shipping_address, shipping_city, shipping_phone, order_items (product_id, name, qty, unit_price, provider, image)",
+      "id, created_at, total_amount, currency, status, payment_id, preference_id, payment_detail, shipping_requested, shipping_cost, shipping_status, shipping_full_name, shipping_address, shipping_city, shipping_phone, order_items (product_id, name, qty, unit_price, provider, image)",
     )
     .eq("user_id", currentUserId)
     .order("created_at", { ascending: false });
