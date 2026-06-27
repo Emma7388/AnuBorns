@@ -19,6 +19,13 @@ import MainLayout from "../../layouts/MainLayout.astro";
       <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-mp-connect>
         Conectar Mercado Pago
       </button>
+      <button
+        type="button"
+        class="ab-provider-product-card__button ab-provider-product-card__button--ghost ab-is-hidden"
+        data-mp-disconnect
+      >
+        Desconectar Mercado Pago
+      </button>
       <p class="ab-muted-text" data-mp-connect-status aria-live="polite"></p>
     </div>
 

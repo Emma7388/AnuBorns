@@ -14,6 +14,9 @@ const marketplaceFeeAmount = Number(
 const marketplaceFeePercent = Number(
   process.env.MERCADOPAGO_MARKETPLACE_FEE_PERCENT ?? 0,
 );
+const marketplaceId = String(
+  process.env.MERCADOPAGO_MARKETPLACE_ID ?? "MP",
+).trim();
 
 const getMarketplaceFee = (totalAmount) => {
   if (Number.isFinite(marketplaceFeeAmount) && marketplaceFeeAmount > 0) {
@@ -87,9 +90,64 @@ const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
       error: "El vendedor todavía no tiene Mercado Pago conectado.",
     };
   }
+  if (!data?.mp_user_id) {
+    return {
+      ok: false,
+      status: 409,
+      error: "El vendedor todavía no tiene un usuario de Mercado Pago asociado.",
+    };
+  }
 
   return { ok: true, sellerId, account: data };
 };
+
+const buildPreferenceBody = ({
+  checkout,
+  orderId,
+  siteUrl,
+  notificationUrl,
+  userEmail,
+  marketplaceFee = 0,
+  marketplace = "",
+}) => ({
+  items: [
+    ...checkout.serverItems.map((item) => ({
+      id: item.product_id,
+      title: item.name,
+      description: buildItemDescription(item),
+      quantity: item.qty,
+      unit_price: item.unit_price,
+      currency_id: checkout.orderCurrency,
+    })),
+    ...(checkout.shippingCost
+      ? [
+          {
+            id: "shipping",
+            title: "Envío a domicilio",
+            description:
+              "Servicio de envío a domicilio coordinado desde AnuBorns",
+            quantity: 1,
+            unit_price: checkout.shippingCost,
+            currency_id: checkout.orderCurrency,
+          },
+        ]
+      : []),
+  ],
+  external_reference: orderId,
+  back_urls: {
+    success: `${siteUrl}/compra-confirmada?status=approved&orderId=${orderId}`,
+    failure: `${siteUrl}/compra-confirmada?status=rejected&orderId=${orderId}`,
+    pending: `${siteUrl}/compra-confirmada?status=pending&orderId=${orderId}`,
+  },
+  auto_return: "approved",
+  notification_url: notificationUrl,
+  statement_descriptor: "ANUBORNS",
+  ...(marketplaceFee > 0 && marketplace ? { marketplace } : {}),
+  ...(marketplaceFee > 0 ? { marketplace_fee: marketplaceFee } : {}),
+  payer: {
+    email: userEmail ?? undefined,
+  },
+});
 
 export const POST = async ({ request }) => {
   try {
@@ -201,53 +259,26 @@ export const POST = async ({ request }) => {
       ? `${siteUrl}/api/mercadopago-webhook?order_id=${order.id}`
       : undefined;
 
-    /* Crea preferencia de pago en Mercado Pago usando token OAuth del vendedor. */
-    const sellerMpClient = new MercadoPagoConfig({
-      accessToken: sellerAccount.account.access_token,
-    });
-    const preference = new Preference(sellerMpClient);
+    /* Crea preferencia de pago en Mercado Pago. */
     const marketplaceFee = getMarketplaceFee(checkout.totalAmount);
+    const preference = new Preference(
+      new MercadoPagoConfig({
+        accessToken: sellerAccount.account.access_token,
+      }),
+    );
     let mpResponse;
+    const preferenceBody = buildPreferenceBody({
+      checkout,
+      orderId: order.id,
+      siteUrl,
+      notificationUrl,
+      userEmail: userData.user.email,
+      marketplaceFee,
+      marketplace: marketplaceId,
+    });
     try {
       mpResponse = await preference.create({
-        body: {
-          items: [
-            ...checkout.serverItems.map((item) => ({
-              id: item.product_id,
-              title: item.name,
-              description: buildItemDescription(item),
-              quantity: item.qty,
-              unit_price: item.unit_price,
-              currency_id: checkout.orderCurrency,
-            })),
-            ...(checkout.shippingCost
-              ? [
-                  {
-                    id: "shipping",
-                    title: "Envío a domicilio",
-                    description:
-                      "Servicio de envío a domicilio coordinado desde AnuBorns",
-                    quantity: 1,
-                    unit_price: checkout.shippingCost,
-                    currency_id: checkout.orderCurrency,
-                  },
-                ]
-              : []),
-          ],
-          external_reference: order.id,
-          back_urls: {
-            success: `${siteUrl}/compra-confirmada?status=approved&orderId=${order.id}`,
-            failure: `${siteUrl}/compra-confirmada?status=rejected&orderId=${order.id}`,
-            pending: `${siteUrl}/compra-confirmada?status=pending&orderId=${order.id}`,
-          },
-          auto_return: "approved",
-          notification_url: notificationUrl,
-          statement_descriptor: "ANUBORNS",
-          ...(marketplaceFee > 0 ? { marketplace_fee: marketplaceFee } : {}),
-          payer: {
-            email: userData.user.email ?? undefined,
-          },
-        },
+        body: preferenceBody,
       });
     } catch (error) {
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
@@ -263,7 +294,7 @@ export const POST = async ({ request }) => {
       .from("orders")
       .update({
         preference_id: mpResponse.id ?? null,
-        payment_detail: `mp_preference|marketplace_fee:${marketplaceFee}`,
+        payment_detail: `mp_preference|marketplace_fee:${marketplaceFee}|marketplace:${marketplaceId || "none"}`,
       })
       .eq("id", order.id);
 

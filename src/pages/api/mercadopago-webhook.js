@@ -42,6 +42,31 @@ const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
   return true;
 };
 
+const fetchMercadoPagoPayment = async (paymentId, tokens = []) => {
+  const safePaymentId = String(paymentId ?? "").trim();
+  const uniqueTokens = [
+    ...new Set(tokens.map((token) => String(token ?? "").trim()).filter(Boolean)),
+  ];
+
+  for (const token of uniqueTokens) {
+    const response = await fetch(`https://api.mercadopago.com/v1/payments/${safePaymentId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.ok) {
+      return { ok: true, payment: await response.json(), status: response.status };
+    }
+    const errorText = await response.text().catch(() => "");
+    console.warn("[mp-webhook] Payment fetch attempt failed", {
+      status: response.status,
+      error: errorText.slice(0, 300),
+    });
+  }
+
+  return { ok: false };
+};
+
 /* Obtiene el token OAuth del vendedor para consultar pagos marketplace. */
 const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
   const safeOrderId = String(orderId ?? "").trim();
@@ -222,19 +247,13 @@ export const POST = async ({ request }) => {
 
     /* Consulta la API de MP para obtener el pago completo. */
     const sellerAccessToken = await getSellerAccessTokenForOrder(supabaseAdmin, queryOrderId);
-    const paymentAccessToken = sellerAccessToken || accessToken;
-    const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: {
-        Authorization: `Bearer ${paymentAccessToken}`,
-      },
-    });
-
-    if (!paymentResponse.ok) {
-      console.error("[mp-webhook] Payment fetch error", await paymentResponse.text());
+    const paymentResult = await fetchMercadoPagoPayment(paymentId, [sellerAccessToken, accessToken]);
+    if (!paymentResult.ok) {
+      console.error("[mp-webhook] Payment fetch error");
       return new Response("Payment fetch error", { status: 502 });
     }
 
-    const paymentData = await paymentResponse.json();
+    const paymentData = paymentResult.payment;
     const externalReference = paymentData?.external_reference;
     const paymentStatus = paymentData?.status;
     const paidAmount = Number(paymentData?.transaction_amount ?? 0);

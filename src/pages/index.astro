@@ -76,7 +76,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     border-radius: 50%;
     grid-template-columns: 1fr;
     flex: 0 0 min(34dvh, 340px);
-    background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0) 50%, transparent 100%);
+    background: var(--hero-logo-bg);
   }
 
   .hero-logo {
@@ -89,14 +89,14 @@ import MainLayout from "../layouts/MainLayout.astro";
 
   .hero h1 {
     margin: 0;
-    color: #4f958a;
+    color: var(--hero-title-color);
     font-size: clamp(2.45rem, 4.85vw, 4.15rem);
     font-weight: 800;
     line-height: 1.05;
     letter-spacing: 0;
     text-align: left;
     flex: 0.8 1 0;
-    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.78);
+    text-shadow: var(--hero-title-shadow);
   }
 
   .hero-buttons {

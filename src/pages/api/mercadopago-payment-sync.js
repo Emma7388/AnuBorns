@@ -88,33 +88,42 @@ const getPaymentIdFromPayload = (payload = {}) => {
   return paymentId && paymentId !== "null" ? paymentId : "";
 };
 
-const fetchPaymentById = async (paymentAccessToken, paymentId) => {
-  const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: {
-      Authorization: `Bearer ${paymentAccessToken}`,
-    },
-  });
-  if (!response.ok) return { ok: false };
-  return { ok: true, payment: await response.json() };
+const getUniqueTokens = (tokens = []) => [
+  ...new Set(tokens.map((token) => String(token ?? "").trim()).filter(Boolean)),
+];
+
+const fetchPaymentById = async (paymentAccessTokens, paymentId) => {
+  for (const token of getUniqueTokens(paymentAccessTokens)) {
+    const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.ok) return { ok: true, payment: await response.json() };
+  }
+  return { ok: false };
 };
 
-const findPaymentByExternalReference = async (paymentAccessToken, orderId) => {
+const findPaymentByExternalReference = async (paymentAccessTokens, orderId) => {
   const url = new URL("https://api.mercadopago.com/v1/payments/search");
   url.searchParams.set("external_reference", orderId);
   url.searchParams.set("sort", "date_created");
   url.searchParams.set("criteria", "desc");
   url.searchParams.set("limit", "1");
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${paymentAccessToken}`,
-    },
-  });
-  if (!response.ok) return { ok: false };
+  for (const token of getUniqueTokens(paymentAccessTokens)) {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) continue;
 
-  const payload = await response.json();
-  const payment = Array.isArray(payload?.results) ? payload.results[0] : null;
-  return payment ? { ok: true, payment } : { ok: false };
+    const payload = await response.json();
+    const payment = Array.isArray(payload?.results) ? payload.results[0] : null;
+    if (payment) return { ok: true, payment };
+  }
+  return { ok: false };
 };
 
 export const POST = async ({ request }) => {
@@ -164,14 +173,14 @@ export const POST = async ({ request }) => {
     }
 
     const sellerAccessToken = await getSellerAccessTokenForOrder(supabaseAdmin, order.id);
-    const paymentAccessToken = sellerAccessToken || accessToken;
-    if (!paymentAccessToken) {
+    const paymentAccessTokens = [sellerAccessToken, accessToken];
+    if (getUniqueTokens(paymentAccessTokens).length === 0) {
       return new Response(JSON.stringify({ error: "Falta configurar Mercado Pago." }), { status: 503 });
     }
 
     const paymentResult = paymentId
-      ? await fetchPaymentById(paymentAccessToken, paymentId)
-      : await findPaymentByExternalReference(paymentAccessToken, order.id);
+      ? await fetchPaymentById(paymentAccessTokens, paymentId)
+      : await findPaymentByExternalReference(paymentAccessTokens, order.id);
     if (!paymentResult.ok) {
       return new Response(JSON.stringify({ error: "No se pudo validar el pago." }), { status: 502 });
     }
