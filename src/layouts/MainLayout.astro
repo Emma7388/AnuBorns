@@ -11,11 +11,12 @@ const pathname = Astro.url.pathname;
 const segments = pathname.split("/").filter(Boolean);
 const backHref = customBackHref ?? (segments.length <= 1 ? "/" : `/${segments.slice(0, -1).join("/")}`);
 const showBack = pathname !== "/";
+const autoHideChrome = pathname === "/";
 ---
 
 <BaseLayout title={title}>
   <!-- Header global -->
-  <Header title={headerTitle} />
+  <Header title={headerTitle} autoHide={autoHideChrome} />
 
   <!-- Contenido de página -->
   <main
@@ -23,12 +24,13 @@ const showBack = pathname !== "/";
     data-ab-show-back={showBack ? "true" : "false"}
     data-ab-back-href={backHref}
     data-ab-pathname={pathname}
+    data-ab-home-chrome={autoHideChrome ? "true" : "false"}
   >
     <slot />
   </main>
 
   <!-- Footer con CTA volver -->
-  <Footer showBack={showBack} backHref={backHref} />
+  <Footer showBack={showBack} backHref={backHref} autoHide={autoHideChrome} />
 
   <!-- Intercepta botón volver cuando se pide volver por history -->
   <script is:inline>

@@ -1,9 +1,9 @@
 ---
 // Componente: header con auth, carrito y modal de logout.
-const { title = "" } = Astro.props;
+const { title = "", autoHide = false } = Astro.props;
 ---
 
-<header class="header" transition:name="ab-header" transition:persist transition:animate="none">
+<header class:list={["header", { "header--auto-hide": autoHide }]} transition:name="ab-header" transition:persist transition:animate="none">
   <div class="container header-inner">
     <div class="brand-row header-zone header-zone--brand">
       <!-- Marca / logo -->
@@ -123,6 +123,26 @@ const { title = "" } = Astro.props;
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header--auto-hide {
+    position: fixed;
+    left: 0;
+    right: 0;
+    transform: translateY(calc(-100% + var(--chrome-peek-size)));
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    transition:
+      transform 0.24s ease,
+      box-shadow 0.24s ease,
+      background-color 0.2s ease;
+  }
+
+  .header--auto-hide:hover,
+  .header--auto-hide:focus-within {
+    transform: translateY(0);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+  }
 }
 
 .header-inner {

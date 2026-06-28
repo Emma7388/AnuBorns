@@ -8,7 +8,41 @@ import FeaturedProductsSection from "../components/FeaturedProductsSection.astro
 
 <MainLayout title="Comprá">
   <div class="ab-main-choice-page">
+    <h1 class="ab-buy-page-title">Tu mundo, tus soluciones.</h1>
     <ActionSwitch mode="buy" categories={categories} />
     <FeaturedProductsSection />
   </div>
 </MainLayout>
+
+<style>
+  .ab-buy-page-title {
+    width: min(900px, 100%);
+    margin: 0 auto clamp(12px, 2.2dvh, 22px);
+    color: var(--hero-title-color);
+    font-size: clamp(2.45rem, 4.85vw, 4.15rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-align: center;
+    text-shadow: var(--hero-title-shadow);
+  }
+
+  @media (max-width: 900px) {
+    .ab-buy-page-title {
+      font-size: clamp(1.75rem, 6.6vw, 2.25rem);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .ab-buy-page-title {
+      margin-bottom: 12px;
+      font-size: clamp(1.8rem, 8vw, 2.55rem);
+    }
+  }
+
+  @media (max-width: 420px) {
+    .ab-buy-page-title {
+      font-size: clamp(1.45rem, 7.8vw, 1.8rem);
+    }
+  }
+</style>

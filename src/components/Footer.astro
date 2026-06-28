@@ -1,12 +1,12 @@
 ---
 // Componente: footer con CTA opcional de regreso.
-const { showBack = false, backHref = "/" } = Astro.props;
+const { showBack = false, backHref = "/", autoHide = false } = Astro.props;
 const useHistoryBack = backHref === "history";
 const resolvedBackHref = useHistoryBack ? "/" : backHref;
 ---
 
 <!-- Pie de página principal -->
-<footer class="footer" transition:name="ab-footer" transition:persist transition:animate="none">
+<footer class:list={["footer", { "footer--auto-hide": autoHide }]} transition:name="ab-footer" transition:persist transition:animate="none">
   <div class="container">
     <div class="footer-content">
       <p>© 2026 Desoluciones. Todos los derechos reservados.</p>
@@ -46,6 +46,27 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
   position: sticky;
   bottom: 0;
   z-index: 40;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .footer--auto-hide {
+    position: fixed;
+    left: 0;
+    right: 0;
+    margin-top: 0;
+    transform: translateY(calc(100% - var(--chrome-peek-size)));
+    box-shadow: 0 -12px 28px rgba(15, 23, 42, 0.12);
+    transition:
+      transform 0.24s ease,
+      box-shadow 0.24s ease,
+      background-color 0.2s ease;
+  }
+
+  .footer--auto-hide:hover,
+  .footer--auto-hide:focus-within {
+    transform: translateY(0);
+    box-shadow: 0 -16px 34px rgba(15, 23, 42, 0.18);
+  }
 }
 
 .footer-content {

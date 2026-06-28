@@ -63,7 +63,9 @@ const showWelcomeModal = (name) =>
     modal.innerHTML = `
       <div class="ab-orders-modal__backdrop"></div>
       <div class="ab-orders-modal__panel ab-auth-welcome" role="document">
-        <div class="ab-auth-welcome__mark" aria-hidden="true">DS</div>
+        <div class="ab-auth-welcome__mark" aria-hidden="true">
+          <img src="/Logo_Final.webp" alt="" />
+        </div>
         <h2>Hola, ${safeName}</h2>
         <p>Qué bueno verte de nuevo.</p>
       </div>

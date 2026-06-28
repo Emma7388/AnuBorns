@@ -3,6 +3,7 @@
 export const prerender = false;
 
 import MainLayout from "../../../layouts/MainLayout.astro";
+import { categories } from "../../../data/categories.js";
 import { filterAvailableProducts } from "../../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 
@@ -37,9 +38,13 @@ const categoryRow = supabaseUrl && supabaseAnonKey
     )
   : null;
 
+const currentCategory = categories.find((item) => item.slug === categoria);
 const currentCategoryName = Array.isArray(categoryRow) && categoryRow[0]?.name
   ? categoryRow[0].name
-  : categoria;
+  : currentCategory?.name || categoria;
+const currentCategoryIcon = currentCategory?.icon || "";
+const currentCategoryTone = categories.findIndex((item) => item.slug === categoria);
+const categoryToneClass = `ab-category-heading--${((Math.max(currentCategoryTone, 0)) % 4) + 1}`;
 
 const products = supabaseUrl && supabaseAnonKey
   ? await fetchJson(
@@ -140,7 +145,12 @@ const resolveCategoryName = (product) => {
         </div>
       </div>
     </div>
-    <h1>Productos de {currentCategoryName || categoria}</h1>
+    <div class={`ab-category-heading ${categoryToneClass}`} role="heading" aria-level="1">
+      {currentCategoryIcon ? (
+        <img src={currentCategoryIcon} alt="" aria-hidden="true" loading="lazy" />
+      ) : null}
+      <span>{currentCategoryName || categoria}</span>
+    </div>
     <p class="ab-muted-text">
       Mostrando {safeProducts.length} productos disponibles.
     </p>
@@ -234,6 +244,77 @@ const resolveCategoryName = (product) => {
 <script>
   import "../../../scripts/comprar-productos.js";
 </script>
+
+<style>
+  .ab-category-heading {
+    width: min(360px, 100%);
+    min-height: 78px;
+    margin: 16px auto 12px;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: var(--button-radius);
+    border: 1px solid var(--button-elevated-border);
+    color: #ffffff;
+    font-size: clamp(1.8rem, 3.2vw, 2.65rem);
+    font-weight: 850;
+    line-height: 1;
+    text-align: center;
+    text-shadow: var(--button-elevated-text-shadow);
+    box-shadow: var(--button-elevated-shadow);
+  }
+
+  .ab-category-heading img {
+    width: clamp(42px, 4.4vw, 58px);
+    height: clamp(42px, 4.4vw, 58px);
+    flex: 0 0 auto;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.22));
+  }
+
+  .ab-category-heading span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .ab-category-heading--1,
+  .ab-category-heading--3 {
+    background: var(--action-success);
+  }
+
+  .ab-category-heading--2 {
+    background: var(--action-secondary);
+  }
+
+  .ab-category-heading--4 {
+    background: var(--action-primary);
+  }
+
+  @media (max-width: 768px) {
+    .ab-category-heading {
+      width: min(310px, 100%);
+      min-height: 64px;
+      padding: 12px 18px;
+      font-size: clamp(1.55rem, 8vw, 2.2rem);
+    }
+  }
+
+  @media (max-width: 420px) {
+    .ab-category-heading {
+      width: 100%;
+      gap: 8px;
+      padding: 10px 12px;
+      font-size: clamp(1.2rem, 8vw, 1.65rem);
+    }
+
+    .ab-category-heading img {
+      width: 42px;
+      height: 42px;
+    }
+  }
+</style>
 
 <script>
   import "../../../scripts/product-category-notifications.js";

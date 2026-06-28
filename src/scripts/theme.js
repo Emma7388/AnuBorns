@@ -5,6 +5,14 @@ const getCurrentTheme = () => {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 };
 
+const getSavedTheme = () => {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return getCurrentTheme();
+  }
+};
+
 const saveTheme = (theme) => {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -20,6 +28,12 @@ const applyTheme = (theme) => {
   updateThemeToggles(nextTheme);
 };
 
+const applyThemeToDocument = (targetDocument, theme = getSavedTheme()) => {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  targetDocument.documentElement.dataset.theme = nextTheme;
+  targetDocument.documentElement.style.colorScheme = nextTheme;
+};
+
 const updateThemeToggles = (theme = getCurrentTheme()) => {
   const isDark = theme === "dark";
   document.querySelectorAll("[data-theme-toggle]").forEach((toggle) => {
@@ -31,7 +45,7 @@ const updateThemeToggles = (theme = getCurrentTheme()) => {
 };
 
 const initTheme = () => {
-  const initialTheme = getCurrentTheme();
+  const initialTheme = getSavedTheme();
   applyTheme(initialTheme);
 
   document.querySelectorAll("[data-theme-toggle]").forEach((toggle) => {
@@ -45,7 +59,18 @@ const initTheme = () => {
   });
 };
 
+const syncThemeBeforeSwap = (event) => {
+  if (event.newDocument) {
+    applyThemeToDocument(event.newDocument);
+  }
+};
+
 initTheme();
-document.addEventListener("astro:page-load", initTheme);
-document.addEventListener("astro:after-swap", initTheme);
-window.addEventListener("pageshow", initTheme);
+
+if (!window.__abThemeBound) {
+  document.addEventListener("astro:before-swap", syncThemeBeforeSwap);
+  document.addEventListener("astro:page-load", initTheme);
+  document.addEventListener("astro:after-swap", initTheme);
+  window.addEventListener("pageshow", initTheme);
+  window.__abThemeBound = true;
+}

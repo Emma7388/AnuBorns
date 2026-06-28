@@ -42,14 +42,21 @@ for each row execute function public.set_updated_at();
 -- Seed data (idempotent)
 insert into public.categories (name, slug, icon)
 values
-  ('Plomería', 'plomeria', '/icons/plomeria.svg'),
+  ('Plomería', 'plomeria', '/icons/Plomeria.svg'),
   ('Electricidad', 'electricidad', '/icons/electricidad.svg'),
   ('Corralón', 'corralon', '/icons/corralon.svg'),
   ('Ferretería', 'ferreteria', '/icons/ferreteria.svg'),
   ('Construcción', 'construccion', '/icons/construccion.svg'),
   ('Pinturería', 'pintureria', '/icons/pintureria.svg'),
   ('Carpintería', 'carpinteria', '/icons/carpinteria.svg'),
-  ('Hogar', 'hogar', '/icons/hogar.svg')
+  ('Hogar', 'hogar', '/icons/hogar.svg'),
+  ('Cocina', 'cocina', '/icons/cocina.svg'),
+  ('Cuidado personal', 'cuidado-personal', '/icons/cuidadopersonal.svg'),
+  ('Deporte', 'deporte', '/icons/deporte.svg'),
+  ('Dispositivos', 'dispositivos', '/icons/dispositivo.svg'),
+  ('Mascotas', 'mascotas', '/icons/mascotas.svg'),
+  ('Moda', 'moda', '/icons/moda.svg'),
+  ('Vehículos', 'vehiculos', '/icons/vehiculos.svg')
 on conflict (slug) do update
 set name = excluded.name,
     icon = excluded.icon;

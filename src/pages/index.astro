@@ -11,7 +11,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         <div class="hero-logo-wrap">
           <img class="hero-logo" src="/Logo_Final.webp" alt="Desoluciones.com" loading="eager" />
         </div>
-        <h1>Comprá, vendé y ofertá en un solo lugar</h1>
+        <h1>Comprá y vendé en un solo lugar</h1>
       </div>
 
       <!-- CTAs principales -->
@@ -22,10 +22,6 @@ import MainLayout from "../layouts/MainLayout.astro";
 
         <a href="/vender" class="ab-cta-button hero-button hero-button--sell" data-astro-reload>
           Vendé
-        </a>
-
-        <a href="/oferta" class="ab-cta-button hero-button hero-button--offer" data-astro-reload>
-          Ofertá
         </a>
       </div>
     </div>
@@ -142,10 +138,6 @@ import MainLayout from "../layouts/MainLayout.astro";
     background: var(--action-primary);
   }
 
-  .hero-button--offer {
-    background: var(--action-success);
-  }
-
   .hero-buttons .ab-cta-button:hover {
     filter: brightness(1.04);
     transform: translateY(-2px);
@@ -201,6 +193,18 @@ import MainLayout from "../layouts/MainLayout.astro";
     .hero-buttons .ab-cta-button {
       min-height: 64px;
       font-size: clamp(1.15rem, 5.4vw, 2rem);
+    }
+  }
+
+  @media (max-width: 560px) {
+    .hero-buttons {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .hero-buttons .ab-cta-button {
+      width: 100%;
+      max-width: none;
     }
   }
 

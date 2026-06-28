@@ -52,6 +52,8 @@
   flex: 0 0 100%;
   width: 100%;
   max-width: none;
+  height: clamp(250px, 28vw, 310px);
+  min-height: clamp(250px, 28vw, 310px);
   min-width: 0;
   scroll-snap-align: center;
   scroll-snap-stop: always;
@@ -106,12 +108,16 @@
   line-height: 1.25;
   text-align: left;
   color: var(--color-text);
+  min-height: 56px;
+  max-height: 56px;
 }
 
 .ab-featured-products-track .ab-provider-product-card__description {
   grid-area: description;
   max-width: 48ch;
   font-size: 13px;
+  min-height: 34px;
+  max-height: 34px;
   text-align: left;
   display: -webkit-box;
   overflow: hidden;
@@ -155,30 +161,28 @@
 
 .ab-featured-products-actions {
   grid-area: actions;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin-top: 8px;
 }
 
 .ab-featured-products-links {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  display: contents;
 }
 
 .ab-featured-products-provider,
 .ab-featured-products-detail {
-  min-width: 118px;
+  width: 100%;
+  min-width: 0;
   height: 44px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 8px 18px;
+  padding: 8px 10px;
   border-radius: 12px;
   color: #ffffff;
   border: 1px solid var(--button-elevated-border);
@@ -207,7 +211,6 @@
 }
 
 .ab-featured-products-detail {
-  min-width: 92px;
   background: var(--action-secondary);
 }
 
@@ -227,19 +230,19 @@
 }
 
 .ab-featured-products-track .ab-provider-product-card__add {
-  width: var(--featured-image-width);
+  width: 100%;
   height: 44px;
-  border-radius: 999px;
+  border-radius: var(--button-radius);
   margin-top: 0;
-  flex: 0 0 var(--featured-image-width);
+  flex: 0 0 auto;
   border: 1px solid var(--button-elevated-border);
   background: var(--action-primary);
   box-shadow: var(--button-elevated-shadow);
 }
 
 .ab-featured-products-track .ab-provider-product-card__add img {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.22));
 }
 
@@ -295,6 +298,7 @@
       "actions";
     align-items: stretch;
     gap: 8px;
+    height: 420px;
     min-height: 420px;
     padding-block: 16px;
     padding-inline: 42px;
@@ -316,11 +320,13 @@
   .ab-featured-products-track .ab-provider-product-card h2 {
     font-size: 14px;
     min-height: 36px;
+    max-height: 36px;
   }
 
   .ab-featured-products-track .ab-provider-product-card__description {
     font-size: 11px;
     min-height: 42px;
+    max-height: 42px;
     -webkit-line-clamp: 3;
   }
 
@@ -347,7 +353,7 @@
   }
 
   .ab-featured-products-actions {
-    flex-direction: column;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     align-items: stretch;
     margin-top: auto;
@@ -355,25 +361,21 @@
   }
 
   .ab-featured-products-links {
-    gap: 6px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    flex: 0 0 auto;
+    display: contents;
   }
 
   .ab-featured-products-provider,
   .ab-featured-products-detail {
-    min-width: 0;
     height: 44px;
     min-height: 44px;
-    flex: 1 1 0;
     gap: 2.5px;
-    padding: 9px 8px;
-    font-size: 0.78rem;
+    padding: 8px 6px;
+    font-size: 0.74rem;
   }
 
   .ab-featured-products-provider img,
-  .ab-featured-products-detail img {
+  .ab-featured-products-detail img,
+  .ab-featured-products-track .ab-provider-product-card__add img {
     width: 17px;
     height: 17px;
   }
@@ -382,6 +384,8 @@
     width: 100%;
     height: 44px;
     flex-basis: auto;
+    padding: 8px 6px;
+    font-size: 0.74rem;
   }
 
   .ab-featured-products-nav {
@@ -392,5 +396,18 @@
   .ab-featured-products-nav img {
     width: 18px;
     height: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .ab-featured-products-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ab-featured-products-provider,
+  .ab-featured-products-detail,
+  .ab-featured-products-track .ab-provider-product-card__add {
+    padding: 8px 10px;
+    font-size: 0.82rem;
   }
 }
