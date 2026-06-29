@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { categories as localCategories } from "../data/categories";
 import { PRODUCT_IMAGE_MAX_BYTES, resizeProductImage } from "../lib/imageResize";
+import { fetchUserProfile } from "../lib/userProfile";
 
 /* Referencias DOM principales. */
 let form = document.getElementById("product-form");
@@ -65,10 +66,10 @@ const setFeedback = (message) => {
 /* Completa y fija teléfono/email usando datos reales del usuario. */
 const hydrateContactFields = (session) => {
   if (!publicPhoneInput || !publicEmailInput || !pickupAddressInput) return;
-  const metadata = session?.user?.user_metadata ?? {};
-  const phone = String(metadata.phone ?? "").trim();
+  const profile = session?.profile ?? {};
+  const phone = String(profile.phone ?? "").trim();
   const email = String(session?.user?.email ?? "").trim();
-  const address = String(metadata.address ?? "").trim();
+  const address = String(profile.address ?? "").trim();
 
   publicPhoneInput.value = phone;
   publicEmailInput.value = email;
@@ -254,17 +255,26 @@ const renderCategoryPicker = (categories) => {
 /* Requiere sesión activa para publicar. */
 const ensureSession = async () => {
   const { data } = await supabase.auth.getSession();
-  if (data?.session?.user) return data.session;
+  if (data?.session?.user) {
+    return {
+      ...data.session,
+      profile: await fetchUserProfile(data.session.user),
+    };
+  }
   const { data: userData } = await supabase.auth.getUser();
-  if (userData?.user) return { user: userData.user };
+  if (userData?.user) {
+    return {
+      user: userData.user,
+      profile: await fetchUserProfile(userData.user),
+    };
+  }
   window.location.href = "/login?returnTo=/vender/productos";
   return null;
 };
 
 /* Resuelve un nombre visible para el vendedor. */
 const resolveSellerName = (session) => {
-  const meta = session?.user?.user_metadata ?? {};
-  const firstName = String(meta.first_name ?? "").trim();
+  const firstName = String(session?.profile?.first_name ?? "").trim();
   if (firstName) return firstName;
   const email = String(session?.user?.email ?? "").trim();
   if (!email) return null;

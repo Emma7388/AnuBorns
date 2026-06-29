@@ -1,6 +1,7 @@
 ---
 // Página: publicación de servicio.
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 import { categories } from "../../data/categories";
 ---
 
@@ -8,7 +9,7 @@ import { categories } from "../../data/categories";
   <!-- Panel principal -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Publicación de servicio</p>
-    <h1>Creá tu publicación</h1>
+    <TitleBadge title="Creá tu publicación" icon="/icons/social.svg" tone="primary" />
     <p class="ab-muted-text">
       Tu servicio será visible para clientes que busquen profesionales por categoría.
     </p>

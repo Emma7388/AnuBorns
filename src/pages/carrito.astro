@@ -1,13 +1,14 @@
 ---
 // Página: carrito con listado y resumen.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Carrito">
   <!-- Panel principal del carrito -->
   <section class="ab-dark-panel ab-cart-panel">
     <p class="ab-eyebrow">Carrito</p>
-    <h1>Tu carrito</h1>
+    <TitleBadge title="Tu carrito" icon="/icons/carrito.svg" tone="primary" />
     <p class="ab-muted-text">
       Revisá tus productos antes de continuar al checkout.
     </p>
@@ -27,9 +28,13 @@ import MainLayout from "../layouts/MainLayout.astro";
       </p>
       <div class="ab-actions">
         <button id="cart-checkout" class="ab-cta-button ab-cart-action ab-cart-action--checkout" type="button">
-          Finalizar compra
+          <img src="/icons/comprar.svg" alt="" aria-hidden="true" />
+          <span>Finalizar compra</span>
         </button>
-        <button id="cart-clear" class="ab-cart-action ab-cart-action--clear" type="button">Vaciar carrito</button>
+        <button id="cart-clear" class="ab-cart-action ab-cart-action--clear" type="button">
+          <img src="/icons/borrar.svg" alt="" aria-hidden="true" />
+          <span>Vaciar carrito</span>
+        </button>
       </div>
       <p id="cart-feedback" class="ab-muted-text" aria-live="polite"></p>
     </div>
@@ -49,10 +54,12 @@ import MainLayout from "../layouts/MainLayout.astro";
       <p>¿Seguro que querés quitar este producto del carrito?</p>
       <div class="ab-orders-modal__actions">
         <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost ab-cart-action ab-cart-action--clear" data-cart-modal-cancel>
-          Cancelar
+          <img src="/icons/atras.svg" alt="" aria-hidden="true" />
+          <span>Cancelar</span>
         </button>
         <button type="button" class="ab-orders-delete-btn ab-cart-action ab-cart-action--checkout" data-cart-modal-confirm>
-          Sí, quitar
+          <img src="/icons/borrar.svg" alt="" aria-hidden="true" />
+          <span>Sí, quitar</span>
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 export const prerender = false;
 
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 import { filterAvailableProducts } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
@@ -85,35 +86,55 @@ const shortId = (value) => {
   {first ? (
     <section class="ab-dark-panel">
       <p class="ab-eyebrow">Perfil público</p>
-      <h1>{sellerName}</h1>
+      <TitleBadge title={sellerName} icon="/icons/proveedor.svg" tone="primary" />
       <p class="ab-muted-text">Datos públicos del proveedor.</p>
 
-      <div class="ab-provider-profile__meta">
-        <p>
-          <strong>Teléfono:</strong>{" "}
+      <div class="ab-provider-profile__meta" aria-label="Datos públicos del proveedor">
+        <p class="ab-provider-profile__item">
+          <span class="ab-provider-profile__icon" aria-hidden="true">
+            <img src="/icons/telefono.svg" alt="" loading="lazy" />
+          </span>
           {publicPhone ? (
             <a
               href={`https://wa.me/${phoneDigits}?text=${encodeURIComponent(`Hola ${sellerName}, te contacto por Desoluciones.`)}`}
               target="_blank"
               rel="noreferrer noopener"
+              aria-label={`Teléfono: ${publicPhone}`}
+              title="Teléfono"
             >
               {publicPhone}
             </a>
           ) : "No publicado"}
         </p>
-        <p>
-          <strong>Email:</strong>{" "}
+        <p class="ab-provider-profile__item">
+          <span class="ab-provider-profile__icon" aria-hidden="true">
+            <img src="/icons/correo-electronico.svg" alt="" loading="lazy" />
+          </span>
           {publicEmail ? (
-            <a href={`mailto:${publicEmail}`}>
+            <a href={`mailto:${publicEmail}`} aria-label={`Email: ${publicEmail}`} title="Email">
               {publicEmail}
             </a>
           ) : "No publicado"}
         </p>
-        <p><strong>Dirección:</strong> {publicAddress || "No publicada"}</p>
-        <p><strong>Ubicación:</strong> {publicLocation || "No publicada"}</p>
+        <p class="ab-provider-profile__item">
+          <span class="ab-provider-profile__icon" aria-hidden="true">
+            <img src="/icons/casa.svg" alt="" loading="lazy" />
+          </span>
+          <span aria-label={`Dirección: ${publicAddress || "No publicada"}`} title="Dirección">
+            {publicAddress || "No publicada"}
+          </span>
+        </p>
+        <p class="ab-provider-profile__item">
+          <span class="ab-provider-profile__icon" aria-hidden="true">
+            <img src="/icons/ciudad.svg" alt="" loading="lazy" />
+          </span>
+          <span aria-label={`Ubicación: ${publicLocation || "No publicada"}`} title="Ubicación">
+            {publicLocation || "No publicada"}
+          </span>
+        </p>
       </div>
 
-      <h2>Productos publicados</h2>
+      <TitleBadge title="Productos publicados" icon="/icons/destacado.svg" level={2} tone="secondary" class="ab-title-badge--spaced" />
       {safeProducts.length === 0 ? (
         <div class="ab-cart-empty">
           <p>Este proveedor todavía no publicó productos.</p>
@@ -183,7 +204,7 @@ const shortId = (value) => {
     </section>
   ) : (
     <section class="ab-dark-panel">
-      <h1>Proveedor no encontrado</h1>
+      <TitleBadge title="Proveedor no encontrado" icon="/icons/proveedor.svg" tone="warning" />
       <p>Este proveedor no tiene datos públicos cargados todavía.</p>
     </section>
   )}
@@ -192,3 +213,86 @@ const shortId = (value) => {
 <script>
   import "../../scripts/comprar-productos.js";
 </script>
+
+<style>
+  .ab-provider-profile__meta {
+    width: min(620px, 100%);
+    margin: 14px auto 22px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .ab-provider-profile__item {
+    min-width: 0;
+    min-height: 54px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 11px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--button-radius);
+    background: var(--color-panel-tint);
+    color: var(--color-text);
+    font-size: 0.95rem;
+    font-weight: 750;
+    line-height: 1.2;
+  }
+
+  .ab-provider-profile__item a,
+  .ab-provider-profile__item span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ab-provider-profile__item a {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .ab-provider-profile__item a:hover,
+  .ab-provider-profile__item a:focus-visible {
+    color: var(--color-link);
+    text-decoration: underline;
+  }
+
+  .ab-provider-profile__icon {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: var(--button-radius);
+    border: 1px solid var(--button-elevated-border);
+    background: var(--action-secondary);
+    box-shadow: var(--button-elevated-shadow);
+  }
+
+  .ab-provider-profile__icon svg,
+  .ab-provider-profile__icon img {
+    width: 22px;
+    height: 22px;
+    display: block;
+    object-fit: contain;
+    fill: #ffffff;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.22));
+  }
+
+  .ab-provider-profile__item:nth-child(1) .ab-provider-profile__icon,
+  .ab-provider-profile__item:nth-child(3) .ab-provider-profile__icon {
+    background: var(--action-success);
+  }
+
+  .ab-provider-profile__item:nth-child(4) .ab-provider-profile__icon {
+    background: var(--action-primary);
+  }
+
+  @media (max-width: 620px) {
+    .ab-provider-profile__meta {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

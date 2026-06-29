@@ -1,13 +1,14 @@
 ---
 // Página: registro de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Crear cuenta">
   <!-- Panel de registro -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Registro</p>
-    <h1>Creá tu cuenta</h1>
+    <TitleBadge title="Creá tu cuenta" icon="/icons/crearcuenta.svg" tone="primary" />
     <p class="ab-muted-text">
       Tu correo se usa para identificar tu cuenta. La contraseña la creás acá.
     </p>
@@ -15,62 +16,93 @@ import MainLayout from "../layouts/MainLayout.astro";
     <!-- Formulario de registro -->
     <form class="ab-form" id="register-form">
       <label for="avatar">Avatar (opcional)</label>
-      <label class="ab-upload-button" for="avatar">Subir imagen</label>
-      <input id="avatar" name="avatar" type="file" accept="image/*" class="ab-upload-input" />
+      <div class="ab-profile-avatar ab-register-avatar-preview ab-is-hidden">
+        <img id="register-avatar-preview" alt="Vista previa del avatar" />
+      </div>
+      <label class="ab-upload-button ab-profile-upload-button" for="avatar">
+        <img src="/icons/buscar.svg" alt="" aria-hidden="true" />
+        <span>Seleccionar archivo</span>
+      </label>
+      <input id="avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp" class="ab-upload-input" />
       <span class="ab-muted-text ab-upload-help">Podés sumar una foto de perfil ahora o cargarla después.</span>
 
       <label for="first-name">Nombre</label>
-      <input id="first-name" name="first-name" type="text" placeholder="Ej: María" autocomplete="given-name" />
+      <input id="first-name" name="first-name" type="text" placeholder="Ej: María" autocomplete="given-name" minlength="2" maxlength="60" required />
 
       <label for="last-name">Apellido</label>
-      <input id="last-name" name="last-name" type="text" placeholder="Ej: López" autocomplete="family-name" />
+      <input id="last-name" name="last-name" type="text" placeholder="Ej: López" autocomplete="family-name" minlength="2" maxlength="60" required />
 
       <label for="email">Email</label>
       <input id="email" name="email" type="email" placeholder="tu@email.com" autocomplete="email" required />
       <p class="ab-form-help">Usamos tu email para tu cuenta y para avisos importantes.</p>
 
       <label for="phone">Teléfono <span class="ab-label-hint">sin 0 y sin 15</span></label>
-      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" data-phone-input placeholder="Ej: 1123456789" autocomplete="tel" />
+      <input id="phone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]{8,15}" maxlength="15" data-register-digits data-phone-input placeholder="Ej: 1123456789" autocomplete="tel" required />
 
       <label for="dni">DNI</label>
-      <input id="dni" name="dni" type="text" placeholder="Ej: 12345678" />
+      <input id="dni" name="dni" type="text" inputmode="numeric" pattern="[0-9]{7,8}" minlength="7" maxlength="8" data-register-digits placeholder="Ej: 12345678" autocomplete="off" required />
 
       <label for="address">Dirección</label>
-      <input id="address" name="address" type="text" placeholder="Ej: Av. Siempre Viva 742" autocomplete="street-address" />
+      <input id="address" name="address" type="text" placeholder="Ej: Av. Siempre Viva 742" autocomplete="street-address" minlength="4" maxlength="120" required />
 
       <label for="city">Ciudad</label>
-      <input id="city" name="city" type="text" placeholder="Ej: Buenos Aires" autocomplete="address-level2" />
+      <input id="city" name="city" type="text" placeholder="Ej: Buenos Aires" autocomplete="address-level2" minlength="2" maxlength="80" required />
 
       <label for="province">Provincia</label>
-      <input id="province" name="province" type="text" placeholder="Ej: Buenos Aires" autocomplete="address-level1" />
+      <input id="province" name="province" type="text" placeholder="Ej: Buenos Aires" autocomplete="address-level1" minlength="2" maxlength="80" required />
 
       <label for="postal-code">Código postal</label>
-      <input id="postal-code" name="postal-code" type="text" placeholder="Ej: B1675" autocomplete="postal-code" />
+      <input id="postal-code" name="postal-code" type="text" placeholder="Ej: B1675" autocomplete="postal-code" minlength="4" maxlength="10" required />
 
       <label for="password">Contraseña para Desoluciones</label>
-      <input
-        id="password"
-        name="password"
-        type="password"
-        placeholder="Elegí una contraseña nueva"
-        autocomplete="new-password"
-        minlength="6"
-        required
-      />
-      <p class="ab-form-help">No uses la contraseña de tu email.</p>
-
+      <span class="ab-field-with-toggle">
+        <input
+          id="password"
+          name="password"
+          type="password"
+          placeholder="Elegí una contraseña nueva"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+        <button
+          class="ab-field-visibility-toggle"
+          type="button"
+          data-password-visibility="password"
+          aria-label="Mostrar contraseña"
+          aria-pressed="false"
+          title="Mostrar contraseña"
+        >
+          <img src="/icons/ojo.svg" alt="" aria-hidden="true" />
+        </button>
+      </span>
       <label for="password-confirm">Confirmar contraseña</label>
-      <input
-        id="password-confirm"
-        name="password-confirm"
-        type="password"
-        placeholder="Repetí tu contraseña"
-        autocomplete="new-password"
-        minlength="6"
-        required
-      />
+      <span class="ab-field-with-toggle">
+        <input
+          id="password-confirm"
+          name="password-confirm"
+          type="password"
+          placeholder="Repetí tu contraseña"
+          autocomplete="new-password"
+          minlength="6"
+          required
+        />
+        <button
+          class="ab-field-visibility-toggle"
+          type="button"
+          data-password-visibility="password-confirm"
+          aria-label="Mostrar confirmación de contraseña"
+          aria-pressed="false"
+          title="Mostrar confirmación de contraseña"
+        >
+          <img src="/icons/ojo.svg" alt="" aria-hidden="true" />
+        </button>
+      </span>
 
-      <button type="submit" class="ab-cta-button">Crear cuenta</button>
+      <button type="submit" class="ab-cta-button" id="register-submit">
+        <img src="/icons/crearcuenta.svg" alt="" aria-hidden="true" />
+        <span>Crear cuenta</span>
+      </button>
       <p id="register-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
   </section>
@@ -79,4 +111,5 @@ import MainLayout from "../layouts/MainLayout.astro";
 <!-- Script de registro -->
 <script>
   import "../scripts/register.js";
+  import "../scripts/password-visibility.js";
 </script>

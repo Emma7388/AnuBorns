@@ -1,8 +1,11 @@
 ---
 // Componente: acceso rápido a productos y servicios.
+import TitleBadge from "./TitleBadge.astro";
+
 const {
   basePath = "",
   title,
+  titleIcon = "/icons/detalle.svg",
   productLabel = "PRODUCTOS",
   serviceLabel = "SERVICIOS",
   productHref,
@@ -14,7 +17,7 @@ const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toL
 <!-- Sección con accesos de segundo nivel -->
 <section class="level-two">
   <!-- Título opcional -->
-  {title && <h1 class="level-two__title">{title}</h1>}
+  {title && <TitleBadge title={title} icon={titleIcon} tone="primary" />}
 
   <!-- Bloques de navegación -->
   <div class="block-group">
@@ -39,15 +42,6 @@ const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toL
     width: min(980px, 100%);
     margin: 0 auto;
     padding: 4px var(--app-gutter) 0;
-  }
-
-  .level-two__title {
-    margin: 0;
-    color: var(--color-text);
-    font-size: clamp(1.35rem, 3vw, 2rem);
-    font-weight: 850;
-    text-align: center;
-    letter-spacing: 0;
   }
 
   .block-group {
@@ -118,8 +112,5 @@ const normalizedBasePath = String(basePath).trim().replace(/^\/+|\/+$/g, "").toL
   }
 
   @media (max-width: 420px) {
-    .level-two__title {
-      font-size: 1.2rem;
-    }
   }
 </style>

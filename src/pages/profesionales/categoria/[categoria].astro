@@ -4,6 +4,7 @@ import MainLayout from "../../../layouts/MainLayout.astro";
 import { categories } from "../../../data/categories";
 import { providers } from "../../../data/providers";
 import ProviderCard from "../../../components/ProviderCard.astro";
+import TitleBadge from "../../../components/TitleBadge.astro";
 
 // Datos filtrados y ordenados por ranking.
 const { categoria } = Astro.params;
@@ -21,7 +22,11 @@ const categoryProviders = providers
   <!-- Panel de listado -->
   <section class="ab-dark-panel ab-list-panel">
     <p class="ab-eyebrow">Búsqueda por categoría</p>
-    <h1>{currentCategory?.name || categoria}</h1>
+    <TitleBadge
+      title={currentCategory?.name || categoria}
+      icon={currentCategory?.icon || "/icons/proveedor.svg"}
+      tone="primary"
+    />
     <p class="ab-muted-text">
       Mostrando {categoryProviders.length} profesionales disponibles.
     </p>

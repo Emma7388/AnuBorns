@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { getCart } from "../lib/cart";
 import { removeFromCart } from "../lib/cart";
+import { fetchUserProfile } from "../lib/userProfile";
 import {
   SHIPPING_FEE,
   clearShippingPreference,
@@ -374,15 +375,15 @@ const preloadUser = async () => {
     window.location.href = "/login?returnTo=/finalizar-compra";
     return;
   }
-  const metadata = user.user_metadata ?? {};
-  const fullName = `${metadata.first_name ?? ""} ${metadata.last_name ?? ""}`.trim();
+  const profile = await fetchUserProfile(user);
+  const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
   const fullNameInput = document.getElementById("full-name");
   const emailInput = document.getElementById("email");
   const phoneInput = document.getElementById("phone");
 
   if (fullName && fullNameInput) fullNameInput.value = fullName;
   if (user.email && emailInput) emailInput.value = user.email;
-  if (metadata.phone && phoneInput) phoneInput.value = metadata.phone;
+  if (profile.phone && phoneInput) phoneInput.value = profile.phone;
 };
 
 /* Inicialización. */

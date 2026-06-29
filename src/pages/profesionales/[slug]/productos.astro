@@ -1,6 +1,7 @@
 ---
 // Página: catálogo de productos del profesional.
 import MainLayout from "../../../layouts/MainLayout.astro";
+import TitleBadge from "../../../components/TitleBadge.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
 
@@ -33,7 +34,7 @@ const shortId = (value) => {
     <!-- Panel de catálogo -->
     <section class="ab-dark-panel ab-provider-products-panel">
       <p class="ab-eyebrow">Catálogo del profesional</p>
-      <h1>{provider.name}</h1>
+      <TitleBadge title={provider.name} icon="/icons/proveedor.svg" tone="primary" />
       <p class="ab-muted-text">
         Categoría: <strong>{categoryName ?? provider.category}</strong> · {provider.location}
       </p>
@@ -88,7 +89,7 @@ const shortId = (value) => {
   ) : (
     <!-- Fallback si no existe -->
     <section class="ab-dark-panel">
-      <h1>Profesional no encontrado</h1>
+      <TitleBadge title="Profesional no encontrado" icon="/icons/proveedor.svg" tone="warning" />
       <p>No se puede mostrar el catálogo porque el profesional no existe.</p>
     </section>
   )}

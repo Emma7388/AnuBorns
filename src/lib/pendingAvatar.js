@@ -4,8 +4,19 @@ import { resizeAvatarImage } from "./imageResize";
 
 export const PENDING_AVATAR_KEY = "ab_pending_avatar";
 const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
+const ALLOWED_PENDING_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 let pendingAvatarPromise = null;
+
+const clearPendingAvatar = () => {
+  window.localStorage.removeItem(PENDING_AVATAR_KEY);
+};
+
+const getImageExtension = (type) => {
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  return "jpg";
+};
 
 /* Convierte un data URL guardado en localStorage a Blob para subirlo a Storage. */
 const dataUrlToBlob = (dataUrl) => {
@@ -29,12 +40,16 @@ const readPendingAvatar = () => {
     const pending = JSON.parse(raw);
     const savedAt = Number(pending?.savedAt ?? 0);
     if (!savedAt || Date.now() - savedAt > PENDING_AVATAR_MAX_AGE_MS) {
-      window.localStorage.removeItem(PENDING_AVATAR_KEY);
+      clearPendingAvatar();
       return null;
     }
-    if (!pending?.dataUrl || !pending?.type) return null;
+    if (!pending?.dataUrl || !pending?.type || !ALLOWED_PENDING_AVATAR_TYPES.has(pending.type)) {
+      clearPendingAvatar();
+      return null;
+    }
     return pending;
   } catch {
+    clearPendingAvatar();
     return null;
   }
 };
@@ -50,12 +65,20 @@ export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
     if (!pending || !userId) return { ok: true, avatarUrl: "" };
 
     const blob = dataUrlToBlob(pending.dataUrl);
-    if (!blob) return { ok: false, avatarUrl: "", error: "invalid_avatar_data" };
+    if (!blob || !ALLOWED_PENDING_AVATAR_TYPES.has(blob.type)) {
+      clearPendingAvatar();
+      return { ok: false, avatarUrl: "", error: "invalid_avatar_data" };
+    }
 
     /* Se vuelve a optimizar por seguridad antes de subir. */
     const pendingFile = new File([blob], pending.name || "avatar.jpg", { type: pending.type });
     const optimizedFile = await resizeAvatarImage(pendingFile);
-    const extension = (optimizedFile.name || "avatar.jpg").split(".").pop() || "jpg";
+    if (!ALLOWED_PENDING_AVATAR_TYPES.has(optimizedFile.type)) {
+      clearPendingAvatar();
+      return { ok: false, avatarUrl: "", error: "invalid_avatar_type" };
+    }
+
+    const extension = getImageExtension(optimizedFile.type);
     const filePath = `${userId}/avatar-${Date.now()}.${extension}`;
     const { error: uploadError } = await supabase.storage
       .from("avatar")
@@ -76,7 +99,7 @@ export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
       return { ok: false, avatarUrl: "", error: updateError.message };
     }
 
-    window.localStorage.removeItem(PENDING_AVATAR_KEY);
+    clearPendingAvatar();
     /* Señal para que otras pestañas refresquen metadata de auth. */
     window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
     onAvatarUrl?.(avatarUrl);

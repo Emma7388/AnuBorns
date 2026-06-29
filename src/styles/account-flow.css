@@ -105,19 +105,82 @@
 }
 
 .ab-profile-data .ab-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 10px;
 }
 
+.ab-profile-data .ab-actions .ab-profile-action {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  gap: 6px;
+  line-height: 1.08;
+}
+
+.ab-profile-action img {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+
+.ab-profile-action span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ab-profile-data .ab-form-label {
+  font-weight: 700;
+}
+
+#avatar-form {
+  justify-items: center;
+  text-align: center;
+}
+
+.ab-profile-upload-button {
+  justify-self: center;
+  min-height: 44px;
+  height: 44px;
+  padding: 8px 12px;
+  gap: 6px;
+}
+
+.ab-profile-upload-button img {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+
+.ab-profile-upload-button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ab-profile-data .ab-form input[aria-invalid="true"] {
+  border-color: rgba(226, 80, 80, 0.82);
+  box-shadow: 0 0 0 3px rgba(226, 80, 80, 0.14);
+}
+
+.ab-profile-data .ab-form button:disabled {
+  opacity: 0.58;
+  cursor: wait;
+  transform: none;
+  filter: grayscale(0.12);
+}
+
 .ab-profile-avatar {
-  width: 64px;
-  height: 64px;
+  width: 82px;
+  height: 82px;
   border-radius: 999px;
   border: 1px solid var(--glass-green-border);
   background: var(--glass-green-bg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 4px 0 12px;
+  margin: 4px auto 0;
   overflow: hidden;
 }
 
@@ -128,9 +191,14 @@
   display: none;
 }
 
+.ab-register-avatar-preview {
+  justify-self: center;
+}
+
 .ab-profile-data__card {
   margin-top: 16px;
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
   padding: var(--card-padding);
 }
@@ -187,18 +255,85 @@ html.ab-profile-enter main {
 
 .ab-profile-data__row {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--button-radius);
+  background: var(--color-panel-tint);
+}
+
+.ab-profile-data__row--sensitive {
+  align-items: stretch;
+}
+
+.ab-profile-data__icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--glass-green-border);
+  border-radius: var(--button-radius);
+  background: var(--glass-green-bg);
+}
+
+.ab-profile-data__icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.ab-profile-data__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  align-content: center;
 }
 
 .ab-profile-data__label {
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 .ab-profile-data__value {
   font-weight: 700;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.ab-profile-data__toggle {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  flex: 0 0 38px;
+  align-self: center;
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--glass-green-border);
+  border-radius: var(--button-radius);
+  background: var(--glass-green-bg);
+  box-shadow: none;
+}
+
+.ab-profile-data__toggle:hover,
+.ab-profile-data__toggle:focus-visible {
+  border-color: var(--color-link);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.ab-profile-data__toggle img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 /* Mis compras */
@@ -747,8 +882,11 @@ html.ab-profile-enter main {
   }
 
   .ab-profile-data__row {
-    flex-direction: column;
-    gap: 6px;
+    align-items: flex-start;
+  }
+
+  .ab-profile-data__card {
+    grid-template-columns: 1fr;
   }
 }
 

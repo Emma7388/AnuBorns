@@ -1,19 +1,20 @@
 ---
 // Página: ventas del usuario.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Mis ventas" backHref="/mis-datos">
   <!-- Panel principal -->
   <section class="ab-dark-panel ab-orders-panel">
     <p class="ab-eyebrow">Panel de vendedor</p>
-    <h1>Mis ventas</h1>
+    <TitleBadge title="Mis ventas" icon="/icons/proveedor.svg" tone="primary" />
     <p class="ab-muted-text">
       Revisá tus productos vendidos, prepará entregas y administrá tus publicaciones activas.
     </p>
 
     <!-- Productos vendidos -->
-    <h2>Productos vendidos</h2>
+    <TitleBadge title="Productos vendidos" icon="/icons/carrito.svg" level={2} tone="success" />
     <label class="ab-sales-dispatch-filter">
       <input id="my-sold-products-dispatch-filter" type="checkbox" />
       <span>Mostrar solo productos para despachar</span>
@@ -25,7 +26,7 @@ import MainLayout from "../layouts/MainLayout.astro";
     </div>
 
     <!-- Productos publicados -->
-    <h2 class="ab-mis-ventas-published-title">Productos publicados</h2>
+    <TitleBadge title="Productos publicados" icon="/icons/destacado.svg" level={2} tone="secondary" class="ab-title-badge--spaced" />
     <div id="my-products-grid" class="ab-provider-products-grid"></div>
     <div id="my-products-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no publicaste productos.</p>

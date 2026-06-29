@@ -1,6 +1,11 @@
 /* Formulario de login con Supabase y feedback de UI. */
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
+import {
+  fetchUserProfile,
+  getDisplayNameFromProfile,
+  resolvePendingRegistrationProfile,
+} from "../lib/userProfile";
 
 /* Referencias DOM (re-consultadas en navegación de Astro). */
 let loginForm = document.getElementById("login-form");
@@ -35,13 +40,10 @@ const sanitizeReturnTo = (value) => {
 const returnTo = sanitizeReturnTo(params.get("returnTo"));
 
 /* Obtiene nombre visible desde metadata o email. */
-const resolveDisplayName = (user) => {
-  const meta = user?.user_metadata ?? {};
-  const firstName = String(meta.first_name ?? "").trim();
-  if (firstName) return firstName;
-  const email = String(user?.email ?? "").trim();
-  if (!email) return "usuario";
-  return email.split("@")[0] || "usuario";
+const resolveDisplayName = async (session) => {
+  await resolvePendingRegistrationProfile(session).catch(() => ({ ok: false }));
+  const profile = await fetchUserProfile(session?.user);
+  return getDisplayNameFromProfile(session?.user, profile) || "usuario";
 };
 
 const escapeHtml = (value) =>
@@ -110,7 +112,7 @@ const handleLoginSubmit = async (event) => {
 
     /* Registro de auditoría y navegación posterior al login. */
     postAudit("login_success").catch(() => {});
-    const displayName = resolveDisplayName(data?.user);
+    const displayName = await resolveDisplayName(data?.session ?? { user: data?.user });
     feedback.textContent = `Listo. Bienvenido, ${displayName}.`;
     await showWelcomeModal(displayName);
     window.location.replace(returnTo);

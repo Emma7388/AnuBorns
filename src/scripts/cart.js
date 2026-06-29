@@ -1,6 +1,7 @@
 /* Interfaz del carrito: render, acciones y navegación. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
+import { fetchUserProfile } from "../lib/userProfile";
 import {
   SHIPPING_FEE,
   clearUnavailableProviderShippingPreferences,
@@ -79,9 +80,9 @@ const preloadShippingFromProfile = async () => {
   profileAddressLoaded = true;
   try {
     const { data } = await supabase.auth.getSession();
-    const metadata = data?.session?.user?.user_metadata ?? {};
-    profileShippingAddress = String(metadata.address ?? "").trim();
-    profileShippingCity = String(metadata.city ?? "").trim();
+    const profile = await fetchUserProfile(data?.session?.user);
+    profileShippingAddress = String(profile.address ?? "").trim();
+    profileShippingCity = String(profile.city ?? "").trim();
   } catch {
     // Sin acción: la dirección de perfil es opcional para renderizar el carrito.
   }

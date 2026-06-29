@@ -1,6 +1,7 @@
 ---
 // Página: confirmación de pago.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Estado de compra">
@@ -15,7 +16,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         </svg>
       </div>
       <!-- Textos que se actualizan por JS -->
-      <h1 id="confirmation-title">Estado del pago</h1>
+      <TitleBadge title="Estado del pago" icon="/icons/compra.svg" textId="confirmation-title" tone="primary" />
       <p class="ab-muted-text" id="confirmation-message">
         Estamos validando el estado de la compra.
       </p>

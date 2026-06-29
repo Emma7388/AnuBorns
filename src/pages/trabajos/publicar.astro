@@ -1,6 +1,7 @@
 ---
 // Página: publicación de trabajo.
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 import { categories } from "../../data/categories";
 ---
 
@@ -8,7 +9,7 @@ import { categories } from "../../data/categories";
   <!-- Panel principal -->
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Solicitud de servicio</p>
-    <h1>Publicá tu trabajo</h1>
+    <TitleBadge title="Publicá tu trabajo" icon="/icons/social.svg" tone="primary" />
     <p class="ab-muted-text">
       Esta publicación será visible para profesionales de la categoría seleccionada.
     </p>

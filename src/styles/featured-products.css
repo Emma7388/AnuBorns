@@ -52,8 +52,8 @@
   flex: 0 0 100%;
   width: 100%;
   max-width: none;
-  height: clamp(250px, 28vw, 310px);
-  min-height: clamp(250px, 28vw, 310px);
+  height: auto;
+  min-height: 0;
   min-width: 0;
   scroll-snap-align: center;
   scroll-snap-stop: always;
@@ -108,21 +108,19 @@
   line-height: 1.25;
   text-align: left;
   color: var(--color-text);
-  min-height: 56px;
-  max-height: 56px;
+  min-height: 0;
+  max-height: none;
 }
 
 .ab-featured-products-track .ab-provider-product-card__description {
   grid-area: description;
   max-width: 48ch;
   font-size: 13px;
-  min-height: 34px;
-  max-height: 34px;
+  min-height: 0;
+  max-height: none;
   text-align: left;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: block;
+  overflow: visible;
 }
 
 .ab-featured-products-track .ab-provider-product-card__price {
@@ -298,8 +296,8 @@
       "actions";
     align-items: stretch;
     gap: 8px;
-    height: 420px;
-    min-height: 420px;
+    height: auto;
+    min-height: 0;
     padding-block: 16px;
     padding-inline: 42px;
   }
@@ -319,15 +317,14 @@
 
   .ab-featured-products-track .ab-provider-product-card h2 {
     font-size: 14px;
-    min-height: 36px;
-    max-height: 36px;
+    min-height: 0;
+    max-height: none;
   }
 
   .ab-featured-products-track .ab-provider-product-card__description {
     font-size: 11px;
-    min-height: 42px;
-    max-height: 42px;
-    -webkit-line-clamp: 3;
+    min-height: 0;
+    max-height: none;
   }
 
   .ab-featured-products-track .ab-provider-product-card__meta {

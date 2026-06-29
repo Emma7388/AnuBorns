@@ -1,6 +1,8 @@
 import { supabase } from "../lib/supabaseClient";
+import { resolvePendingRegistrationProfile } from "../lib/userProfile";
 
 let feedback = document.getElementById("auth-callback-feedback");
+let isCompletingAuthCallback = false;
 
 const sanitizeReturnTo = (value) => {
   if (!value || typeof value !== "string") return "/mis-datos";
@@ -20,29 +22,37 @@ const setFeedback = (message) => {
 };
 
 const completeAuthCallback = async () => {
+  if (isCompletingAuthCallback) return;
+  isCompletingAuthCallback = true;
   bindAuthCallbackElements();
   setFeedback("Confirmando acceso...");
 
-  const code = getParams().get("code");
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      setFeedback("No se pudo confirmar la sesión. Iniciá sesión manualmente.");
+  try {
+    const code = getParams().get("code");
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        setFeedback("No se pudo confirmar la sesión. Iniciá sesión manualmente.");
+        return;
+      }
+    }
+
+    const { data } = await supabase.auth.getSession();
+    if (!data?.session?.user) {
+      setFeedback("La verificación se completó, pero falta iniciar sesión.");
+      window.location.replace(`/login?returnTo=${encodeURIComponent(getReturnTo())}`);
       return;
     }
-  }
 
-  const { data } = await supabase.auth.getSession();
-  if (!data?.session?.user) {
-    setFeedback("La verificación se completó, pero falta iniciar sesión.");
-    window.location.replace(`/login?returnTo=${encodeURIComponent(getReturnTo())}`);
-    return;
-  }
+    await resolvePendingRegistrationProfile(data.session).catch(() => ({ ok: false }));
 
-  /* Señal para refrescar sesión en otras pestañas activas. */
-  window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
-  setFeedback("Cuenta verificada. Redirigiendo...");
-  window.location.replace(getReturnTo());
+    /* Señal para refrescar sesión en otras pestañas activas. */
+    window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
+    setFeedback("Cuenta verificada. Redirigiendo...");
+    window.location.replace(getReturnTo());
+  } finally {
+    isCompletingAuthCallback = false;
+  }
 };
 
 /* Inicialización y eventos de navegación de Astro. */

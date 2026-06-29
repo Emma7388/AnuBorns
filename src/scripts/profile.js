@@ -5,6 +5,11 @@ import { fetchSalesSummary } from "../lib/salesSummaryClient";
 import { shouldNotifyPurchaseStatus } from "../lib/purchaseStatusMessages";
 import { uploadPendingAvatar as uploadStoredPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
 import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
+import {
+  fetchUserProfile,
+  resolvePendingRegistrationProfile,
+  upsertUserProfile,
+} from "../lib/userProfile";
 
 /* Referencias DOM principales. */
 let status = document.getElementById("profile-status");
@@ -27,6 +32,15 @@ let postalInput = document.getElementById("profile-postal-code");
 let salesNotificationDot = document.getElementById("my-sales-notification-dot");
 let purchasesNotificationDot = document.getElementById("my-purchases-notification-dot");
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
+const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const PROFILE_TEXT_MAX = {
+  name: 60,
+  address: 120,
+  place: 80,
+  postal: 10,
+};
+let isSavingProfile = false;
+let avatarPreviewUrl = "";
 
 const isProfilePageActive = () => window.location.pathname === "/mis-datos";
 
@@ -66,15 +80,218 @@ const bindProfileEvents = () => {
     avatarInput.addEventListener("change", handleAvatarChange);
     avatarInput.dataset.abProfileEventsBound = "true";
   }
+  if (card && card.dataset.abProfileSensitiveBound !== "true") {
+    card.addEventListener("click", handleSensitiveToggleClick);
+    card.dataset.abProfileSensitiveBound = "true";
+  }
+  [phoneInput, dniInput].forEach((input) => {
+    if (!input || input.dataset.abProfileSanitizeBound === "true") return;
+    input.addEventListener("input", handleDigitsOnlyInput);
+    input.dataset.abProfileSanitizeBound = "true";
+  });
+  [firstNameInput, lastNameInput, addressInput, cityInput, provinceInput, postalInput].forEach((input) => {
+    if (!input || input.dataset.abProfileValidationBound === "true") return;
+    input.addEventListener("input", () => setFieldError(input, ""));
+    input.dataset.abProfileValidationBound = "true";
+  });
+};
+
+function handleSensitiveToggleClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const toggle = target.closest("[data-profile-sensitive-toggle]");
+  if (!(toggle instanceof HTMLButtonElement)) return;
+
+  const row = toggle.closest(".ab-profile-data__row");
+  const valueElement = row?.querySelector(".ab-profile-data__value");
+  const icon = toggle.querySelector("img");
+  if (!(valueElement instanceof HTMLElement)) return;
+
+  const isVisible = toggle.getAttribute("aria-pressed") === "true";
+  const nextVisible = !isVisible;
+  const label = row?.querySelector(".ab-profile-data__label")?.textContent?.trim() || "dato";
+  valueElement.textContent = nextVisible
+    ? valueElement.dataset.sensitiveValue || "-"
+    : MASKED_PROFILE_VALUE;
+  toggle.setAttribute("aria-pressed", String(nextVisible));
+  toggle.setAttribute("aria-label", `${nextVisible ? "Ocultar" : "Mostrar"} ${label}`);
+  toggle.setAttribute("title", `${nextVisible ? "Ocultar" : "Mostrar"} ${label}`);
+  if (icon) icon.src = nextVisible ? "/icons/ojo-cerrado.svg" : "/icons/ojo.svg";
 }
 
+const PROFILE_FIELD_ICONS = {
+  Email: "/icons/correo-electronico.svg",
+  Nombre: "/icons/proveedor.svg",
+  Apellido: "/icons/proveedor.svg",
+  "Teléfono": "/icons/telefono.svg",
+  Documento: "/icons/licencia.svg",
+  "Dirección": "/icons/casa.svg",
+  Ciudad: "/icons/ciudad.svg",
+  Provincia: "/icons/provincia.svg",
+  "Código postal": "/icons/codigo-postal.svg",
+};
+const SENSITIVE_PROFILE_LABELS = new Set(["Documento", "Dirección"]);
+const MASKED_PROFILE_VALUE = "••••••••";
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const formatSensitiveToggle = (label) => {
+  const safeLabel = escapeHtml(label);
+  return `
+    <button
+      class="ab-profile-data__toggle"
+      type="button"
+      data-profile-sensitive-toggle
+      aria-label="Mostrar ${safeLabel}"
+      aria-pressed="false"
+      title="Mostrar ${safeLabel}"
+    >
+      <img src="/icons/ojo.svg" alt="" aria-hidden="true" />
+    </button>
+  `;
+};
+
 /* Render de filas del resumen en la tarjeta. */
-const formatRow = (label, value) => `
-  <div class="ab-profile-data__row">
-    <span class="ab-profile-data__label">${label}</span>
-    <span class="ab-profile-data__value">${value || "-"}</span>
-  </div>
-`;
+const formatRow = (label, value) => {
+  const icon = PROFILE_FIELD_ICONS[label] ?? "/icons/detalle.svg";
+  const safeLabel = escapeHtml(label);
+  const rawValue = String(value ?? "").trim();
+  const hasValue = rawValue.length > 0;
+  const isSensitive = SENSITIVE_PROFILE_LABELS.has(label) && hasValue;
+  const safeValue = escapeHtml(hasValue ? rawValue : "-");
+  const visibleValue = isSensitive ? MASKED_PROFILE_VALUE : safeValue;
+  return `
+    <div class="ab-profile-data__row${isSensitive ? " ab-profile-data__row--sensitive" : ""}">
+      <span class="ab-profile-data__icon" title="${safeLabel}" aria-hidden="true">
+        <img src="${icon}" alt="" />
+      </span>
+      <span class="ab-profile-data__content">
+        <span class="ab-profile-data__label">${safeLabel}</span>
+        <span class="ab-profile-data__value"${isSensitive ? ` data-sensitive-value="${safeValue}"` : ""}>${visibleValue}</span>
+      </span>
+      ${isSensitive ? formatSensitiveToggle(label) : ""}
+    </div>
+  `;
+};
+
+const setProfileToggleContent = (isEditing) => {
+  if (!profileToggle) return;
+  const icon = isEditing ? "/icons/atras.svg" : "/icons/detalle.svg";
+  const text = isEditing ? "Cancelar edición" : "Editar perfil";
+  profileToggle.innerHTML = `<img src="${icon}" alt="" aria-hidden="true" /><span>${text}</span>`;
+};
+
+const normalizeWhitespace = (value, maxLength) =>
+  String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+
+const normalizePersonName = (value) =>
+  normalizeWhitespace(value, PROFILE_TEXT_MAX.name)
+    .replace(/[^\p{L}\p{M}\s.'-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizeAddress = (value) =>
+  normalizeWhitespace(value, PROFILE_TEXT_MAX.address)
+    .replace(/[<>]/g, "")
+    .trim();
+
+const normalizePlace = (value) =>
+  normalizeWhitespace(value, PROFILE_TEXT_MAX.place)
+    .replace(/[^\p{L}\p{M}\s.'-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizeDigits = (value, maxLength) =>
+  String(value ?? "").replace(/\D/g, "").slice(0, maxLength);
+
+const normalizePostalCode = (value) =>
+  normalizeWhitespace(value, PROFILE_TEXT_MAX.postal)
+    .replace(/[^a-zA-Z0-9\s-]/g, "")
+    .toUpperCase()
+    .trim();
+
+const setFieldError = (input, message) => {
+  if (!input) return;
+  input.setCustomValidity(message);
+  input.setAttribute("aria-invalid", message ? "true" : "false");
+};
+
+const markField = (input, message, errors) => {
+  setFieldError(input, message);
+  if (message) errors.push({ input, message });
+};
+
+const validateProfileForm = () => {
+  const values = {
+    firstName: normalizePersonName(firstNameInput?.value),
+    lastName: normalizePersonName(lastNameInput?.value),
+    phone: normalizeDigits(phoneInput?.value, 15),
+    dni: normalizeDigits(dniInput?.value, 8),
+    address: normalizeAddress(addressInput?.value),
+    city: normalizePlace(cityInput?.value),
+    province: normalizePlace(provinceInput?.value),
+    postalCode: normalizePostalCode(postalInput?.value),
+  };
+
+  if (firstNameInput) firstNameInput.value = values.firstName;
+  if (lastNameInput) lastNameInput.value = values.lastName;
+  if (phoneInput) phoneInput.value = values.phone;
+  if (dniInput) dniInput.value = values.dni;
+  if (addressInput) addressInput.value = values.address;
+  if (cityInput) cityInput.value = values.city;
+  if (provinceInput) provinceInput.value = values.province;
+  if (postalInput) postalInput.value = values.postalCode;
+
+  const errors = [];
+  markField(firstNameInput, values.firstName.length < 2 ? "Ingresá un nombre válido." : "", errors);
+  markField(lastNameInput, values.lastName.length < 2 ? "Ingresá un apellido válido." : "", errors);
+  markField(phoneInput, values.phone.length < 8 ? "Ingresá un teléfono válido, solo números." : "", errors);
+  markField(dniInput, values.dni.length < 7 || values.dni.length > 8 ? "Ingresá un DNI válido, solo números." : "", errors);
+  markField(addressInput, values.address.length < 4 ? "Ingresá una dirección más completa." : "", errors);
+  markField(cityInput, values.city.length < 2 ? "Ingresá una ciudad válida." : "", errors);
+  markField(provinceInput, values.province.length < 2 ? "Ingresá una provincia válida." : "", errors);
+  markField(postalInput, values.postalCode.length < 4 ? "Ingresá un código postal válido." : "", errors);
+
+  return { ok: errors.length === 0, values, errors };
+};
+
+const getImageExtension = (type) => {
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  return "jpg";
+};
+
+const clearAvatarPreviewUrl = () => {
+  if (!avatarPreviewUrl) return;
+  URL.revokeObjectURL(avatarPreviewUrl);
+  avatarPreviewUrl = "";
+};
+
+const showLocalAvatarPreview = (file) => {
+  if (!avatarImg || !file) return;
+  clearAvatarPreviewUrl();
+  avatarPreviewUrl = URL.createObjectURL(file);
+  avatarImg.src = avatarPreviewUrl;
+  avatarImg.style.display = "block";
+};
+
+function handleDigitsOnlyInput(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  const maxLength = Number(target.getAttribute("maxlength")) || 15;
+  target.value = normalizeDigits(target.value, maxLength);
+  setFieldError(target, "");
+}
 
 const formatProfileUpdatedAt = (value) => {
   if (!value) return "";
@@ -136,7 +353,7 @@ const loadProfile = async () => {
     return;
   }
 
-  /* Datos base y metadata de perfil. */
+  /* Datos base, avatar pendiente y perfil privado. */
   const pendingAvatarResult = await uploadStoredPendingAvatar(session, {
     onAvatarUrl: (avatarUrl) => {
       if (avatarImg) {
@@ -148,9 +365,11 @@ const loadProfile = async () => {
   if (pendingAvatarResult?.avatarUrl) {
     session = withAvatarUrl(session, pendingAvatarResult.avatarUrl);
   }
+  await resolvePendingRegistrationProfile(session).catch(() => ({ ok: false }));
 
   const user = session.user;
   const metadata = user.user_metadata ?? {};
+  const profile = await fetchUserProfile(user);
   const avatarUrl = metadata.avatar_url;
 
   if (avatarImg) {
@@ -166,31 +385,31 @@ const loadProfile = async () => {
   if (card) {
     card.innerHTML = [
       formatRow("Email", user.email ?? ""),
-      formatRow("Nombre", metadata.first_name ?? ""),
-      formatRow("Apellido", metadata.last_name ?? ""),
-      formatRow("Teléfono", metadata.phone ?? ""),
-      formatRow("Documento", metadata.dni ?? ""),
-      formatRow("Dirección", metadata.address ?? ""),
-      formatRow("Ciudad", metadata.city ?? ""),
-      formatRow("Provincia", metadata.province ?? ""),
-      formatRow("Código postal", metadata.postal_code ?? ""),
+      formatRow("Nombre", profile.first_name ?? ""),
+      formatRow("Apellido", profile.last_name ?? ""),
+      formatRow("Teléfono", profile.phone ?? ""),
+      formatRow("Documento", profile.dni ?? ""),
+      formatRow("Dirección", profile.address ?? ""),
+      formatRow("Ciudad", profile.city ?? ""),
+      formatRow("Provincia", profile.province ?? ""),
+      formatRow("Código postal", profile.postal_code ?? ""),
     ].join("");
   }
 
   if (emailInput) emailInput.value = user.email ?? "";
-  if (firstNameInput) firstNameInput.value = metadata.first_name ?? "";
-  if (lastNameInput) lastNameInput.value = metadata.last_name ?? "";
-  if (phoneInput) phoneInput.value = metadata.phone ?? "";
-  if (dniInput) dniInput.value = metadata.dni ?? "";
-  if (addressInput) addressInput.value = metadata.address ?? "";
-  if (cityInput) cityInput.value = metadata.city ?? "";
-  if (provinceInput) provinceInput.value = metadata.province ?? "";
-  if (postalInput) postalInput.value = metadata.postal_code ?? "";
+  if (firstNameInput) firstNameInput.value = profile.first_name ?? "";
+  if (lastNameInput) lastNameInput.value = profile.last_name ?? "";
+  if (phoneInput) phoneInput.value = profile.phone ?? "";
+  if (dniInput) dniInput.value = profile.dni ?? "";
+  if (addressInput) addressInput.value = profile.address ?? "";
+  if (cityInput) cityInput.value = profile.city ?? "";
+  if (provinceInput) provinceInput.value = profile.province ?? "";
+  if (postalInput) postalInput.value = profile.postal_code ?? "";
 
   await refreshSalesNotification(session);
   await refreshPurchasesNotification(session);
   if (runId === loadRunId && status) {
-    const updatedAt = formatProfileUpdatedAt(user.updated_at);
+    const updatedAt = formatProfileUpdatedAt(profile.updated_at || user.updated_at);
     status.textContent = updatedAt
       ? `Información actualizada. Última actualización de datos: ${updatedAt}.`
       : "Información actualizada.";
@@ -355,7 +574,7 @@ const setFormVisible = (isVisible) => {
   refreshProfileNodes();
   if (!profileToggle) return;
   document.body.classList.toggle("is-profile-editing", isVisible);
-  profileToggle.textContent = isVisible ? "Cancelar edición" : "Editar perfil";
+  setProfileToggleContent(isVisible);
   profileToggle.setAttribute("aria-expanded", String(isVisible));
 };
 
@@ -400,37 +619,44 @@ function handleProfileToggleClick() {
 async function handleProfileFormSubmit(event) {
   event.preventDefault();
   refreshProfileNodes();
+  if (isSavingProfile) return;
+
+  const validation = validateProfileForm();
+  if (!validation.ok) {
+    const firstError = validation.errors[0];
+    if (profileFeedback) profileFeedback.textContent = firstError?.message ?? "Revisá los datos ingresados.";
+    firstError?.input?.focus();
+    return;
+  }
+
   if (profileFeedback) profileFeedback.textContent = "Guardando...";
+  isSavingProfile = true;
+  const submitButton = profileForm?.querySelector("button[type='submit']");
+  if (submitButton) submitButton.disabled = true;
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData.session;
-  if (!session?.user) {
-    if (profileFeedback) profileFeedback.textContent = "Tenés que iniciar sesión.";
-    return;
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+    if (!session?.user) {
+      if (profileFeedback) profileFeedback.textContent = "Tenés que iniciar sesión.";
+      return;
+    }
+
+    const { error } = await upsertUserProfile(session.user.id, validation.values);
+
+    if (error) {
+      if (profileFeedback) profileFeedback.textContent = "No se pudieron guardar tus datos. Verificá que el SQL de perfiles esté ejecutado.";
+      return;
+    }
+
+    if (profileFeedback) profileFeedback.textContent = "Datos actualizados.";
+    postAudit("profile_update").catch(() => {});
+    setFormVisible(false);
+    loadProfile();
+  } finally {
+    isSavingProfile = false;
+    if (submitButton) submitButton.disabled = false;
   }
-
-  const { error } = await supabase.auth.updateUser({
-    data: {
-      first_name: firstNameInput?.value ?? "",
-      last_name: lastNameInput?.value ?? "",
-      phone: phoneInput?.value ?? "",
-      dni: dniInput?.value ?? "",
-      address: addressInput?.value ?? "",
-      city: cityInput?.value ?? "",
-      province: provinceInput?.value ?? "",
-      postal_code: postalInput?.value ?? "",
-    },
-  });
-
-  if (error) {
-    if (profileFeedback) profileFeedback.textContent = `Error: ${error.message}`;
-    return;
-  }
-
-  if (profileFeedback) profileFeedback.textContent = "Datos actualizados.";
-  postAudit("profile_update").catch(() => {});
-  setFormVisible(false);
-  loadProfile();
 }
 
 async function handleAvatarChange(event) {
@@ -440,16 +666,21 @@ async function handleAvatarChange(event) {
   const file = target.files?.[0];
   if (!file) return;
 
-  if (!file.type.startsWith("image/")) {
-    if (avatarFeedback) avatarFeedback.textContent = "El archivo debe ser una imagen.";
+  if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+    target.value = "";
+    clearAvatarPreviewUrl();
+    if (avatarFeedback) avatarFeedback.textContent = "El archivo debe ser JPG, PNG o WEBP.";
     return;
   }
 
   if (file.size > AVATAR_MAX_BYTES) {
+    target.value = "";
+    clearAvatarPreviewUrl();
     if (avatarFeedback) avatarFeedback.textContent = "La imagen de perfil supera el tamaño máximo de 5MB.";
     return;
   }
 
+  showLocalAvatarPreview(file);
   if (avatarFeedback) avatarFeedback.textContent = "Subiendo imagen de perfil...";
 
   const { data: sessionData } = await supabase.auth.getSession();
@@ -461,7 +692,7 @@ async function handleAvatarChange(event) {
 
   try {
     const optimizedFile = await resizeAvatarImage(file);
-    const extension = optimizedFile.name.split(".").pop() || "jpg";
+    const extension = getImageExtension(optimizedFile.type);
     const filePath = `${session.user.id}/avatar-${Date.now()}.${extension}`;
     const { error: uploadError } = await supabase.storage
       .from("avatar")
@@ -479,6 +710,7 @@ async function handleAvatarChange(event) {
         data: { avatar_url: avatarUrl },
       });
       window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
+      clearAvatarPreviewUrl();
       if (avatarImg) {
         avatarImg.src = avatarUrl;
         avatarImg.style.display = "block";

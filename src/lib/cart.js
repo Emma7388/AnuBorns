@@ -130,6 +130,31 @@ const loadLocalCart = () => {
   }
 };
 
+export const getCartCount = async (knownUserId = null) => {
+  const userId = typeof knownUserId === "string" ? knownUserId : await getSessionUserId();
+  if (!userId) return loadLocalCart().length;
+
+  try {
+    const { data: cart } = await supabase
+      .from("carts")
+      .select("id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!cart?.id) return 0;
+
+    const { count, error } = await supabase
+      .from("cart_items")
+      .select("id", { count: "exact", head: true })
+      .eq("cart_id", cart.id);
+    if (error) return 0;
+    return Number(count ?? 0);
+  } catch {
+    return 0;
+  }
+};
+
 /* Guarda el carrito local y notifica a la UI. */
 const saveLocalCart = (items) => {
   window.localStorage.setItem(

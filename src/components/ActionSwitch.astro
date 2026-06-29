@@ -2,6 +2,7 @@
 const {
   mode = "buy",
   categories = [],
+  showServices = true,
 } = Astro.props;
 
 const isBuy = mode === "buy";
@@ -32,7 +33,7 @@ const isSell = mode === "sell";
     </div>
 
     {
-      !isBuy && (
+      !isBuy && showServices && (
         <div class="ab-buy-switch__item">
           <a class="ab-buy-switch__trigger ab-buy-switch__trigger--services" href="/vender/servicios">
             Servicios
@@ -283,7 +284,13 @@ const isSell = mode === "sell";
     font-size: 1.38rem;
     font-weight: 850;
     max-width: 100%;
+    line-height: 1.05;
+    overflow: hidden;
     overflow-wrap: anywhere;
+    hyphens: auto;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .ab-buy-switch__dot {

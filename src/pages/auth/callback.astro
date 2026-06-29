@@ -1,11 +1,12 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Verificando cuenta">
   <section class="ab-dark-panel">
     <p class="ab-eyebrow">Verificación</p>
-    <h1>Estamos verificando tu cuenta</h1>
+    <TitleBadge title="Estamos verificando tu cuenta" icon="/icons/iniciarsesion.svg" tone="primary" />
     <p id="auth-callback-feedback" class="ab-muted-text" aria-live="polite">
       Un momento, por favor...
     </p>

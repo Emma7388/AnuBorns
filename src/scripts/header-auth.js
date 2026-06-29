@@ -1,9 +1,14 @@
 /* Header: gestión de sesión, avatar, logout y sincronización de carrito. */
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
-import { getCart, syncCartOnLogin } from "../lib/cart";
+import { getCartCount, syncCartOnLogin } from "../lib/cart";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
 import { uploadPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
+import {
+  fetchUserProfile,
+  getDisplayNameFromProfile,
+  resolvePendingRegistrationProfile,
+} from "../lib/userProfile";
 import { refreshPurchaseStatusNotifications, teardownPurchaseStatusNotifications } from "./purchase-status-notifications.js";
 
 /* Referencias DOM (se recalculan en cada navegación). */
@@ -31,8 +36,17 @@ let salesNoticeToastTimer = 0;
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 const SALES_NOTICE_SHOWN_KEY = "ab_sales_notice_shown_v1";
 const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
+const HEADER_BACKGROUND_TIMEOUT_MS = 1600;
 
 const isSalesPageActive = () => window.location.pathname === "/mis-ventas";
+
+const runWhenIdle = (callback) => {
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(callback, { timeout: HEADER_BACKGROUND_TIMEOUT_MS });
+    return;
+  }
+  window.setTimeout(callback, 0);
+};
 
 /* Modal de confirmación para cerrar sesión. */
 const openModal = () => {
@@ -56,25 +70,17 @@ const closeModal = () => {
 };
 
 /* Obtiene un nombre corto para mostrar en el header. */
-const getDisplayName = (authUser) => {
-  if (!authUser) return "";
-  const meta = authUser.user_metadata ?? {};
-  const firstName = String(meta.first_name ?? "").trim();
-  if (firstName) return firstName;
-  const email = String(authUser.email ?? "").trim();
-  if (!email) return "";
-  return email.split("@")[0] || email;
-};
+const getDisplayName = (authUser, profile = {}) => getDisplayNameFromProfile(authUser, profile);
 
 /* Muestra u oculta la interfaz según estado de sesión. */
-const setView = (session) => {
+const setView = (session, profile = {}) => {
   if (!guest || !user) return;
   if (session?.user) {
     guest.classList.add("ab-is-hidden");
     user.classList.remove("ab-is-hidden");
     const avatarUrl = session.user.user_metadata?.avatar_url;
     if (nameLabel) {
-      nameLabel.textContent = getDisplayName(session.user);
+      nameLabel.textContent = getDisplayName(session.user, profile);
     }
     if (avatarImg) {
       if (avatarUrl) {
@@ -120,11 +126,10 @@ const bindOnce = (element, key, eventName, handler) => {
 };
 
 /* Calcula y pinta el total de items del carrito. */
-const renderCartCount = async () => {
+const renderCartCount = async (session = null) => {
   if (!cartCount) return;
   try {
-    const items = await getCart();
-    const totalQty = items.length;
+    const totalQty = await getCartCount(session?.user?.id ?? null);
     cartCount.textContent = String(totalQty);
   } catch {
     cartCount.textContent = "0";
@@ -333,40 +338,48 @@ const resolvePendingAvatar = async (session) => {
   return result?.avatarUrl ? withAvatarUrl(session, result.avatarUrl) : session;
 };
 
+const resolvePrivateProfile = async (session) => {
+  await resolvePendingRegistrationProfile(session).catch(() => ({ ok: false }));
+  return fetchUserProfile(session?.user);
+};
+
+const syncHeaderBackgroundState = async (session) => {
+  const userId = session?.user?.id ?? "";
+  if (userId && userId !== lastSyncedUserId) {
+    lastSyncedUserId = userId;
+    if (cartSync) cartSync.classList.remove("ab-is-hidden");
+    await syncCartOnLogin(userId);
+    if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
+    await renderCartCount(session);
+  }
+  await refreshSalesNotification(session);
+  await setupSalesRealtime(session);
+  await refreshPurchaseStatusNotifications(session);
+};
+
 /* Resuelve la sesión actual y sincroniza carrito si aplica. */
 const resolveSession = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session) {
     const session = await resolvePendingAvatar(sessionData.session);
     setView(session);
-    const userId = session.user?.id ?? "";
-    if (userId && userId !== lastSyncedUserId) {
-      lastSyncedUserId = userId;
-      if (cartSync) cartSync.classList.remove("ab-is-hidden");
-      await syncCartOnLogin(userId);
-      if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
-    }
-    await refreshSalesNotification(session);
-    await setupSalesRealtime(session);
-    await refreshPurchaseStatusNotifications(session);
-    renderCartCount();
+    renderCartCount(session);
+    resolvePrivateProfile(session).then((profile) => setView(session, profile)).catch(() => {});
+    runWhenIdle(() => {
+      syncHeaderBackgroundState(session).catch(() => {});
+    });
     return;
   }
 
   const { data: userData } = await supabase.auth.getUser();
   if (userData?.user) {
-    setView({ user: userData.user });
-    const userId = userData.user?.id ?? "";
-    if (userId && userId !== lastSyncedUserId) {
-      lastSyncedUserId = userId;
-      if (cartSync) cartSync.classList.remove("ab-is-hidden");
-      await syncCartOnLogin(userId);
-      if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
-    }
-    await refreshSalesNotification({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
-    await setupSalesRealtime({ user: userData.user });
-    await refreshPurchaseStatusNotifications({ user: userData.user, access_token: sessionData?.session?.access_token ?? "" });
-    renderCartCount();
+    const fallbackSession = { user: userData.user, access_token: sessionData?.session?.access_token ?? "" };
+    setView(fallbackSession);
+    renderCartCount(fallbackSession);
+    fetchUserProfile(userData.user).then((profile) => setView(fallbackSession, profile)).catch(() => {});
+    runWhenIdle(() => {
+      syncHeaderBackgroundState(fallbackSession).catch(() => {});
+    });
     return;
   }
 
@@ -418,7 +431,6 @@ const initHeaderAuth = () => {
 
   /* Estado inicial. */
   resolveSession();
-  renderCartCount();
 };
 
 const bindHeaderAuthEvents = () => {
@@ -429,22 +441,27 @@ const bindHeaderAuthEvents = () => {
   supabase.auth.onAuthStateChange(async (_event, incomingSession) => {
     const session = await resolvePendingAvatar(incomingSession);
     setView(session);
+    resolvePrivateProfile(session).then((profile) => setView(session, profile)).catch(() => {});
     const userId = session?.user?.id ?? "";
     if (userId && userId !== lastSyncedUserId) {
       lastSyncedUserId = userId;
       if (cartSync) cartSync.classList.remove("ab-is-hidden");
       syncCartOnLogin(userId).finally(() => {
         if (cartSync && !cartSyncTimeout) cartSync.classList.add("ab-is-hidden");
+        renderCartCount(session);
+        runWhenIdle(() => {
+          refreshSalesNotification(session);
+          setupSalesRealtime(session);
+          refreshPurchaseStatusNotifications(session);
+        });
+      });
+    } else {
+      renderCartCount();
+      runWhenIdle(() => {
         refreshSalesNotification(session);
         setupSalesRealtime(session);
         refreshPurchaseStatusNotifications(session);
-        renderCartCount();
       });
-    } else {
-      refreshSalesNotification(session);
-      setupSalesRealtime(session);
-      refreshPurchaseStatusNotifications(session);
-      renderCartCount();
     }
   });
 

@@ -96,7 +96,35 @@ const autoHideChrome = pathname === "/";
   </script>
 
   <script>
-    import "../scripts/product-image-modal.js";
-    import "../scripts/product-card-expand.js";
+    const PRODUCT_ENHANCEMENT_SELECTOR = [
+      ".ab-provider-product-card",
+      ".ab-provider-product-card__image",
+      ".ab-cart-item__image",
+      ".ab-order-card__thumb img",
+    ].join(", ");
+
+    let productEnhancementsPromise;
+
+    const loadProductEnhancements = () => {
+      productEnhancementsPromise ??= Promise.all([
+        import("../scripts/product-image-modal.js"),
+        import("../scripts/product-card-expand.js"),
+      ]).catch(() => {
+        productEnhancementsPromise = undefined;
+      });
+      return productEnhancementsPromise;
+    };
+
+    const loadProductEnhancementsWhenNeeded = () => {
+      if (document.querySelector(PRODUCT_ENHANCEMENT_SELECTOR)) {
+        loadProductEnhancements();
+      }
+    };
+
+    loadProductEnhancementsWhenNeeded();
+    document.addEventListener("astro:page-load", loadProductEnhancementsWhenNeeded);
+    document.addEventListener("astro:after-swap", loadProductEnhancementsWhenNeeded);
+    document.addEventListener("ab-products-rendered", loadProductEnhancementsWhenNeeded);
+    window.addEventListener("pageshow", loadProductEnhancementsWhenNeeded);
   </script>
 </BaseLayout>

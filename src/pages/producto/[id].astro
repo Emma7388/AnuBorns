@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 import { getSoldProductIds } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
@@ -126,7 +127,7 @@ const shortId = (value) => {
     </section>
   ) : (
     <section class="ab-dark-panel">
-      <h1>Producto no encontrado</h1>
+      <TitleBadge title="Producto no encontrado" icon="/icons/detalle.svg" tone="warning" />
       <p>El producto ya no está disponible o no existe.</p>
     </section>
   )}

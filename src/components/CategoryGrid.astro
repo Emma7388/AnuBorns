@@ -1,15 +1,16 @@
 ---
 // Componente: grilla de categorías con fallback local.
 import { categories as localCategories } from "../data/categories";
+import TitleBadge from "./TitleBadge.astro";
 // Props para construir rutas y título.
-const { basePath, type, title, hrefBase } = Astro.props;
+const { basePath, type, title, hrefBase, icon = "/icons/buscar.svg" } = Astro.props;
 
 // Config de Supabase para intentar leer categorías remotas.
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
 // Helper para fetch con headers requeridos.
-const fetchJson = async (url) => {
+const fetchJson = async (url: string | URL) => {
   const response = await fetch(url, {
     headers: {
       apikey: supabaseAnonKey,
@@ -40,7 +41,7 @@ if (supabaseUrl && supabaseAnonKey) {
 <!-- Sección principal de categorías -->
 <section class="category-page">
   <!-- Título configurable por props -->
-  <h1>{title ?? type?.toUpperCase()}</h1>
+  <TitleBadge title={title ?? type?.toUpperCase()} icon={icon} tone="primary" />
   <!-- Grilla de tarjetas -->
   <div class="grid">
     {categories.map((cat) => (
@@ -63,14 +64,6 @@ if (supabaseUrl && supabaseAnonKey) {
   .category-page {
     width: min(1000px, 100%);
     margin: 0 auto;
-  }
-
-  .category-page h1 {
-    margin-bottom: 18px;
-    color: var(--color-text);
-    font-size: clamp(1.5rem, 3vw, 2.1rem);
-    font-weight: 850;
-    text-align: center;
   }
 
   .grid {

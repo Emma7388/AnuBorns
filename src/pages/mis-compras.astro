@@ -1,13 +1,14 @@
 ---
 // Página: historial de compras.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Mis compras" backHref="/mis-datos">
   <!-- Panel de historial -->
   <section class="ab-dark-panel ab-orders-panel">
     <p class="ab-eyebrow">Perfil</p>
-    <h1>Mis compras</h1>
+    <TitleBadge title="Mis compras" icon="/icons/compra.svg" tone="primary" />
     <!-- Estado de carga -->
     <p id="orders-status" class="ab-muted-text">Cargando órdenes...</p>
     <!-- Estado vacío -->

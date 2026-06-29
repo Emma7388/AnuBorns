@@ -1,6 +1,7 @@
 ---
 // Página: flujo de contratación de proveedor.
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 import { providers } from "../../data/providers";
 import { categories } from "../../data/categories";
 
@@ -22,7 +23,7 @@ const backHref = isSafeInternalPath(fromParam)
     <!-- Panel de contratación -->
     <section class="ab-dark-panel">
       <p class="ab-eyebrow">Solicitud de contratación</p>
-      <h1>{provider.name}</h1>
+      <TitleBadge title={provider.name} icon="/icons/proveedor.svg" tone="primary" />
       <p class="ab-contract__subtitle">
         Categoría: <strong>{categoryName ?? provider.category}</strong> · {provider.location}
       </p>
@@ -57,7 +58,7 @@ const backHref = isSafeInternalPath(fromParam)
   ) : (
     <!-- Fallback cuando no existe el proveedor -->
     <section class="ab-dark-panel">
-      <h1>Proveedor no encontrado</h1>
+      <TitleBadge title="Proveedor no encontrado" icon="/icons/proveedor.svg" tone="warning" />
       <p>La contratación no puede iniciarse porque el proveedor no existe.</p>
     </section>
   )}

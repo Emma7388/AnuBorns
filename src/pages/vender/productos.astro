@@ -1,6 +1,7 @@
 ---
 // Página: publicación de producto.
 import MainLayout from "../../layouts/MainLayout.astro";
+import TitleBadge from "../../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Vender producto">
@@ -9,39 +10,45 @@ import MainLayout from "../../layouts/MainLayout.astro";
     <div class="ab-product-publisher__header">
       <div>
         <p class="ab-eyebrow">Publicación de producto</p>
-        <h1>Creá tu publicación</h1>
+        <TitleBadge title="Creá tu publicación" icon="/icons/destacado.svg" tone="primary" />
       </div>
     </div>
 
     <div class="ab-cart-empty">
       <p>Conectá tu cuenta de Mercado Pago para recibir cobros de tus ventas.</p>
       <p class="ab-muted-text ab-is-hidden" data-mp-connect-account aria-live="polite"></p>
-      <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-mp-connect>
-        Conectar Mercado Pago
+      <button
+        type="button"
+        class="ab-provider-product-card__button ab-provider-product-card__button--buy ab-mp-connect-button"
+        data-mp-connect
+      >
+        <img src="/icons/mercado-pago.svg" alt="" aria-hidden="true" />
+        <span>Conectar Mercado Pago</span>
       </button>
       <button
         type="button"
         class="ab-provider-product-card__button ab-provider-product-card__button--ghost ab-is-hidden"
         data-mp-disconnect
       >
-        Desconectar Mercado Pago
+        <span>Desconectar Mercado Pago</span>
       </button>
       <p class="ab-muted-text" data-mp-connect-status aria-live="polite"></p>
     </div>
 
-    <!-- Formulario de producto -->
-    <form class="ab-form ab-product-form" id="product-form">
-      <ol class="ab-product-steps" id="product-progress-count" aria-label="Estado de la publicación">
-        <li data-product-step="0">Datos</li>
-        <li data-product-step="1">Descripción</li>
-        <li data-product-step="2">Precio y foto</li>
-        <li data-product-step="3">Contacto</li>
-        <li data-product-step="4">Entrega</li>
-      </ol>
+    <div class="ab-product-flow ab-is-hidden" data-mp-required-content>
+      <!-- Formulario de producto -->
+      <form class="ab-form ab-product-form" id="product-form">
+        <ol class="ab-product-steps" id="product-progress-count" aria-label="Estado de la publicación">
+          <li data-product-step="0">Datos</li>
+          <li data-product-step="1">Descripción</li>
+          <li data-product-step="2">Precio y foto</li>
+          <li data-product-step="3">Contacto</li>
+          <li data-product-step="4">Entrega</li>
+        </ol>
 
-      <div class="ab-product-form__grid">
-        <div class="ab-product-form__fields">
-          <div class="ab-product-step-panel" data-product-panel="0">
+        <div class="ab-product-form__grid">
+          <div class="ab-product-form__fields">
+            <div class="ab-product-step-panel" data-product-panel="0">
             <h2>Datos básicos</h2>
             <p class="ab-product-step-help">
               Nombrá el producto de forma clara y elegí dónde debería aparecer en el catálogo.
@@ -232,9 +239,10 @@ import MainLayout from "../../layouts/MainLayout.astro";
             <li>Ubicación: <strong id="product-preview-location">Sin elegir</strong></li>
             <li>Entrega: <strong id="product-preview-delivery">Sin elegir</strong></li>
           </ul>
-        </aside>
-      </div>
-    </form>
+          </aside>
+        </div>
+      </form>
+    </div>
 
     <div class="ab-product-success ab-is-hidden" id="product-success" aria-live="polite">
       <h2>Felicitaciones, tu producto se ha publicado.</h2>

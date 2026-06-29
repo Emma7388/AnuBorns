@@ -1,6 +1,7 @@
 ---
 // Página: confirmación de publicación.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Publicación confirmada">
@@ -15,7 +16,7 @@ import MainLayout from "../layouts/MainLayout.astro";
         </svg>
       </div>
       <!-- Texto de confirmación -->
-      <h1>Publicación enviada</h1>
+      <TitleBadge title="Publicación enviada" icon="/icons/adelante.svg" tone="success" />
       <p class="ab-muted-text">
         Tu trabajo se publicó correctamente. Te llevamos al inicio en unos segundos.
       </p>

@@ -1,0 +1,17 @@
+---
+const {
+  title,
+  icon = "/icons/detalle.svg",
+  level = 1,
+  tone = "primary",
+  class: className = "",
+  textId,
+} = Astro.props;
+
+const safeLevel = Math.min(6, Math.max(1, Number(level) || 1));
+---
+
+<div class:list={["ab-title-badge", `ab-title-badge--${tone}`, className]} role="heading" aria-level={safeLevel}>
+  <img src={icon} alt="" aria-hidden="true" loading="lazy" />
+  <span id={textId}>{title}</span>
+</div>

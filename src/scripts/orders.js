@@ -1051,7 +1051,8 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
             class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
             data-order-invoice="${escapeHtml(orderId)}"
           >
-            Ver factura
+            <img src="/icons/buscar.svg" alt="" aria-hidden="true" />
+            <span>Ver factura</span>
           </button>
           ${confirmPickupButton}
           ${confirmDeliveryButton}

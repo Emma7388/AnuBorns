@@ -1,12 +1,13 @@
 ---
 // Página: historial de servicios.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Mis servicios" backHref="/mis-datos">
   <section class="ab-dark-panel ab-services-panel">
     <p class="ab-eyebrow">Servicios</p>
-    <h1>Mis servicios</h1>
+    <TitleBadge title="Mis servicios" icon="/icons/social.svg" tone="primary" />
     <p class="ab-muted-text">
       Historial de servicios finalizados y el servicio activo primero.
     </p>

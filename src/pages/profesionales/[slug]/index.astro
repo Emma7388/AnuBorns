@@ -1,6 +1,7 @@
 ---
 // Página: perfil de profesional.
 import MainLayout from "../../../layouts/MainLayout.astro";
+import TitleBadge from "../../../components/TitleBadge.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
 
@@ -25,7 +26,7 @@ const backHref = isSafeInternalPath(fromParam)
       <header class="ab-provider-profile__header">
         <div>
           <p class="ab-eyebrow">Perfil profesional</p>
-          <h1>{provider.name}</h1>
+          <TitleBadge title={provider.name} icon="/icons/proveedor.svg" tone="primary" />
           <p class="ab-muted-text">{provider.location}</p>
         </div>
 
@@ -59,7 +60,7 @@ const backHref = isSafeInternalPath(fromParam)
   ) : (
     <!-- Fallback si no existe -->
     <section class="ab-dark-panel">
-      <h1>Profesional no encontrado</h1>
+      <TitleBadge title="Profesional no encontrado" icon="/icons/proveedor.svg" tone="warning" />
       <p>Verificá el enlace o volvé al listado de categorías.</p>
     </section>
   )}

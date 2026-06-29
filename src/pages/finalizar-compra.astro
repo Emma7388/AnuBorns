@@ -1,13 +1,14 @@
 ---
 // Página: checkout y datos de entrega.
 import MainLayout from "../layouts/MainLayout.astro";
+import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Finalizar compra">
   <!-- Panel principal de checkout -->
   <section class="ab-dark-panel ab-checkout-panel">
     <p class="ab-eyebrow">Checkout</p>
-    <h1>Finalizar compra</h1>
+    <TitleBadge title="Finalizar compra" icon="/icons/comprar.svg" tone="primary" />
 
     <!-- Estado vacío -->
     <div id="checkout-empty" class="ab-cart-empty">
@@ -44,8 +45,9 @@ import MainLayout from "../layouts/MainLayout.astro";
       <label for="notes">Nota/Comentario (opcional)</label>
       <textarea id="notes" name="notes" rows="3" autocomplete="off" placeholder="Ej: Dejar en porteria por la tarde."></textarea>
 
-      <button class="ab-cta-button ab-checkout-action" type="submit">
-        Finalizar compra
+      <button class="ab-cta-button ab-checkout-action ab-checkout-action--payment" type="submit">
+        <img src="/icons/mercado-pago.svg" alt="" aria-hidden="true" />
+        <span>Ir a Mercado Pago</span>
       </button>
       <p id="checkout-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
@@ -72,10 +74,12 @@ import MainLayout from "../layouts/MainLayout.astro";
       <p>Después vas a encontrar el contacto del vendedor en Mis compras.</p>
       <div class="ab-orders-modal__actions">
         <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-checkout-modal-cancel>
-          Cancelar
+          <img src="/icons/atras.svg" alt="" aria-hidden="true" />
+          <span>Cancelar</span>
         </button>
         <button type="button" class="ab-orders-delete-btn" data-checkout-modal-confirm>
-          Sí, finalizar
+          <img src="/icons/comprar.svg" alt="" aria-hidden="true" />
+          <span>Sí, finalizar</span>
         </button>
       </div>
     </div>
