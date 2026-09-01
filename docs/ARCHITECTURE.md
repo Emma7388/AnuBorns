@@ -2,6 +2,19 @@
 
 Este documento explica que hace cada archivo y que responsabilidad cumple cada bloque funcional.
 
+Actualizado al 15 de agosto de 2026. La arquitectura vigente es server-side con Astro 6 + Vercel, Supabase como backend y Mercado Pago Checkout Pro por vendedor. Las secciones legacy que mencionan datos simulados describen rutas de demostración que todavía conviven con el catálogo real.
+
+## Backend actual
+
+- Supabase Auth administra registro, sesión y perfiles.
+- Supabase Database persiste categorías, productos, carritos, órdenes, ventas y despachos.
+- Supabase Storage guarda imágenes y avatares.
+- Las rutas `src/pages/api/` autentican al usuario y realizan operaciones privilegiadas con el cliente admin.
+- Mercado Pago OAuth conecta la cuenta de cada vendedor.
+- El checkout crea la preferencia con el token del vendedor y aplica la comisión configurada de AnuBorns.
+- El webhook firmado y la sincronización de retorno actualizan el estado de la orden de forma idempotente.
+- El checkout vigente admite un solo vendedor; todavía no existe reparto multiproveedor dentro de una misma preferencia.
+
 ## Layouts
 
 ### src/layouts/BaseLayout.astro
@@ -180,4 +193,3 @@ Este documento explica que hace cada archivo y que responsabilidad cumple cada b
 6. Finalizacion en `/finalizar-compra`.
 7. Confirmacion en `/compra-confirmada` con redireccion.
 8. Perfil y contratacion mantienen consistencia de regreso con `from`.
-

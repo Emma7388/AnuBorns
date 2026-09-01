@@ -14,9 +14,9 @@ const marketplaceFeeAmount = Number(
 const marketplaceFeePercent = Number(
   process.env.MERCADOPAGO_MARKETPLACE_FEE_PERCENT ?? 0,
 );
-const marketplaceId = String(
-  process.env.MERCADOPAGO_MARKETPLACE_ID ?? "MP",
-).trim();
+const marketplaceId = String(process.env.MERCADOPAGO_MARKETPLACE_ID ?? "").trim();
+const sendMarketplaceField =
+  String(process.env.MERCADOPAGO_SEND_MARKETPLACE_FIELD ?? "false").toLowerCase() === "true";
 
 const getMarketplaceFee = (totalAmount) => {
   if (Number.isFinite(marketplaceFeeAmount) && marketplaceFeeAmount > 0) {
@@ -99,6 +99,33 @@ const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
   }
 
   return { ok: true, sellerId, account: data };
+};
+
+/* Comprueba que el token OAuth usado para cobrar pertenece al seller conectado. */
+const validateSellerOAuthIdentity = async (account) => {
+  const response = await fetch("https://api.mercadopago.com/users/me", {
+    headers: { Authorization: `Bearer ${account.access_token}` },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      ok: false,
+      error: "No se pudo validar el token OAuth vigente del vendedor.",
+      detail: String(payload?.message ?? payload?.error ?? `HTTP ${response.status}`),
+    };
+  }
+
+  const authorizedSellerId = String(payload?.id ?? "").trim();
+  const storedSellerId = String(account.mp_user_id ?? "").trim();
+  if (!authorizedSellerId || authorizedSellerId !== storedSellerId) {
+    return {
+      ok: false,
+      error: "El token OAuth no corresponde a la cuenta Mercado Pago conectada del vendedor.",
+      detail: `oauth_user:${authorizedSellerId || "none"}|stored_user:${storedSellerId || "none"}`,
+    };
+  }
+
+  return { ok: true, sellerId: authorizedSellerId };
 };
 
 const buildPreferenceBody = ({
@@ -205,6 +232,15 @@ export const POST = async ({ request }) => {
         status: sellerAccount.status,
       });
     }
+    const oauthIdentity = await validateSellerOAuthIdentity(sellerAccount.account);
+    if (!oauthIdentity.ok) {
+      console.warn("[checkout] Seller OAuth validation failed", {
+        detail: oauthIdentity.detail,
+      });
+      return new Response(JSON.stringify({ error: oauthIdentity.error }), {
+        status: 409,
+      });
+    }
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
@@ -274,7 +310,8 @@ export const POST = async ({ request }) => {
       notificationUrl,
       userEmail: userData.user.email,
       marketplaceFee,
-      marketplace: marketplaceId,
+      marketplace:
+        sendMarketplaceField && marketplaceFee > 0 ? marketplaceId : "",
     });
     try {
       mpResponse = await preference.create({
@@ -294,7 +331,9 @@ export const POST = async ({ request }) => {
       .from("orders")
       .update({
         preference_id: mpResponse.id ?? null,
-        payment_detail: `mp_preference|marketplace_fee:${marketplaceFee}|marketplace:${marketplaceId || "none"}`,
+        payment_detail: `mp_preference|marketplace_fee:${marketplaceFee}|marketplace:${
+          sendMarketplaceField && marketplaceFee > 0 ? marketplaceId || "none" : "omitted"
+        }|oauth_seller:${oauthIdentity.sellerId}`,
       })
       .eq("id", order.id);
 
