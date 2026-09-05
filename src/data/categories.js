@@ -1,6 +1,6 @@
 /* Catálogo de categorías visibles en el home y filtros. */
 export const categories = [
-  { name: "Plomería", slug: "plomeria", icon: "/icons/Plomeria.svg" },
+  { name: "Plomería", slug: "plomeria", icon: "/icons/plomeria.svg" },
   { name: "Electricidad", slug: "electricidad", icon: "/icons/electricidad.svg" },
   { name: "Corralón", slug: "corralon", icon: "/icons/corralon.svg" },
   { name: "Ferretería", slug: "ferreteria", icon: "/icons/ferreteria.svg" },
