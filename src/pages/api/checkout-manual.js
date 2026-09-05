@@ -1,5 +1,8 @@
 /* API: checkout manual (sin MercadoPago) para registrar compras reales. */
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { getClientIp } from "../../lib/requestMeta.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { buildCheckoutContext, buildOrderItems, sanitizeBuyerNote } from "../../lib/checkoutServer.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
@@ -14,49 +17,42 @@ export const POST = async ({ request }) => {
       max: 20,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida." }), { status: 401 });
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle de compra no es válido." }, 400);
     }
-
-    const payload = await request.json().catch(() => ({}));
     const shipping = payload?.shipping ?? {};
     const buyerNote = sanitizeBuyerNote(payload?.buyer_note);
     const checkout = await buildCheckoutContext(supabaseAdmin, {
       rawItems: payload?.items,
       shipping,
-      buyerId: userData.user.id,
+      buyerId: auth.user.id,
     });
     if (!checkout.ok) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           error: checkout.error,
           sold_product_ids: Array.isArray(checkout.soldProductIds) ? checkout.soldProductIds : [],
-        }),
-        { status: checkout.status },
+        },
+        checkout.status,
       );
     }
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
-        user_id: userData.user.id,
+        user_id: auth.user.id,
         status: "approved",
         total_amount: checkout.totalAmount,
         currency: checkout.orderCurrency,
@@ -74,7 +70,7 @@ export const POST = async ({ request }) => {
       .single();
 
     if (orderError || !order) {
-      return new Response(JSON.stringify({ error: "No se pudo crear la orden." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo crear la orden." }, 500);
     }
 
     const orderItems = buildOrderItems(order.id, checkout.serverItems);
@@ -82,7 +78,7 @@ export const POST = async ({ request }) => {
     const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);
     if (itemsError) {
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
-      return new Response(JSON.stringify({ error: "No se pudieron guardar los items." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron guardar los items." }, 500);
     }
 
     const dispatchResult = await createInitialSaleDispatches(supabaseAdmin, {
@@ -92,15 +88,12 @@ export const POST = async ({ request }) => {
     });
     if (!dispatchResult.ok) {
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
-      return new Response(
-        JSON.stringify({ error: dispatchResult.error ?? "No se pudo inicializar la venta." }),
-        { status: 500 },
-      );
+      return jsonResponse({ error: dispatchResult.error ?? "No se pudo inicializar la venta." }, 500);
     }
 
     /* Auditoría de mejor esfuerzo para compra manual. */
     await supabaseAdmin.from("audit_logs").insert({
-      user_id: userData.user.id,
+      user_id: auth.user.id,
       event: "manual_checkout_created",
       metadata: {
         order_id: order.id,
@@ -110,22 +103,13 @@ export const POST = async ({ request }) => {
         shipping_requested: checkout.shippingRequested,
         shipping_cost: checkout.shippingCost,
       },
-      ip_address:
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        request.headers.get("x-real-ip") ??
-        request.headers.get("cf-connecting-ip") ??
-        null,
+      ip_address: getClientIp(request),
       user_agent: request.headers.get("user-agent") ?? "",
     });
 
-    return new Response(JSON.stringify({ ok: true, order_id: order.id }), { status: 200 });
+    return jsonResponse({ ok: true, order_id: order.id });
   } catch (error) {
     console.error("[checkout-manual] Unhandled error", error);
-    return new Response(
-      JSON.stringify({
-        error: "No se pudo procesar la compra.",
-      }),
-      { status: 500 },
-    );
+    return jsonResponse({ error: "No se pudo procesar la compra." }, 500);
   }
 };

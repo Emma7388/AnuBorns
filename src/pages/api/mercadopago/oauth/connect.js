@@ -1,5 +1,7 @@
 /* Inicia OAuth para conectar la cuenta Mercado Pago de un vendedor. */
 import { createMercadoPagoOAuthState } from "../../../../lib/mercadopagoOAuthState.js";
+import { jsonResponse } from "../../../../lib/apiResponse.js";
+import { getAuthenticatedUser } from "../../../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../../../lib/serverRateLimit.js";
 
@@ -16,43 +18,31 @@ export const POST = async ({ request }) => {
       max: 20,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     if (!clientId || !redirectUri) {
-      return new Response(JSON.stringify({ error: "Falta configurar Mercado Pago OAuth." }), { status: 503 });
+      return jsonResponse({ error: "Falta configurar Mercado Pago OAuth." }, 503);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida." }), { status: 401 });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
     const authUrl = new URL("https://auth.mercadopago.com/authorization");
     authUrl.searchParams.set("client_id", clientId);
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("platform_id", "mp");
-    authUrl.searchParams.set("state", createMercadoPagoOAuthState(userData.user.id));
+    authUrl.searchParams.set("state", createMercadoPagoOAuthState(auth.user.id));
     authUrl.searchParams.set("redirect_uri", redirectUri);
 
-    return new Response(JSON.stringify({ authorization_url: authUrl.toString() }), { status: 200 });
+    return jsonResponse({ authorization_url: authUrl.toString() });
   } catch (error) {
     console.error("[mp-oauth-connect] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo iniciar la conexión con Mercado Pago." }), {
-      status: 500,
-    });
+    return jsonResponse({ error: "No se pudo iniciar la conexión con Mercado Pago." }, 500);
   }
 };

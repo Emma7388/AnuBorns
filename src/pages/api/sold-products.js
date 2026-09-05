@@ -1,13 +1,11 @@
 /* API: consulta acotada de productos ya vendidos. */
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getUniqueStringIds } from "../../lib/orderInput.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSoldProductIds } from "../../lib/soldProducts.js";
 
-const normalizeIds = (value) =>
-  (Array.isArray(value) ? value : [])
-    .map((item) => String(item ?? "").trim())
-    .filter(Boolean)
-    .slice(0, 100);
+const normalizeIds = (value) => getUniqueStringIds(value).slice(0, 100);
 
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
@@ -19,29 +17,27 @@ export const POST = async ({ request }) => {
       max: 120,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ sold_product_ids: [] }), { status: 200 });
+      return jsonResponse({ sold_product_ids: [] });
     }
 
-    const payload = await request.json().catch(() => ({}));
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle de productos no es válido." }, 400);
+    }
     const ids = normalizeIds(payload?.product_ids);
     if (ids.length === 0) {
-      return new Response(JSON.stringify({ sold_product_ids: [] }), { status: 200 });
+      return jsonResponse({ sold_product_ids: [] });
     }
 
     const soldProductIds = await getSoldProductIds(supabaseAdmin, ids);
-    return new Response(
-      JSON.stringify({ sold_product_ids: [...soldProductIds] }),
-      { status: 200 },
-    );
+    return jsonResponse({ sold_product_ids: [...soldProductIds] });
   } catch (error) {
     console.error("[sold-products] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo validar disponibilidad." }), { status: 500 });
+    return jsonResponse({ error: "No se pudo validar disponibilidad." }, 500);
   }
 };

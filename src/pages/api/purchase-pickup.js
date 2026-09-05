@@ -1,7 +1,10 @@
 /* API comprador: confirma que retiró productos listos para retirar. */
+import { jsonResponse } from "../../lib/apiResponse.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
+import { getUniqueStringIds } from "../../lib/orderInput.js";
 
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
@@ -13,40 +16,29 @@ export const POST = async ({ request }) => {
       max: 40,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 });
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle del retiro no es válido." }, 400);
     }
-
-    const payload = await request.json().catch(() => ({}));
     const orderId = String(payload?.orderId ?? "").trim();
-    const productIds = [...new Set(
-      (Array.isArray(payload?.productIds) ? payload.productIds : [])
-        .map((item) => String(item ?? "").trim())
-        .filter(Boolean),
-    )];
+    const productIds = getUniqueStringIds(payload?.productIds);
 
     if (!orderId || productIds.length === 0) {
-      return new Response(JSON.stringify({ error: "Faltan datos para confirmar el retiro." }), { status: 400 });
+      return jsonResponse({ error: "Faltan datos para confirmar el retiro." }, 400);
     }
 
-    const buyerId = userData.user.id;
+    const buyerId = auth.user.id;
     /* El comprador solo puede confirmar retiros de sus propias órdenes. */
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
@@ -56,10 +48,10 @@ export const POST = async ({ request }) => {
       .maybeSingle();
 
     if (orderError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar la compra." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar la compra." }, 500);
     }
     if (!order) {
-      return new Response(JSON.stringify({ error: "No autorizado para confirmar esta compra." }), { status: 403 });
+      return jsonResponse({ error: "No autorizado para confirmar esta compra." }, 403);
     }
     /* Valida que todos los productos enviados pertenezcan a la orden. */
     const { data: orderItems, error: orderItemsError } = await supabaseAdmin
@@ -69,12 +61,12 @@ export const POST = async ({ request }) => {
       .in("product_id", productIds);
 
     if (orderItemsError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar los productos." }, 500);
     }
 
     const validProductIds = [...new Set((orderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean))];
     if (validProductIds.length !== productIds.length) {
-      return new Response(JSON.stringify({ error: "La compra no coincide con los productos indicados." }), { status: 400 });
+      return jsonResponse({ error: "La compra no coincide con los productos indicados." }, 400);
     }
 
     /* Se resuelve vendedor por producto para mantener sale_dispatches consistente. */
@@ -84,7 +76,7 @@ export const POST = async ({ request }) => {
       .in("id", validProductIds);
 
     if (productsError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el vendedor." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar el vendedor." }, 500);
     }
 
     const productSellerMap = new Map(
@@ -94,7 +86,7 @@ export const POST = async ({ request }) => {
     );
 
     if (productSellerMap.size !== validProductIds.length) {
-      return new Response(JSON.stringify({ error: "Faltan datos del vendedor." }), { status: 400 });
+      return jsonResponse({ error: "Faltan datos del vendedor." }, 400);
     }
 
     /* El comprador solo puede confirmar si el vendedor ya marcó listo para retirar. */
@@ -105,7 +97,7 @@ export const POST = async ({ request }) => {
       .in("product_id", validProductIds);
 
     if (dispatchError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el estado de retiro." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar el estado de retiro." }, 500);
     }
 
     const readyProducts = new Set(
@@ -119,9 +111,7 @@ export const POST = async ({ request }) => {
     );
 
     if (validProductIds.some((productId) => !readyProducts.has(productId))) {
-      return new Response(JSON.stringify({ error: "El vendedor todavia no marco esta compra como lista para retirar." }), {
-        status: 409,
-      });
+      return jsonResponse({ error: "El vendedor todavía no marcó esta compra como lista para retirar." }, 409);
     }
 
     const now = new Date().toISOString();
@@ -140,19 +130,19 @@ export const POST = async ({ request }) => {
       .upsert(rows, { onConflict: "seller_id,order_id,product_id" });
 
     if (upsertError) {
-      return new Response(JSON.stringify({ error: "No se pudo confirmar el retiro." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo confirmar el retiro." }, 500);
     }
 
     /* Recalcula el estado agregado de la orden completa. */
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
       console.error("[purchase-pickup] Could not refresh order shipping status", refreshResult.error);
-      return new Response(JSON.stringify({ error: "No se pudo actualizar el resumen de entrega." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo actualizar el resumen de entrega." }, 500);
     }
 
-    return new Response(JSON.stringify({ ok: true, shippingStatus: refreshResult.status }), { status: 200 });
+    return jsonResponse({ ok: true, shippingStatus: refreshResult.status });
   } catch (error) {
     console.error("[purchase-pickup] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo confirmar el retiro." }), { status: 500 });
+    return jsonResponse({ error: "No se pudo confirmar el retiro." }, 500);
   }
 };

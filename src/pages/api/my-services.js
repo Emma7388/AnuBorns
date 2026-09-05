@@ -1,5 +1,6 @@
 /* API temporal de servicios del usuario: persistencia simple en Supabase. */
-import { createClient } from "@supabase/supabase-js";
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
@@ -18,55 +19,19 @@ const seedData = {
   ],
 };
 
-/* Cliente público solo para validar el JWT recibido desde el navegador. */
-const getPublicAuthClient = () => {
-  const env = import.meta.env ?? {};
-  const url =
-    process.env.PUBLIC_SUPABASE_URL ??
-    env.PUBLIC_SUPABASE_URL ??
-    process.env.SUPABASE_URL ??
-    env.SUPABASE_URL;
-  const anonKey =
-    process.env.PUBLIC_SUPABASE_ANON_KEY ??
-    env.PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
-  return createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-};
-
-/* Resuelve el usuario autenticado sin exponer service role al cliente. */
-const getSellerFromToken = async (request) => {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { user: null, error: "No autorizado.", status: 401 };
-  }
-
-  const token = authHeader.replace("Bearer ", "").trim();
-  const authClient = getPublicAuthClient();
-  if (!authClient) {
-    return { user: null, error: "Servicio no disponible.", status: 503 };
-  }
-  const { data, error } = await authClient.auth.getUser(token);
-  if (error || !data?.user) {
-    return { user: null, error: "Sesion invalida o expirada.", status: 401 };
-  }
-  return { user: data.user, error: "", status: 200 };
-};
-
 /* Devuelve servicios guardados o datos de muestra iniciales. */
 export const GET = async ({ request }) => {
   try {
     const rate = checkRateLimit({ request, routeKey: "my-services-get", windowMs: 60_000, max: 60 });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), { status: 429 });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
-    if (!supabaseAdmin) return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+    if (!supabaseAdmin) return jsonResponse({ error: "Servicio no disponible." }, 503);
 
-    const auth = await getSellerFromToken(request);
-    if (!auth.user) return new Response(JSON.stringify({ error: auth.error }), { status: auth.status });
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
     const userId = auth.user.id;
     const { data, error } = await supabaseAdmin
@@ -75,20 +40,17 @@ export const GET = async ({ request }) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) return new Response(JSON.stringify({ error: "No se pudieron cargar servicios." }), { status: 500 });
+    if (error) return jsonResponse({ error: "No se pudieron cargar servicios." }, 500);
     if (!data) {
-      return new Response(JSON.stringify({ active: seedData.active, history: seedData.history }), { status: 200 });
+      return jsonResponse({ active: seedData.active, history: seedData.history });
     }
 
-    return new Response(
-      JSON.stringify({
-        active: data?.active ?? null,
-        history: Array.isArray(data?.history) ? data.history : [],
-      }),
-      { status: 200 },
-    );
+    return jsonResponse({
+      active: data?.active ?? null,
+      history: Array.isArray(data?.history) ? data.history : [],
+    });
   } catch {
-    return new Response(JSON.stringify({ error: "No se pudieron cargar servicios." }), { status: 500 });
+    return jsonResponse({ error: "No se pudieron cargar servicios." }, 500);
   }
 };
 
@@ -97,16 +59,19 @@ export const PUT = async ({ request }) => {
   try {
     const rate = checkRateLimit({ request, routeKey: "my-services-put", windowMs: 60_000, max: 30 });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), { status: 429 });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
-    if (!supabaseAdmin) return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+    if (!supabaseAdmin) return jsonResponse({ error: "Servicio no disponible." }, 503);
 
-    const auth = await getSellerFromToken(request);
-    if (!auth.user) return new Response(JSON.stringify({ error: auth.error }), { status: auth.status });
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const payload = await request.json().catch(() => ({}));
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "Los datos de servicios no son válidos." }, 400);
+    }
     const shouldReset = Boolean(payload?.reset);
     const active = shouldReset ? seedData.active : (payload?.active ?? null);
     const history = shouldReset ? seedData.history : (Array.isArray(payload?.history) ? payload.history : []);
@@ -116,9 +81,9 @@ export const PUT = async ({ request }) => {
       { onConflict: "user_id" },
     );
 
-    if (error) return new Response(JSON.stringify({ error: "No se pudieron guardar servicios." }), { status: 500 });
-    return new Response(JSON.stringify({ ok: true, active, history }), { status: 200 });
+    if (error) return jsonResponse({ error: "No se pudieron guardar servicios." }, 500);
+    return jsonResponse({ ok: true, active, history });
   } catch {
-    return new Response(JSON.stringify({ error: "No se pudieron guardar servicios." }), { status: 500 });
+    return jsonResponse({ error: "No se pudieron guardar servicios." }, 500);
   }
 };

@@ -1,5 +1,7 @@
 /* API vendedor: avanza el estado de entrega/retiro por producto vendido. */
+import { jsonResponse } from "../../lib/apiResponse.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
 
@@ -21,41 +23,34 @@ export const POST = async ({ request }) => {
       max: 60,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "").trim();
     /* El token del navegador define el vendedor que intenta operar. */
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const payload = await request.json().catch(() => ({}));
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle de despacho no es válido." }, 400);
+    }
     const orderId = String(payload?.orderId ?? "").trim();
     const productId = String(payload?.productId ?? "").trim();
     const status = String(payload?.status ?? "").trim();
 
     if (!orderId || !productId) {
-      return new Response(JSON.stringify({ error: "Faltan datos para actualizar la entrega." }), { status: 400 });
+      return jsonResponse({ error: "Faltan datos para actualizar la entrega." }, 400);
     }
     if (!allowedStatuses.has(status)) {
-      return new Response(JSON.stringify({ error: "Estado de entrega invalido." }), { status: 400 });
+      return jsonResponse({ error: "Estado de entrega inválido." }, 400);
     }
 
-    const sellerId = userData.user.id;
+    const sellerId = auth.user.id;
     /* Seguridad: el producto debe pertenecer al vendedor autenticado. */
     const { data: ownProduct, error: ownProductError } = await supabaseAdmin
       .from("products")
@@ -65,10 +60,10 @@ export const POST = async ({ request }) => {
       .maybeSingle();
 
     if (ownProductError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el producto." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar el producto." }, 500);
     }
     if (!ownProduct) {
-      return new Response(JSON.stringify({ error: "No autorizado para despachar este producto." }), { status: 403 });
+      return jsonResponse({ error: "No autorizado para despachar este producto." }, 403);
     }
 
     /* Seguridad: la orden debe contener exactamente el producto indicado. */
@@ -80,10 +75,10 @@ export const POST = async ({ request }) => {
       .maybeSingle();
 
     if (orderItemError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar la venta." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar la venta." }, 500);
     }
     if (!orderItem) {
-      return new Response(JSON.stringify({ error: "La venta no coincide con el producto indicado." }), { status: 400 });
+      return jsonResponse({ error: "La venta no coincide con el producto indicado." }, 400);
     }
 
     if (status === "completed") {
@@ -97,13 +92,13 @@ export const POST = async ({ request }) => {
         .maybeSingle();
 
       if (currentDispatchError) {
-        return new Response(JSON.stringify({ error: "No se pudo validar el estado actual." }), { status: 500 });
+        return jsonResponse({ error: "No se pudo validar el estado actual." }, 500);
       }
       const currentStatus = String(currentDispatch?.fulfillment_status ?? "").trim();
       if (!["picked_up", "delivered"].includes(currentStatus)) {
-        return new Response(
-          JSON.stringify({ error: "El comprador debe confirmar el retiro o la recepcion antes de completar el circuito." }),
-          { status: 409 },
+        return jsonResponse(
+          { error: "El comprador debe confirmar el retiro o la recepción antes de completar el circuito." },
+          409,
         );
       }
     }
@@ -122,19 +117,19 @@ export const POST = async ({ request }) => {
     );
 
     if (upsertError) {
-      return new Response(JSON.stringify({ error: "No se pudo guardar el estado de entrega." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo guardar el estado de entrega." }, 500);
     }
 
     /* orders.shipping_status queda como resumen agregado para vistas rápidas. */
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
       console.error("[sales-dispatch] Could not refresh order shipping status", refreshResult.error);
-      return new Response(JSON.stringify({ error: "No se pudo actualizar el resumen de entrega." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo actualizar el resumen de entrega." }, 500);
     }
 
-    return new Response(JSON.stringify({ ok: true, shippingStatus: refreshResult.status }), { status: 200 });
+    return jsonResponse({ ok: true, shippingStatus: refreshResult.status });
   } catch (error) {
     console.error("[sales-dispatch] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo guardar el estado de entrega." }), { status: 500 });
+    return jsonResponse({ error: "No se pudo guardar el estado de entrega." }, 500);
   }
 };

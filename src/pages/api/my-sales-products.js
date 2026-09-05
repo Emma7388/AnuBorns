@@ -1,5 +1,6 @@
 /* API: resumen de productos vendidos para el vendedor autenticado. */
-import { createClient } from "@supabase/supabase-js";
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
@@ -87,26 +88,6 @@ const getSellerShippingCost = ({ shippingRequested, orderShippingCost, shippingA
   return cost > SHIPPING_FEE ? SHIPPING_FEE : cost;
 };
 
-/* Resuelve cliente público para validar token de usuario. */
-const getPublicAuthClient = () => {
-  const env = import.meta.env ?? {};
-  const url =
-    process.env.PUBLIC_SUPABASE_URL ??
-    env.PUBLIC_SUPABASE_URL ??
-    process.env.SUPABASE_URL ??
-    env.SUPABASE_URL;
-  const anonKey =
-    process.env.PUBLIC_SUPABASE_ANON_KEY ??
-    env.PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
-  return createClient(url, anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-};
-
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
@@ -117,46 +98,21 @@ export const GET = async ({ request }) => {
       max: 60,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       const config = getSupabaseAdminConfigStatus();
-      return new Response(
-        JSON.stringify({
-          error: `Servicio no disponible. Falta configurar ${config.missing.join(", ")} en Vercel.`,
-        }),
-        { status: 503 },
+      return jsonResponse(
+        { error: `Servicio no disponible. Falta configurar ${config.missing.join(", ")} en Vercel.` },
+        503,
       );
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), {
-        status: 401,
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "").trim();
-    const authClient = getPublicAuthClient();
-    if (!authClient) {
-      return new Response(
-        JSON.stringify({
-          error: "Servicio no disponible. Falta configurar PUBLIC_SUPABASE_URL/PUBLIC_SUPABASE_ANON_KEY.",
-        }),
-        { status: 503 },
-      );
-    }
-
-    const { data: userData, error: userError } = await authClient.auth.getUser(token);
-    if (userError || !userData.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 });
-    }
-
-    const sellerId = userData.user.id;
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
+    const sellerId = auth.user.id;
     const { data: ownProducts, error: ownProductsError } = await supabaseAdmin
       .from("products")
       .select("id, title, currency, image_url, seller_name")
@@ -164,14 +120,11 @@ export const GET = async ({ request }) => {
 
     if (ownProductsError) {
       console.error("[my-sales-products] products query failed", ownProductsError.message);
-      return new Response(
-        JSON.stringify({ error: "No se pudieron cargar los productos." }),
-        { status: 500 },
-      );
+      return jsonResponse({ error: "No se pudieron cargar los productos." }, 500);
     }
 
     if (!Array.isArray(ownProducts) || ownProducts.length === 0) {
-      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      return jsonResponse({ items: [] });
     }
 
     const productMap = new Map(
@@ -188,10 +141,7 @@ export const GET = async ({ request }) => {
 
     if (salesError) {
       console.error("[my-sales-products] sales query failed", salesError.message);
-      return new Response(
-        JSON.stringify({ error: "No se pudieron cargar las ventas." }),
-        { status: 500 },
-      );
+      return jsonResponse({ error: "No se pudieron cargar las ventas." }, 500);
     }
 
     const soldMap = new Map();
@@ -361,11 +311,9 @@ export const GET = async ({ request }) => {
       }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    return new Response(JSON.stringify({ items }), { status: 200 });
+    return jsonResponse({ items });
   } catch (error) {
     console.error("[my-sales-products] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudieron cargar las ventas." }), {
-      status: 500,
-    });
+    return jsonResponse({ error: "No se pudieron cargar las ventas." }, 500);
   }
 };

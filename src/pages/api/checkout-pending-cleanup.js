@@ -1,5 +1,7 @@
 /* API: cancela ordenes de checkout abandonadas del comprador autenticado. */
 import { cancelAbandonedCheckoutOrders } from "../../lib/checkoutPendingOrders.js";
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
@@ -13,37 +15,25 @@ export const POST = async ({ request }) => {
       max: 30,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida." }), { status: 401 });
-    }
-
-    const result = await cancelAbandonedCheckoutOrders(supabaseAdmin, { userId: userData.user.id });
+    const result = await cancelAbandonedCheckoutOrders(supabaseAdmin, { userId: auth.user.id });
     if (!result.ok) {
-      return new Response(JSON.stringify({ error: "No se pudieron limpiar las compras pendientes." }), {
-        status: 500,
-      });
+      return jsonResponse({ error: "No se pudieron limpiar las compras pendientes." }, 500);
     }
 
-    return new Response(JSON.stringify({ ok: true, cancelled: result.count }), { status: 200 });
+    return jsonResponse({ ok: true, cancelled: result.count });
   } catch (error) {
     console.error("[checkout-pending-cleanup] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudieron limpiar las compras pendientes." }), { status: 500 });
+    return jsonResponse({ error: "No se pudieron limpiar las compras pendientes." }, 500);
   }
 };

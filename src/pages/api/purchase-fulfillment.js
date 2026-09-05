@@ -1,4 +1,7 @@
 /* API comprador: lee estados por producto y marca notificaciones como vistas. */
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getUniqueStringIds } from "../../lib/orderInput.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
@@ -33,21 +36,6 @@ const normalizeStatusUpdatedAt = (value) => {
   return date.toISOString();
 };
 
-/* Autenticación compartida para GET/POST. */
-const getAuthenticatedUser = async (request, supabaseAdmin) => {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { user: null, response: new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 }) };
-  }
-
-  const token = authHeader.replace("Bearer ", "").trim();
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-  if (userError || !userData?.user) {
-    return { user: null, response: new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 }) };
-  }
-  return { user: userData.user, response: null };
-};
-
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
@@ -58,23 +46,22 @@ export const GET = async ({ request }) => {
       max: 80,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const { user, response } = await getAuthenticatedUser(request, supabaseAdmin);
-    if (response) return response;
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
+    const user = auth.user;
 
     const url = new URL(request.url);
     const orderIds = [...new Set(parseCsv(url.searchParams.get("orderIds")))];
     if (orderIds.length === 0) {
-      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      return jsonResponse({ items: [] });
     }
 
     const buyerId = user.id;
@@ -86,12 +73,12 @@ export const GET = async ({ request }) => {
       .in("id", orderIds);
 
     if (ordersError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar las compras." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar las compras." }, 500);
     }
 
     const ownedOrderIds = [...new Set((orders ?? []).map((order) => String(order?.id ?? "").trim()).filter(Boolean))];
     if (ownedOrderIds.length === 0) {
-      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      return jsonResponse({ items: [] });
     }
 
     const { data: orderItems, error: orderItemsError } = await supabaseAdmin
@@ -100,12 +87,12 @@ export const GET = async ({ request }) => {
       .in("order_id", ownedOrderIds);
 
     if (orderItemsError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar los productos." }, 500);
     }
 
     const productIds = [...new Set((orderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean))];
     if (productIds.length === 0) {
-      return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      return jsonResponse({ items: [] });
     }
 
     /* sale_dispatches tiene el estado real por producto. */
@@ -116,7 +103,7 @@ export const GET = async ({ request }) => {
       .in("product_id", productIds);
 
     if (dispatchError) {
-      return new Response(JSON.stringify({ error: "No se pudieron cargar los estados de retiro." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron cargar los estados de retiro." }, 500);
     }
 
     const dispatchMap = new Map(
@@ -142,7 +129,7 @@ export const GET = async ({ request }) => {
       .in("order_id", ownedOrderIds);
 
     if (readError) {
-      return new Response(JSON.stringify({ error: "No se pudieron cargar estados leidos." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron cargar estados leídos." }, 500);
     }
 
     const readSet = new Set(
@@ -173,10 +160,10 @@ export const GET = async ({ request }) => {
       };
     });
 
-    return new Response(JSON.stringify({ items, hasAnyRead: readSet.size > 0 }), { status: 200 });
+    return jsonResponse({ items, hasAnyRead: readSet.size > 0 });
   } catch (error) {
     console.error("[purchase-fulfillment] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudieron cargar los estados de retiro." }), { status: 500 });
+    return jsonResponse({ error: "No se pudieron cargar los estados de retiro." }, 500);
   }
 };
 
@@ -190,20 +177,22 @@ export const POST = async ({ request }) => {
       max: 120,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const { user, response } = await getAuthenticatedUser(request, supabaseAdmin);
-    if (response) return response;
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
+    const user = auth.user;
 
-    const payload = await request.json().catch(() => ({}));
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle de lecturas no es válido." }, 400);
+    }
     /* Solo se aceptan marcas de lectura completas y con estado válido. */
     const reads = (Array.isArray(payload?.items) ? payload.items : [])
       .map((item) => ({
@@ -219,11 +208,11 @@ export const POST = async ({ request }) => {
       );
 
     if (reads.length === 0) {
-      return new Response(JSON.stringify({ ok: true, inserted: 0 }), { status: 200 });
+      return jsonResponse({ ok: true, inserted: 0 });
     }
 
     const orderIds = [...new Set(reads.map((item) => item.orderId))];
-    const productIds = [...new Set(reads.map((item) => item.productId))];
+    const productIds = getUniqueStringIds(reads.map((item) => item.productId));
     const buyerId = user.id;
 
     const { data: orders, error: ordersError } = await supabaseAdmin
@@ -233,12 +222,12 @@ export const POST = async ({ request }) => {
       .in("id", orderIds);
 
     if (ordersError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar las compras." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar las compras." }, 500);
     }
 
     const ownedOrderIds = new Set((orders ?? []).map((order) => String(order?.id ?? "").trim()).filter(Boolean));
     if (ownedOrderIds.size === 0) {
-      return new Response(JSON.stringify({ error: "No autorizado para marcar estos estados." }), { status: 403 });
+      return jsonResponse({ error: "No autorizado para marcar estos estados." }, 403);
     }
 
     /* Valida pares orden-producto para impedir marcar estados ajenos. */
@@ -249,7 +238,7 @@ export const POST = async ({ request }) => {
       .in("product_id", productIds);
 
     if (orderItemsError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar los productos." }, 500);
     }
 
     const validPairs = new Set(
@@ -265,7 +254,7 @@ export const POST = async ({ request }) => {
       .in("product_id", productIds);
 
     if (dispatchError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar los estados actuales." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar los estados actuales." }, 500);
     }
 
     const orderFallbackStatus = new Map(
@@ -322,7 +311,7 @@ export const POST = async ({ request }) => {
       }));
 
     if (rows.length === 0) {
-      return new Response(JSON.stringify({ error: "No autorizado para marcar estos productos." }), { status: 403 });
+      return jsonResponse({ error: "No autorizado para marcar estos productos." }, 403);
     }
 
     const { error: upsertError } = await supabaseAdmin
@@ -330,12 +319,12 @@ export const POST = async ({ request }) => {
       .upsert(rows, { onConflict: "user_id,order_id,product_id,fulfillment_status,status_updated_at", ignoreDuplicates: true });
 
     if (upsertError) {
-      return new Response(JSON.stringify({ error: "No se pudieron marcar los estados como leidos." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron marcar los estados como leídos." }, 500);
     }
 
-    return new Response(JSON.stringify({ ok: true, inserted: rows.length }), { status: 200 });
+    return jsonResponse({ ok: true, inserted: rows.length });
   } catch (error) {
     console.error("[purchase-fulfillment-read] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudieron marcar los estados como leidos." }), { status: 500 });
+    return jsonResponse({ error: "No se pudieron marcar los estados como leídos." }, 500);
   }
 };

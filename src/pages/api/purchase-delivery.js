@@ -1,7 +1,10 @@
 /* API comprador: confirma recepción de productos enviados. */
+import { jsonResponse } from "../../lib/apiResponse.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
+import { getUniqueStringIds } from "../../lib/orderInput.js";
 
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
@@ -13,40 +16,29 @@ export const POST = async ({ request }) => {
       max: 40,
     });
     if (!rate.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }), {
-        status: 429,
-      });
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(JSON.stringify({ error: "Servicio no disponible." }), { status: 503 });
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401 });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Sesion invalida o expirada." }), { status: 401 });
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle de recepción no es válido." }, 400);
     }
-
-    const payload = await request.json().catch(() => ({}));
     const orderId = String(payload?.orderId ?? "").trim();
-    const productIds = [...new Set(
-      (Array.isArray(payload?.productIds) ? payload.productIds : [])
-        .map((item) => String(item ?? "").trim())
-        .filter(Boolean),
-    )];
+    const productIds = getUniqueStringIds(payload?.productIds);
 
     if (!orderId || productIds.length === 0) {
-      return new Response(JSON.stringify({ error: "Faltan datos para confirmar la recepcion." }), { status: 400 });
+      return jsonResponse({ error: "Faltan datos para confirmar la recepción." }, 400);
     }
 
-    const buyerId = userData.user.id;
+    const buyerId = auth.user.id;
     /* El comprador solo puede confirmar recepciones de sus propias órdenes. */
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
@@ -56,13 +48,13 @@ export const POST = async ({ request }) => {
       .maybeSingle();
 
     if (orderError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar la compra." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar la compra." }, 500);
     }
     if (!order) {
-      return new Response(JSON.stringify({ error: "No autorizado para confirmar esta compra." }), { status: 403 });
+      return jsonResponse({ error: "No autorizado para confirmar esta compra." }, 403);
     }
     if (!Boolean(order.shipping_requested)) {
-      return new Response(JSON.stringify({ error: "Esta confirmacion aplica solo a envios." }), { status: 400 });
+      return jsonResponse({ error: "Esta confirmación aplica sólo a envíos." }, 400);
     }
 
     /* Valida que todos los productos enviados pertenezcan a la orden. */
@@ -73,12 +65,12 @@ export const POST = async ({ request }) => {
       .in("product_id", productIds);
 
     if (orderItemsError) {
-      return new Response(JSON.stringify({ error: "No se pudieron validar los productos." }), { status: 500 });
+      return jsonResponse({ error: "No se pudieron validar los productos." }, 500);
     }
 
     const validProductIds = [...new Set((orderItems ?? []).map((item) => String(item?.product_id ?? "").trim()).filter(Boolean))];
     if (validProductIds.length !== productIds.length) {
-      return new Response(JSON.stringify({ error: "La compra no coincide con los productos indicados." }), { status: 400 });
+      return jsonResponse({ error: "La compra no coincide con los productos indicados." }, 400);
     }
 
     /* Solo se puede confirmar recepción cuando el vendedor ya marcó enviado. */
@@ -89,7 +81,7 @@ export const POST = async ({ request }) => {
       .in("product_id", validProductIds);
 
     if (dispatchError) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el estado de envio." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo validar el estado de envío." }, 500);
     }
 
     const receivableRows = new Map(
@@ -109,7 +101,7 @@ export const POST = async ({ request }) => {
     );
 
     if (validProductIds.some((productId) => !receivableRows.has(productId))) {
-      return new Response(JSON.stringify({ error: "El envio todavia no figura como enviado." }), { status: 409 });
+      return jsonResponse({ error: "El envío todavía no figura como enviado." }, 409);
     }
 
     const now = new Date().toISOString();
@@ -128,19 +120,19 @@ export const POST = async ({ request }) => {
       .upsert(rows, { onConflict: "seller_id,order_id,product_id" });
 
     if (upsertError) {
-      return new Response(JSON.stringify({ error: "No se pudo confirmar la recepcion." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo confirmar la recepción." }, 500);
     }
 
     /* Recalcula el estado agregado de la orden completa. */
     const refreshResult = await refreshOrderShippingStatus(supabaseAdmin, orderId);
     if (!refreshResult.ok) {
       console.error("[purchase-delivery] Could not refresh order shipping status", refreshResult.error);
-      return new Response(JSON.stringify({ error: "No se pudo actualizar el resumen de entrega." }), { status: 500 });
+      return jsonResponse({ error: "No se pudo actualizar el resumen de entrega." }, 500);
     }
 
-    return new Response(JSON.stringify({ ok: true, shippingStatus: refreshResult.status }), { status: 200 });
+    return jsonResponse({ ok: true, shippingStatus: refreshResult.status });
   } catch (error) {
     console.error("[purchase-delivery] Unhandled error", error);
-    return new Response(JSON.stringify({ error: "No se pudo confirmar la recepcion." }), { status: 500 });
+    return jsonResponse({ error: "No se pudo confirmar la recepción." }, 500);
   }
 };
