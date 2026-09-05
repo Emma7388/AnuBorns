@@ -6,6 +6,8 @@ import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 /* Tokens requeridos para consultar la API y validar firma. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+const MERCADOPAGO_REQUEST_TIMEOUT_MS = 8_000;
+const WEBHOOK_SIGNATURE_MAX_SKEW_MS = 5 * 60 * 1_000;
 
 if (!accessToken) {
   throw new Error("Missing MERCADOPAGO_ACCESS_TOKEN.");
@@ -49,19 +51,22 @@ const fetchMercadoPagoPayment = async (paymentId, tokens = []) => {
   ];
 
   for (const token of uniqueTokens) {
-    const response = await fetch(`https://api.mercadopago.com/v1/payments/${safePaymentId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.ok) {
-      return { ok: true, payment: await response.json(), status: response.status };
+    try {
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${safePaymentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(MERCADOPAGO_REQUEST_TIMEOUT_MS),
+      });
+      if (response.ok) {
+        return { ok: true, payment: await response.json(), status: response.status };
+      }
+      const errorText = await response.text().catch(() => "");
+      console.warn("[mp-webhook] Payment fetch attempt failed", {
+        status: response.status,
+        error: errorText.slice(0, 300),
+      });
+    } catch {
+      console.warn("[mp-webhook] Payment fetch attempt timed out or failed");
     }
-    const errorText = await response.text().catch(() => "");
-    console.warn("[mp-webhook] Payment fetch attempt failed", {
-      status: response.status,
-      error: errorText.slice(0, 300),
-    });
   }
 
   return { ok: false };
@@ -183,8 +188,7 @@ const verifySignature = (signatureHeader, requestId, dataId) => {
   if (!tsMs) return false;
 
   const now = Date.now();
-  const maxSkewMs = 5 * 60 * 1000;
-  if (Math.abs(now - tsMs) > maxSkewMs) return false;
+  if (Math.abs(now - tsMs) > WEBHOOK_SIGNATURE_MAX_SKEW_MS) return false;
 
   const manifest = `id:${normalizeId(dataId)};request-id:${requestId};ts:${signature.ts};`;
   const expected = createHmac("sha256", webhookSecret).update(manifest).digest("hex");

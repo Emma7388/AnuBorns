@@ -30,7 +30,6 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 ### Limitaciones conocidas
 
 - Cada checkout admite productos de un solo vendedor. Un carrito multiproveedor debe separarse antes de pagar o convertirse en varios checkouts.
-- Se guardan `refresh_token` y `expires_at` de Mercado Pago, pero todavía no existe renovación automática del access token.
 - La seguridad y las políticas RLS de la tabla de credenciales OAuth deben endurecerse antes de producción.
 - Perfiles de profesionales, servicios y algunas rutas de proveedores todavía utilizan datos de demostración.
 - Los flujos de oferta y contratación de servicios continúan como MVP/placeholder.
@@ -79,11 +78,12 @@ MERCADOPAGO_CLIENT_ID=
 MERCADOPAGO_CLIENT_SECRET=
 MERCADOPAGO_OAUTH_REDIRECT_URI=
 MERCADOPAGO_MARKETPLACE_ID=MP
+MERCADOPAGO_SEND_MARKETPLACE_FIELD=false
 MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=1
 MERCADOPAGO_MARKETPLACE_FEE_PERCENT=0
 ```
 
-Si el importe fijo es mayor que cero, tiene prioridad sobre el porcentaje. Los valores definitivos deben acordarse y probarse con la cuenta marketplace habilitada por Mercado Pago.
+Si el importe fijo es mayor que cero, tiene prioridad sobre el porcentaje. `MERCADOPAGO_SEND_MARKETPLACE_FIELD` se mantiene en `false` salvo que Mercado Pago indique expresamente que la operación debe enviar el campo `marketplace`; la comisión se envía mediante `marketplace_fee` cuando corresponde. Los valores definitivos deben acordarse y probarse con la cuenta marketplace habilitada por Mercado Pago.
 
 ## Arquitectura funcional
 
@@ -136,8 +136,7 @@ Archivos principales:
 
 1. Mantener el build limpio con variables reales.
 2. Endurecer el almacenamiento de credenciales OAuth de Mercado Pago.
-3. Implementar renovación automática de tokens OAuth.
-4. Validar el flujo completo de Mercado Pago y comisiones.
-5. Definir la experiencia para carritos multiproveedor.
-6. Migrar los datos mock restantes a Supabase.
-7. Completar servicios/ofertas y pruebas de regresión antes de producción.
+3. Validar el flujo completo de Mercado Pago y comisiones.
+4. Definir la experiencia para carritos multiproveedor.
+5. Migrar los datos mock restantes a Supabase.
+6. Completar servicios/ofertas y pruebas de regresión antes de producción.

@@ -5,6 +5,8 @@ import {
   buildCheckoutContext,
   buildOrderItems,
 } from "../../lib/checkoutServer.js";
+import { jsonResponse } from "../../lib/apiResponse.js";
+import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 /* Comisión marketplace configurable desde variables de entorno. */
@@ -17,6 +19,8 @@ const marketplaceFeePercent = Number(
 const marketplaceId = String(process.env.MERCADOPAGO_MARKETPLACE_ID ?? "").trim();
 const sendMarketplaceField =
   String(process.env.MERCADOPAGO_SEND_MARKETPLACE_FIELD ?? "false").toLowerCase() === "true";
+const OAUTH_REQUEST_TIMEOUT_MS = 8_000;
+const OAUTH_REFRESH_GRACE_MS = 5 * 60 * 1_000;
 
 const getMarketplaceFee = (totalAmount) => {
   if (Number.isFinite(marketplaceFeeAmount) && marketplaceFeeAmount > 0) {
@@ -29,6 +33,22 @@ const getMarketplaceFee = (totalAmount) => {
     );
   }
   return 0;
+};
+
+/* Evita crear una orden si las URLs de retorno no son utilizables por Checkout Pro. */
+const resolveCheckoutSiteUrl = (value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return { ok: false, error: "Falta configurar SITE_URL." };
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password) {
+      return { ok: false, error: "SITE_URL debe ser una URL HTTPS válida." };
+    }
+    return { ok: true, value: url.origin };
+  } catch {
+    return { ok: false, error: "SITE_URL debe ser una URL HTTPS válida." };
+  }
 };
 
 const buildItemDescription = (item) => {
@@ -72,7 +92,7 @@ const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
   const sellerId = sellerIds[0];
   const { data, error } = await supabaseAdmin
     .from("seller_mercadopago_accounts")
-    .select("user_id, access_token, mp_user_id")
+    .select("user_id, access_token, refresh_token, mp_user_id, expires_at")
     .eq("user_id", sellerId)
     .maybeSingle();
 
@@ -101,12 +121,121 @@ const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
   return { ok: true, sellerId, account: data };
 };
 
+const isOAuthTokenCloseToExpiry = (expiresAt) => {
+  const expiresAtMs = Date.parse(String(expiresAt ?? ""));
+  if (!Number.isFinite(expiresAtMs)) return false;
+  return expiresAtMs <= Date.now() + OAUTH_REFRESH_GRACE_MS;
+};
+
+const discardIncompleteOrder = async (supabaseAdmin, orderId, reason) => {
+  const { error } = await supabaseAdmin.from("orders").delete().eq("id", orderId);
+  if (error) {
+    console.error("[checkout] Incomplete order cleanup failed", { orderId, reason, error });
+  }
+};
+
+const buildPreferenceTrace = ({ marketplaceFee, oauthSellerId }) =>
+  `mp_preference|marketplace_fee:${marketplaceFee}|marketplace:${
+    sendMarketplaceField && marketplaceFee > 0 ? marketplaceId || "none" : "omitted"
+  }|oauth_seller:${oauthSellerId}`;
+
+/* Renueva el token del seller antes de cobrar, sólo si está por vencer. */
+const refreshSellerOAuthTokenIfNeeded = async (supabaseAdmin, account) => {
+  if (!isOAuthTokenCloseToExpiry(account.expires_at)) {
+    return { ok: true, account };
+  }
+
+  const clientId = String(process.env.MERCADOPAGO_CLIENT_ID ?? "").trim();
+  const clientSecret = String(process.env.MERCADOPAGO_CLIENT_SECRET ?? "").trim();
+  const refreshToken = String(account.refresh_token ?? "").trim();
+  if (!clientId || !clientSecret || !refreshToken) {
+    return {
+      ok: false,
+      error: "La conexión Mercado Pago del vendedor venció. Debe reconectarla para cobrar.",
+      detail: "oauth_refresh_credentials_missing",
+    };
+  }
+
+  let response;
+  let payload;
+  try {
+    response = await fetch("https://api.mercadopago.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+      signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS),
+    });
+    payload = await response.json().catch(() => ({}));
+  } catch {
+    return {
+      ok: false,
+      error: "No se pudo renovar la conexión Mercado Pago del vendedor. Intentá nuevamente.",
+      detail: "oauth_refresh_request_failed",
+    };
+  }
+
+  const accessToken = String(payload?.access_token ?? "").trim();
+  if (!response.ok || !accessToken) {
+    return {
+      ok: false,
+      error: "La conexión Mercado Pago del vendedor venció. Debe reconectarla para cobrar.",
+      detail: String(payload?.message ?? payload?.error ?? `HTTP ${response.status}`),
+    };
+  }
+
+  const expiresIn = Number(payload?.expires_in ?? 0);
+  const expiresAt = Number.isFinite(expiresIn) && expiresIn > 0
+    ? new Date(Date.now() + expiresIn * 1000).toISOString()
+    : null;
+  const refreshedAccount = {
+    ...account,
+    access_token: accessToken,
+    refresh_token: String(payload?.refresh_token ?? refreshToken).trim(),
+    expires_at: expiresAt,
+  };
+  const { error: updateError } = await supabaseAdmin
+    .from("seller_mercadopago_accounts")
+    .update({
+      access_token: refreshedAccount.access_token,
+      refresh_token: refreshedAccount.refresh_token,
+      expires_at: refreshedAccount.expires_at,
+    })
+    .eq("user_id", account.user_id);
+
+  if (updateError) {
+    return {
+      ok: false,
+      error: "No se pudo guardar la renovación de Mercado Pago. Intentá nuevamente.",
+      detail: "oauth_refresh_persist_failed",
+    };
+  }
+
+  return { ok: true, account: refreshedAccount };
+};
+
 /* Comprueba que el token OAuth usado para cobrar pertenece al seller conectado. */
 const validateSellerOAuthIdentity = async (account) => {
-  const response = await fetch("https://api.mercadopago.com/users/me", {
-    headers: { Authorization: `Bearer ${account.access_token}` },
-  });
-  const payload = await response.json().catch(() => ({}));
+  let response;
+  let payload;
+  try {
+    response = await fetch("https://api.mercadopago.com/users/me", {
+      headers: { Authorization: `Bearer ${account.access_token}` },
+      signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS),
+    });
+    payload = await response.json().catch(() => ({}));
+  } catch {
+    return {
+      ok: false,
+      error: "No se pudo validar la conexión Mercado Pago del vendedor. Intentá nuevamente.",
+      detail: "oauth_identity_request_failed",
+    };
+  }
+
   if (!response.ok) {
     return {
       ok: false,
@@ -181,28 +310,13 @@ export const POST = async ({ request }) => {
     /* Autenticación y disponibilidad de Supabase. */
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Servicio no disponible." }),
-        { status: 503 },
-      );
+      return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), {
-        status: 401,
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData.user) {
-      return new Response(JSON.stringify({ error: "Sesión inválida." }), {
-        status: 401,
-      });
-    }
+    const auth = await getAuthenticatedUser(supabaseAdmin, request);
+    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
+    const user = auth.user;
     const cleanupResult = await cancelAbandonedCheckoutOrders(supabaseAdmin, {
-      userId: userData.user.id,
+      userId: user.id,
     });
     if (!cleanupResult.ok) {
       console.warn("[checkout] Pending order cleanup failed", {
@@ -211,41 +325,64 @@ export const POST = async ({ request }) => {
     }
 
     /* Parseo y validación del payload. */
-    const payload = await request.json();
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") {
+      return jsonResponse({ error: "El detalle de compra no es válido." }, 400);
+    }
     const shipping = payload?.shipping ?? {};
     const checkout = await buildCheckoutContext(supabaseAdmin, {
       rawItems: payload?.items,
       shipping,
-      buyerId: userData.user.id,
+      buyerId: user.id,
     });
     if (!checkout.ok) {
-      return new Response(JSON.stringify({ error: checkout.error }), {
-        status: checkout.status,
-      });
+      return jsonResponse({ error: checkout.error }, checkout.status);
     }
+
+    const siteUrlResult = resolveCheckoutSiteUrl(
+      process.env.SITE_URL ?? request.headers.get("origin"),
+    );
+    if (!siteUrlResult.ok) {
+      return jsonResponse({ error: siteUrlResult.error }, 500);
+    }
+
+    const marketplaceFee = getMarketplaceFee(checkout.totalAmount);
+    if (marketplaceFee >= checkout.totalAmount && marketplaceFee > 0) {
+      return jsonResponse(
+        { error: "La comisión Marketplace debe ser menor al total de la compra." },
+        422,
+      );
+    }
+
     const sellerAccount = await getSingleSellerAccount(
       supabaseAdmin,
       checkout.serverItems,
     );
     if (!sellerAccount.ok) {
-      return new Response(JSON.stringify({ error: sellerAccount.error }), {
-        status: sellerAccount.status,
-      });
+      return jsonResponse({ error: sellerAccount.error }, sellerAccount.status);
     }
-    const oauthIdentity = await validateSellerOAuthIdentity(sellerAccount.account);
+    const refreshedSellerAccount = await refreshSellerOAuthTokenIfNeeded(
+      supabaseAdmin,
+      sellerAccount.account,
+    );
+    if (!refreshedSellerAccount.ok) {
+      console.warn("[checkout] Seller OAuth refresh failed", {
+        detail: refreshedSellerAccount.detail,
+      });
+      return jsonResponse({ error: refreshedSellerAccount.error }, 409);
+    }
+    const oauthIdentity = await validateSellerOAuthIdentity(refreshedSellerAccount.account);
     if (!oauthIdentity.ok) {
       console.warn("[checkout] Seller OAuth validation failed", {
         detail: oauthIdentity.detail,
       });
-      return new Response(JSON.stringify({ error: oauthIdentity.error }), {
-        status: 409,
-      });
+      return jsonResponse({ error: oauthIdentity.error }, 409);
     }
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
-        user_id: userData.user.id,
+        user_id: user.id,
         status: "pending",
         total_amount: checkout.totalAmount,
         currency: checkout.orderCurrency,
@@ -263,10 +400,7 @@ export const POST = async ({ request }) => {
       .single();
 
     if (orderError || !order) {
-      return new Response(
-        JSON.stringify({ error: "No se pudo crear la orden." }),
-        { status: 500 },
-      );
+      return jsonResponse({ error: "No se pudo crear la orden." }, 500);
     }
 
     /* Inserta los items de la orden. */
@@ -276,30 +410,18 @@ export const POST = async ({ request }) => {
       .from("order_items")
       .insert(orderItems);
     if (itemsError) {
-      await supabaseAdmin.from("orders").delete().eq("id", order.id);
-      return new Response(
-        JSON.stringify({ error: "No se pudieron guardar los items." }),
-        { status: 500 },
-      );
+      await discardIncompleteOrder(supabaseAdmin, order.id, "order_items_insert_failed");
+      return jsonResponse({ error: "No se pudieron guardar los items." }, 500);
     }
 
-    /* Resuelve URLs de retorno y webhook. */
-    const siteUrl = process.env.SITE_URL ?? request.headers.get("origin") ?? "";
-    if (!siteUrl) {
-      return new Response(
-        JSON.stringify({ error: "Falta configurar SITE_URL." }),
-        { status: 500 },
-      );
-    }
-    const notificationUrl = siteUrl
-      ? `${siteUrl}/api/mercadopago-webhook?order_id=${order.id}`
-      : undefined;
+    /* Las URLs se validaron antes de persistir la orden. */
+    const siteUrl = siteUrlResult.value;
+    const notificationUrl = `${siteUrl}/api/mercadopago-webhook?order_id=${order.id}`;
 
     /* Crea preferencia de pago en Mercado Pago. */
-    const marketplaceFee = getMarketplaceFee(checkout.totalAmount);
     const preference = new Preference(
       new MercadoPagoConfig({
-        accessToken: sellerAccount.account.access_token,
+        accessToken: refreshedSellerAccount.account.access_token,
       }),
     );
     let mpResponse;
@@ -308,7 +430,7 @@ export const POST = async ({ request }) => {
       orderId: order.id,
       siteUrl,
       notificationUrl,
-      userEmail: userData.user.email,
+      userEmail: user.email,
       marketplaceFee,
       marketplace:
         sendMarketplaceField && marketplaceFee > 0 ? marketplaceId : "",
@@ -318,38 +440,46 @@ export const POST = async ({ request }) => {
         body: preferenceBody,
       });
     } catch (error) {
-      await supabaseAdmin.from("orders").delete().eq("id", order.id);
+      await discardIncompleteOrder(supabaseAdmin, order.id, "preference_create_failed");
       console.error("[checkout] Mercado Pago preference error", error);
-      return new Response(
-        JSON.stringify({ error: "No se pudo crear la preferencia de pago." }),
-        { status: 502 },
-      );
+      return jsonResponse({ error: "No se pudo crear la preferencia de pago." }, 502);
+    }
+
+    const preferenceId = String(mpResponse?.id ?? "").trim();
+    const initPoint = String(mpResponse?.init_point ?? "").trim();
+    if (!preferenceId || !initPoint) {
+      await discardIncompleteOrder(supabaseAdmin, order.id, "preference_response_incomplete");
+      console.error("[checkout] Mercado Pago returned an incomplete preference", {
+        orderId: order.id,
+        hasPreferenceId: Boolean(preferenceId),
+        hasInitPoint: Boolean(initPoint),
+      });
+      return jsonResponse({ error: "Mercado Pago no devolvió una preferencia válida." }, 502);
     }
 
     /* Guarda el id de preferencia para trazabilidad. */
     await supabaseAdmin
       .from("orders")
       .update({
-        preference_id: mpResponse.id ?? null,
-        payment_detail: `mp_preference|marketplace_fee:${marketplaceFee}|marketplace:${
-          sendMarketplaceField && marketplaceFee > 0 ? marketplaceId || "none" : "omitted"
-        }|oauth_seller:${oauthIdentity.sellerId}`,
+        preference_id: preferenceId,
+        payment_detail: buildPreferenceTrace({
+          marketplaceFee,
+          oauthSellerId: oauthIdentity.sellerId,
+        }),
       })
       .eq("id", order.id);
 
     /* Responde con el init_point para redirección del cliente. */
-    return new Response(
-      JSON.stringify({
-        init_point: mpResponse.init_point,
-        preference_id: mpResponse.id,
+    return jsonResponse(
+      {
+        init_point: initPoint,
+        preference_id: preferenceId,
         order_id: order.id,
-      }),
-      { status: 200 },
+      },
+      200,
     );
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ error: "Error inesperado." }), {
-      status: 500,
-    });
+    return jsonResponse({ error: "Error inesperado." }, 500);
   }
 };
