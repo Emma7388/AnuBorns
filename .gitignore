@@ -32,3 +32,6 @@ pnpm-debug.log*
 
 # local recycle bin (legacy pages / snippets)
 garbage/
+
+.vercel
+.env*
