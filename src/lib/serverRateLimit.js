@@ -1,17 +1,9 @@
 /* Límite de requests en memoria para endpoints API; defensa de mejor esfuerzo. */
+import { getClientIp } from "./requestMeta.js";
+
 const buckets = new Map();
 
 const nowMs = () => Date.now();
-
-const getClientIp = (request) => {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() ?? "unknown";
-  return (
-    request.headers.get("x-real-ip") ??
-    request.headers.get("cf-connecting-ip") ??
-    "unknown"
-  );
-};
 
 export const checkRateLimit = ({
   request,
@@ -19,7 +11,7 @@ export const checkRateLimit = ({
   windowMs = 60_000,
   max = 30,
 }) => {
-  const ip = getClientIp(request);
+  const ip = getClientIp(request) ?? "unknown";
   const key = `${routeKey}:${ip}`;
   const current = buckets.get(key);
   const currentNow = nowMs();
