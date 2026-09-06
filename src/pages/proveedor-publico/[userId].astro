@@ -35,6 +35,15 @@ const products = supabaseUrl && supabaseAnonKey && safeUserId
 
 const rawProducts = Array.isArray(products) ? products : [];
 const supabaseAdmin = getSupabaseAdmin();
+const profileUserId = String(userId ?? "").trim();
+const isProfileUserIdValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(profileUserId);
+const { data: publicProfile } = supabaseAdmin && isProfileUserIdValid
+  ? await supabaseAdmin
+      .from("profiles")
+      .select("phone")
+      .eq("user_id", profileUserId)
+      .maybeSingle()
+  : { data: null };
 const safeProducts = supabaseAdmin
   ? await filterAvailableProducts(supabaseAdmin, rawProducts)
   : rawProducts;
@@ -44,10 +53,8 @@ const sellerName = first?.seller_name || "Proveedor";
 const rawContact = String(first?.contact ?? "").trim();
 const emailMatch = rawContact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
 const publicEmail = emailMatch?.[0] ?? "";
-const contactWithoutEmail = publicEmail ? rawContact.replace(publicEmail, " ") : rawContact;
-const phoneMatch = contactWithoutEmail.match(/(\+?\d[\d\s().-]{7,}\d)/);
-const fallbackPhone = contactWithoutEmail.replace(/[|,;]+/g, " ").replace(/\s+/g, " ").trim();
-const publicPhone = String(phoneMatch?.[0] ?? fallbackPhone ?? "").trim();
+/* El teléfono público pertenece al perfil del proveedor, no a una publicación. */
+const publicPhone = String(publicProfile?.phone ?? "").trim();
 const phoneDigits = publicPhone.replace(/\D+/g, "");
 const publicAddress = String(first?.pickup_address ?? "").trim();
 const publicLocation = String(first?.location ?? "").trim();

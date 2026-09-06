@@ -1,6 +1,6 @@
 # AnuBorns
 
-Marketplace argentino desarrollado con Astro para comprar y vender productos, publicar servicios y gestionar cobros entre compradores, vendedores y la plataforma.
+Marketplace argentino desarrollado con Astro para comprar y vender productos y gestionar cobros entre compradores, vendedores y la plataforma.
 
 ## Estado actual
 
@@ -26,6 +26,10 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Webhook firmado, validación de monto/moneda e idempotencia.
 - Sincronización del pago al regresar de Mercado Pago si el webhook demora.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
+
+### Servicios retirados temporalmente
+
+El módulo de servicios no está expuesto en la aplicación. La decisión, el estado de la tabla remota y los requisitos para reconstruirlo están documentados en [docs/SERVICIOS_PENDIENTES.md](docs/SERVICIOS_PENDIENTES.md).
 
 ### Limitaciones conocidas
 

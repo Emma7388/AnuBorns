@@ -1,16 +1,23 @@
 ---
-// Página: sección de ofertas (placeholder).
+// Página: sección de ofertas de productos.
 import MainLayout from "../layouts/MainLayout.astro";
-import SecondLevel from "../components/SecondLevel.astro";
 ---
 
 <MainLayout title="Ofertá">
-  <!-- Accesos a ofertas de productos/servicios -->
-  <SecondLevel
-    basePath="oferta"
-    title="Ofertá"
-    titleIcon="/icons/destacado.svg"
-    productLabel="PRODUCTOS"
-    serviceLabel="SERVICIOS"
-  />
+  <section class="ab-main-choice-page ab-offer-choice-page">
+    <a class="ab-offer-choice-page__link" href="/oferta/productos">PRODUCTOS</a>
+  </section>
 </MainLayout>
+
+<style>
+  .ab-offer-choice-page { display: grid; place-items: center; padding-top: 18px; }
+  .ab-offer-choice-page__link {
+    width: clamp(300px, 28vw, 360px); min-height: 78px; display: grid; place-items: center;
+    padding: 14px 28px; border: 1px solid var(--button-elevated-border); border-radius: 12px;
+    background: var(--action-secondary); color: #fff; text-decoration: none;
+    font-size: clamp(1.8rem, 3.2vw, 2.65rem); font-weight: 850; line-height: 1;
+    text-shadow: var(--button-elevated-text-shadow); box-shadow: var(--button-elevated-shadow);
+  }
+  .ab-offer-choice-page__link:hover, .ab-offer-choice-page__link:focus-visible { filter: brightness(1.04); transform: translateY(-2px); box-shadow: var(--button-elevated-shadow-hover); }
+  @media (max-width: 768px) { .ab-offer-choice-page__link { width: min(310px, 100%); min-height: 64px; font-size: clamp(1.55rem, 8vw, 2.2rem); } }
+</style>

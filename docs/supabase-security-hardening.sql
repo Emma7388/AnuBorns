@@ -20,17 +20,6 @@ begin
 end;
 $$;
 
-create or replace function public.user_services_set_updated_at()
-returns trigger
-language plpgsql
-set search_path = public
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
 commit;
 
 -- 3. Manual follow-up for public buckets:

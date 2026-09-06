@@ -2,7 +2,6 @@
 const {
   mode = "buy",
   categories = [],
-  showServices = true,
 } = Astro.props;
 
 const isBuy = mode === "buy";
@@ -32,15 +31,6 @@ const isSell = mode === "sell";
       }
     </div>
 
-    {
-      !isBuy && showServices && (
-        <div class="ab-buy-switch__item">
-          <a class="ab-buy-switch__trigger ab-buy-switch__trigger--services" href="/vender/servicios">
-            Servicios
-          </a>
-        </div>
-      )
-    }
   </div>
   {
     isBuy && (
@@ -114,8 +104,7 @@ const isSell = mode === "sell";
     cursor: pointer;
   }
 
-  .ab-buy-switch__trigger--products,
-  .ab-buy-switch__trigger--services {
+  .ab-buy-switch__trigger--products {
     width: clamp(300px, 28vw, 360px);
     min-height: 78px;
     padding: 14px 28px;
@@ -140,14 +129,8 @@ const isSell = mode === "sell";
     background: var(--action-secondary);
   }
 
-  .ab-buy-switch__trigger--services {
-    background: var(--action-primary);
-  }
-
   .ab-buy-switch__trigger--products:hover,
-  .ab-buy-switch__trigger--services:hover,
-  .ab-buy-switch__trigger--products:focus-visible,
-  .ab-buy-switch__trigger--services:focus-visible {
+  .ab-buy-switch__trigger--products:focus-visible {
     filter: brightness(1.04);
     transform: translateY(-2px);
     box-shadow: var(--button-elevated-shadow-hover);
@@ -334,8 +317,7 @@ const isSell = mode === "sell";
       min-width: 0;
     }
 
-    .ab-buy-switch__trigger--products,
-    .ab-buy-switch__trigger--services {
+    .ab-buy-switch__trigger--products {
       width: min(310px, 100%);
       min-height: 64px;
       font-size: clamp(1.55rem, 8vw, 2.2rem);

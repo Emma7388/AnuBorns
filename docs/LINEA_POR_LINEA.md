@@ -4,6 +4,8 @@ Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
+> El módulo de servicios fue retirado temporalmente. Consultar [`SERVICIOS_PENDIENTES.md`](SERVICIOS_PENDIENTES.md) antes de volver a implementarlo.
+
 ## Layouts
 
 - `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido.
@@ -13,14 +15,11 @@ Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
 
 - `src/components/Header.astro`: barra superior con estado invitado/autenticado, carrito, avatar y modal de logout.
 - `src/components/Footer.astro`: pie global con navegación inferior mobile y CTA volver.
-- `src/components/SecondLevel.astro`: bloque reutilizable para ramas de segundo nivel (`comprar`, `vender`, `oferta`).
-- `src/components/CategoryGrid.astro`: grilla de categorías para productos/profesionales con links dinámicos.
-- `src/components/ProviderCard.astro`: tarjeta de proveedor/profesional con badges, datos y CTAs (`ver perfil`, `ver productos`).
+- `src/components/CategoryGrid.astro`: grilla de categorías de productos con links dinámicos.
 
 ## Datos y utilidades
 
 - `src/data/categories.js`: catálogo fuente de categorías (nombre, slug, ícono).
-- `src/data/providers.js`: dataset mock de proveedores/profesionales y productos de demo.
 - `src/lib/supabaseClient.js`: cliente Supabase browser con validación de variables públicas.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login y evento `ab-cart-updated`.
@@ -74,21 +73,12 @@ Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
 - `src/pages/auth/callback.astro`: confirmación/verificación de cuenta con `auth-callback.js`.
 - `src/pages/mis-datos.astro`: perfil del usuario autenticado con edición y avatar (`profile.js`).
 - `src/pages/mis-compras.astro`: historial de órdenes y accesos a proveedor público (`orders.js`).
-- `src/pages/mis-servicios.astro`: tablero básico de servicios del usuario.
 - `src/pages/mis-ventas.astro`: tablero de ventas + grilla de productos publicados (`mis-ventas.js`).
 - `src/pages/proveedor-publico/[userId].astro`: vidriera pública de productos por vendedor real (`products` en Supabase).
 
 - `src/pages/comprar.astro`: entrada de segundo nivel para flujo de compra.
 - `src/pages/comprar/productos.astro`: grilla de categorías para comprar productos.
-- `src/pages/comprar/servicios.astro`: entrada de servicios con CTA a publicar trabajo.
 - `src/pages/comprar/productos/[categoria].astro`: catálogo por categoría consumiendo Supabase REST + botón agregar al carrito (`comprar-productos.js`).
-- `src/pages/proveedor/[slug]/index.astro`: perfil público de proveedor (dataset mock).
-- `src/pages/proveedor/[slug]/productos.astro`: catálogo del proveedor mock con navegación de regreso por `from`.
-- `src/pages/profesionales.astro`: entrada de búsqueda profesional por categorías.
-- `src/pages/profesionales/categoria/[categoria].astro`: listado de profesionales por categoría (dataset mock).
-- `src/pages/profesionales/[slug]/index.astro`: perfil profesional (mock).
-- `src/pages/profesionales/[slug]/productos.astro`: catálogo del profesional (mock).
-- `src/pages/contratar/[slug].astro`: formulario MVP de contratación desde perfil.
 
 - `src/pages/carrito.astro`: UI del carrito conectado a `src/lib/cart.js`.
 - `src/pages/finalizar-compra.astro`: checkout local (resumen + datos de envío) con `checkout.js`.
@@ -96,15 +86,10 @@ Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
 
 - `src/pages/vender.astro`: entrada de segundo nivel para vender.
 - `src/pages/vender/productos.astro`: publicación de producto con imagen y datos de contacto (`product-create.js`).
-- `src/pages/vender/servicios.astro`: alta de perfil profesional MVP.
-- `src/pages/cuenta/profesional.astro`: activación de cuenta profesional.
 
 - `src/pages/oferta.astro`: entrada de segundo nivel para ofertar.
 - `src/pages/oferta/productos.astro`: placeholder de flujo de oferta de productos.
-- `src/pages/oferta/servicios.astro`: placeholder de flujo de oferta de servicios.
 
-- `src/pages/trabajos/publicar.astro`: publicación de trabajo para contratación de servicios.
-- `src/pages/publicacion-confirmada.astro`: confirmación de trabajo publicado.
 
 ## Estilos
 

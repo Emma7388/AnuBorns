@@ -1,195 +1,53 @@
-# Architecture Guide
+# Guía de arquitectura
 
-Este documento explica que hace cada archivo y que responsabilidad cumple cada bloque funcional.
+Actualizado el 6 de septiembre de 2026.
 
-Actualizado al 15 de agosto de 2026. La arquitectura vigente es server-side con Astro 6 + Vercel, Supabase como backend y Mercado Pago Checkout Pro por vendedor. Las secciones legacy que mencionan datos simulados describen rutas de demostración que todavía conviven con el catálogo real.
+AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
-## Backend actual
+## Backend
 
 - Supabase Auth administra registro, sesión y perfiles.
-- Supabase Database persiste categorías, productos, carritos, órdenes, ventas y despachos.
-- Supabase Storage guarda imágenes y avatares.
-- Las rutas `src/pages/api/` autentican al usuario y realizan operaciones privilegiadas con el cliente admin.
-- Mercado Pago OAuth conecta la cuenta de cada vendedor.
-- El checkout crea la preferencia con el token del vendedor y aplica la comisión configurada de AnuBorns.
-- El webhook firmado y la sincronización de retorno actualizan el estado de la orden de forma idempotente.
-- El checkout vigente admite un solo vendedor; todavía no existe reparto multiproveedor dentro de una misma preferencia.
+- Supabase Database guarda categorías, productos, carritos, órdenes, ventas y despachos.
+- Supabase Storage almacena imágenes de productos y avatares.
+- Las rutas de `src/pages/api/` autentican al usuario y usan el cliente admin sólo en el servidor.
+- El checkout permite un vendedor por orden y la preferencia se crea con su conexión Mercado Pago.
+- El webhook firmado y la sincronización de retorno actualizan el pago de forma idempotente.
 
-## Layouts
+## Capas principales
 
-### src/layouts/BaseLayout.astro
-- Bloque de props: recibe `title` con fallback.
-- Bloque de documento base: define estructura HTML general (`head`, `body`) y punto de insercion (`slot`).
+### Layouts y componentes
 
-### src/layouts/MainLayout.astro
-- Bloque de imports compartidos: integra `Header`, `Footer` y estilos globales.
-- Bloque de navegacion de regreso: calcula `backHref` automatico y permite override por prop.
-- Bloque de composicion de pagina: envuelve contenido con header, contenido principal, footer y barra mobile.
+- `src/layouts/BaseLayout.astro`: documento HTML y metadatos base.
+- `src/layouts/MainLayout.astro`: header, footer, estilos globales y navegación de regreso segura.
+- `src/components/Header.astro`: sesión, carrito, avatar y cierre de sesión.
+- `src/components/Footer.astro`: pie de página y navegación móvil.
+- `src/components/ActionSwitch.astro`: acceso a productos en los flujos de compra y venta.
+- `src/components/CategoryGrid.astro`: grilla dinámica de categorías de producto.
 
-## Componentes
+### Datos y lógica
 
-### src/components/Header.astro
-- Bloque de barra superior: logo y navegacion principal del sitio.
-- Bloque de estilos locales: colores, espaciado y hover.
+- `src/data/categories.js`: catálogo canónico de categorías.
+- `src/lib/supabaseClient.js`: cliente Supabase de navegador con validación de variables públicas.
+- `src/lib/supabaseServer.js`: cliente admin de servidor.
+- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión.
+- `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
+- `src/lib/saleDispatches.js` y `src/lib/fulfillmentStatus.js`: estados de venta, retiro y entrega.
 
-### src/components/Footer.astro
-- Bloque de pie de pagina con texto institucional.
-- Bloque de estilos locales para fondo, color y separacion.
+### Flujos visibles
 
-### src/components/SecondLevel.astro
-- Bloque de normalizacion de ruta base.
-- Bloque de opciones secundarias: acceso a productos y servicios.
-- Bloque de estilos de tarjetas grandes.
+1. `comprar` muestra categorías y catálogo de productos.
+2. El usuario agrega productos al carrito y completa una orden para un único vendedor.
+3. Mercado Pago confirma el pago y la orden pasa al historial de compras y ventas.
+4. `mis-ventas` permite administrar productos publicados y despachos.
+5. El perfil público de vendedor se genera desde productos y perfiles reales de Supabase.
 
-### src/components/CategoryGrid.astro
-- Bloque de datos: categorias y props de contexto (`basePath`, `type`, `title`, `hrefBase`).
-- Bloque de render dinamico: genera links de categoria segun contexto y muestra iconos por categoria.
-- Bloque de estilos de grilla responsive con tarjetas cuadradas.
+## Navegación
 
-### src/components/ProviderCard.astro
-- Bloque de props del proveedor.
-- Bloque visual de badges condicionales (ranking/sponsor).
-- Bloque de acciones: `Ver productos` y `Ver perfil` usando rutas base configurables y `from`.
+Las pantallas de detalle preservan la ruta de origen mediante el parámetro interno `from`. `MainLayout` valida que sea una ruta local antes de usarla. Las rutas antiguas de funciones retiradas redirigen a una pantalla vigente, sin mostrar contenido ni formularios obsoletos.
 
-## Data Layer
+## Seguridad
 
-### src/data/categories.js
-- Lista canonica de categorias (`name`, `slug`) usada por grids y rutas dinamicas.
-
-### src/data/providers.js
-- Lista de proveedores con metadatos de perfil y pricing promedio.
-- Incluye `services` para perfil.
-- Incluye `products` para catalogo por proveedor.
-
-## Paginas
-
-### src/pages/index.astro
-- Hero principal con CTAs a comprar, vender y oferta.
-
-### src/pages/comprar.astro
-- Segundo nivel del flujo de compra.
-
-### src/pages/vender.astro
-- Segundo nivel del flujo de venta.
-
-### src/pages/oferta.astro
-- Segundo nivel del flujo de oferta.
-
-### src/pages/profesionales.astro
-- Entrada general a grilla de categorias de profesionales.
-- Panel de acceso a `Mis compras` y `Mis datos`.
-
-### src/pages/registro.astro
-- Formulario MVP de registro.
-
-### src/pages/cuenta/profesional.astro
-- Activacion del perfil profesional (MVP).
-
-### src/pages/trabajos/publicar.astro
-- Formulario MVP de publicacion de trabajos para servicios.
-
-### src/pages/publicacion-confirmada.astro
-- Confirmacion con animacion y redireccion a home.
-
-### src/pages/comprar/productos.astro
-- Grilla de categorias para compra de productos.
-
-### src/pages/comprar/servicios.astro
-- Pantalla de flujo de servicios con CTA a publicar trabajo.
-
-### src/pages/vender/productos.astro
-- Formulario MVP de publicacion de producto.
-
-### src/pages/vender/servicios.astro
-- Formulario MVP de alta de perfil profesional.
-
-### src/pages/oferta/productos.astro
-- Pantalla placeholder del flujo de ofertas de productos.
-
-### src/pages/oferta/servicios.astro
-- Pantalla placeholder del flujo de ofertas de servicios.
-
-### src/pages/comprar/productos/[categoria].astro
-- `getStaticPaths`: genera una pagina por categoria.
-- Bloque de seleccion de contexto: resuelve categoria actual.
-- Bloque de filtrado: reduce proveedores por categoria.
-- Bloque de render: lista de `ProviderCard`.
-
-### src/pages/profesionales/[categoria].astro
-- `getStaticPaths`: genera una pagina por categoria.
-- Bloque de filtrado/orden: filtra profesionales y ordena por promedio/reseñas.
-- Bloque de render: lista de `ProviderCard` con rutas base de profesionales.
-
-### src/pages/proveedor/[slug]/index.astro
-- `getStaticPaths`: genera perfil por proveedor.
-- Bloque de recuperacion de proveedor/categoria.
-- Bloque de navegacion de regreso: usa `from` y fallback seguro.
-- Bloque de render principal: datos, bio, servicios y acciones.
-- Bloque de fallback de error si el proveedor no existe.
-
-### src/pages/proveedor/[slug]/productos.astro
-- `getStaticPaths`: genera catalogo por proveedor.
-- Bloque de recuperacion y fallback de datos de productos.
-- Bloque de navegacion de regreso basada en `from`.
-- Bloque de grilla de productos con filtros, paginacion y copia de enlace.
-- Bloque de fallback de error si el proveedor no existe.
-
-### src/pages/profesionales/[slug]/index.astro
-- `getStaticPaths`: genera perfil por profesional.
-- Bloque de recuperacion de proveedor/categoria.
-- Bloque de navegacion de regreso: usa `from` y fallback seguro.
-- Bloque de render principal: datos, bio, servicios y acciones.
-- Bloque de fallback de error si el profesional no existe.
-
-### src/pages/profesionales/[slug]/productos.astro
-- `getStaticPaths`: genera catalogo por profesional.
-- Bloque de recuperacion y fallback de datos de productos.
-- Bloque de navegacion de regreso basada en `from`.
-- Bloque de grilla de productos simple.
-- Bloque de fallback de error si el profesional no existe.
-
-### src/pages/contratar/[slug].astro
-- `getStaticPaths`: genera una pagina de contratacion por proveedor.
-- Bloque de recuperacion de contexto de proveedor.
-- Bloque de navegacion de regreso basada en `from`.
-- Bloque de formulario MVP de solicitud.
-- Bloque de fallback de error.
-
-### src/pages/carrito.astro
-- Carrito simulado basado en `localStorage`.
-- Render de items con cantidades y total.
-- Acciones MVP: sumar/restar, quitar y finalizar compra.
-
-### src/pages/finalizar-compra.astro
-- Formulario simulado de entrega y pago con resumen.
-- Redirecciona a confirmacion.
-
-### src/pages/compra-confirmada.astro
-- Animacion de tilde y mensaje de cierre.
-- Limpia el carrito local y redirige a home.
-
-### src/pages/mis-compras.astro
-- Historial simulado de compras desde `localStorage`.
-
-### src/pages/mis-datos.astro
-- Ficha simulada de datos personales.
-
-## Estilos globales
-
-### src/styles/global.css
-- Reset base y variables compartidas.
-- Tipografia y colores globales.
-- Componentes utilitarios (`ab-*`) para paneles, botones y enlaces.
-- Estilos de tarjetas de proveedor y catalogo de productos.
-- Estilos de formulario de contratacion.
-
-## Flujo de navegacion clave
-
-1. Categoria (compra): `/comprar/productos/[categoria]`.
-2. Proveedor (catalogo): `/proveedor/[slug]/productos?from=...`.
-3. Profesional (catalogo): `/profesionales/[slug]/productos?from=...`.
-4. Volver global resuelve ruta de origen por query param o fallback.
-5. Carrito simulado en `/carrito` usando datos locales.
-6. Finalizacion en `/finalizar-compra`.
-7. Confirmacion en `/compra-confirmada` con redireccion.
-8. Perfil y contratacion mantienen consistencia de regreso con `from`.
+- Las claves con privilegios se mantienen sólo en variables privadas de Vercel y en el servidor.
+- Las claves públicas de Supabase se usan únicamente en el navegador con RLS activo.
+- Las operaciones sensibles validan sesión y propietario en API antes de modificar datos.
+- Las configuraciones y políticas de Supabase se documentan en los scripts de seguridad bajo `docs/`.
