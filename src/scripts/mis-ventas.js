@@ -13,8 +13,15 @@ let soldProductsDateFilter = document.getElementById("my-sold-products-date-filt
 let soldProductsFrom = document.getElementById("my-sold-products-from");
 let soldProductsTo = document.getElementById("my-sold-products-to");
 let soldProductsDateClear = document.getElementById("my-sold-products-date-clear");
+let soldProductsShowAll = document.getElementById("my-sold-products-show-all");
 let productsGrid = document.getElementById("my-products-grid");
 let productsEmpty = document.getElementById("my-products-empty");
+let publishedProductsStatus = document.getElementById("my-published-products-status");
+let publishedProductsDateFilter = document.getElementById("my-published-products-date-filter");
+let publishedProductsFrom = document.getElementById("my-published-products-from");
+let publishedProductsTo = document.getElementById("my-published-products-to");
+let publishedProductsDateClear = document.getElementById("my-published-products-date-clear");
+let publishedProductsShowAll = document.getElementById("my-published-products-show-all");
 let deleteModal = document.getElementById("sales-delete-modal");
 let deleteModalClose = document.querySelector("[data-sales-modal-close]");
 let deleteModalCancel = document.querySelector("[data-sales-modal-cancel]");
@@ -32,8 +39,15 @@ const refreshMySalesNodes = () => {
   soldProductsFrom = document.getElementById("my-sold-products-from");
   soldProductsTo = document.getElementById("my-sold-products-to");
   soldProductsDateClear = document.getElementById("my-sold-products-date-clear");
+  soldProductsShowAll = document.getElementById("my-sold-products-show-all");
   productsGrid = document.getElementById("my-products-grid");
   productsEmpty = document.getElementById("my-products-empty");
+  publishedProductsStatus = document.getElementById("my-published-products-status");
+  publishedProductsDateFilter = document.getElementById("my-published-products-date-filter");
+  publishedProductsFrom = document.getElementById("my-published-products-from");
+  publishedProductsTo = document.getElementById("my-published-products-to");
+  publishedProductsDateClear = document.getElementById("my-published-products-date-clear");
+  publishedProductsShowAll = document.getElementById("my-published-products-show-all");
   deleteModal = document.getElementById("sales-delete-modal");
   deleteModalClose = document.querySelector("[data-sales-modal-close]");
   deleteModalCancel = document.querySelector("[data-sales-modal-cancel]");
@@ -132,9 +146,48 @@ const bindMySalesEvents = () => {
       if (soldProductsFrom instanceof HTMLInputElement) soldProductsFrom.value = "";
       if (soldProductsTo instanceof HTMLInputElement) soldProductsTo.value = "";
       soldProductsPage = 1;
-      void loadSoldProducts({ page: 1 });
+      clearSoldProductsView();
     });
     soldProductsDateClear.dataset.abSalesDateBound = "true";
+  }
+
+  if (soldProductsShowAll instanceof HTMLButtonElement && soldProductsShowAll.dataset.abSalesShowAllBound !== "true") {
+    soldProductsShowAll.addEventListener("click", () => {
+      if (soldProductsFrom instanceof HTMLInputElement) soldProductsFrom.value = "";
+      if (soldProductsTo instanceof HTMLInputElement) soldProductsTo.value = "";
+      if (soldProductsDispatchFilter instanceof HTMLInputElement) soldProductsDispatchFilter.checked = false;
+      soldProductsPage = 1;
+      void loadSoldProducts({ page: 1 });
+    });
+    soldProductsShowAll.dataset.abSalesShowAllBound = "true";
+  }
+
+  if (publishedProductsDateFilter instanceof HTMLFormElement && publishedProductsDateFilter.dataset.abSalesDateBound !== "true") {
+    publishedProductsDateFilter.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const from = publishedProductsFrom instanceof HTMLInputElement ? publishedProductsFrom.value : "";
+      const to = publishedProductsTo instanceof HTMLInputElement ? publishedProductsTo.value : "";
+      if (from && to && from > to) {
+        if (publishedProductsStatus) publishedProductsStatus.textContent = "La fecha inicial no puede ser posterior a la final.";
+        return;
+      }
+      void loadPublishedProducts({ force: true });
+    });
+    publishedProductsDateFilter.dataset.abSalesDateBound = "true";
+  }
+
+  if (publishedProductsDateClear instanceof HTMLButtonElement && publishedProductsDateClear.dataset.abSalesDateBound !== "true") {
+    publishedProductsDateClear.addEventListener("click", clearPublishedProductsView);
+    publishedProductsDateClear.dataset.abSalesDateBound = "true";
+  }
+
+  if (publishedProductsShowAll instanceof HTMLButtonElement && publishedProductsShowAll.dataset.abSalesShowAllBound !== "true") {
+    publishedProductsShowAll.addEventListener("click", () => {
+      if (publishedProductsFrom instanceof HTMLInputElement) publishedProductsFrom.value = "";
+      if (publishedProductsTo instanceof HTMLInputElement) publishedProductsTo.value = "";
+      void loadPublishedProducts({ force: true });
+    });
+    publishedProductsShowAll.dataset.abSalesShowAllBound = "true";
   }
 
   if (deleteModalCancel && deleteModalCancel.dataset.abMySalesModalBound !== "true") {
@@ -178,6 +231,8 @@ let pendingDeleteProductId = "";
 let pendingDeleteTrigger = null;
 let salesLoadInFlight = false;
 let lastSalesLoadAt = 0;
+let publishedProductsLoaded = false;
+let soldProductsLoaded = false;
 let lastSoldProductsSignature = "";
 let lastPublishedProductsSignature = "";
 let salesRealtimeChannel = null;
@@ -394,7 +449,8 @@ const scheduleRealtimeRefresh = () => {
   }
   salesRealtimeRefreshTimer = window.setTimeout(() => {
     salesRealtimeRefreshTimer = null;
-    loadMyProducts({ force: true });
+    if (publishedProductsLoaded) void loadPublishedProducts({ force: true });
+    if (soldProductsLoaded) void loadSoldProducts({ page: soldProductsPage });
   }, SALES_REALTIME_REFRESH_DEBOUNCE_MS);
 };
 
@@ -796,6 +852,12 @@ const renderMyProducts = (products) => {
   if (!productsGrid || !productsEmpty) return;
   productsGrid.innerHTML = "";
   if (!Array.isArray(products) || products.length === 0) {
+    const emptyText = productsEmpty.querySelector("p");
+    const hasDateFilter = (publishedProductsFrom instanceof HTMLInputElement && publishedProductsFrom.value)
+      || (publishedProductsTo instanceof HTMLInputElement && publishedProductsTo.value);
+    if (emptyText) emptyText.textContent = hasDateFilter
+      ? "No encontramos publicaciones en ese rango de fechas."
+      : "TodavÃ­a no publicaste productos.";
     productsEmpty.classList.remove("ab-is-hidden");
     return;
   }
@@ -877,7 +939,7 @@ const deletePublishedProduct = async (productId, triggerButton) => {
       return;
     }
 
-    await loadMyProducts();
+    await loadPublishedProducts({ force: true });
   } finally {
     if (triggerButton instanceof HTMLButtonElement) {
       triggerButton.disabled = false;
@@ -919,6 +981,47 @@ const fetchSoldProductsSummary = async () => {
   return fetchSalesSummary(token, { force: true });
 };
 
+const ensureCurrentUser = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const nextUserId = String(sessionData?.session?.user?.id ?? "").trim();
+  if (!nextUserId) {
+    currentUserId = "";
+    await teardownSalesRealtime();
+    return false;
+  }
+  if (currentUserId && currentUserId !== nextUserId) {
+    await teardownSalesRealtime();
+    lastPublishedProductsSignature = "";
+    lastSoldProductsSignature = "";
+  }
+  currentUserId = nextUserId;
+  return true;
+};
+
+const clearSoldProductsView = () => {
+  soldProductsLoaded = false;
+  lastSoldProductsSignature = "";
+  lastSoldProductsItems = [];
+  soldProductsPaginationState = { page: 1, pageSize: 3, total: 0, totalPages: 0 };
+  soldProductsList?.replaceChildren();
+  soldProductsPagination?.replaceChildren();
+  soldProductsPagination?.classList.add("ab-is-hidden");
+  soldProductsEmpty?.classList.add("ab-is-hidden");
+  if (soldProductsStatus) soldProductsStatus.textContent = "";
+  if (!publishedProductsLoaded) void teardownSalesRealtime();
+};
+
+const clearPublishedProductsView = () => {
+  if (publishedProductsFrom instanceof HTMLInputElement) publishedProductsFrom.value = "";
+  if (publishedProductsTo instanceof HTMLInputElement) publishedProductsTo.value = "";
+  publishedProductsLoaded = false;
+  lastPublishedProductsSignature = "";
+  productsGrid?.replaceChildren();
+  productsEmpty?.classList.add("ab-is-hidden");
+  if (publishedProductsStatus) publishedProductsStatus.textContent = "";
+  if (!soldProductsLoaded) void teardownSalesRealtime();
+};
+
 const markSaleDispatchOnServer = async ({ orderId, productId, status }) => {
   const safeOrderId = String(orderId ?? "").trim();
   const safeProductId = String(productId ?? "").trim();
@@ -955,7 +1058,7 @@ const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
   if (!soldProductsList || !soldProductsEmpty || !soldProductsStatus) return;
   soldProductsStatus.textContent = "Cargando productos vendidos...";
 
-  if (!currentUserId) {
+  if (!(await ensureCurrentUser())) {
     soldProductsStatus.textContent = "";
     renderSoldProducts([]);
     lastSoldProductsSignature = "empty";
@@ -964,6 +1067,7 @@ const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
   }
 
   try {
+    soldProductsLoaded = true;
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
     const from = soldProductsFrom instanceof HTMLInputElement ? soldProductsFrom.value : "";
@@ -985,6 +1089,7 @@ const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
       renderSoldProducts(items);
       lastSoldProductsSignature = nextSoldSignature;
     }
+    await setupSalesRealtime();
     /* El aviso se muestra al confirmar una acción de despacho. Comparar páginas
        distintas produciría falsos positivos porque cada una trae tres ventas. */
     markLatestSaleSeen(items);
@@ -995,7 +1100,7 @@ const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
 };
 
 /* Carga productos del usuario autenticado. */
-const loadMyProducts = async ({ force = false } = {}) => {
+const loadPublishedProducts = async ({ force = false } = {}) => {
   if (!productsGrid || !productsEmpty) return;
   if (!isSalesPageActive()) return;
   const now = Date.now();
@@ -1004,34 +1109,27 @@ const loadMyProducts = async ({ force = false } = {}) => {
   salesLoadInFlight = true;
   lastSalesLoadAt = now;
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const session = sessionData?.session;
-    if (!session?.user) {
-      await teardownSalesRealtime();
-      currentUserId = "";
+    if (publishedProductsStatus) publishedProductsStatus.textContent = "Cargando productos publicados...";
+    if (!(await ensureCurrentUser())) {
       productsEmpty.classList.remove("ab-is-hidden");
-      renderSoldProducts([]);
-      if (soldProductsStatus) soldProductsStatus.textContent = "";
       lastPublishedProductsSignature = "empty";
-      lastSoldProductsSignature = "empty";
-      lastSoldProductsItems = [];
+      if (publishedProductsStatus) publishedProductsStatus.textContent = "";
       return;
     }
-    const nextUserId = session.user.id;
-    if (currentUserId && currentUserId !== nextUserId) {
-      await teardownSalesRealtime();
-      lastPublishedProductsSignature = "";
-      lastSoldProductsSignature = "";
-    }
-    currentUserId = nextUserId;
-    const { data, error } = await supabase
+    publishedProductsLoaded = true;
+    const from = publishedProductsFrom instanceof HTMLInputElement ? publishedProductsFrom.value : "";
+    const to = publishedProductsTo instanceof HTMLInputElement ? publishedProductsTo.value : "";
+    let productsQuery = supabase
       .from("products")
       .select("id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,created_at")
       .eq("user_id", currentUserId)
       .order("created_at", { ascending: false });
+    if (from) productsQuery = productsQuery.gte("created_at", `${from}T00:00:00.000Z`);
+    if (to) productsQuery = productsQuery.lte("created_at", `${to}T23:59:59.999Z`);
+    const { data, error } = await productsQuery;
     if (error) {
       productsEmpty.classList.remove("ab-is-hidden");
-      await loadSoldProducts();
+      if (publishedProductsStatus) publishedProductsStatus.textContent = "No se pudieron cargar los productos publicados.";
       return;
     }
     const soldSummary = await fetchSoldProductsSummary();
@@ -1048,12 +1146,11 @@ const loadMyProducts = async ({ force = false } = {}) => {
       renderMyProducts(safeProducts);
       lastPublishedProductsSignature = nextPublishedSignature;
     }
-    await loadSoldProducts();
+    if (publishedProductsStatus) publishedProductsStatus.textContent = "";
     await setupSalesRealtime();
   } catch {
     productsEmpty.classList.remove("ab-is-hidden");
-    renderSoldProducts([]);
-    if (soldProductsStatus) soldProductsStatus.textContent = "";
+    if (publishedProductsStatus) publishedProductsStatus.textContent = "No se pudieron cargar los productos publicados.";
   } finally {
     salesLoadInFlight = false;
   }
@@ -1069,7 +1166,7 @@ const initMySalesProducts = () => {
     return;
   }
 
-  loadMyProducts();
+  /* Las listas se cargan sólo ante una acción explícita del vendedor. */
 };
 
 initMySalesProducts();

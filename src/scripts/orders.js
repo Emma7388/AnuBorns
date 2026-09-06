@@ -13,7 +13,13 @@ const ORDERS_KEY = "ab_orders_v1";
 let list = document.getElementById("orders-list");
 let emptyState = document.getElementById("orders-empty");
 let status = document.getElementById("orders-status");
+let ordersDateFilter = document.getElementById("orders-date-filter");
+let ordersFrom = document.getElementById("orders-from");
+let ordersTo = document.getElementById("orders-to");
+let ordersDateClear = document.getElementById("orders-date-clear");
+let ordersShowAll = document.getElementById("orders-show-all");
 let currentUserId = "";
+let ordersLoaded = false;
 let syncInFlight = false;
 let purchaseRealtimeChannel = null;
 let purchaseRealtimeRefreshTimer = null;
@@ -30,10 +36,43 @@ const refreshOrderNodes = () => {
   list = document.getElementById("orders-list");
   emptyState = document.getElementById("orders-empty");
   status = document.getElementById("orders-status");
+  ordersDateFilter = document.getElementById("orders-date-filter");
+  ordersFrom = document.getElementById("orders-from");
+  ordersTo = document.getElementById("orders-to");
+  ordersDateClear = document.getElementById("orders-date-clear");
+  ordersShowAll = document.getElementById("orders-show-all");
 };
 
 const bindOrderEvents = () => {
   refreshOrderNodes();
+  if (ordersDateFilter instanceof HTMLFormElement && ordersDateFilter.dataset.ordersDateBound !== "true") {
+    ordersDateFilter.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const from = ordersFrom instanceof HTMLInputElement ? ordersFrom.value : "";
+      const to = ordersTo instanceof HTMLInputElement ? ordersTo.value : "";
+      if (from && to && from > to) {
+        if (status) status.textContent = "La fecha inicial no puede ser posterior a la final.";
+        return;
+      }
+      void loadOrders();
+    });
+    ordersDateFilter.dataset.ordersDateBound = "true";
+  }
+
+  if (ordersDateClear instanceof HTMLButtonElement && ordersDateClear.dataset.ordersDateBound !== "true") {
+    ordersDateClear.addEventListener("click", clearOrdersView);
+    ordersDateClear.dataset.ordersDateBound = "true";
+  }
+
+  if (ordersShowAll instanceof HTMLButtonElement && ordersShowAll.dataset.ordersShowAllBound !== "true") {
+    ordersShowAll.addEventListener("click", () => {
+      if (ordersFrom instanceof HTMLInputElement) ordersFrom.value = "";
+      if (ordersTo instanceof HTMLInputElement) ordersTo.value = "";
+      void loadOrders();
+    });
+    ordersShowAll.dataset.ordersShowAllBound = "true";
+  }
+
   if (!list || list.dataset.fulfillmentBound === "1") return;
   list.addEventListener("click", async (event) => {
     const target = event.target;
@@ -637,6 +676,7 @@ const cleanupPendingCheckoutOrders = async (token) => {
 };
 
 const schedulePurchaseRealtimeRefresh = () => {
+  if (!ordersLoaded) return;
   window.clearTimeout(purchaseRealtimeRefreshTimer);
   purchaseRealtimeRefreshTimer = window.setTimeout(() => {
     void loadOrders();
@@ -667,6 +707,18 @@ const teardownPurchaseRealtime = async () => {
   const channel = purchaseRealtimeChannel;
   purchaseRealtimeChannel = null;
   await supabase.removeChannel(channel);
+};
+
+const clearOrdersView = () => {
+  if (ordersFrom instanceof HTMLInputElement) ordersFrom.value = "";
+  if (ordersTo instanceof HTMLInputElement) ordersTo.value = "";
+  ordersLoaded = false;
+  renderedOrdersById = new Map();
+  list?.replaceChildren();
+  emptyState?.classList.add("ab-is-hidden");
+  if (emptyState) emptyState.style.display = "";
+  if (status) status.textContent = "";
+  void teardownPurchaseRealtime();
 };
 
 const buildWhatsappUrl = (provider, phone) => {
@@ -1075,11 +1127,24 @@ const renderOrders = () => {
     emptyState.style.display = "none";
     return;
   }
+  const emptyText = emptyState.querySelector("p");
+  const hasDateFilter = (ordersFrom instanceof HTMLInputElement && ordersFrom.value)
+    || (ordersTo instanceof HTMLInputElement && ordersTo.value);
+  if (emptyText) emptyText.textContent = hasDateFilter
+    ? "No encontramos compras en ese rango de fechas."
+    : "No hay compras registradas.";
   emptyState.classList.remove("ab-is-hidden");
   emptyState.style.display = "grid";
 };
 
 /* Carga órdenes locales o desde Supabase. */
+const isOrderWithinDateRange = (order, from, to) => {
+  const createdAt = String(order?.created_at ?? "").trim();
+  if (!createdAt) return !from && !to;
+  const day = createdAt.slice(0, 10);
+  return (!from || day >= from) && (!to || day <= to);
+};
+
 const loadOrders = async () => {
   refreshOrderNodes();
   if (!isOrdersPageActive()) {
@@ -1087,6 +1152,9 @@ const loadOrders = async () => {
     return;
   }
   if (!list || !emptyState) return;
+
+  if (status) status.textContent = "Cargando compras...";
+  ordersLoaded = true;
 
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session?.user) {
@@ -1099,6 +1167,8 @@ const loadOrders = async () => {
 
   /* Primero intenta usar órdenes locales guardadas. */
   const userId = sessionData.session.user.id;
+  const from = ordersFrom instanceof HTMLInputElement ? ordersFrom.value : "";
+  const to = ordersTo instanceof HTMLInputElement ? ordersTo.value : "";
   const cleanedPendingCount = await cleanupPendingCheckoutOrders(sessionData.session.access_token ?? "");
   if (currentUserId && currentUserId !== userId) {
     await teardownPurchaseRealtime();
@@ -1110,7 +1180,8 @@ const loadOrders = async () => {
   try {
     const raw = window.localStorage.getItem(ORDERS_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
-    const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
+    const localOrders = (Array.isArray(parsed[userId]) ? parsed[userId] : [])
+      .filter((order) => isOrderWithinDateRange(order, from, to));
     if (localOrders.length > 0) {
       const currentOrders = await hydrateOrderItemImages(localOrders);
       const providerMetaMap = await buildProviderMetaMap(currentOrders);
@@ -1127,13 +1198,16 @@ const loadOrders = async () => {
   }
 
   /* Si no hay locales, trae órdenes remotas. */
-  const { data, error } = await supabase
+  let ordersQuery = supabase
     .from("orders")
     .select(
       "id, created_at, total_amount, currency, status, payment_id, preference_id, payment_detail, shipping_requested, shipping_cost, shipping_status, shipping_full_name, shipping_address, shipping_city, shipping_phone, order_items (product_id, name, qty, unit_price, provider, image)",
     )
     .eq("user_id", currentUserId)
     .order("created_at", { ascending: false });
+  if (from) ordersQuery = ordersQuery.gte("created_at", `${from}T00:00:00.000Z`);
+  if (to) ordersQuery = ordersQuery.lte("created_at", `${to}T23:59:59.999Z`);
+  const { data, error } = await ordersQuery;
 
   if (error) {
     const rawMessage = String(error.message ?? "");
@@ -1178,7 +1252,8 @@ const initOrdersPage = () => {
     return;
   }
   bindOrderEvents();
-  void loadOrders();
+  if (status) status.textContent = "";
+  emptyState?.classList.add("ab-is-hidden");
 };
 
 initOrdersPage();

@@ -1,0 +1,27 @@
+---
+import TitleBadge from "./TitleBadge.astro";
+
+const {
+  idPrefix,
+  title,
+  icon,
+  tone = "primary",
+  level = 2,
+  spaced = false,
+} = Astro.props;
+
+const safePrefix = String(idPrefix ?? "").trim();
+if (!safePrefix) throw new Error("DeferredListControls requiere idPrefix.");
+---
+
+<div class:list={["ab-sales-section-heading", spaced && "ab-sales-section-heading--spaced"]}>
+  <TitleBadge title={title} icon={icon} level={level} tone={tone} />
+  <button id={`${safePrefix}-show-all`} type="button" class="ab-sales-show-all">Mostrar todos</button>
+</div>
+<form id={`${safePrefix}-date-filter`} class="ab-sales-date-filter">
+  <label><span>Desde</span><input id={`${safePrefix}-from`} type="date" /></label>
+  <label><span>Hasta</span><input id={`${safePrefix}-to`} type="date" /></label>
+  <button type="submit" class="ab-sales-date-filter__apply">Buscar</button>
+  <button type="button" id={`${safePrefix}-date-clear`} class="ab-sales-date-filter__clear">Limpiar</button>
+</form>
+<p id={`${safePrefix}-status`} class="ab-muted-text"></p>

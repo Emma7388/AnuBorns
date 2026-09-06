@@ -1306,6 +1306,58 @@ input[type="submit"] {
   gap: 8px;
 }
 
+.ab-sales-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-top: 18px;
+}
+
+.ab-sales-section-heading .ab-title-badge {
+  border-bottom: 0;
+  flex: 1 1 auto;
+}
+
+.ab-sales-section-heading--spaced {
+  margin-top: 34px;
+}
+
+.ab-sales-show-all {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 1px solid var(--button-elevated-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: var(--action-secondary);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--button-elevated-shadow);
+}
+
+.ab-sales-show-all:hover,
+.ab-sales-show-all:focus-visible {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: var(--button-elevated-shadow-hover);
+}
+
+@media (max-width: 560px) {
+  .ab-sales-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .ab-sales-show-all {
+    align-self: flex-end;
+  }
+}
+
 .ab-sales-date-filter label {
   display: grid;
   gap: 4px;
