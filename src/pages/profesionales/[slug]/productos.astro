@@ -1,6 +1,7 @@
 ---
 // Página: catálogo de productos del profesional.
 import MainLayout from "../../../layouts/MainLayout.astro";
+import { isSafeInternalPath } from "../../../lib/internalNavigation.js";
 import TitleBadge from "../../../components/TitleBadge.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
@@ -11,7 +12,6 @@ const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
 const products = provider?.products ?? [];
 const fromParam = Astro.url.searchParams.get("from");
-const isSafeInternalPath = (value) => Boolean(value?.startsWith("/") && !value.startsWith("//") && !value.includes("://"));
 const backHref = isSafeInternalPath(fromParam)
   ? fromParam
   : provider

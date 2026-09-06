@@ -948,7 +948,9 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
       const providerMeta = providerMetaMap[providerKey] ?? { phone: "", userId: "" };
       const providerPhone = toWhatsappDigits(firstWithPhone?.provider_whatsapp) || providerMeta.phone || "";
       const providerUserId = String(firstWithUser?.provider_user_id ?? "").trim() || providerMeta.userId || "";
-      const providerProfileHref = providerUserId ? `/proveedor-publico/${encodeURIComponent(providerUserId)}` : "";
+      const providerProfileHref = providerUserId
+        ? `/proveedor-publico/${encodeURIComponent(providerUserId)}?from=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
+        : "";
       const waLink = buildWhatsappUrl(provider, providerPhone);
       const card = document.createElement("article");
       card.className = "ab-provider-product-card ab-order-product-card";

@@ -313,7 +313,7 @@ const initCartPage = () => {
         return;
       }
     }
-    window.location.href = "/finalizar-compra";
+    window.location.href = `/finalizar-compra?from=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   });
 
   itemsWrap.addEventListener("change", async (event) => {

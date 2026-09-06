@@ -1,4 +1,6 @@
 -- Servicios de usuario (snapshot simple por usuario).
+-- Cuando active represente un servicio real, incluir provider_user_id con el UUID
+-- del profesional. La UI lo usa para enlazar /proveedor-publico/[userId].
 -- Ejecutar en Supabase SQL editor.
 
 create table if not exists public.user_services (

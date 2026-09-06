@@ -11,17 +11,24 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
+const getCurrentInternalPath = () => `${window.location.pathname}${window.location.search}`;
+
+const withReturnPath = (destination) => {
+  const currentPath = getCurrentInternalPath();
+  return `${destination}${destination.includes("?") ? "&" : "?"}from=${encodeURIComponent(currentPath)}`;
+};
+
 const getProductHref = (item) => {
   const sellerUserId = String(item?.sellerUserId ?? "").trim();
   const productId = String(item?.productId ?? "").trim();
-  if (productId) return `/producto/${encodeURIComponent(productId)}`;
-  if (sellerUserId) return `/proveedor-publico/${encodeURIComponent(sellerUserId)}`;
+  if (productId) return withReturnPath(`/producto/${encodeURIComponent(productId)}`);
+  if (sellerUserId) return withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`);
   return "#";
 };
 
 const getProviderHref = (item) => {
   const sellerUserId = String(item?.sellerUserId ?? "").trim();
-  return sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
+  return sellerUserId ? withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`) : "#";
 };
 
 const serializeDelivery = (value) =>
@@ -57,12 +64,12 @@ const ensureFeaturedCarouselMarkup = (section) => {
     const productId = String(card.dataset.cartId ?? "").trim();
     const providerLink = document.createElement("a");
     providerLink.className = "ab-featured-products-provider";
-    providerLink.href = sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
+    providerLink.href = sellerUserId ? withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`) : "#";
     providerLink.innerHTML = '<img src="/icons/proveedor.svg" alt="" aria-hidden="true" /><span>Proveedor</span>';
     if (!sellerUserId) providerLink.setAttribute("aria-disabled", "true");
     const detailLink = document.createElement("a");
     detailLink.className = "ab-featured-products-detail";
-    detailLink.href = productId ? `/producto/${encodeURIComponent(productId)}` : "#";
+    detailLink.href = productId ? withReturnPath(`/producto/${encodeURIComponent(productId)}`) : "#";
     detailLink.innerHTML = '<img src="/icons/detalle.svg" alt="" aria-hidden="true" /><span>Detalle</span>';
     if (!productId) detailLink.setAttribute("aria-disabled", "true");
     const links = document.createElement("div");

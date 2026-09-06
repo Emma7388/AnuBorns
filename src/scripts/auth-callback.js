@@ -1,15 +1,11 @@
 import { supabase } from "../lib/supabaseClient";
+import { isSafeInternalPath } from "../lib/internalNavigation";
 import { resolvePendingRegistrationProfile } from "../lib/userProfile";
 
 let feedback = document.getElementById("auth-callback-feedback");
 let isCompletingAuthCallback = false;
 
-const sanitizeReturnTo = (value) => {
-  if (!value || typeof value !== "string") return "/mis-datos";
-  if (!value.startsWith("/")) return "/mis-datos";
-  if (value.includes("://")) return "/mis-datos";
-  return value;
-};
+const sanitizeReturnTo = (value) => (isSafeInternalPath(value) ? value : "/mis-datos");
 const getParams = () => new URLSearchParams(window.location.search);
 const getReturnTo = () => sanitizeReturnTo(getParams().get("returnTo"));
 

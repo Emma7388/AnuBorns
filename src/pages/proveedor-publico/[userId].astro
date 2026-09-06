@@ -3,6 +3,7 @@
 export const prerender = false;
 
 import MainLayout from "../../layouts/MainLayout.astro";
+import { getCurrentInternalPath, withReturnPath } from "../../lib/internalNavigation.js";
 import TitleBadge from "../../components/TitleBadge.astro";
 import { filterAvailableProducts } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
@@ -74,7 +75,7 @@ const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 const getProductHref = (product) => {
   const productId = String(product?.id ?? "").trim();
-  return productId ? `/producto/${encodeURIComponent(productId)}` : "#";
+  return productId ? withReturnPath(`/producto/${encodeURIComponent(productId)}`, getCurrentInternalPath(Astro.url)) : "#";
 };
 const shortId = (value) => {
   const raw = String(value ?? "").replace(/-/g, "");
@@ -82,7 +83,7 @@ const shortId = (value) => {
 };
 ---
 
-<MainLayout title={`Proveedor: ${sellerName}`} backHref="history">
+<MainLayout title={`Proveedor: ${sellerName}`} backHref="/comprar">
   {first ? (
     <section class="ab-dark-panel">
       <p class="ab-eyebrow">Perfil público</p>

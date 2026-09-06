@@ -1,6 +1,11 @@
 ---
 // Componente: header con auth, carrito y modal de logout.
+import { getCurrentInternalPath, withReturnPath } from "../lib/internalNavigation.js";
+
 const { title = "", autoHide = false } = Astro.props;
+const currentPath = getCurrentInternalPath(Astro.url);
+const cartHref = withReturnPath("/carrito", currentPath);
+const loginHref = `/login?returnTo=${encodeURIComponent(currentPath)}`;
 ---
 
 <header class:list={["header", { "header--auto-hide": autoHide }]} transition:name="ab-header" transition:persist transition:animate="none">
@@ -34,7 +39,7 @@ const { title = "", autoHide = false } = Astro.props;
       </button>
 
       <!-- Acceso rápido al carrito -->
-      <a class="nav-cart" href="/carrito" aria-label="Ir al carrito">
+      <a class="nav-cart" href={cartHref} aria-label="Ir al carrito">
         <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
         <span id="cart-count">0</span>
       </a>
@@ -43,7 +48,7 @@ const { title = "", autoHide = false } = Astro.props;
       <div class="nav-auth nav-auth--guest ab-is-hidden" data-auth="guest">
         <a
           class="nav-login nav-login--ghost nav-login--icon"
-          href="/login"
+          href={loginHref}
           aria-label="Iniciar sesión"
           title="Iniciar sesión"
         >

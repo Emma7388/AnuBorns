@@ -1,6 +1,7 @@
 ---
 // Página: perfil de profesional.
 import MainLayout from "../../../layouts/MainLayout.astro";
+import { getCurrentInternalPath, isSafeInternalPath, withReturnPath } from "../../../lib/internalNavigation.js";
 import TitleBadge from "../../../components/TitleBadge.astro";
 import { providers } from "../../../data/providers";
 import { categories } from "../../../data/categories";
@@ -10,7 +11,6 @@ const { slug } = Astro.params;
 const provider = providers.find((item) => item.slug === slug);
 const categoryName = categories.find((item) => item.slug === provider?.category)?.name;
 const fromParam = Astro.url.searchParams.get("from");
-const isSafeInternalPath = (value) => Boolean(value?.startsWith("/") && !value.startsWith("//") && !value.includes("://"));
 const backHref = isSafeInternalPath(fromParam)
   ? fromParam
   : provider
@@ -54,7 +54,7 @@ const backHref = isSafeInternalPath(fromParam)
 
       <!-- CTA principal -->
       <div class="ab-provider-profile__actions">
-        <a href={`/contratar/${provider.slug}?from=${encodeURIComponent(`/profesionales/categoria/${provider.category}`)}`} class="ab-cta-button">Contratar</a>
+        <a href={withReturnPath(`/contratar/${provider.slug}`, getCurrentInternalPath(Astro.url))} class="ab-cta-button">Contratar</a>
       </div>
     </section>
   ) : (

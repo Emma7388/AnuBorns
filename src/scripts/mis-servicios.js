@@ -35,6 +35,24 @@ const formatServiceValue = (value, fallback = "Sin datos") => {
   return safe || fallback;
 };
 
+/* Evita que los textos guardados en el servicio se interpreten como HTML. */
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+/* Un servicio real referencia al profesional por su UUID de Auth/Supabase. */
+const getProviderProfileHref = (service) => {
+  const providerUserId = String(service?.provider_user_id ?? service?.providerUserId ?? "").trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(providerUserId);
+  if (!isUuid) return "";
+  const from = `${window.location.pathname}${window.location.search}`;
+  return `/proveedor-publico/${encodeURIComponent(providerUserId)}?from=${encodeURIComponent(from)}`;
+};
+
 /* Renderiza el servicio en curso. */
 const renderActive = (active) => {
   if (!activeContainer) return;
@@ -43,25 +61,27 @@ const renderActive = (active) => {
     return;
   }
 
+  const providerProfileHref = getProviderProfileHref(active);
+
   activeContainer.innerHTML = `
     <article class="ab-service-card ab-service-card--active">
       <div class="ab-service-card__header">
         <div>
           <p class="ab-service-card__meta">En progreso</p>
-          <h2 class="ab-service-card__title">${formatServiceValue(active.title, "Servicio en curso")}</h2>
+          <h2 class="ab-service-card__title">${escapeHtml(formatServiceValue(active.title, "Servicio en curso"))}</h2>
         </div>
         <span class="ab-service-card__status ab-service-card__status--active">En curso</span>
       </div>
       <div class="ab-service-card__details">
-        <p>Profesional: ${formatServiceValue(active.professional, "Pendiente")}</p>
-        <p>Inicio: ${formatServiceValue(active.startDate, "Por confirmar")}</p>
-        <p>Dirección: ${formatServiceValue(active.location, "Sin definir")}</p>
+        <p>Profesional: ${escapeHtml(formatServiceValue(active.professional, "Pendiente"))}</p>
+        <p>Inicio: ${escapeHtml(formatServiceValue(active.startDate, "Por confirmar"))}</p>
+        <p>Dirección: ${escapeHtml(formatServiceValue(active.location, "Sin definir"))}</p>
       </div>
-      <div class="ab-actions">
-        <a class="ab-cta-button" href="https://wa.me/5491137915210" target="_blank" rel="noreferrer">
-          Contactar
-        </a>
-      </div>
+      ${providerProfileHref ? `
+        <div class="ab-actions">
+          <a class="ab-cta-button" href="${providerProfileHref}">Ver perfil del profesional</a>
+        </div>
+      ` : ""}
     </article>
   `;
 };
@@ -83,14 +103,14 @@ const renderHistory = (history) => {
       <div class="ab-service-card__header">
         <div>
           <p class="ab-service-card__meta">Finalizado</p>
-          <h3 class="ab-service-card__title">${formatServiceValue(service.title, "Servicio finalizado")}</h3>
+          <h3 class="ab-service-card__title">${escapeHtml(formatServiceValue(service.title, "Servicio finalizado"))}</h3>
         </div>
         <span class="ab-service-card__status ab-service-card__status--done">Finalizado</span>
       </div>
       <div class="ab-service-card__details">
-        <p>Profesional: ${formatServiceValue(service.professional, "N/A")}</p>
-        <p>Fecha: ${formatServiceValue(service.date, "Sin fecha")}</p>
-        <p>Calificación: ${formatServiceValue(service.rating, "Sin datos")}</p>
+        <p>Profesional: ${escapeHtml(formatServiceValue(service.professional, "N/A"))}</p>
+        <p>Fecha: ${escapeHtml(formatServiceValue(service.date, "Sin fecha"))}</p>
+        <p>Calificación: ${escapeHtml(formatServiceValue(service.rating, "Sin datos"))}</p>
       </div>
     `;
     list.appendChild(wrapper);

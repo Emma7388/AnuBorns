@@ -3,13 +3,16 @@
 import BaseLayout from "./BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { isSafeInternalPath } from "../lib/internalNavigation.js";
 import "../styles/global.css";
 
 // Calcula el "volver" según ruta.
 const { title, headerTitle = title, backHref: customBackHref } = Astro.props;
 const pathname = Astro.url.pathname;
 const segments = pathname.split("/").filter(Boolean);
-const backHref = customBackHref ?? (segments.length <= 1 ? "/" : `/${segments.slice(0, -1).join("/")}`);
+const requestedBackHref = Astro.url.searchParams.get("from");
+const fallbackBackHref = customBackHref ?? (segments.length <= 1 ? "/" : `/${segments.slice(0, -1).join("/")}`);
+const backHref = isSafeInternalPath(requestedBackHref) ? requestedBackHref : fallbackBackHref;
 const showBack = pathname !== "/";
 const autoHideChrome = pathname === "/";
 ---

@@ -5,6 +5,7 @@ import { categories } from "../../../data/categories";
 import { providers } from "../../../data/providers";
 import ProviderCard from "../../../components/ProviderCard.astro";
 import TitleBadge from "../../../components/TitleBadge.astro";
+import { getCurrentInternalPath } from "../../../lib/internalNavigation.js";
 
 // Datos filtrados y ordenados por ranking.
 const { categoria } = Astro.params;
@@ -46,7 +47,7 @@ const categoryProviders = providers
           slug={provider.slug}
           profileBasePath="/profesionales"
           productsBasePath="/profesionales"
-          fromPath={`/profesionales/categoria/${categoria}`}
+          fromPath={getCurrentInternalPath(Astro.url)}
         />
       ))}
     </div>

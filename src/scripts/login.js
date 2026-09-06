@@ -1,5 +1,6 @@
 /* Formulario de login con Supabase y feedback de UI. */
 import { supabase } from "../lib/supabaseClient";
+import { isSafeInternalPath } from "../lib/internalNavigation";
 import { postAudit } from "./audit.js";
 import {
   fetchUserProfile,
@@ -31,12 +32,7 @@ const bindLoginEvents = () => {
 
 /* Sanitiza returnTo para evitar redirecciones externas. */
 const params = new URLSearchParams(window.location.search);
-const sanitizeReturnTo = (value) => {
-  if (!value || typeof value !== "string") return "/";
-  if (!value.startsWith("/")) return "/";
-  if (value.includes("://")) return "/";
-  return value;
-};
+const sanitizeReturnTo = (value) => (isSafeInternalPath(value) ? value : "/");
 const returnTo = sanitizeReturnTo(params.get("returnTo"));
 
 /* Obtiene nombre visible desde metadata o email. */

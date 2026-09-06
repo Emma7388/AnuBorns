@@ -5,6 +5,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
 import TitleBadge from "../../components/TitleBadge.astro";
 import { getSoldProductIds } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { getCurrentInternalPath, withReturnPath } from "../../lib/internalNavigation.js";
 
 const { id } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -39,7 +40,10 @@ const soldProductIds = supabaseAdmin && rawCurrent?.id
 const current = rawCurrent && !soldProductIds.has(String(rawCurrent.id ?? "").trim())
   ? rawCurrent
   : null;
-const providerHref = current?.user_id ? `/proveedor-publico/${encodeURIComponent(current.user_id)}` : "";
+const currentPath = getCurrentInternalPath(Astro.url);
+const providerHref = current?.user_id
+  ? withReturnPath(`/proveedor-publico/${encodeURIComponent(current.user_id)}`, currentPath)
+  : "";
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");

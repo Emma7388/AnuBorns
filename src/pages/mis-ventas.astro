@@ -19,8 +19,15 @@ import TitleBadge from "../components/TitleBadge.astro";
       <input id="my-sold-products-dispatch-filter" type="checkbox" />
       <span>Mostrar solo productos para despachar</span>
     </label>
+    <form id="my-sold-products-date-filter" class="ab-sales-date-filter">
+      <label><span>Desde</span><input id="my-sold-products-from" type="date" /></label>
+      <label><span>Hasta</span><input id="my-sold-products-to" type="date" /></label>
+      <button type="submit" class="ab-sales-date-filter__apply">Buscar</button>
+      <button type="button" id="my-sold-products-date-clear" class="ab-sales-date-filter__clear">Limpiar</button>
+    </form>
     <p id="my-sold-products-status" class="ab-muted-text"></p>
     <div id="my-sold-products-list" class="ab-orders-list"></div>
+    <nav id="my-sold-products-pagination" class="ab-sales-pagination" aria-label="Paginación de productos vendidos"></nav>
     <div id="my-sold-products-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no tenés productos vendidos.</p>
     </div>

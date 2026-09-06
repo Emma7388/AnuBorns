@@ -3,6 +3,7 @@
 export const prerender = false;
 
 import MainLayout from "../../../layouts/MainLayout.astro";
+import { getCurrentInternalPath, withReturnPath } from "../../../lib/internalNavigation.js";
 import TitleBadge from "../../../components/TitleBadge.astro";
 import { categories } from "../../../data/categories.js";
 import { filterAvailableProducts } from "../../../lib/soldProducts.js";
@@ -89,7 +90,7 @@ const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 const getProductHref = (product) => {
   const productId = String(product?.id ?? "").trim();
-  return productId ? `/producto/${encodeURIComponent(productId)}` : "#";
+  return productId ? withReturnPath(`/producto/${encodeURIComponent(productId)}`, getCurrentInternalPath(Astro.url)) : "#";
 };
 const shortId = (value) => {
   const raw = String(value ?? "").replace(/-/g, "");

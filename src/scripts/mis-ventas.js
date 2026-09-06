@@ -1,12 +1,18 @@
 /* Mis ventas: render de productos publicados por el usuario. */
 import { supabase } from "../lib/supabaseClient";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
+import { fetchSalesList } from "../lib/salesListClient";
 
 /* Referencias DOM. */
 let soldProductsList = document.getElementById("my-sold-products-list");
 let soldProductsEmpty = document.getElementById("my-sold-products-empty");
 let soldProductsStatus = document.getElementById("my-sold-products-status");
 let soldProductsDispatchFilter = document.getElementById("my-sold-products-dispatch-filter");
+let soldProductsPagination = document.getElementById("my-sold-products-pagination");
+let soldProductsDateFilter = document.getElementById("my-sold-products-date-filter");
+let soldProductsFrom = document.getElementById("my-sold-products-from");
+let soldProductsTo = document.getElementById("my-sold-products-to");
+let soldProductsDateClear = document.getElementById("my-sold-products-date-clear");
 let productsGrid = document.getElementById("my-products-grid");
 let productsEmpty = document.getElementById("my-products-empty");
 let deleteModal = document.getElementById("sales-delete-modal");
@@ -21,6 +27,11 @@ const refreshMySalesNodes = () => {
   soldProductsEmpty = document.getElementById("my-sold-products-empty");
   soldProductsStatus = document.getElementById("my-sold-products-status");
   soldProductsDispatchFilter = document.getElementById("my-sold-products-dispatch-filter");
+  soldProductsPagination = document.getElementById("my-sold-products-pagination");
+  soldProductsDateFilter = document.getElementById("my-sold-products-date-filter");
+  soldProductsFrom = document.getElementById("my-sold-products-from");
+  soldProductsTo = document.getElementById("my-sold-products-to");
+  soldProductsDateClear = document.getElementById("my-sold-products-date-clear");
   productsGrid = document.getElementById("my-products-grid");
   productsEmpty = document.getElementById("my-products-empty");
   deleteModal = document.getElementById("sales-delete-modal");
@@ -68,8 +79,7 @@ const bindMySalesEvents = () => {
       showSalesStatusToast(`Estado actualizado: ${formatFulfillmentStatus(nextStatus, false)}.`);
       invalidateSalesSummaryCache();
       lastSoldProductsSignature = "";
-      suppressNextSalesStatusToast = true;
-      await loadSoldProducts();
+      await loadSoldProducts({ page: soldProductsPage });
     });
     soldProductsList.dataset.dispatchBound = "1";
   }
@@ -81,9 +91,50 @@ const bindMySalesEvents = () => {
 
   if (soldProductsDispatchFilter instanceof HTMLInputElement && !soldProductsFilterBound) {
     soldProductsDispatchFilter.addEventListener("change", () => {
-      applySoldProductsDispatchFilter();
+      soldProductsPage = 1;
+      void loadSoldProducts({ page: 1 });
     });
     soldProductsFilterBound = true;
+  }
+
+  if (soldProductsPagination && soldProductsPagination.dataset.abSalesPaginationBound !== "true") {
+    soldProductsPagination.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-sold-products-page]");
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      const requestedPage = Number(button.dataset.soldProductsPage ?? 0);
+      if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage === soldProductsPage) return;
+      soldProductsPage = requestedPage;
+      void loadSoldProducts({ page: requestedPage });
+      soldProductsList?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    soldProductsPagination.dataset.abSalesPaginationBound = "true";
+  }
+
+  if (soldProductsDateFilter instanceof HTMLFormElement && soldProductsDateFilter.dataset.abSalesDateBound !== "true") {
+    soldProductsDateFilter.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const from = soldProductsFrom instanceof HTMLInputElement ? soldProductsFrom.value : "";
+      const to = soldProductsTo instanceof HTMLInputElement ? soldProductsTo.value : "";
+      if (from && to && from > to) {
+        if (soldProductsStatus) soldProductsStatus.textContent = "La fecha inicial no puede ser posterior a la final.";
+        return;
+      }
+      soldProductsPage = 1;
+      void loadSoldProducts({ page: 1 });
+    });
+    soldProductsDateFilter.dataset.abSalesDateBound = "true";
+  }
+
+  if (soldProductsDateClear instanceof HTMLButtonElement && soldProductsDateClear.dataset.abSalesDateBound !== "true") {
+    soldProductsDateClear.addEventListener("click", () => {
+      if (soldProductsFrom instanceof HTMLInputElement) soldProductsFrom.value = "";
+      if (soldProductsTo instanceof HTMLInputElement) soldProductsTo.value = "";
+      soldProductsPage = 1;
+      void loadSoldProducts({ page: 1 });
+    });
+    soldProductsDateClear.dataset.abSalesDateBound = "true";
   }
 
   if (deleteModalCancel && deleteModalCancel.dataset.abMySalesModalBound !== "true") {
@@ -135,17 +186,15 @@ let soldProductsResizeBound = false;
 let soldProductsFilterBound = false;
 let lastSoldProductsItems = [];
 let soldProductCards = [];
+let soldProductsPage = 1;
+let soldProductsPaginationState = { page: 1, pageSize: 3, total: 0, totalPages: 0 };
 let salesStatusToast = null;
 let salesStatusToastMessage = null;
 let salesStatusToastTimer = 0;
-let lastSalesStatusStateSignature = "";
-let lastSaleOnlyCursor = "";
-let suppressNextSalesStatusToast = false;
 
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 const SALES_MIN_GAP_MS = 4000;
 const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
-const SOLD_PRODUCTS_VISIBLE_CARD_COUNT = 3;
 
 /* Formateo de precios ARS. */
 const formatPrice = (value) => {
@@ -284,7 +333,15 @@ const escapeHtml = (value) =>
 
 const getProductDetailHref = (productId) => {
   const safeProductId = String(productId ?? "").trim();
-  return safeProductId ? `/producto/${encodeURIComponent(safeProductId)}` : "#";
+  const from = `${window.location.pathname}${window.location.search}`;
+  return safeProductId ? `/producto/${encodeURIComponent(safeProductId)}?from=${encodeURIComponent(from)}` : "#";
+};
+
+const getPublicProfileHref = (userId) => {
+  const safeUserId = String(userId ?? "").trim();
+  if (!safeUserId) return "";
+  const from = `${window.location.pathname}${window.location.search}`;
+  return `/proveedor-publico/${encodeURIComponent(safeUserId)}?from=${encodeURIComponent(from)}`;
 };
 
 const getLastSeenSaleStorageKey = () => `${LAST_SEEN_SALE_KEY}:${currentUserId || "anonymous"}`;
@@ -437,79 +494,77 @@ const buildSoldProductsSignature = (products) => {
   return `${cursor || "empty"}::${dispatchState}`;
 };
 
-const buildSalesStatusStateSignature = (products) => {
-  if (!Array.isArray(products) || products.length === 0) return "empty";
-  return products
-    .map((product) => {
-      const history = Array.isArray(product?.salesHistory) ? product.salesHistory : [];
-      if (history.length === 0) {
-        return [
-          product?.productId ?? "",
-          product?.lastOrderId ?? "",
-          product?.fulfillmentStatus ?? "",
-          product?.dispatchedAt ?? "",
-        ].join("|");
-      }
-      return history
-        .map((sale) =>
-          [
-            sale?.productId ?? product?.productId ?? "",
-            sale?.orderId ?? "",
-            sale?.fulfillmentStatus ?? "",
-            sale?.dispatchedAt ?? "",
-          ].join("|"),
-        )
-        .join(";");
-    })
-    .join("::");
-};
-
 const updateSoldProductsScrollWindow = () => {
   if (!soldProductsList) return;
-  const cards = Array.from(soldProductsList.querySelectorAll(".ab-provider-product-card"));
-  if (cards.length <= SOLD_PRODUCTS_VISIBLE_CARD_COUNT) {
-    soldProductsList.classList.remove("ab-sold-products-scroll");
-    soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
-    return;
-  }
-
-  const lastVisibleCard = cards[SOLD_PRODUCTS_VISIBLE_CARD_COUNT - 1];
-  const listRect = soldProductsList.getBoundingClientRect();
-  const cardRect = lastVisibleCard.getBoundingClientRect();
-  const visibleHeight = Math.max(0, cardRect.bottom - listRect.top + 8);
-  soldProductsList.style.setProperty("--ab-sold-products-scroll-height", `${Math.ceil(visibleHeight)}px`);
-  soldProductsList.classList.add("ab-sold-products-scroll");
+  /* Las ventas se recorren con el scroll normal de la página, no dentro de
+     una ventana chica que comprime cards y acciones operativas. */
+  soldProductsList.classList.remove("ab-sold-products-scroll");
+  soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
 };
 
 const scheduleSoldProductsScrollWindow = () => {
   window.requestAnimationFrame(updateSoldProductsScrollWindow);
 };
 
-const applySoldProductsDispatchFilter = () => {
-  if (!soldProductsList || !soldProductsEmpty) return;
-  const showDispatchOnly = soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.checked;
-  const emptyText = soldProductsEmpty.querySelector("p");
-  const visibleCards = showDispatchOnly
-    ? soldProductCards.filter((card) => card.dataset.salePendingDispatch === "true")
-    : soldProductCards;
+/* Renderiza controles de página sin agregar scroll interno al panel. */
+const renderSoldProductsPagination = (pagination = soldProductsPaginationState) => {
+  if (!soldProductsPagination) return;
+  const totalPages = Number(pagination?.totalPages) || 0;
+  const currentPage = Number(pagination?.page) || 1;
+  if (totalPages <= 1) {
+    soldProductsPagination.replaceChildren();
+    soldProductsPagination.classList.add("ab-is-hidden");
+    return;
+  }
 
-  soldProductsList.replaceChildren(...visibleCards);
+  soldProductsPagination.classList.remove("ab-is-hidden");
+  soldProductsPagination.innerHTML = `
+    <button type="button" class="ab-sales-pagination__button" data-sold-products-page="${currentPage - 1}" ${currentPage <= 1 ? "disabled" : ""}>
+      Anterior
+    </button>
+    <span class="ab-sales-pagination__summary">Página ${currentPage} de ${totalPages} · ${Number(pagination?.total) || 0} ventas</span>
+    <button type="button" class="ab-sales-pagination__button" data-sold-products-page="${currentPage + 1}" ${currentPage >= totalPages ? "disabled" : ""}>
+      Siguiente
+    </button>
+  `;
+};
+
+/* Los filtros ya vienen resueltos por la API; acá sólo se pinta la página recibida. */
+const renderSoldProductsPage = () => {
+  if (!soldProductsList || !soldProductsEmpty) return;
+  const emptyText = soldProductsEmpty.querySelector("p");
+  const visibleCards = soldProductCards;
+  const pageCards = visibleCards;
+
+  soldProductsList.replaceChildren(...pageCards);
   soldProductsList.scrollTop = 0;
 
   if (visibleCards.length === 0) {
     soldProductsList.classList.remove("ab-sold-products-scroll");
     soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
     if (emptyText) {
-      emptyText.textContent = showDispatchOnly
+      emptyText.textContent = soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.checked
         ? "No tenés productos pendientes de despacho."
         : "Todavía no tenés productos vendidos.";
     }
     soldProductsEmpty.classList.remove("ab-is-hidden");
+    renderSoldProductsPagination(soldProductsPaginationState);
     return;
   }
 
   soldProductsEmpty.classList.add("ab-is-hidden");
+  renderSoldProductsPagination(soldProductsPaginationState);
   scheduleSoldProductsScrollWindow();
+};
+
+const getSoldProductsEmptyMessage = () => {
+  if (soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.checked) {
+    return "No tenés productos pendientes de despacho.";
+  }
+  if ((soldProductsFrom instanceof HTMLInputElement && soldProductsFrom.value) || (soldProductsTo instanceof HTMLInputElement && soldProductsTo.value)) {
+    return "No encontramos ventas en ese rango de fechas.";
+  }
+  return "Todavía no tenés productos vendidos.";
 };
 
 /* Renderiza resumen de productos vendidos. */
@@ -521,12 +576,13 @@ const renderSoldProducts = (products) => {
   if (!Array.isArray(products) || products.length === 0) {
     soldProductsList.classList.remove("ab-sold-products-scroll");
     soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
-    if (emptyText) emptyText.textContent = "Todavía no tenés productos vendidos.";
+    renderSoldProductsPagination(soldProductsPaginationState);
+    if (emptyText) emptyText.textContent = getSoldProductsEmptyMessage();
     soldProductsEmpty.classList.remove("ab-is-hidden");
     return;
   }
 
-  soldProductsList.classList.add("ab-provider-products-grid");
+  soldProductsList.classList.add("ab-provider-products-grid", "ab-sold-products-list");
 
   const salesCards = [];
   products.forEach((product) => {
@@ -586,7 +642,7 @@ const renderSoldProducts = (products) => {
   if (salesCards.length === 0) {
     soldProductsList.classList.remove("ab-sold-products-scroll");
     soldProductsList.style.removeProperty("--ab-sold-products-scroll-height");
-    if (emptyText) emptyText.textContent = "Todavía no tenés productos vendidos.";
+    if (emptyText) emptyText.textContent = getSoldProductsEmptyMessage();
     soldProductsEmpty.classList.remove("ab-is-hidden");
     return;
   }
@@ -653,7 +709,7 @@ const renderSoldProducts = (products) => {
             safeBuyerName
               ? `<li>Cliente: <strong>${
                   safeBuyerUserId
-                    ? `<a class="ab-order-card__provider-link" href="/proveedor-publico/${safeBuyerUserId}">${safeBuyerName}</a>`
+                    ? `<a class="ab-order-card__provider-link" href="${escapeHtml(getPublicProfileHref(sale.buyerUserId))}">${safeBuyerName}</a>`
                     : safeBuyerName
                 }</strong></li>`
               : ""
@@ -732,7 +788,7 @@ const renderSoldProducts = (products) => {
   });
 
   soldProductCards = groupedCards;
-  applySoldProductsDispatchFilter();
+  renderSoldProductsPage();
 };
 
 /* Renderiza tarjetas de productos del usuario. */
@@ -895,7 +951,7 @@ const markSaleDispatchOnServer = async ({ orderId, productId, status }) => {
 };
 
 /* Carga y resume ventas de productos del usuario autenticado. */
-const loadSoldProducts = async () => {
+const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
   if (!soldProductsList || !soldProductsEmpty || !soldProductsStatus) return;
   soldProductsStatus.textContent = "Cargando productos vendidos...";
 
@@ -908,33 +964,29 @@ const loadSoldProducts = async () => {
   }
 
   try {
-    const { items, error } = await fetchSoldProductsSummary();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    const from = soldProductsFrom instanceof HTMLInputElement ? soldProductsFrom.value : "";
+    const to = soldProductsTo instanceof HTMLInputElement ? soldProductsTo.value : "";
+    const pendingOnly = soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.checked;
+    const { items, pagination, error } = await fetchSalesList(token, { from, to, pendingOnly, page });
     if (error) {
       soldProductsStatus.textContent = error;
       renderSoldProducts([]);
       return;
     }
 
-    const nextSoldSignature = buildSoldProductsSignature(items);
-    const { latestSale } = getLatestSaleCursor(items);
-    const nextSaleOnlyCursor = latestSale ? buildSalesNotificationCursor(items, latestSale) : "";
-    const nextSalesStatusStateSignature = buildSalesStatusStateSignature(items);
-    const isStatusOnlyChange =
-      Boolean(lastSalesStatusStateSignature) &&
-      nextSalesStatusStateSignature !== lastSalesStatusStateSignature &&
-      nextSaleOnlyCursor === lastSaleOnlyCursor;
+    soldProductsPage = pagination.page;
+    soldProductsPaginationState = pagination;
+    const nextSoldSignature = `${pagination.page}|${pagination.total}|${buildSoldProductsSignature(items)}`;
     soldProductsStatus.textContent = "";
     lastSoldProductsItems = items;
     if (nextSoldSignature !== lastSoldProductsSignature) {
       renderSoldProducts(items);
       lastSoldProductsSignature = nextSoldSignature;
     }
-    if (isStatusOnlyChange && !suppressNextSalesStatusToast) {
-      showSalesStatusToast("Estado de venta actualizado.");
-    }
-    lastSalesStatusStateSignature = nextSalesStatusStateSignature;
-    lastSaleOnlyCursor = nextSaleOnlyCursor;
-    suppressNextSalesStatusToast = false;
+    /* El aviso se muestra al confirmar una acción de despacho. Comparar páginas
+       distintas produciría falsos positivos porque cada una trae tres ventas. */
     markLatestSaleSeen(items);
   } catch {
     soldProductsStatus.textContent = "";
@@ -963,9 +1015,6 @@ const loadMyProducts = async ({ force = false } = {}) => {
       lastPublishedProductsSignature = "empty";
       lastSoldProductsSignature = "empty";
       lastSoldProductsItems = [];
-      lastSalesStatusStateSignature = "";
-      lastSaleOnlyCursor = "";
-      suppressNextSalesStatusToast = false;
       return;
     }
     const nextUserId = session.user.id;
@@ -973,9 +1022,6 @@ const loadMyProducts = async ({ force = false } = {}) => {
       await teardownSalesRealtime();
       lastPublishedProductsSignature = "";
       lastSoldProductsSignature = "";
-      lastSalesStatusStateSignature = "";
-      lastSaleOnlyCursor = "";
-      suppressNextSalesStatusToast = false;
     }
     currentUserId = nextUserId;
     const { data, error } = await supabase

@@ -1298,6 +1298,55 @@ input[type="submit"] {
   line-height: 1.3;
 }
 
+.ab-sales-date-filter {
+  margin: 0 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.ab-sales-date-filter label {
+  display: grid;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ab-sales-date-filter input {
+  min-height: 36px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--color-panel-tint-strong);
+  color: var(--color-text);
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.ab-sales-date-filter__apply,
+.ab-sales-date-filter__clear {
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ab-sales-date-filter__apply {
+  border: 1px solid var(--button-elevated-border);
+  background: var(--action-secondary);
+  color: #fff;
+}
+
+.ab-sales-date-filter__clear {
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
 .ab-sales-pending-count {
   display: inline-flex;
   align-items: center;
@@ -1332,6 +1381,65 @@ input[type="submit"] {
 .ab-sold-products-scroll::-webkit-scrollbar-thumb {
   background: rgba(22, 199, 132, 0.7);
   border-radius: 999px;
+}
+
+/* Ventas es información operativa: se muestra como una lista amplia, no como
+   la grilla compacta reservada para explorar productos publicados. */
+.ab-sold-products-list {
+  width: 100%;
+  max-width: 820px;
+  margin-right: auto;
+  margin-left: auto;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+}
+
+.ab-sold-products-list > .ab-provider-product-card,
+.ab-sold-products-list > .ab-sale-order-group {
+  width: 100%;
+  max-width: none;
+  grid-column: auto;
+}
+
+.ab-sold-products-list .ab-sale-order-group {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+}
+
+.ab-sales-pagination {
+  width: 100%;
+  max-width: 820px;
+  margin: 12px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ab-sales-pagination__button {
+  min-width: 96px;
+  min-height: 38px;
+  border: 1px solid var(--button-elevated-border);
+  border-radius: var(--button-radius);
+  background: var(--action-secondary);
+  color: #ffffff;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--button-elevated-shadow);
+}
+
+.ab-sales-pagination__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ab-sales-pagination__summary {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .ab-seller-rows {
@@ -2653,6 +2761,91 @@ input[type="submit"] {
   white-space: normal;
   text-align: center;
   overflow-wrap: anywhere;
+}
+
+/* En cards angostas, las acciones de venta necesitan ancho completo para no
+   superponer etiquetas largas como "Listo para retirar". */
+@media (max-width: 559px) {
+  .ab-sales-product-card .ab-provider-product-card__actions--split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    min-height: calc(var(--product-card-button-height) * 2 + 6px);
+  }
+
+  .ab-sales-product-card .ab-provider-product-card__actions--split .ab-featured-products-detail,
+  .ab-sales-product-card .ab-provider-product-card__actions--split .ab-provider-product-card__button {
+    width: 100%;
+    min-height: var(--product-card-button-height);
+  }
+}
+
+/* Esta regla queda después de las variantes responsive del catálogo para que
+   el historial de ventas no vuelva a repartirse en mini-cards. */
+.ab-provider-products-grid.ab-sold-products-list {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 820px;
+}
+
+.ab-provider-products-grid.ab-sold-products-list > .ab-provider-product-card,
+.ab-provider-products-grid.ab-sold-products-list > .ab-sale-order-group {
+  max-width: none;
+}
+
+/* Las publicaciones activas se exploran mejor en una grilla compacta. Dos
+   columnas llenan el panel de vendedor sin convertirlas en cards gigantes. */
+#my-products-grid {
+  width: 100%;
+  max-width: 820px;
+  margin-right: auto;
+  margin-left: auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+
+#my-products-grid > .ab-provider-product-card {
+  width: 100%;
+  max-width: none;
+}
+
+@media (min-width: 560px) {
+  #my-products-grid {
+    grid-auto-rows: var(--product-card-height);
+    align-items: stretch;
+  }
+
+  #my-products-grid > .ab-provider-product-card {
+    height: 100%;
+  }
+}
+
+/* En escritorio una venta usa el ancho operativo completo; las cards del
+   catálogo conservan su medida compacta. Esta regla vence la variante de
+   catálogo que limita las cards a 420px. */
+@media (min-width: 560px) {
+  .ab-provider-products-grid.ab-sold-products-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 8px 16px;
+  }
+
+  .ab-provider-products-grid.ab-sold-products-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) .ab-provider-product-card__image {
+    min-height: 180px;
+  }
+
+  .ab-provider-products-grid.ab-sold-products-list > .ab-sale-order-group {
+    width: 100%;
+    max-width: none;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ab-provider-products-grid.ab-sold-products-list > .ab-sale-order-group > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 8px 16px;
+  }
 }
 
 /* Colores por intención para acciones dentro de cards. */

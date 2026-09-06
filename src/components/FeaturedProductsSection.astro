@@ -1,11 +1,13 @@
 ---
 import { getFeaturedProducts } from "../lib/featuredProducts.js";
+import { getCurrentInternalPath, withReturnPath } from "../lib/internalNavigation.js";
 
 const { title = "VENDEDORES DESTACADOS", featured } = Astro.props;
 const result = featured ?? await getFeaturedProducts();
 const items = Array.isArray(result?.items) ? result.items : [];
 const error = String(result?.error ?? "");
 const isLoaded = error ? "false" : "true";
+const currentPath = getCurrentInternalPath(Astro.url);
 
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
@@ -15,14 +17,14 @@ const formatPrice = (value) => {
 const getProductHref = (item) => {
   const productId = String(item?.productId ?? "").trim();
   const sellerUserId = String(item?.sellerUserId ?? "").trim();
-  if (productId) return `/producto/${encodeURIComponent(productId)}`;
-  if (sellerUserId) return `/proveedor-publico/${encodeURIComponent(sellerUserId)}`;
+  if (productId) return withReturnPath(`/producto/${encodeURIComponent(productId)}`, currentPath);
+  if (sellerUserId) return withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`, currentPath);
   return "#";
 };
 
 const getProviderHref = (item) => {
   const sellerUserId = String(item?.sellerUserId ?? "").trim();
-  return sellerUserId ? `/proveedor-publico/${encodeURIComponent(sellerUserId)}` : "#";
+  return sellerUserId ? withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`, currentPath) : "#";
 };
 
 const serializeDelivery = (value) =>

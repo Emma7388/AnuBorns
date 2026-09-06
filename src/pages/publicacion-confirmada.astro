@@ -4,7 +4,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 import TitleBadge from "../components/TitleBadge.astro";
 ---
 
-<MainLayout title="Publicación confirmada">
+<MainLayout title="Publicación confirmada" backHref="/comprar/servicios">
   <!-- Panel principal -->
   <section class="ab-dark-panel ab-confirmation-panel">
     <div class="ab-confirmation-card">
@@ -25,8 +25,8 @@ import TitleBadge from "../components/TitleBadge.astro";
 </MainLayout>
 
 <script>
-  // Redirección automática a home.
+  // El flujo de publicar trabajo pertenece a la sección de servicios.
   window.setTimeout(() => {
-    window.location.href = "/";
+    window.location.href = "/comprar/servicios";
   }, 4400);
 </script>
