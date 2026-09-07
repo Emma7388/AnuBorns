@@ -36,27 +36,10 @@ for each row execute function public.set_updated_at();
 
 alter table public.seller_mercadopago_accounts enable row level security;
 
+-- Los tokens OAuth no deben ser legibles ni modificables desde el navegador.
+-- Todas las operaciones pasan por las API server-side, que usan service role.
 drop policy if exists seller_mercadopago_accounts_select_own on public.seller_mercadopago_accounts;
-create policy "seller_mercadopago_accounts_select_own"
-  on public.seller_mercadopago_accounts
-  for select
-  using (auth.uid() = user_id);
-
 drop policy if exists seller_mercadopago_accounts_insert_own on public.seller_mercadopago_accounts;
-create policy "seller_mercadopago_accounts_insert_own"
-  on public.seller_mercadopago_accounts
-  for insert
-  with check (auth.uid() = user_id);
-
 drop policy if exists seller_mercadopago_accounts_update_own on public.seller_mercadopago_accounts;
-create policy "seller_mercadopago_accounts_update_own"
-  on public.seller_mercadopago_accounts
-  for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
 drop policy if exists seller_mercadopago_accounts_delete_own on public.seller_mercadopago_accounts;
-create policy "seller_mercadopago_accounts_delete_own"
-  on public.seller_mercadopago_accounts
-  for delete
-  using (auth.uid() = user_id);
+revoke all on table public.seller_mercadopago_accounts from anon, authenticated;
