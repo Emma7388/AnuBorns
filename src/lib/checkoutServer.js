@@ -195,6 +195,8 @@ export const buildOrderItems = (orderId, serverItems = []) =>
   serverItems.map((item) => ({
     order_id: orderId,
     product_id: item.product_id,
+    // Relación opcional para consultas nuevas; product_id conserva el snapshot histórico.
+    product_uuid: item.product_id || null,
     name: item.name,
     qty: item.qty,
     unit_price: item.unit_price,
