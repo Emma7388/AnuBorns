@@ -38,15 +38,5 @@ create policy "sale_dispatches_select_own"
     )
   );
 
-drop policy if exists sale_dispatches_insert_own on public.sale_dispatches;
-create policy "sale_dispatches_insert_own"
-  on public.sale_dispatches
-  for insert
-  with check (auth.uid() = seller_id);
-
-drop policy if exists sale_dispatches_update_own on public.sale_dispatches;
-create policy "sale_dispatches_update_own"
-  on public.sale_dispatches
-  for update
-  using (auth.uid() = seller_id)
-  with check (auth.uid() = seller_id);
+-- Inserciones y cambios de estado se realizan exclusivamente desde las API
+-- server-side. No crear políticas directas de escritura para el navegador.

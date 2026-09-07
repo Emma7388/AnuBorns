@@ -77,7 +77,8 @@ where reads.order_id = dispatches.order_id
   and reads.status_updated_at = '1970-01-01 00:00:00+00';
 
 alter table public.purchase_status_reads
-  drop constraint if exists purchase_status_reads_user_id_order_id_product_id_fulfillment_status_key;
+  drop constraint if exists purchase_status_reads_user_id_order_id_product_id_fulfillment_status_key,
+  drop constraint if exists purchase_status_reads_user_id_order_id_product_id_fulfillme_key;
 
 alter table public.purchase_status_reads
   drop constraint if exists purchase_status_reads_unique;
@@ -117,15 +118,5 @@ create policy "purchase_status_reads_select_own"
   for select
   using (auth.uid() = user_id);
 
-drop policy if exists purchase_status_reads_insert_own on public.purchase_status_reads;
-create policy "purchase_status_reads_insert_own"
-  on public.purchase_status_reads
-  for insert
-  with check (auth.uid() = user_id);
-
-drop policy if exists sale_dispatches_update_own on public.sale_dispatches;
-create policy "sale_dispatches_update_own"
-  on public.sale_dispatches
-  for update
-  using (auth.uid() = seller_id)
-  with check (auth.uid() = seller_id);
+-- Las confirmaciones y lecturas de estado pasan por API server-side.
+-- No crear políticas directas de INSERT/UPDATE para el navegador.
