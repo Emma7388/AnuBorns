@@ -411,8 +411,8 @@ const loadProfile = async () => {
   if (runId === loadRunId && status) {
     const updatedAt = formatProfileUpdatedAt(profile.updated_at || user.updated_at);
     status.textContent = updatedAt
-      ? `Información actualizada. Última actualización de datos: ${updatedAt}.`
-      : "Información actualizada.";
+      ? `Última actualización: ${updatedAt}.`
+      : "";
   }
 };
 

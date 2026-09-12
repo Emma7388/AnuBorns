@@ -7,18 +7,28 @@ import DeferredListControls from "../components/DeferredListControls.astro";
 <MainLayout title="Mis compras" backHref="/mis-datos">
   <!-- Panel de historial -->
   <section class="ab-dark-panel ab-orders-panel">
-    <p class="ab-eyebrow">Perfil</p>
-    <DeferredListControls idPrefix="orders" title="Mis compras" icon="/icons/compra.svg" tone="primary" />
+    <DeferredListControls idPrefix="orders" title="Mis compras" icon="/icons/compra.svg" tone="primary" showTitle={false}
+      initialMessage="Elegí un rango de fechas o tocá Mostrar todos para consultar tus compras." />
     <!-- Estado de carga -->
     <!-- Estado vacío -->
     <div id="orders-empty" class="ab-cart-empty ab-is-hidden">
       <p>No hay compras registradas.</p>
     </div>
     <!-- Lista renderizada por JS -->
-    <div id="orders-list" class="ab-orders-list"></div>
+    <div id="orders-list" class="ab-orders-list ab-transaction-list"></div>
   </section>
 
 </MainLayout>
+
+<style>
+  :global(#orders-date-filter) {
+    justify-content: center;
+  }
+
+  :global(#orders-status) {
+    text-align: center;
+  }
+</style>
 
 <!-- Script de órdenes -->
 <script>

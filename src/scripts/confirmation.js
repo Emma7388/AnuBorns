@@ -1,3 +1,4 @@
+import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
 /* Interfaz de confirmación de compra y limpieza de carrito. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
@@ -141,6 +142,15 @@ const buildInvoiceItemsRows = (order) => {
 };
 
 const buildOrderInvoiceHtml = (order) => {
+  const isCancelled = ["cancelled", "canceled"].includes(String(order?.status ?? "").trim().toLowerCase());
+  const providers = [...new Set(
+    (Array.isArray(order?.order_items) ? order.order_items : [])
+      .map((item) => String(item?.provider ?? "").trim())
+      .filter(Boolean),
+  )];
+  const providerHeading = providers.length
+    ? `${providers.length === 1 ? "Vendedor" : "Vendedores"}: ${providers.join(" · ")}`
+    : "Vendedor no informado";
   const safeOrderId = String(order?.id ?? "").trim();
   const currency = String(order?.currency ?? "ARS").trim() || "ARS";
   const shippingCost = Number(order?.shipping_cost ?? 0) || 0;
@@ -156,133 +166,34 @@ const buildOrderInvoiceHtml = (order) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Factura ${escapeHtml(safeOrderId.slice(0, 8) || "AnuBorns")}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #f5f1ea;
-      color: #241d1a;
-      font-family: Arial, sans-serif;
-      line-height: 1.45;
-    }
-    main {
-      width: min(920px, calc(100% - 32px));
-      margin: 32px auto;
-      background: #fffaf3;
-      border: 1px solid #e6d8c4;
-      border-radius: 8px;
-      padding: 32px;
-      box-shadow: 0 18px 60px rgba(43, 34, 26, 0.12);
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      border-bottom: 1px solid #e6d8c4;
-      padding-bottom: 20px;
-      margin-bottom: 24px;
-    }
-    h1, h2, p { margin: 0; }
-    h1 { font-size: 28px; }
-    h2 { font-size: 16px; margin: 28px 0 10px; }
-    .brand { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-    .meta { text-align: right; }
-    .muted { color: #74675e; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px 24px;
-      margin-bottom: 12px;
-    }
-    .field strong { display: block; font-size: 12px; text-transform: uppercase; color: #74675e; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border-bottom: 1px solid #eadfce;
-      padding: 10px 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      font-size: 12px;
-      text-transform: uppercase;
-      color: #74675e;
-    }
-    .number { text-align: right; white-space: nowrap; }
-    .totals {
-      width: min(360px, 100%);
-      margin-left: auto;
-      margin-top: 18px;
-    }
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 8px 0;
-      border-bottom: 1px solid #eadfce;
-    }
-    .total-row:last-child {
-      border-bottom: 0;
-      font-size: 20px;
-      font-weight: 700;
-    }
-    .actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      margin-top: 28px;
-    }
-    button {
-      border: 0;
-      border-radius: 6px;
-      background: #7c3f2c;
-      color: #fff;
-      cursor: pointer;
-      font: inherit;
-      font-weight: 700;
-      padding: 12px 18px;
-    }
-    @media (max-width: 680px) {
-      main { width: 100%; min-height: 100vh; margin: 0; border: 0; border-radius: 0; padding: 22px; }
-      header, .grid { grid-template-columns: 1fr; display: grid; }
-      .meta { text-align: left; }
-      table { font-size: 13px; }
-      th, td { padding: 8px 4px; }
-    }
-    @media print {
-      body { background: #fff; }
-      main { width: 100%; margin: 0; border: 0; box-shadow: none; }
-      .actions { display: none; }
-    }
-  </style>
+  <title>Detalle de compra ${escapeHtml(safeOrderId.slice(0, 8).toUpperCase() || "Sin referencia")}</title>
+  <style>${purchaseDetailStyles}</style>
 </head>
 <body>
   <main>
     <header>
       <div>
-        <p class="brand">AnuBorns</p>
-        <h1>Factura de compra</h1>
+        <p class="brand">${escapeHtml(providerHeading)}</p>
+        <h1>Detalle de compra</h1>
       </div>
       <div class="meta">
-        <p><strong>Nro.</strong> ${escapeHtml(safeOrderId || "Sin numero")}</p>
+        <p><strong>Compra</strong> ${safeOrderId ? "#" + escapeHtml(safeOrderId.slice(0, 8).toUpperCase()) : "Sin referencia"}</p>
         <p class="muted">${escapeHtml(formatInvoiceDateTime(order?.created_at))}</p>
       </div>
     </header>
 
+    ${isCancelled ? `<aside class="cancelled-notice"><strong>Pago cancelado</strong><p>El importe corresponde a los productos de esta compra. No es una constancia de cobro ni de reembolso.</p></aside>` : ""}
+
     <section class="grid" aria-label="Datos de compra">
       <p class="field"><strong>Estado de pago</strong>${escapeHtml(formatOrderPaymentStatus(order?.status))}</p>
       <p class="field"><strong>Moneda</strong>${escapeHtml(currency)}</p>
-      <p class="field"><strong>Entrega</strong>${order?.shipping_requested ? "Envio a domicilio" : "Retiro coordinado"}</p>
+      <p class="field"><strong>Entrega</strong>${isCancelled ? "No corresponde · pago cancelado" : order?.shipping_requested ? "Envio a domicilio" : "Retiro coordinado"}</p>
       <p class="field"><strong>Direccion</strong>${escapeHtml(shippingAddress || "No informada")}</p>
       ${order?.payment_id ? `<p class="field"><strong>Pago</strong>${escapeHtml(order.payment_id)}</p>` : ""}
-      ${order?.preference_id ? `<p class="field"><strong>Preferencia</strong>${escapeHtml(order.preference_id)}</p>` : ""}
     </section>
 
     <h2>Detalle</h2>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -297,10 +208,11 @@ const buildOrderInvoiceHtml = (order) => {
         ${buildInvoiceItemsRows(order)}
       </tbody>
     </table>
+    </div>
 
-    <section class="totals" aria-label="Totales">
+    <section class="totals ${isCancelled ? "totals--cancelled" : ""}" aria-label="Totales">
       <div class="total-row"><span>Envio</span><strong>$${formatPrice(shippingCost)}</strong></div>
-      <div class="total-row"><span>Total</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
+      <div class="total-row"><span>${isCancelled ? "Importe de la compra cancelada" : "Total"}</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
     </section>
 
     <div class="actions">
@@ -315,7 +227,7 @@ const openCurrentInvoice = () => {
   if (!currentOrder) return;
   const invoiceWindow = window.open("", "_blank");
   if (!invoiceWindow) {
-    if (message) message.textContent = "El navegador bloqueó la factura. Permití ventanas emergentes para AnuBorns.";
+    if (message) message.textContent = "El navegador bloqueó el detalle de compra. Permití ventanas emergentes para AnuBorns.";
     return;
   }
 

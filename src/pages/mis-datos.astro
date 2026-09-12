@@ -1,14 +1,11 @@
 ---
 // Página: perfil del usuario.
 import MainLayout from "../layouts/MainLayout.astro";
-import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Mis datos">
   <!-- Panel de perfil -->
   <section class="ab-dark-panel ab-profile-data">
-    <p class="ab-eyebrow">Perfil</p>
-    <TitleBadge title="Mis datos" icon="/icons/proveedor.svg" tone="primary" />
     <!-- Estado de carga -->
     <p class="ab-muted-text" id="profile-status">
       Cargando información del usuario...
@@ -91,6 +88,13 @@ import TitleBadge from "../components/TitleBadge.astro";
     </div>
   </section>
 </MainLayout>
+
+<style>
+  #profile-status {
+    margin-top: 0;
+    font-size: 12px;
+  }
+</style>
 
 <script>
   import "../scripts/profile.js";

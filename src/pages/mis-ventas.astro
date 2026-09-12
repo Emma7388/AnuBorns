@@ -1,33 +1,27 @@
 ---
 // Página: ventas del usuario.
 import MainLayout from "../layouts/MainLayout.astro";
-import TitleBadge from "../components/TitleBadge.astro";
+import ConfirmationModal from "../components/ConfirmationModal.astro";
 import DeferredListControls from "../components/DeferredListControls.astro";
 ---
 
 <MainLayout title="Mis ventas" backHref="/mis-datos">
   <!-- Panel principal -->
-  <section class="ab-dark-panel ab-orders-panel">
-    <p class="ab-eyebrow">Panel de vendedor</p>
-    <TitleBadge title="Mis ventas" icon="/icons/proveedor.svg" tone="primary" />
-    <p class="ab-muted-text">
-      Revisá tus productos vendidos, prepará entregas y administrá tus publicaciones activas.
-    </p>
-
+  <section class="ab-dark-panel ab-orders-panel ab-sales-preview">
     <!-- Productos vendidos -->
-    <DeferredListControls idPrefix="my-sold-products" title="Productos vendidos" icon="/icons/carrito.svg" tone="success" />
+    <DeferredListControls idPrefix="my-sold-products" title="Ventas" icon="/icons/carrito.svg" tone="success" />
     <label class="ab-sales-dispatch-filter">
       <input id="my-sold-products-dispatch-filter" type="checkbox" />
       <span>Mostrar solo productos para despachar</span>
     </label>
-    <div id="my-sold-products-list" class="ab-orders-list"></div>
+    <div id="my-sold-products-list" class="ab-orders-list ab-transaction-list"></div>
     <nav id="my-sold-products-pagination" class="ab-sales-pagination" aria-label="Paginación de productos vendidos"></nav>
     <div id="my-sold-products-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no tenés productos vendidos.</p>
     </div>
 
     <!-- Productos publicados -->
-    <DeferredListControls idPrefix="my-published-products" title="Productos publicados" icon="/icons/destacado.svg" tone="secondary" spaced />
+    <DeferredListControls idPrefix="my-published-products" title="Publicaciones activas" icon="/icons/destacado.svg" tone="secondary" spaced />
     <div id="my-products-grid" class="ab-provider-products-grid"></div>
     <div id="my-products-empty" class="ab-cart-empty ab-is-hidden">
       <p>Todavía no publicaste productos.</p>
@@ -36,29 +30,29 @@ import DeferredListControls from "../components/DeferredListControls.astro";
   </section>
 
   <!-- Modal de confirmación para borrar producto publicado -->
-  <div
+  <ConfirmationModal
     id="sales-delete-modal"
-    class="ab-orders-modal ab-is-hidden"
-    role="dialog"
-    aria-modal="true"
-    aria-hidden="true"
-    aria-labelledby="sales-delete-title"
+    titleId="sales-delete-title"
+    title="Borrar producto"
+    closeAttribute="data-sales-modal-close"
   >
-    <div class="ab-orders-modal__backdrop" data-sales-modal-close></div>
-    <div class="ab-orders-modal__panel" role="document">
-      <h2 id="sales-delete-title">Borrar producto</h2>
       <p>¿Seguro que querés borrar este producto publicado?</p>
-      <div class="ab-orders-modal__actions">
+      <Fragment slot="actions">
         <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-sales-modal-cancel>
           Cancelar
         </button>
         <button type="button" class="ab-orders-delete-btn" data-sales-modal-confirm>
           Sí, borrar
         </button>
-      </div>
-    </div>
-  </div>
+      </Fragment>
+  </ConfirmationModal>
 </MainLayout>
+
+<style>
+  .ab-sales-preview > :global(.ab-sales-section-heading:first-child) {
+    margin-top: 0;
+  }
+</style>
 
 <script>
   import "../scripts/mis-ventas.js";

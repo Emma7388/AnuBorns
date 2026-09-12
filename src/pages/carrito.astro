@@ -1,28 +1,25 @@
 ---
 // Página: carrito con listado y resumen.
 import MainLayout from "../layouts/MainLayout.astro";
-import TitleBadge from "../components/TitleBadge.astro";
+import ConfirmationModal from "../components/ConfirmationModal.astro";
 ---
 
 <MainLayout title="Carrito" backHref="/comprar">
   <!-- Panel principal del carrito -->
   <section class="ab-dark-panel ab-cart-panel">
-    <p class="ab-eyebrow">Carrito</p>
-    <TitleBadge title="Tu carrito" icon="/icons/carrito.svg" tone="primary" />
-    <p class="ab-muted-text">
-      Revisá tus productos antes de continuar al checkout.
-    </p>
-
     <!-- Estado vacío -->
     <div id="cart-empty" class="ab-cart-empty">
-      <p>No hay productos en el carrito.</p>
+      <img class="ab-cart-empty-icon" src="/icons/carrito.svg" alt="" aria-hidden="true" />
+      <h2>Todavía no agregaste productos</h2>
+      <p>Explorá las categorías y elegí lo que necesitás.</p>
+      <a href="/comprar" class="ab-cta-button">Ver productos</a>
     </div>
 
     <!-- Items renderizados por JS -->
     <div id="cart-items" class="ab-cart-items" aria-live="polite"></div>
 
     <!-- Resumen y acciones -->
-    <div class="ab-cart-summary">
+    <div class="ab-cart-summary ab-is-hidden">
       <p class="ab-cart-summary__total">
         TOTAL: <strong id="cart-total">$0</strong>
       </p>
@@ -40,19 +37,14 @@ import TitleBadge from "../components/TitleBadge.astro";
     </div>
   </section>
 
-  <div
+  <ConfirmationModal
     id="cart-remove-modal"
-    class="ab-orders-modal ab-is-hidden"
-    role="dialog"
-    aria-modal="true"
-    aria-hidden="true"
-    aria-labelledby="cart-remove-title"
+    titleId="cart-remove-title"
+    title="Quitar producto"
+    closeAttribute="data-cart-modal-close"
   >
-    <div class="ab-orders-modal__backdrop" data-cart-modal-close></div>
-    <div class="ab-orders-modal__panel" role="document">
-      <h2 id="cart-remove-title">Quitar producto</h2>
       <p>¿Seguro que querés quitar este producto del carrito?</p>
-      <div class="ab-orders-modal__actions">
+      <Fragment slot="actions">
         <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost ab-cart-action ab-cart-action--clear" data-cart-modal-cancel>
           <img src="/icons/atras.svg" alt="" aria-hidden="true" />
           <span>Cancelar</span>
@@ -61,10 +53,38 @@ import TitleBadge from "../components/TitleBadge.astro";
           <img src="/icons/borrar.svg" alt="" aria-hidden="true" />
           <span>Sí, quitar</span>
         </button>
-      </div>
-    </div>
-  </div>
+      </Fragment>
+  </ConfirmationModal>
 </MainLayout>
+
+<style>
+  #cart-empty {
+    justify-items: center;
+    gap: 12px;
+    padding: 28px 12px;
+    text-align: center;
+  }
+
+  .ab-cart-empty-icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  #cart-empty h2 {
+    margin: 0;
+    font-size: clamp(20px, 4vw, 26px);
+    line-height: 1.25;
+  }
+
+  #cart-empty p {
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+
+  #cart-empty .ab-cta-button {
+    margin-top: 8px;
+  }
+</style>
 
 <!-- Script de interacción del carrito -->
 <script>

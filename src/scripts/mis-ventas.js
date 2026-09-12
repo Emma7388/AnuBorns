@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
 import { fetchSalesList } from "../lib/salesListClient";
+import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
 
 /* Referencias DOM. */
 let soldProductsList = document.getElementById("my-sold-products-list");
@@ -103,12 +104,18 @@ const bindMySalesEvents = () => {
     soldProductsResizeBound = true;
   }
 
-  if (soldProductsDispatchFilter instanceof HTMLInputElement && !soldProductsFilterBound) {
+  if (soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.dataset.abSalesFilterBound !== "true") {
     soldProductsDispatchFilter.addEventListener("change", () => {
       soldProductsPage = 1;
+      const hasDateFilter = (soldProductsFrom instanceof HTMLInputElement && soldProductsFrom.value)
+        || (soldProductsTo instanceof HTMLInputElement && soldProductsTo.value);
+      if (!soldProductsDispatchFilter.checked && !hasDateFilter) {
+        clearSoldProductsView();
+        return;
+      }
       void loadSoldProducts({ page: 1 });
     });
-    soldProductsFilterBound = true;
+    soldProductsDispatchFilter.dataset.abSalesFilterBound = "true";
   }
 
   if (soldProductsPagination && soldProductsPagination.dataset.abSalesPaginationBound !== "true") {
@@ -238,7 +245,7 @@ let lastPublishedProductsSignature = "";
 let salesRealtimeChannel = null;
 let salesRealtimeRefreshTimer = null;
 let soldProductsResizeBound = false;
-let soldProductsFilterBound = false;
+let soldProductsRequestId = 0;
 let lastSoldProductsItems = [];
 let soldProductCards = [];
 let soldProductsPage = 1;
@@ -785,14 +792,14 @@ const renderSoldProducts = (products) => {
           }
         </ul>
         <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
-          <a
+          <button
+            type="button"
             class="ab-featured-products-detail"
-            href="${escapeHtml(getProductDetailHref(saleProductId))}"
-            ${saleProductId ? "" : 'aria-disabled="true"'}
+            data-sale-detail
           >
             <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
-            <span>Detalle</span>
-          </a>
+            <span>Detalle de venta</span>
+          </button>
           <button
             type="button"
             class="ab-provider-product-card__button ${isPendingDispatch ? "ab-provider-product-card__button--buy" : "ab-provider-product-card__button--ghost"}"
@@ -805,6 +812,41 @@ const renderSoldProducts = (products) => {
           </button>
         </div>
       `;
+      card.querySelector("[data-sale-detail]")?.addEventListener("click", () => {
+        const detailWindow = window.open("", "_blank");
+        if (!detailWindow) {
+          if (soldProductsStatus) soldProductsStatus.textContent = "Permití ventanas emergentes para abrir el detalle de venta.";
+          return;
+        }
+        // title y currency ya están escapados al construir salesCards.
+        const html = `<!doctype html><html lang="es"><head>
+          <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Detalle de venta #${escapeHtml(saleOrderId.slice(0, 8).toUpperCase())}</title>
+          <style>${purchaseDetailStyles}</style></head><body><main>
+          <header><div><p class="brand">${sale.title}</p><h1>Detalle de venta</h1></div>
+            <div class="meta"><p>Venta #${escapeHtml(saleOrderId.slice(0, 8).toUpperCase())}</p>
+              <p class="muted">${escapeHtml(formatDate(sale.soldAt))}</p></div></header>
+          <section class="grid" aria-label="Datos de la venta">
+            <p class="field"><strong>Cliente</strong>${safeBuyerName || "No informado"}</p>
+            <p class="field"><strong>Estado de entrega</strong>${escapeHtml(formatFulfillmentStatus(fulfillmentStatus, shippingRequested))}</p>
+            <p class="field"><strong>Modalidad</strong>${shippingRequested ? "Envío a domicilio" : "Retiro coordinado"}</p>
+            ${shippingRequested ? `<p class="field"><strong>Dirección</strong>${safeShippingAddress || "No informada"}</p>` : ""}
+            ${safeShippingPhone ? `<p class="field"><strong>Teléfono</strong>${safeShippingPhone}</p>` : ""}
+            ${safeNote ? `<p class="field"><strong>Nota del comprador</strong>${safeNote}</p>` : ""}
+          </section>
+          <h2>Producto vendido</h2><div class="table-wrap"><table>
+            <thead><tr><th>Producto</th><th class="number">Cantidad</th><th class="number">Importe</th></tr></thead>
+            <tbody><tr><td>${sale.title}</td><td class="number">${escapeHtml(sale.qty)}</td><td class="number">$${formatPrice(sale.subtotal)} ${sale.currency}</td></tr></tbody>
+          </table></div>
+          ${shippingRequested ? `<p class="muted">Envío de la venta: $${formatPrice(sale.shippingCost ?? 0)}. El costo se comparte si la venta incluye otros productos.</p>` : ""}
+          <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
+          </main></body></html>`;
+        detailWindow.document.open();
+        detailWindow.document.write(html);
+        detailWindow.document.close();
+        detailWindow.opener = null;
+        detailWindow.focus();
+      });
       soldProductCards.push(card);
       return card;
     });
@@ -999,7 +1041,9 @@ const ensureCurrentUser = async () => {
 };
 
 const clearSoldProductsView = () => {
+  soldProductsRequestId += 1;
   soldProductsLoaded = false;
+  soldProductCards = [];
   lastSoldProductsSignature = "";
   lastSoldProductsItems = [];
   soldProductsPaginationState = { page: 1, pageSize: 3, total: 0, totalPages: 0 };
@@ -1056,9 +1100,12 @@ const markSaleDispatchOnServer = async ({ orderId, productId, status }) => {
 /* Carga y resume ventas de productos del usuario autenticado. */
 const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
   if (!soldProductsList || !soldProductsEmpty || !soldProductsStatus) return;
+  const requestId = ++soldProductsRequestId;
   soldProductsStatus.textContent = "Cargando productos vendidos...";
 
-  if (!(await ensureCurrentUser())) {
+  const hasCurrentUser = await ensureCurrentUser();
+  if (requestId !== soldProductsRequestId) return;
+  if (!hasCurrentUser) {
     soldProductsStatus.textContent = "";
     renderSoldProducts([]);
     lastSoldProductsSignature = "empty";
@@ -1069,11 +1116,13 @@ const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
   try {
     soldProductsLoaded = true;
     const { data: sessionData } = await supabase.auth.getSession();
+    if (requestId !== soldProductsRequestId) return;
     const token = sessionData?.session?.access_token;
     const from = soldProductsFrom instanceof HTMLInputElement ? soldProductsFrom.value : "";
     const to = soldProductsTo instanceof HTMLInputElement ? soldProductsTo.value : "";
     const pendingOnly = soldProductsDispatchFilter instanceof HTMLInputElement && soldProductsDispatchFilter.checked;
     const { items, pagination, error } = await fetchSalesList(token, { from, to, pendingOnly, page });
+    if (requestId !== soldProductsRequestId) return;
     if (error) {
       soldProductsStatus.textContent = error;
       renderSoldProducts([]);
@@ -1094,6 +1143,7 @@ const loadSoldProducts = async ({ page = soldProductsPage } = {}) => {
        distintas produciría falsos positivos porque cada una trae tres ventas. */
     markLatestSaleSeen(items);
   } catch {
+    if (requestId !== soldProductsRequestId) return;
     soldProductsStatus.textContent = "";
     renderSoldProducts([]);
   }

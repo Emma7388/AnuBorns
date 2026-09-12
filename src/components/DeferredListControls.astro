@@ -8,20 +8,55 @@ const {
   tone = "primary",
   level = 2,
   spaced = false,
+  showTitle = true,
+  initialMessage = "",
 } = Astro.props;
 
 const safePrefix = String(idPrefix ?? "").trim();
 if (!safePrefix) throw new Error("DeferredListControls requiere idPrefix.");
 ---
 
-<div class:list={["ab-sales-section-heading", spaced && "ab-sales-section-heading--spaced"]}>
+{showTitle && <div class:list={["ab-sales-section-heading", spaced && "ab-sales-section-heading--spaced"]}>
   <TitleBadge title={title} icon={icon} level={level} tone={tone} />
   <button id={`${safePrefix}-show-all`} type="button" class="ab-sales-show-all">Mostrar todos</button>
-</div>
-<form id={`${safePrefix}-date-filter`} class="ab-sales-date-filter">
+</div>}
+<form id={`${safePrefix}-date-filter`} class="ab-sales-date-filter" aria-label={`Filtrar ${title.toLowerCase()} por fecha`}>
   <label><span>Desde</span><input id={`${safePrefix}-from`} type="date" /></label>
   <label><span>Hasta</span><input id={`${safePrefix}-to`} type="date" /></label>
-  <button type="submit" class="ab-sales-date-filter__apply">Buscar</button>
+  <button type="submit" class="ab-sales-date-filter__apply" disabled>Buscar</button>
   <button type="button" id={`${safePrefix}-date-clear`} class="ab-sales-date-filter__clear">Limpiar</button>
+  {!showTitle && <button id={`${safePrefix}-show-all`} type="button" class="ab-sales-show-all">Mostrar todos</button>}
 </form>
-<p id={`${safePrefix}-status`} class="ab-muted-text"></p>
+<p id={`${safePrefix}-status`} class="ab-muted-text" data-initial-message={initialMessage} aria-live="polite">{initialMessage}</p>
+
+<script>
+  const updateSearchButtons = () => {
+    document.querySelectorAll<HTMLFormElement>(".ab-sales-date-filter").forEach((form) => {
+      const button = form.querySelector<HTMLButtonElement>(".ab-sales-date-filter__apply");
+      if (button) {
+        button.disabled = !Array.from(form.querySelectorAll<HTMLInputElement>('input[type="date"]'))
+          .some((input) => input.value);
+      }
+    });
+  };
+
+  document.addEventListener("input", updateSearchButtons);
+  document.addEventListener("change", updateSearchButtons);
+  document.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest(".ab-sales-date-filter__clear, .ab-sales-show-all")) {
+      // Espera a que los controles terminen de limpiar las fechas.
+      queueMicrotask(updateSearchButtons);
+    }
+  });
+  document.addEventListener("submit", (event) => {
+    if (!(event.target instanceof HTMLFormElement) || !event.target.matches(".ab-sales-date-filter")) return;
+    updateSearchButtons();
+    if (event.target.querySelector<HTMLButtonElement>(".ab-sales-date-filter__apply")?.disabled) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener("astro:page-load", updateSearchButtons);
+  window.addEventListener("pageshow", updateSearchButtons);
+  updateSearchButtons();
+</script>

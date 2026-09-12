@@ -1,3 +1,4 @@
+import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
 /* Historial de compras: local o remoto. */
 import { supabase } from "../lib/supabaseClient";
 import {
@@ -297,6 +298,15 @@ const buildInvoiceItemsRows = (order) => {
 };
 
 const buildOrderInvoiceHtml = (order) => {
+  const isCancelled = ["cancelled", "canceled"].includes(String(order?.status ?? "").trim().toLowerCase());
+  const providers = [...new Set(
+    (Array.isArray(order?.order_items) ? order.order_items : [])
+      .map((item) => String(item?.provider ?? "").trim())
+      .filter(Boolean),
+  )];
+  const providerHeading = providers.length
+    ? `${providers.length === 1 ? "Vendedor" : "Vendedores"}: ${providers.join(" · ")}`
+    : "Vendedor no informado";
   const orderId = String(order?.id ?? "").trim();
   const currency = String(order?.currency ?? "ARS").trim() || "ARS";
   const paymentStatus = formatOrderPaymentStatus(order?.status);
@@ -315,133 +325,34 @@ const buildOrderInvoiceHtml = (order) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Factura ${escapeHtml(orderId.slice(0, 8) || "AnuBorns")}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #f5f1ea;
-      color: #241d1a;
-      font-family: Arial, sans-serif;
-      line-height: 1.45;
-    }
-    main {
-      width: min(920px, calc(100% - 32px));
-      margin: 32px auto;
-      background: #fffaf3;
-      border: 1px solid #e6d8c4;
-      border-radius: 8px;
-      padding: 32px;
-      box-shadow: 0 18px 60px rgba(43, 34, 26, 0.12);
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      border-bottom: 1px solid #e6d8c4;
-      padding-bottom: 20px;
-      margin-bottom: 24px;
-    }
-    h1, h2, p { margin: 0; }
-    h1 { font-size: 28px; }
-    h2 { font-size: 16px; margin: 28px 0 10px; }
-    .brand { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-    .meta { text-align: right; }
-    .muted { color: #74675e; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px 24px;
-      margin-bottom: 12px;
-    }
-    .field strong { display: block; font-size: 12px; text-transform: uppercase; color: #74675e; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border-bottom: 1px solid #eadfce;
-      padding: 10px 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      font-size: 12px;
-      text-transform: uppercase;
-      color: #74675e;
-    }
-    .number { text-align: right; white-space: nowrap; }
-    .totals {
-      width: min(360px, 100%);
-      margin-left: auto;
-      margin-top: 18px;
-    }
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 8px 0;
-      border-bottom: 1px solid #eadfce;
-    }
-    .total-row:last-child {
-      border-bottom: 0;
-      font-size: 20px;
-      font-weight: 700;
-    }
-    .actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      margin-top: 28px;
-    }
-    button {
-      border: 0;
-      border-radius: 6px;
-      background: #7c3f2c;
-      color: #fff;
-      cursor: pointer;
-      font: inherit;
-      font-weight: 700;
-      padding: 12px 18px;
-    }
-    @media (max-width: 680px) {
-      main { width: 100%; min-height: 100vh; margin: 0; border: 0; border-radius: 0; padding: 22px; }
-      header, .grid { grid-template-columns: 1fr; display: grid; }
-      .meta { text-align: left; }
-      table { font-size: 13px; }
-      th, td { padding: 8px 4px; }
-    }
-    @media print {
-      body { background: #fff; }
-      main { width: 100%; margin: 0; border: 0; box-shadow: none; }
-      .actions { display: none; }
-    }
-  </style>
+  <title>Detalle de compra ${escapeHtml(orderId.slice(0, 8).toUpperCase() || "Sin referencia")}</title>
+  <style>${purchaseDetailStyles}</style>
 </head>
 <body>
   <main>
     <header>
       <div>
-        <p class="brand">AnuBorns</p>
-        <h1>Factura de compra</h1>
+        <p class="brand">${escapeHtml(providerHeading)}</p>
+        <h1>Detalle de compra</h1>
       </div>
       <div class="meta">
-        <p><strong>Nro.</strong> ${escapeHtml(orderId || "Sin numero")}</p>
+        <p><strong>Compra</strong> ${orderId ? "#" + escapeHtml(orderId.slice(0, 8).toUpperCase()) : "Sin referencia"}</p>
         <p class="muted">${escapeHtml(formatInvoiceDateTime(order?.created_at))}</p>
       </div>
     </header>
 
+    ${isCancelled ? `<aside class="cancelled-notice"><strong>Pago cancelado</strong><p>El importe corresponde a los productos de esta compra. No es una constancia de cobro ni de reembolso.</p></aside>` : ""}
+
     <section class="grid" aria-label="Datos de compra">
       <p class="field"><strong>Estado de pago</strong>${escapeHtml(paymentStatus)}</p>
       <p class="field"><strong>Moneda</strong>${escapeHtml(currency)}</p>
-      <p class="field"><strong>Entrega</strong>${shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
+      <p class="field"><strong>Entrega</strong>${isCancelled ? "No corresponde · pago cancelado" : shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
       <p class="field"><strong>Direccion</strong>${escapeHtml(shippingAddress || "No informada")}</p>
       ${order?.payment_id ? `<p class="field"><strong>Pago</strong>${escapeHtml(order.payment_id)}</p>` : ""}
-      ${order?.preference_id ? `<p class="field"><strong>Preferencia</strong>${escapeHtml(order.preference_id)}</p>` : ""}
     </section>
 
     <h2>Detalle</h2>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -456,10 +367,11 @@ const buildOrderInvoiceHtml = (order) => {
         ${buildInvoiceItemsRows(order)}
       </tbody>
     </table>
+    </div>
 
-    <section class="totals" aria-label="Totales">
+    <section class="totals ${isCancelled ? "totals--cancelled" : ""}" aria-label="Totales">
       <div class="total-row"><span>Envio</span><strong>$${formatPrice(shippingCost)}</strong></div>
-      <div class="total-row"><span>Total</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
+      <div class="total-row"><span>${isCancelled ? "Importe de la compra cancelada" : "Total"}</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
     </section>
 
     ${buyerNote ? `<h2>Nota</h2><p>${escapeHtml(buyerNote)}</p>` : ""}
@@ -475,13 +387,13 @@ const buildOrderInvoiceHtml = (order) => {
 const openOrderInvoice = (orderId) => {
   const order = renderedOrdersById.get(orderId);
   if (!order) {
-    if (status) status.textContent = "No pudimos encontrar los datos de esa factura. Recargá la página e intentá de nuevo.";
+    if (status) status.textContent = "No pudimos encontrar el detalle de esa compra. Recargá la página e intentá de nuevo.";
     return;
   }
 
   const invoiceWindow = window.open("", "_blank");
   if (!invoiceWindow) {
-    if (status) status.textContent = "El navegador bloqueó la factura. Permití ventanas emergentes para AnuBorns.";
+    if (status) status.textContent = "El navegador bloqueó el detalle de compra. Permití ventanas emergentes para AnuBorns.";
     return;
   }
 
@@ -717,7 +629,7 @@ const clearOrdersView = () => {
   list?.replaceChildren();
   emptyState?.classList.add("ab-is-hidden");
   if (emptyState) emptyState.style.display = "";
-  if (status) status.textContent = "";
+  if (status) status.textContent = status.dataset.initialMessage ?? "";
   void teardownPurchaseRealtime();
 };
 
@@ -975,6 +887,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
     const buyerNote = extractBuyerNote(order);
     const orderId = String(order.id ?? "").trim();
     const orderPaymentApproved = isOrderPaymentApproved(order);
+    const orderPaymentCancelled = ["cancelled", "canceled"].includes(String(order.status ?? "").trim().toLowerCase());
     const orderPaymentStatus = formatOrderPaymentStatus(order.status);
     const orderDate = formatDate(order.created_at);
     const currency = String(order.currency ?? "ARS").trim() || "ARS";
@@ -1057,7 +970,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
         <img class="ab-provider-product-card__image" src="${coverImage}" alt="${escapeHtml(provider)}" loading="lazy" />
         <div class="ab-provider-product-card__meta">
           <div>
-            <p class="ab-provider-product-card__label">Compra ${escapeHtml(orderId.slice(0, 8) || "N/A")}</p>
+            <p class="ab-provider-product-card__label">Compra #${escapeHtml(orderId.slice(0, 8).toUpperCase() || "N/A")}</p>
             <p class="ab-provider-product-card__code">${orderDate || "Sin fecha"}</p>
           </div>
         </div>
@@ -1071,21 +984,23 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
               const itemShippingRequested =
                 isShippingFulfillmentStatus(itemStatus) ||
                 (shippingRequested && !isPickupFulfillmentStatus(itemStatus));
-              const itemStatusLabel = itemStatus
+              const itemStatusLabel = itemStatus && !orderPaymentCancelled
                 ? ` · ${formatShippingStatus(itemStatus, itemShippingRequested)}`
                 : "";
               return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} · $${formatPrice(price)}${escapeHtml(itemStatusLabel)}</strong></li>`;
             })
             .join("")}
           ${
-            providerShippingRequested
+            orderPaymentCancelled
+              ? `<li>Entrega: <strong>No corresponde · pago cancelado</strong></li>`
+              : providerShippingRequested
               ? `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>
                  <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>
                  <li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
                  ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
               : `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>`
           }
-          <li class="ab-order-card__highlight">TOTAL: <strong>$${formatPrice(order.total_amount ?? 0)} ${escapeHtml(currency)}</strong></li>
+          <li class="ab-order-card__highlight">${orderPaymentCancelled ? "Importe de la compra cancelada:" : "TOTAL:"} <strong>$${formatPrice(order.total_amount ?? 0)} ${escapeHtml(currency)}</strong></li>
           ${buyerNote ? `<li class="ab-order-card__highlight ab-order-card__highlight--note">Nota: <strong>${escapeHtml(buyerNote)}</strong></li>` : ""}
         </ul>
         <div class="ab-provider-product-card__actions">
@@ -1106,7 +1021,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
             data-order-invoice="${escapeHtml(orderId)}"
           >
             <img src="/icons/buscar.svg" alt="" aria-hidden="true" />
-            <span>Ver factura</span>
+            <span>Ver detalle de compra</span>
           </button>
           ${confirmPickupButton}
           ${confirmDeliveryButton}

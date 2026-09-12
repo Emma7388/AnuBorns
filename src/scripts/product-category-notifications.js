@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 
 const STORAGE_KEY = "ab_seen_products_by_category_v1";
+let notificationSyncId = 0;
 
 const getCurrentCategorySlug = () => {
   const match = window.location.pathname.match(/^\/comprar\/productos\/([^/]+)/);
@@ -18,7 +19,7 @@ const getSessionUserId = async () => {
 
 const getStorageKey = (userId) => `${STORAGE_KEY}:${userId}`;
 
-const readSeenMap = async (userId) => {
+const readSeenMap = (userId) => {
   if (!userId) return {};
   try {
     const key = getStorageKey(userId);
@@ -30,7 +31,7 @@ const readSeenMap = async (userId) => {
   }
 };
 
-const writeSeenMap = async (userId, value) => {
+const writeSeenMap = (userId, value) => {
   if (!userId) return;
   try {
     const key = getStorageKey(userId);
@@ -53,14 +54,29 @@ const extractCategorySlug = (product) => {
 const fetchLatestByCategory = async () => {
   const { data, error } = await supabase
     .from("products")
-    .select("created_at, categories!inner(slug)")
+    .select("id, created_at, categories!inner(slug)")
     .order("created_at", { ascending: false })
     .limit(300);
 
   if (error || !Array.isArray(data)) return {};
 
+  // Usa la misma disponibilidad que el catálogo: una venta aprobada oculta el producto.
+  const soldIds = new Set();
+  for (let offset = 0; offset < data.length; offset += 100) {
+    const response = await fetch("/api/sold-products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_ids: data.slice(offset, offset + 100).map((product) => product.id) }),
+    });
+    if (!response.ok) throw new Error("No se pudo validar disponibilidad.");
+    const payload = await response.json();
+    if (!Array.isArray(payload.sold_product_ids)) throw new Error("Disponibilidad inválida.");
+    payload.sold_product_ids.forEach((id) => soldIds.add(String(id)));
+  }
+
   const latestByCategory = {};
   data.forEach((product) => {
+    if (soldIds.has(String(product.id))) return;
     const slug = extractCategorySlug(product);
     const createdAt = String(product?.created_at ?? "").trim();
     if (!slug || !createdAt || latestByCategory[slug]) return;
@@ -83,19 +99,25 @@ const applyDots = (unseenSlugs) => {
 };
 
 const syncProductCategoryNotifications = async () => {
+  const syncId = ++notificationSyncId;
+  const currentSlug = getCurrentCategorySlug();
   const userId = await getSessionUserId();
+  if (syncId !== notificationSyncId) return;
   if (!userId) {
     applyDots([]);
     return;
   }
 
   const latestByCategory = await fetchLatestByCategory().catch(() => ({}));
-  const seenMap = await readSeenMap(userId);
-  const currentSlug = getCurrentCategorySlug();
+  if (syncId !== notificationSyncId || currentSlug !== getCurrentCategorySlug()) return;
+  const seenMap = readSeenMap(userId);
 
   if (currentSlug && latestByCategory[currentSlug]) {
-    seenMap[currentSlug] = latestByCategory[currentSlug];
-    await writeSeenMap(userId, seenMap);
+    const latestAt = latestByCategory[currentSlug];
+    if (!(new Date(seenMap[currentSlug]).getTime() >= new Date(latestAt).getTime())) {
+      seenMap[currentSlug] = latestAt;
+      writeSeenMap(userId, seenMap);
+    }
   }
 
   const unseenSlugs = Object.entries(latestByCategory)

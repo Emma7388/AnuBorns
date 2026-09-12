@@ -6,6 +6,8 @@ Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
 
 > El módulo de servicios fue retirado temporalmente. Consultar [`SERVICIOS_PENDIENTES.md`](SERVICIOS_PENDIENTES.md) antes de volver a implementarlo.
 
+> Continuidad del diagnóstico de Mercado Pago, variables de Vercel y auditorías de producción (9 de septiembre de 2026): [`CONTINUIDAD_MP_Y_PRODUCCION.md`](CONTINUIDAD_MP_Y_PRODUCCION.md).
+
 ## Layouts
 
 - `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido.

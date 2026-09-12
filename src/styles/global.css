@@ -1393,6 +1393,14 @@ input[type="submit"] {
   color: #fff;
 }
 
+.ab-sales-date-filter__apply:disabled {
+  border-color: #636973;
+  background: #4b5058;
+  color: #b9bec6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .ab-sales-date-filter__clear {
   border: 1px solid var(--glass-border);
   background: transparent;
@@ -2832,15 +2840,58 @@ input[type="submit"] {
   }
 }
 
-/* Esta regla queda después de las variantes responsive del catálogo para que
-   el historial de ventas no vuelva a repartirse en mini-cards. */
-.ab-provider-products-grid.ab-sold-products-list {
+/* Base reutilizable para los historiales de compras y ventas. */
+.ab-provider-products-grid.ab-transaction-list {
   grid-template-columns: minmax(0, 1fr);
   max-width: 820px;
+  width: 100%;
+  margin-inline: auto;
 }
 
-.ab-provider-products-grid.ab-sold-products-list > .ab-provider-product-card,
-.ab-provider-products-grid.ab-sold-products-list > .ab-sale-order-group {
+.ab-provider-products-grid.ab-transaction-list .ab-provider-product-card:not(.ab-provider-product-card--detail) {
+  height: auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.ab-provider-products-grid.ab-transaction-list .ab-provider-product-card:not(.ab-provider-product-card--detail) .ab-provider-product-card__details {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.ab-provider-products-grid.ab-transaction-list .ab-provider-product-card:not(.ab-provider-product-card--detail) .ab-provider-product-card__details::after {
+  display: none;
+}
+
+.ab-transaction-list .ab-provider-product-card .ab-provider-product-card__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.ab-transaction-list .ab-provider-product-card__actions > :is(a, button) {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: var(--product-card-button-height);
+  padding: 8px 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.15;
+}
+
+@media (max-width: 559px) {
+  .ab-transaction-list .ab-provider-product-card .ab-provider-product-card__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ab-provider-products-grid.ab-transaction-list > .ab-provider-product-card,
+.ab-provider-products-grid.ab-transaction-list > .ab-sale-order-group {
   max-width: none;
 }
 
@@ -2874,25 +2925,25 @@ input[type="submit"] {
    catálogo conservan su medida compacta. Esta regla vence la variante de
    catálogo que limita las cards a 420px. */
 @media (min-width: 560px) {
-  .ab-provider-products-grid.ab-sold-products-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
+  .ab-provider-products-grid.ab-transaction-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
     width: 100%;
     max-width: none;
     grid-template-columns: 180px minmax(0, 1fr);
     gap: 8px 16px;
   }
 
-  .ab-provider-products-grid.ab-sold-products-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) .ab-provider-product-card__image {
+  .ab-provider-products-grid.ab-transaction-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) .ab-provider-product-card__image {
     min-height: 180px;
   }
 
-  .ab-provider-products-grid.ab-sold-products-list > .ab-sale-order-group {
+  .ab-provider-products-grid.ab-transaction-list > .ab-sale-order-group {
     width: 100%;
     max-width: none;
     grid-column: 1 / -1;
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ab-provider-products-grid.ab-sold-products-list > .ab-sale-order-group > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
+  .ab-provider-products-grid.ab-transaction-list > .ab-sale-order-group > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
     width: 100%;
     max-width: none;
     grid-template-columns: 180px minmax(0, 1fr);

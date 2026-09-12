@@ -144,6 +144,7 @@ const renderCart = async () => {
   if (!itemsWrap || !emptyState || !totalLabel) return;
   const items = await getCart();
   itemsWrap.innerHTML = "";
+  totalLabel.closest(".ab-cart-summary")?.classList.toggle("ab-is-hidden", items.length === 0);
 
   /* Estado vacío. */
   if (items.length === 0) {

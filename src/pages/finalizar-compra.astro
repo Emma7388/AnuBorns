@@ -1,6 +1,7 @@
 ---
 // Página: checkout y datos de entrega.
 import MainLayout from "../layouts/MainLayout.astro";
+import ConfirmationModal from "../components/ConfirmationModal.astro";
 import TitleBadge from "../components/TitleBadge.astro";
 ---
 
@@ -59,20 +60,15 @@ import TitleBadge from "../components/TitleBadge.astro";
     </div>
   </section>
 
-  <div
+  <ConfirmationModal
     id="checkout-confirm-modal"
-    class="ab-orders-modal ab-is-hidden"
-    role="dialog"
-    aria-modal="true"
-    aria-hidden="true"
-    aria-labelledby="checkout-confirm-title"
+    titleId="checkout-confirm-title"
+    title="Confirmar compra"
+    closeAttribute="data-checkout-modal-close"
   >
-    <div class="ab-orders-modal__backdrop" data-checkout-modal-close></div>
-    <div class="ab-orders-modal__panel" role="document">
-      <h2 id="checkout-confirm-title">Confirmar compra</h2>
       <p>¿Querés finalizar la compra y avisar al vendedor?</p>
       <p>Después vas a encontrar el contacto del vendedor en Mis compras.</p>
-      <div class="ab-orders-modal__actions">
+      <Fragment slot="actions">
         <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-checkout-modal-cancel>
           <img src="/icons/atras.svg" alt="" aria-hidden="true" />
           <span>Cancelar</span>
@@ -81,9 +77,8 @@ import TitleBadge from "../components/TitleBadge.astro";
           <img src="/icons/comprar.svg" alt="" aria-hidden="true" />
           <span>Sí, finalizar</span>
         </button>
-      </div>
-    </div>
-  </div>
+      </Fragment>
+  </ConfirmationModal>
 </MainLayout>
 
 <!-- Script de checkout -->

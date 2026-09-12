@@ -1,0 +1,28 @@
+---
+interface Props {
+  id: string;
+  titleId: string;
+  title: string;
+  closeAttribute: `data-${string}`;
+}
+
+const { id, titleId, title, closeAttribute } = Astro.props;
+---
+
+<div
+  id={id}
+  class="ab-orders-modal ab-is-hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-hidden="true"
+  aria-labelledby={titleId}
+>
+  <div class="ab-orders-modal__backdrop" {...{ [closeAttribute]: "" }}></div>
+  <div class="ab-orders-modal__panel" role="document">
+    <h2 id={titleId}>{title}</h2>
+    <slot />
+    <div class="ab-orders-modal__actions">
+      <slot name="actions" />
+    </div>
+  </div>
+</div>
