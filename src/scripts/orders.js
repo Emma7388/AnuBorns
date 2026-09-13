@@ -1,5 +1,6 @@
 import { resolvePurchaseProvider, purchaseProviderGroupKey } from "../lib/purchaseProvider.js";
 import { buildPurchaseDetailHtml, formatOrderPaymentStatus } from "../lib/purchaseDetail.js";
+import { normalizePaymentStatus } from "../lib/paymentStatus.js";
 /* Historial de compras: local o remoto. */
 import { supabase } from "../lib/supabaseClient";
 import {
@@ -177,7 +178,7 @@ const formatShippingStatus = (value, requested) => {
 };
 
 const isOrderPaymentApproved = (order) => {
-  const statusValue = String(order?.status ?? "").trim().toLowerCase();
+  const statusValue = normalizePaymentStatus(order?.status);
   return !statusValue || statusValue === "approved";
 };
 
@@ -669,9 +670,16 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
     const items = Array.isArray(order.order_items) ? order.order_items : [];
     const buyerNote = extractBuyerNote(order);
     const orderId = String(order.id ?? "").trim();
+    const normalizedOrderStatus = normalizePaymentStatus(order.status);
     const orderPaymentApproved = isOrderPaymentApproved(order);
-    const orderPaymentCancelled = ["cancelled", "canceled"].includes(String(order.status ?? "").trim().toLowerCase());
-    const orderPaymentStatus = formatOrderPaymentStatus(order.status);
+    const orderPaymentPaused = !orderPaymentApproved;
+    const orderPaymentCancelled = ["cancelled", "rejected", "refunded"].includes(normalizedOrderStatus);
+    const orderPaymentStatus = formatOrderPaymentStatus(normalizedOrderStatus);
+    const pausedDeliveryLabel = normalizedOrderStatus === "pending"
+      ? "Esperando confirmación de pago"
+      : normalizedOrderStatus === "refund_pending"
+        ? "Pausada por reembolso pendiente"
+        : "No corresponde por estado de pago";
     const orderDate = formatDate(order.created_at);
     const currency = String(order.currency ?? "ARS").trim() || "ARS";
     const shippingRequested = Boolean(order.shipping_requested);
@@ -770,15 +778,15 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
               const itemShippingRequested =
                 isShippingFulfillmentStatus(itemStatus) ||
                 (shippingRequested && !isPickupFulfillmentStatus(itemStatus));
-              const itemStatusLabel = itemStatus && !orderPaymentCancelled
+              const itemStatusLabel = itemStatus && !orderPaymentPaused
                 ? ` · ${formatShippingStatus(itemStatus, itemShippingRequested)}`
                 : "";
               return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} · $${formatPrice(price)}${escapeHtml(itemStatusLabel)}</strong></li>`;
             })
             .join("")}
           ${
-            orderPaymentCancelled
-              ? `<li>Entrega: <strong>No corresponde · pago cancelado</strong></li>`
+            orderPaymentPaused
+              ? `<li>Entrega: <strong>${escapeHtml(pausedDeliveryLabel)}</strong></li>`
               : providerShippingRequested
               ? `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>
                  <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>`
@@ -787,7 +795,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
           </ul>
         </div>
         <ul class="ab-provider-product-card__details">
-          ${!orderPaymentCancelled && providerShippingRequested
+          ${!orderPaymentPaused && providerShippingRequested
             ? `<li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
                ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
             : ""}

@@ -1,4 +1,5 @@
 import { getNextFulfillmentAction } from "../lib/salePendingAction.js";
+import { getPaymentStatusLabel, getReadablePaymentDetail, isSaleDispatchable, normalizePaymentStatus } from "../lib/paymentStatus.js";
 /* Mis ventas: render de productos publicados por el usuario. */
 import { supabase } from "../lib/supabaseClient";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
@@ -531,6 +532,9 @@ const buildSoldProductsSignature = (products) => {
             sale?.soldAt ?? "",
             sale?.shippingRequested ? "shipping" : "pickup",
             sale?.shippingCost ?? 0,
+            sale?.orderStatus ?? "",
+            sale?.paymentStatus ?? "",
+            sale?.paymentDetail ?? "",
             sale?.fulfillmentStatus ?? "",
             sale?.dispatchedAt ?? "",
           ].join("|"),
@@ -651,6 +655,10 @@ const renderSoldProducts = (products) => {
         buyerName: product.lastBuyerName || "",
         buyerUserId: product.lastBuyerUserId || "",
         buyerNote: product.lastBuyerNote || "",
+        orderStatus: product.orderStatus || "approved",
+        paymentStatus: product.paymentStatus || "",
+        paymentId: product.paymentId || "",
+        paymentDetail: product.paymentDetail || "",
         shippingRequested: Boolean(product.shippingRequested),
         shippingAddress: product.shippingAddress || "",
         shippingCity: product.shippingCity || "",
@@ -675,6 +683,10 @@ const renderSoldProducts = (products) => {
         buyerName: sale?.buyerName ?? "",
         buyerUserId: sale?.buyerUserId ?? "",
         buyerNote: sale?.buyerNote ?? "",
+        orderStatus: sale?.orderStatus ?? "approved",
+        paymentStatus: sale?.paymentStatus ?? "",
+        paymentId: sale?.paymentId ?? "",
+        paymentDetail: sale?.paymentDetail ?? "",
         shippingRequested: Boolean(sale?.shippingRequested),
         shippingAddress: sale?.shippingAddress ?? "",
         shippingCity: sale?.shippingCity ?? "",
@@ -715,22 +727,37 @@ const renderSoldProducts = (products) => {
       const sharedOrderItemCount = orderGroup.length;
       const hasSharedSellerShipping = shippingRequested && sharedOrderItemCount > 1;
       const fulfillmentStatus = String(sale.fulfillmentStatus || (shippingRequested ? "requested" : "pickup_pending")).trim();
-      const nextAction = getNextFulfillmentAction(fulfillmentStatus, shippingRequested);
+      const orderStatus = normalizePaymentStatus(sale.orderStatus || "approved");
+      const paymentLabel = getPaymentStatusLabel(orderStatus);
+      const dispatchable = isSaleDispatchable(orderStatus);
+      const nextAction = dispatchable ? getNextFulfillmentAction(fulfillmentStatus, shippingRequested) : null;
       const isCompleted = !nextAction;
       const isLatestSale = index === 0;
-      const isPendingDispatch = Boolean(saleOrderId) && !isCompleted;
-      card.className = `ab-provider-product-card ab-sales-product-card ab-sale-summary-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
+      const isPendingDispatch = Boolean(saleOrderId) && dispatchable && !isCompleted;
+      const paymentModifier = orderStatus ? `ab-sale-card--payment-${orderStatus}` : "";
+      card.className = `ab-provider-product-card ab-sales-product-card ab-sale-summary-card ${isPendingDispatch ? "ab-sale-card--pending" : ""} ${dispatchable ? "" : "ab-sale-card--payment-paused"} ${paymentModifier}`.trim();
       card.dataset.salePendingDispatch = isPendingDispatch ? "true" : "false";
       const safeBuyerName = escapeHtml(sale.buyerName || "");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
       const safeNote = escapeHtml(sale.buyerNote || "");
+      const safePaymentDetail = escapeHtml(getReadablePaymentDetail(sale.paymentDetail || ""));
+      const safePaymentId = escapeHtml(sale.paymentId || "");
       const safeOrderId = escapeHtml(saleOrderId.slice(0, 8));
       const safeShippingAddress = escapeHtml([sale.shippingAddress, sale.shippingCity].filter(Boolean).join(", "));
       const safeShippingPhone = escapeHtml(sale.shippingPhone || "");
-      const statusBadge = isPendingDispatch
+      const statusBadge = !dispatchable
+        ? paymentLabel
+        : isPendingDispatch
         ? isLatestSale
           ? `Nueva venta · ${formatFulfillmentStatus(fulfillmentStatus, shippingRequested)}`
           : formatFulfillmentStatus(fulfillmentStatus, shippingRequested)
+        : formatFulfillmentStatus(fulfillmentStatus, shippingRequested);
+      const deliveryStatusLabel = !dispatchable
+        ? orderStatus === "pending"
+          ? "Esperando confirmación de pago"
+          : orderStatus === "refund_pending"
+            ? "Pausada por reembolso pendiente"
+            : "Sin despacho por estado de pago"
         : formatFulfillmentStatus(fulfillmentStatus, shippingRequested);
 
       card.innerHTML = `
@@ -752,6 +779,7 @@ const renderSoldProducts = (products) => {
           <p class="ab-provider-product-card__label">${statusBadge}</p>
           <p class="ab-provider-product-card__code">Orden ${safeOrderId || "N/A"}</p>
           <p class="ab-provider-product-card__description">Fecha: ${formatDate(sale.soldAt)}</p>
+          ${safePaymentDetail ? `<p class="ab-provider-product-card__description">Movimiento: ${safePaymentDetail}</p>` : ""}
         </div>
         <ul class="ab-provider-product-card__details">
           ${
@@ -764,9 +792,10 @@ const renderSoldProducts = (products) => {
               : ""
           }
           ${safeNote ? `<li>Nota: <strong>${safeNote}</strong></li>` : ""}
+          ${safePaymentId ? `<li>Pago: <strong>${safePaymentId}</strong></li>` : ""}
           ${
             shippingRequested
-              ? `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, true)}</strong></li>
+              ? `<li>Entrega: <strong>${escapeHtml(deliveryStatusLabel)}</strong></li>
                  ${
                    hasSharedSellerShipping
                      ? `<li>Envío: <strong>Único de la venta</strong></li>`
@@ -774,7 +803,7 @@ const renderSoldProducts = (products) => {
                  }
                  <li>Dirección: <strong>${safeShippingAddress || "Sin dirección"}</strong></li>
                  ${safeShippingPhone ? `<li>Teléfono: <strong>${safeShippingPhone}</strong></li>` : ""}`
-              : `<li>Entrega: <strong>${formatFulfillmentStatus(fulfillmentStatus, false)}</strong></li>`
+              : `<li>Entrega: <strong>${escapeHtml(deliveryStatusLabel)}</strong></li>`
           }
         </ul>
         <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
@@ -794,7 +823,7 @@ const renderSoldProducts = (products) => {
             data-next-fulfillment-status="${escapeHtml(nextAction?.status ?? "")}"
             ${!saleOrderId || !saleProductId || !nextAction ? "disabled aria-disabled=\"true\"" : ""}
           >
-            ${nextAction?.label ?? formatFulfillmentActionLabel(fulfillmentStatus, shippingRequested)}
+            ${nextAction?.label ?? (dispatchable ? formatFulfillmentActionLabel(fulfillmentStatus, shippingRequested) : paymentLabel)}
           </button>
         </div>
       `;
@@ -814,8 +843,11 @@ const renderSoldProducts = (products) => {
               <p class="muted">${escapeHtml(formatDate(sale.soldAt))}</p></div></header>
           <section class="grid" aria-label="Datos de la venta">
             <p class="field"><strong>Cliente</strong>${safeBuyerName || "No informado"}</p>
-            <p class="field"><strong>Estado de entrega</strong>${escapeHtml(formatFulfillmentStatus(fulfillmentStatus, shippingRequested))}</p>
+            <p class="field"><strong>Estado de pago</strong>${escapeHtml(paymentLabel)}</p>
+            <p class="field"><strong>Estado de entrega</strong>${escapeHtml(deliveryStatusLabel)}</p>
             <p class="field"><strong>Modalidad</strong>${shippingRequested ? "Envío a domicilio" : "Retiro coordinado"}</p>
+            ${safePaymentDetail ? `<p class="field"><strong>Movimiento</strong>${safePaymentDetail}</p>` : ""}
+            ${safePaymentId ? `<p class="field"><strong>Pago</strong>${safePaymentId}</p>` : ""}
             ${shippingRequested ? `<p class="field"><strong>Dirección</strong>${safeShippingAddress || "No informada"}</p>` : ""}
             ${safeShippingPhone ? `<p class="field"><strong>Teléfono</strong>${safeShippingPhone}</p>` : ""}
             ${safeNote ? `<p class="field"><strong>Nota del comprador</strong>${safeNote}</p>` : ""}

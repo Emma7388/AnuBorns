@@ -1,3 +1,5 @@
+import { isSaleDispatchable } from "./paymentStatus.js";
+
 export const getNextFulfillmentAction = (status, shippingRequested) => {
   const raw = String(status ?? "").trim();
   if (shippingRequested) {
@@ -18,6 +20,10 @@ export const getNextFulfillmentAction = (status, shippingRequested) => {
 
 export const getPendingSaleItems = (items = []) => items.flatMap((item) => {
   const sales = (Array.isArray(item?.salesHistory) ? item.salesHistory : [])
-    .filter((sale) => sale?.orderId && getNextFulfillmentAction(sale.fulfillmentStatus, sale.shippingRequested));
+    .filter((sale) =>
+      sale?.orderId &&
+      isSaleDispatchable(sale.orderStatus || "approved") &&
+      getNextFulfillmentAction(sale.fulfillmentStatus, sale.shippingRequested)
+    );
   return sales.map((sale) => ({ ...item, lastSoldAt: sale.soldAt, lastOrderId: sale.orderId }));
 });

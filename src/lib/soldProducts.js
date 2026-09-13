@@ -1,4 +1,6 @@
-const SOLD_ORDER_STATUSES = ["approved"];
+import { PRODUCT_LOCKING_ORDER_STATUSES } from "./paymentStatus.js";
+
+const SOLD_ORDER_STATUSES = [...PRODUCT_LOCKING_ORDER_STATUSES];
 
 const normalizeProductIds = (productIds = []) =>
   [...new Set(

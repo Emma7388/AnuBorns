@@ -2,6 +2,7 @@
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
+import { SALES_HISTORY_ORDER_STATUSES, isSaleDispatchable, normalizePaymentStatus } from "../../lib/paymentStatus.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
 const PAGE_SIZE = 3;
@@ -76,11 +77,12 @@ export const GET = async ({ request, url }) => {
     }
 
     const products = new Map(ownProducts.map((product) => [String(product.id), product]));
+    const visibleOrderStatuses = [...SALES_HISTORY_ORDER_STATUSES].filter((item) => item !== "canceled");
     let salesQuery = supabaseAdmin
       .from("order_items")
-      .select("product_id, name, unit_price, provider, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost)")
+      .select("product_id, name, unit_price, provider, orders!inner(id, user_id, created_at, status, payment_status, payment_id, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost)")
       .in("product_id", [...products.keys()])
-      .eq("orders.status", "approved")
+      .in("orders.status", visibleOrderStatuses)
       .order("created_at", { referencedTable: "orders", ascending: false });
     if (from) salesQuery = salesQuery.gte("orders.created_at", `${from}T00:00:00.000Z`);
     if (to) salesQuery = salesQuery.lte("orders.created_at", `${to}T23:59:59.999Z`);
@@ -107,6 +109,8 @@ export const GET = async ({ request, url }) => {
       const order = row?.orders ?? {};
       if (!product || !order?.id) return null;
       const providerName = String(row?.provider ?? product.seller_name ?? "").trim();
+      const orderStatus = normalizePaymentStatus(order.status);
+      const dispatchable = isSaleDispatchable(orderStatus);
       const orderShippingRequested = Boolean(order.shipping_requested);
       const shippingCost = getSellerShippingCost(orderShippingRequested, order.shipping_cost, order.shipping_address, providerName);
       const shippingRequested = orderShippingRequested && shippingCost > 0;
@@ -124,9 +128,13 @@ export const GET = async ({ request, url }) => {
           buyerUserId: String(order.user_id ?? "").trim(), buyerNote: getBuyerNote(order.payment_detail),
           shippingRequested, shippingAddress: destination.address, shippingCity: destination.city,
           shippingPhone: String(order.shipping_phone ?? "").trim(), shippingCost,
+          orderStatus,
+          paymentStatus: String(order.payment_status ?? "").trim(),
+          paymentId: String(order.payment_id ?? "").trim(),
+          paymentDetail: String(order.payment_detail ?? "").trim(),
           fulfillmentStatus, dispatchedAt: dispatch?.dispatched_at ?? null,
         }],
-        pending: !completedStatuses.has(fulfillmentStatus),
+        pending: dispatchable && !completedStatuses.has(fulfillmentStatus),
       };
     }).filter(Boolean).filter((sale) => !pendingOnly || sale.pending);
 

@@ -1,6 +1,7 @@
 /* API comprador: lee estados por producto y marca notificaciones como vistas. */
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
@@ -189,7 +190,9 @@ export const POST = async ({ request }) => {
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
     const user = auth.user;
 
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 12_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "El detalle de lecturas no es válido." }, 400);
     }

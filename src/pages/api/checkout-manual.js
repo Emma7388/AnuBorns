@@ -3,6 +3,7 @@ import { jsonResponse } from "../../lib/apiResponse.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { getClientIp } from "../../lib/requestMeta.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { buildCheckoutContext, buildOrderItems, sanitizeBuyerNote } from "../../lib/checkoutServer.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
@@ -28,7 +29,9 @@ export const POST = async ({ request }) => {
     const auth = await getAuthenticatedUser(supabaseAdmin, request);
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 20_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "El detalle de compra no es válido." }, 400);
     }

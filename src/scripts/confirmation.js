@@ -63,6 +63,14 @@ const statusMap = {
     title: "Pago reembolsado",
     message: "El pago fue reembolsado.",
   },
+  refund_pending: {
+    title: "Reembolso pendiente",
+    message: "El reembolso estÃ¡ en proceso. Conservamos el movimiento en el detalle de compra.",
+  },
+  partially_refunded: {
+    title: "Reembolso parcial",
+    message: "La compra registra un reembolso parcial.",
+  },
   failure: {
     title: "Pago rechazado",
     message: "El pago no pudo procesarse. Podés intentarlo nuevamente.",
@@ -149,7 +157,7 @@ const loadOrder = async () => {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, created_at, status, total_amount, currency, payment_id, preference_id, shipping_requested, shipping_cost, shipping_address, shipping_city, order_items (name, qty, unit_price, provider)",
+      "id, created_at, status, total_amount, currency, payment_id, preference_id, payment_detail, shipping_requested, shipping_cost, shipping_address, shipping_city, order_items (name, qty, unit_price, provider)",
     )
     .eq("id", id)
     .maybeSingle();

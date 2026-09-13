@@ -8,6 +8,8 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 
 > Continuidad del diagnóstico de Mercado Pago, variables de Vercel y auditorías de producción (9 de septiembre de 2026): [`CONTINUIDAD_MP_Y_PRODUCCION.md`](CONTINUIDAD_MP_Y_PRODUCCION.md).
 
+> Estados de pago, reembolsos, auditoría y defensas de API: [`PAGOS_REEMBOLSOS_SEGURIDAD.md`](PAGOS_REEMBOLSOS_SEGURIDAD.md).
+
 ## Layouts
 
 - `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido.
@@ -35,9 +37,12 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
 - `src/lib/checkoutPendingOrders.js`: cancela checkouts pendientes abandonados y contempla aprobaciones tardías.
 - `src/lib/mercadopagoOAuthState.js`: firma y valida el estado temporal de la conexión OAuth de Mercado Pago.
+- `src/lib/paymentStatus.js`: normaliza estados de Mercado Pago y define bloqueo de producto, visibilidad de ventas y permiso de despacho.
+- `src/lib/paymentMovement.js`: registra en `audit_logs` los cambios reales de estado de pago.
+- `src/lib/serverRequest.js`: lee JSON en APIs con límite de bytes y errores controlados.
 - `src/lib/saleDispatches.js`: crea y actualiza los despachos iniciales de una venta aprobada.
 - `src/lib/fulfillmentStatus.js`: normaliza estados de envío, retiro y entrega.
-- `src/lib/soldProducts.js`: excluye productos asociados a ventas aprobadas.
+- `src/lib/soldProducts.js`: excluye productos asociados a órdenes que bloquean disponibilidad: aprobadas, reembolso pendiente o reembolso parcial.
 
 ## Scripts de cliente
 
@@ -49,10 +54,10 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/scripts/comprar-productos.js`: binding de botones para agregar productos al carrito desde tarjetas de catálogo.
 - `src/scripts/cart.js`: render de carrito, cambio de cantidades, vaciado total y control de acceso a checkout.
 - `src/scripts/checkout.js`: resumen final, datos de retiro/envío por vendedor y redirección a Mercado Pago.
-- `src/scripts/confirmation.js`: estado visual del pago, sincronización de respaldo con Mercado Pago y limpieza del carrito aprobado.
-- `src/scripts/orders.js`: historial de compras (fuente local/remota), render por orden y borrado con modal.
+- `src/scripts/confirmation.js`: estado visual del pago, sincronización de respaldo con Mercado Pago, estados de reembolso y limpieza del carrito aprobado.
+- `src/scripts/orders.js`: historial de compras, render por orden, estados de pago/reembolso, acciones de entrega sólo cuando corresponden y borrado con modal.
 - `src/scripts/product-create.js`: formulario de publicación de producto, categorías dinámicas, optimización/subida de imagen y alta en Supabase.
-- `src/scripts/mis-ventas.js`: carga y borrado de productos publicados por el usuario autenticado.
+- `src/scripts/mis-ventas.js`: carga ventas y publicaciones del usuario autenticado; muestra estados de pago/reembolso y habilita despacho sólo para pagos aprobados.
 - `src/scripts/mercadopago-connect.js`: consulta, conecta, reconecta y desconecta la cuenta Mercado Pago del vendedor.
 - `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador.
 - `src/scripts/audit.js`: cliente liviano para enviar eventos a `/api/audit` con token de sesión.
@@ -63,8 +68,8 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/pages/api/checkout.js`: valida un checkout de vendedor único, crea orden + `order_items` y genera la preferencia con el token OAuth del vendedor y la comisión de AnuBorns.
 - `src/pages/api/checkout-manual.js`: crea una orden manual para escenarios controlados de desarrollo o respaldo.
 - `src/pages/api/checkout-pending-cleanup.js`: solicita la limpieza de órdenes pendientes abandonadas.
-- `src/pages/api/mercadopago-webhook.js`: valida firma, consulta el pago, verifica monto/moneda, aplica idempotencia e impacta la orden.
-- `src/pages/api/mercadopago-payment-sync.js`: sincroniza el pago al volver del checkout si el webhook todavía no impactó.
+- `src/pages/api/mercadopago-webhook.js`: valida firma, consulta el pago, verifica monto/moneda, aplica idempotencia, registra movimientos e impacta la orden.
+- `src/pages/api/mercadopago-payment-sync.js`: sincroniza el pago al volver del checkout si el webhook todavía no impactó; también detecta reembolsos posteriores.
 - `src/pages/api/mercadopago/oauth/connect.js`: genera la URL de autorización OAuth del vendedor.
 - `src/pages/api/mercadopago/oauth/callback.js`: alias del callback OAuth corto `/api/mp-oauth`.
 - `src/pages/api/mercadopago/oauth/status.js`: consulta la conexión Mercado Pago del vendedor.

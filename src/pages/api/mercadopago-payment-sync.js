@@ -2,23 +2,21 @@
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
+import {
+  PRODUCT_LOCKING_ORDER_STATUSES,
+  getInternalPaymentStatusFromMercadoPago,
+  mergeMercadoPagoPaymentDetail,
+} from "../../lib/paymentStatus.js";
+import { recordOrderPaymentMovement } from "../../lib/paymentMovement.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
+import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 const MERCADOPAGO_REQUEST_TIMEOUT_MS = 8_000;
 
-const statusMap = {
-  approved: "approved",
-  pending: "pending",
-  in_process: "pending",
-  rejected: "rejected",
-  cancelled: "cancelled",
-  refunded: "refunded",
-  charged_back: "refunded",
-};
-
-const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded"]);
+const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded", "partially_refunded"]);
 
 const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
   const safeOrderId = String(orderId ?? "").trim();
@@ -76,7 +74,7 @@ const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
     .from("order_items")
     .select("product_id, order_id, orders!inner(status)")
     .in("product_id", productIds)
-    .eq("orders.status", "approved")
+    .in("orders.status", [...PRODUCT_LOCKING_ORDER_STATUSES])
     .neq("order_id", orderId);
 
   if (approvedError) return { ok: false, error: approvedError.message };
@@ -134,6 +132,16 @@ const findPaymentByExternalReference = async (paymentAccessTokens, orderId) => {
 
 export const POST = async ({ request }) => {
   try {
+    const rate = checkRateLimit({
+      request,
+      routeKey: "mp-payment-sync",
+      windowMs: 60_000,
+      max: 30,
+    });
+    if (!rate.allowed) {
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return jsonResponse({ error: "Servicio no disponible." }, 503);
@@ -142,7 +150,9 @@ export const POST = async ({ request }) => {
     const auth = await getAuthenticatedUser(supabaseAdmin, request);
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 8_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "El detalle de sincronización no es válido." }, 400);
     }
@@ -154,23 +164,13 @@ export const POST = async ({ request }) => {
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .select("id, user_id, status, total_amount, currency, payment_id, payment_detail")
+      .select("id, user_id, status, total_amount, currency, payment_id, payment_status, payment_detail")
       .eq("id", orderId)
       .eq("user_id", auth.user.id)
       .maybeSingle();
 
     if (orderError || !order) {
       return jsonResponse({ error: "Orden no encontrada." }, 404);
-    }
-
-    if (terminalStatuses.has(String(order.status ?? "").trim())) {
-      if (order.status === "approved") {
-        const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);
-        if (!dispatchesOk) {
-          return jsonResponse({ error: "No se pudo inicializar la venta." }, 500);
-        }
-      }
-      return jsonResponse({ ok: true, status: order.status });
     }
 
     const sellerAccessToken = await getSellerAccessTokenForOrder(supabaseAdmin, order.id);
@@ -194,7 +194,20 @@ export const POST = async ({ request }) => {
     }
 
     const paymentStatus = String(paymentData?.status ?? "").trim();
-    const mappedStatus = statusMap[paymentStatus] ?? "pending";
+    const mappedStatus = getInternalPaymentStatusFromMercadoPago(paymentData) || "pending";
+    const currentOrderStatus = String(order.status ?? "").trim();
+    const canUpdateRefundMovement =
+      ["approved", "partially_refunded", "refund_pending"].includes(currentOrderStatus) &&
+      ["partially_refunded", "refund_pending", "refunded"].includes(mappedStatus);
+    if (terminalStatuses.has(currentOrderStatus) && !canUpdateRefundMovement) {
+      if (currentOrderStatus === "approved") {
+        const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);
+        if (!dispatchesOk) {
+          return jsonResponse({ error: "No se pudo inicializar la venta." }, 500);
+        }
+      }
+      return jsonResponse({ ok: true, status: currentOrderStatus });
+    }
     const paidAmount = Number(paymentData?.transaction_amount ?? 0);
     const expectedAmount = Number(order.total_amount ?? 0);
     const currencyId = String(paymentData?.currency_id ?? "").toUpperCase();
@@ -204,7 +217,7 @@ export const POST = async ({ request }) => {
 
     if (!amountMatches || !currencyMatches) {
       const reason = !amountMatches ? "amount_mismatch" : "currency_mismatch";
-      await supabaseAdmin
+      const { error: rejectUpdateError } = await supabaseAdmin
         .from("orders")
         .update({
           status: "rejected",
@@ -213,6 +226,19 @@ export const POST = async ({ request }) => {
           payment_detail: reason,
         })
         .eq("id", order.id);
+      if (rejectUpdateError) {
+        return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
+      }
+      await recordOrderPaymentMovement(supabaseAdmin, {
+        order,
+        orderId: order.id,
+        source: "mercadopago-payment-sync",
+        nextStatus: "rejected",
+        paymentStatus,
+        paymentId: resolvedPaymentId,
+        paymentDetail: reason,
+        paymentData,
+      });
       return jsonResponse({ ok: true, status: "rejected" });
     }
 
@@ -222,7 +248,7 @@ export const POST = async ({ request }) => {
         return jsonResponse({ error: "No se pudo validar disponibilidad." }, 500);
       }
       if (availability.conflicts.length > 0) {
-        await supabaseAdmin
+        const { error: conflictUpdateError } = await supabaseAdmin
           .from("orders")
           .update({
             status: "rejected",
@@ -231,23 +257,48 @@ export const POST = async ({ request }) => {
             payment_detail: "product_already_sold",
           })
           .eq("id", order.id);
+        if (conflictUpdateError) {
+          return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
+        }
+        await recordOrderPaymentMovement(supabaseAdmin, {
+          order,
+          orderId: order.id,
+          source: "mercadopago-payment-sync",
+          nextStatus: "rejected",
+          paymentStatus,
+          paymentId: resolvedPaymentId,
+          paymentDetail: "product_already_sold",
+          paymentData,
+        });
         return jsonResponse({ ok: true, status: "rejected" });
       }
     }
 
+    const paymentDetail = mergeMercadoPagoPaymentDetail(order.payment_detail, paymentData?.status_detail);
     const { error: updateError } = await supabaseAdmin
       .from("orders")
       .update({
         status: mappedStatus,
         payment_status: paymentStatus,
         payment_id: resolvedPaymentId,
-        payment_detail: paymentData?.status_detail ?? null,
+        payment_detail: paymentDetail,
       })
       .eq("id", order.id);
 
     if (updateError) {
       return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
     }
+
+    await recordOrderPaymentMovement(supabaseAdmin, {
+      order,
+      orderId: order.id,
+      source: "mercadopago-payment-sync",
+      nextStatus: mappedStatus,
+      paymentStatus,
+      paymentId: resolvedPaymentId,
+      paymentDetail,
+      paymentData,
+    });
 
     if (mappedStatus === "approved") {
       const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);

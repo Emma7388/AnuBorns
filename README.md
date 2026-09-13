@@ -6,7 +6,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 Actualizado al 12 de septiembre de 2026 — rama `V0.7`.
 
-El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones de producción, seguridad OAuth, renovación de tokens y una decisión definitiva para compras con múltiples vendedores.
+El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones integrales de producción, pruebas reales de reembolsos/split y una decisión definitiva para compras con múltiples vendedores.
 
 ### Implementado
 
@@ -25,6 +25,9 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Checkout Pro creado con el token del vendedor y comisión configurable para AnuBorns.
 - Webhook firmado, validación de monto/moneda e idempotencia.
 - Sincronización del pago al regresar de Mercado Pago si el webhook demora.
+- Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
+- Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
+- Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
 
 ### Servicios retirados temporalmente
@@ -120,6 +123,8 @@ Archivos principales:
 - `src/pages/api/mercadopago/oauth/`
 - `src/scripts/mercadopago-connect.js`
 - `src/lib/mercadopagoOAuthState.js`
+- `src/lib/paymentStatus.js`
+- `src/lib/paymentMovement.js`
 
 ## Datos
 
@@ -131,6 +136,7 @@ Archivos principales:
 ## Documentación
 
 - `docs/ARCHITECTURE.md`: responsabilidades generales por capa.
+- `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`: estados de Mercado Pago, reembolsos, auditoría y defensas de API.
 - `docs/LINEA_POR_LINEA.md`: inventario funcional de archivos.
 - `docs/vercel-supabase-env.md`: variables de despliegue.
 - `docs/supabase-*.sql`: esquema, migraciones, RLS y funciones de Supabase.
@@ -140,7 +146,7 @@ Archivos principales:
 
 1. Mantener el build limpio con variables reales.
 2. Verificar en el ambiente de destino el endurecimiento de OAuth y comercio ya reportado.
-3. Validar el flujo completo de Mercado Pago y comisiones.
+3. Validar el flujo completo de Mercado Pago, comisiones y reembolsos.
 4. Definir la experiencia para carritos multiproveedor.
 5. Migrar los datos mock restantes a Supabase.
 6. Completar pruebas de regresión de productos; mantener servicios/ofertas retirados hasta una decisión explícita de retomarlos.
@@ -151,14 +157,14 @@ Archivos principales:
 - `DeferredListControls.astro` comparte filtros, Buscar, Limpiar y Mostrar todos. Buscar requiere al menos una fecha. Los listados se cargan por acción del usuario.
 - Compras y ventas comparten la clase `ab-transaction-list`: tarjetas anchas y datos completos. El catálogo y las publicaciones mantienen una grilla compacta.
 - Un producto con pago aprobado deja de mostrarse en el catálogo. El detalle de venta usa los datos de la operación y no enlaza a la publicación oculta.
-- El documento imprimible se llama Detalle de compra: muestra al vendedor, una referencia corta y el estado del pago. No implementa numeración fiscal ni un circuito de reembolsos.
-- Un pago cancelado no muestra entrega pendiente; el importe se presenta como referencia de la compra cancelada, no como confirmación de cobro o devolución.
+- El documento imprimible se llama Detalle de compra: muestra al vendedor, una referencia corta, el estado del pago y el movimiento de reembolso/cancelación cuando Mercado Pago lo informa. No implementa numeración fiscal.
+- Un pago cancelado, rechazado o reembolsado no muestra entrega pendiente; un reembolso pendiente pausa la entrega y el despacho.
 - `src/lib/purchaseDetail.js` genera el documento compartido por Compras y Confirmación. `purchaseDetailStyles.js` también se reutiliza en el detalle de venta.
 - Los indicadores verdes de categorías excluyen productos vendidos y guardan las visitas por usuario en el navegador. Actualmente consultan hasta 300 productos recientes.
 
 ## Verificación y despliegue
 
-- `node --test tests/purchaseDetail.test.mjs`: regresiones del documento compartido, cancelación y escape de contenido.
+- `node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs`: regresiones de estados de pago, indicador de ventas, detalle de compra, lectura JSON limitada y OAuth state.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.

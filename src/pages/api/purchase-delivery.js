@@ -2,6 +2,7 @@
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
@@ -27,7 +28,9 @@ export const POST = async ({ request }) => {
     const auth = await getAuthenticatedUser(supabaseAdmin, request);
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 8_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "El detalle de recepción no es válido." }, 400);
     }

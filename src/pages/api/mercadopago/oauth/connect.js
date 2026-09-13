@@ -1,5 +1,8 @@
 /* Inicia OAuth para conectar la cuenta Mercado Pago de un vendedor. */
-import { createMercadoPagoOAuthState } from "../../../../lib/mercadopagoOAuthState.js";
+import {
+  createMercadoPagoOAuthState,
+  hasMercadoPagoOAuthStateSecret,
+} from "../../../../lib/mercadopagoOAuthState.js";
 import { jsonResponse } from "../../../../lib/apiResponse.js";
 import { getAuthenticatedUser } from "../../../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../../../lib/supabaseServer.js";
@@ -21,7 +24,7 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
     }
 
-    if (!clientId || !redirectUri) {
+    if (!clientId || !redirectUri || !hasMercadoPagoOAuthStateSecret()) {
       return jsonResponse({ error: "Falta configurar Mercado Pago OAuth." }, 503);
     }
 

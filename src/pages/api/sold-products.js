@@ -1,6 +1,7 @@
 /* API: consulta acotada de productos ya vendidos. */
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSoldProductIds } from "../../lib/soldProducts.js";
@@ -25,7 +26,9 @@ export const POST = async ({ request }) => {
       return jsonResponse({ sold_product_ids: [] });
     }
 
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 8_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "El detalle de productos no es válido." }, 400);
     }

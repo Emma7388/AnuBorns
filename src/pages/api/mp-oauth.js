@@ -1,10 +1,15 @@
 /* Callback OAuth corto de Mercado Pago. */
-import { verifyMercadoPagoOAuthState } from "../../lib/mercadopagoOAuthState.js";
+import {
+  hasMercadoPagoOAuthStateSecret,
+  verifyMercadoPagoOAuthState,
+} from "../../lib/mercadopagoOAuthState.js";
+import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 const clientId = process.env.MERCADOPAGO_CLIENT_ID;
 const clientSecret = process.env.MERCADOPAGO_CLIENT_SECRET;
 const redirectUri = process.env.MERCADOPAGO_OAUTH_REDIRECT_URI;
+const MERCADOPAGO_REQUEST_TIMEOUT_MS = 8_000;
 
 const redirectToProducts = (request, status) => {
   const url = new URL("/vender/productos", request.url);
@@ -24,6 +29,7 @@ const exchangeCodeForToken = async (code) => {
       redirect_uri: redirectUri,
       test_token: "false",
     }),
+    signal: AbortSignal.timeout(MERCADOPAGO_REQUEST_TIMEOUT_MS),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -36,6 +42,16 @@ const exchangeCodeForToken = async (code) => {
 };
 
 export const GET = async ({ request }) => {
+  const rate = checkRateLimit({
+    request,
+    routeKey: "mp-oauth-callback",
+    windowMs: 60_000,
+    max: 60,
+  });
+  if (!rate.allowed) {
+    return redirectToProducts(request, "rate_limited");
+  }
+
   const url = new URL(request.url);
   const error = url.searchParams.get("error");
   const code = url.searchParams.get("code");
@@ -45,7 +61,7 @@ export const GET = async ({ request }) => {
     return redirectToProducts(request, "rejected");
   }
 
-  if (!clientId || !clientSecret || !redirectUri) {
+  if (!clientId || !clientSecret || !redirectUri || !hasMercadoPagoOAuthStateSecret()) {
     return redirectToProducts(request, "config_error");
   }
 

@@ -2,10 +2,11 @@
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
+import { PRODUCT_LOCKING_ORDER_STATUSES, normalizePaymentStatus } from "../../lib/paymentStatus.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
 /* Estados de orden que cuentan como venta operativa para el vendedor. */
-const allowedOrderStatuses = new Set(["approved"]);
+const allowedOrderStatuses = PRODUCT_LOCKING_ORDER_STATUSES;
 const SHIPPING_FEE = 5000;
 
 /* Parsea cantidad y precio a números seguros. */
@@ -153,9 +154,7 @@ export const GET = async ({ request }) => {
       if (!product) return;
 
       const order = row?.orders ?? null;
-      const orderStatus = String(order?.status ?? "")
-        .trim()
-        .toLowerCase();
+      const orderStatus = normalizePaymentStatus(order?.status);
       if (!allowedOrderStatuses.has(orderStatus)) return;
 
       const qty = 1;
@@ -216,6 +215,7 @@ export const GET = async ({ request }) => {
         shippingCity: sellerShippingDestination.city,
         shippingPhone,
         shippingCost,
+        orderStatus,
         orderShippingStatus,
         fulfillmentStatus: normalizeFulfillmentStatus("", shippingRequested),
         dispatchedAt: null,
@@ -302,6 +302,7 @@ export const GET = async ({ request }) => {
               shippingCity: sale.shippingCity,
               shippingPhone: sale.shippingPhone,
               shippingCost: sale.shippingCost,
+              orderStatus: sale.orderStatus,
               orderShippingStatus: sale.orderShippingStatus,
               fulfillmentStatus,
               dispatchedAt: dispatchState.dispatchedAt ?? null,

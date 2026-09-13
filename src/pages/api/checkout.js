@@ -6,6 +6,8 @@ import {
   buildOrderItems,
 } from "../../lib/checkoutServer.js";
 import { jsonResponse } from "../../lib/apiResponse.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
+import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
@@ -307,6 +309,16 @@ const buildPreferenceBody = ({
 
 export const POST = async ({ request }) => {
   try {
+    const rate = checkRateLimit({
+      request,
+      routeKey: "checkout",
+      windowMs: 60_000,
+      max: 20,
+    });
+    if (!rate.allowed) {
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
+    }
+
     /* Autenticación y disponibilidad de Supabase. */
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
@@ -325,7 +337,9 @@ export const POST = async ({ request }) => {
     }
 
     /* Parseo y validación del payload. */
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 20_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "El detalle de compra no es válido." }, 400);
     }

@@ -20,3 +20,10 @@ test("incluye las acciones pendientes de envio, retiro y cierre", () => {
     assert.equal(getPendingSaleItems([item(status, shipping)]).length, 1);
   }
 });
+
+test("no activa aviso de vendedor para reembolsos o pagos pausados", () => {
+  const refunded = {
+    salesHistory: [{ orderId: "order", soldAt: "2026-09-12", fulfillmentStatus: "requested", shippingRequested: true, orderStatus: "refund_pending" }],
+  };
+  assert.deepEqual(getPendingSaleItems([refunded]), []);
+});

@@ -2,6 +2,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
+import {
+  PRODUCT_LOCKING_ORDER_STATUSES,
+  getInternalPaymentStatusFromMercadoPago,
+  mergeMercadoPagoPaymentDetail,
+} from "../../lib/paymentStatus.js";
+import { recordOrderPaymentMovement } from "../../lib/paymentMovement.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 
 /* Tokens requeridos para consultar la API y validar firma. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -18,18 +25,8 @@ if (!webhookSecret) {
 }
 
 /* Mapeo de estados de MP a estados internos. */
-const statusMap = {
-  approved: "approved",
-  pending: "pending",
-  in_process: "pending",
-  rejected: "rejected",
-  cancelled: "cancelled",
-  refunded: "refunded",
-  charged_back: "refunded",
-};
-
 /* Estados finales que no deberían re-procesarse. */
-const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded"]);
+const terminalStatuses = new Set(["approved", "rejected", "cancelled", "refunded", "partially_refunded"]);
 
 /* Garantiza que una orden aprobada tenga filas de despacho iniciales. */
 const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
@@ -146,7 +143,7 @@ const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
     .from("order_items")
     .select("product_id, order_id, orders!inner(status)")
     .in("product_id", productIds)
-    .eq("orders.status", "approved")
+    .in("orders.status", [...PRODUCT_LOCKING_ORDER_STATUSES])
     .neq("order_id", orderId);
 
   if (approvedError) {
@@ -214,12 +211,12 @@ export const POST = async ({ request }) => {
     const queryDataId = url.searchParams.get("data.id") || url.searchParams.get("data_id");
     const queryOrderId = url.searchParams.get("order_id");
 
-    let payload = {};
-    try {
-      payload = await request.json();
-    } catch {
-      payload = {};
+    const body = await readJsonBody(request, { maxBytes: 16_000, emptyValue: {} });
+    if (!body.ok) {
+      console.warn("[mp-webhook] Invalid payload", { status: body.status });
+      return new Response("Invalid payload", { status: body.status });
     }
+    const payload = body.data && typeof body.data === "object" ? body.data : {};
 
     const bodyType = payload?.type || payload?.topic;
     const bodyId = payload?.data?.id || payload?.id;
@@ -271,7 +268,7 @@ export const POST = async ({ request }) => {
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .select("id, status, total_amount, currency, payment_id, payment_detail")
+      .select("id, user_id, status, total_amount, currency, payment_id, payment_status, payment_detail")
       .eq("id", externalReference)
       .maybeSingle();
 
@@ -287,7 +284,7 @@ export const POST = async ({ request }) => {
 
     if (!amountMatches || !currencyMatches) {
       const reason = !amountMatches ? "amount_mismatch" : "currency_mismatch";
-      await supabaseAdmin
+      const { error: rejectUpdateError } = await supabaseAdmin
         .from("orders")
         .update({
           status: "rejected",
@@ -296,6 +293,23 @@ export const POST = async ({ request }) => {
           payment_detail: reason,
         })
         .eq("id", order.id);
+      if (rejectUpdateError) {
+        console.error("[mp-webhook] Order rejection update failed", {
+          orderId: order.id,
+          error: rejectUpdateError.message,
+        });
+        return new Response("Order update failed", { status: 500 });
+      }
+      await recordOrderPaymentMovement(supabaseAdmin, {
+        order,
+        orderId: order.id,
+        source: "mercadopago-webhook",
+        nextStatus: "rejected",
+        paymentStatus,
+        paymentId,
+        paymentDetail: reason,
+        paymentData,
+      });
 
       console.warn("[mp-webhook] Payment mismatch", {
         orderId: order.id,
@@ -309,7 +323,7 @@ export const POST = async ({ request }) => {
     }
 
     /* Estado traducido a la semántica interna. */
-    const mappedStatus = statusMap[paymentStatus] ?? "pending";
+    const mappedStatus = getInternalPaymentStatusFromMercadoPago(paymentData) || "pending";
 
     /* Evita doble procesamiento si ya está finalizado. */
     if (terminalStatuses.has(order.status)) {
@@ -319,7 +333,10 @@ export const POST = async ({ request }) => {
         mappedStatus === "approved";
       if (isRecoveringAbandonedPayment) {
         // Permite recuperar una preferencia abandonada si MP aprueba el pago tarde.
-      } else if (order.status === "approved" && mappedStatus === "refunded") {
+      } else if (
+        ["approved", "partially_refunded", "refund_pending"].includes(order.status) &&
+        ["partially_refunded", "refund_pending", "refunded"].includes(mappedStatus)
+      ) {
         // Permite actualizar contracargos y reembolsos aunque la orden esté finalizada.
       } else {
         if (order.status === "approved" && mappedStatus === "approved") {
@@ -349,7 +366,7 @@ export const POST = async ({ request }) => {
         return new Response("Product availability check failed", { status: 500 });
       }
       if (availability.conflicts.length > 0) {
-        await supabaseAdmin
+        const { error: conflictUpdateError } = await supabaseAdmin
           .from("orders")
           .update({
             status: "rejected",
@@ -358,6 +375,23 @@ export const POST = async ({ request }) => {
             payment_detail: "product_already_sold",
           })
           .eq("id", order.id);
+        if (conflictUpdateError) {
+          console.error("[mp-webhook] Product conflict update failed", {
+            orderId: order.id,
+            error: conflictUpdateError.message,
+          });
+          return new Response("Order update failed", { status: 500 });
+        }
+        await recordOrderPaymentMovement(supabaseAdmin, {
+          order,
+          orderId: order.id,
+          source: "mercadopago-webhook",
+          nextStatus: "rejected",
+          paymentStatus,
+          paymentId,
+          paymentDetail: "product_already_sold",
+          paymentData,
+        });
 
         console.warn("[mp-webhook] Approved payment rejected because product was already sold", {
           orderId: order.id,
@@ -367,6 +401,7 @@ export const POST = async ({ request }) => {
       }
     }
 
+    const paymentDetail = mergeMercadoPagoPaymentDetail(order.payment_detail, paymentData?.status_detail);
     /* Actualiza la orden con el estado más reciente. */
     const { error: updateError } = await supabaseAdmin
       .from("orders")
@@ -374,7 +409,7 @@ export const POST = async ({ request }) => {
         status: mappedStatus,
         payment_status: paymentStatus,
         payment_id: paymentId,
-        payment_detail: paymentData?.status_detail ?? null,
+        payment_detail: paymentDetail,
       })
       .eq("id", order.id);
 
@@ -386,6 +421,17 @@ export const POST = async ({ request }) => {
       });
       return new Response("Order update failed", { status: 500 });
     }
+
+    await recordOrderPaymentMovement(supabaseAdmin, {
+      order,
+      orderId: order.id,
+      source: "mercadopago-webhook",
+      nextStatus: mappedStatus,
+      paymentStatus,
+      paymentId,
+      paymentDetail,
+      paymentData,
+    });
 
     if (mappedStatus === "approved") {
       const dispatchesOk = await ensureApprovedOrderDispatches(supabaseAdmin, order.id);

@@ -1,4 +1,5 @@
 import { purchaseDetailStyles } from "./purchaseDetailStyles.js";
+import { getPaymentStatusLabel, getReadablePaymentDetail, normalizePaymentStatus } from "./paymentStatus.js";
 
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
@@ -19,16 +20,7 @@ const formatInvoiceDateTime = (value) => {
 };
 
 export const formatOrderPaymentStatus = (value) => {
-  const labels = {
-    approved: "Pago aprobado",
-    pending: "Pago pendiente",
-    rejected: "Pago rechazado",
-    cancelled: "Pago cancelado",
-    canceled: "Pago cancelado",
-    refunded: "Pago reembolsado",
-  };
-  const statusValue = String(value ?? "").trim().toLowerCase();
-  return labels[statusValue] ?? "Compra registrada";
+  return getPaymentStatusLabel(value);
 };
 
 const escapeHtml = (value) =>
@@ -64,7 +56,9 @@ const buildInvoiceItemsRows = (order) => {
 };
 
 export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
-  const isCancelled = ["cancelled", "canceled"].includes(String(order?.status ?? "").trim().toLowerCase());
+  const orderStatus = normalizePaymentStatus(order?.status);
+  const isCancelled = ["cancelled", "rejected", "refunded"].includes(orderStatus);
+  const isRefundRelated = ["refund_pending", "refunded", "partially_refunded"].includes(orderStatus);
   const providers = [...new Set(
     (Array.isArray(order?.order_items) ? order.order_items : [])
       .map((item) => String(item?.provider ?? "").trim())
@@ -75,7 +69,8 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
     : "Vendedor no informado";
   const orderId = String(order?.id ?? "").trim();
   const currency = String(order?.currency ?? "ARS").trim() || "ARS";
-  const paymentStatus = formatOrderPaymentStatus(order?.status);
+  const paymentStatus = formatOrderPaymentStatus(orderStatus);
+  const paymentDetail = getReadablePaymentDetail(order?.payment_detail);
   const shippingRequested = Boolean(order?.shipping_requested);
   const shippingCost = Number(order?.shipping_cost ?? 0) || 0;
   const shippingAddress = [
@@ -106,14 +101,15 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
       </div>
     </header>
 
-    ${isCancelled ? `<aside class="cancelled-notice"><strong>Pago cancelado</strong><p>El importe corresponde a los productos de esta compra. No es una constancia de cobro ni de reembolso.</p></aside>` : ""}
+    ${isCancelled || isRefundRelated ? `<aside class="cancelled-notice"><strong>${escapeHtml(paymentStatus)}</strong><p>${isRefundRelated ? "Este comprobante conserva el movimiento de la compra y su estado de devolución." : "El importe corresponde a los productos de esta compra. No es una constancia de cobro ni de reembolso."}</p></aside>` : ""}
 
     <section class="grid" aria-label="Datos de compra">
       <p class="field"><strong>Estado de pago</strong>${escapeHtml(paymentStatus)}</p>
       <p class="field"><strong>Moneda</strong>${escapeHtml(currency)}</p>
-      <p class="field"><strong>Entrega</strong>${isCancelled ? "No corresponde · pago cancelado" : shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
+      <p class="field"><strong>Entrega</strong>${isCancelled ? "No corresponde · pago cancelado" : orderStatus === "refund_pending" ? "Pausada · reembolso pendiente" : shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
       <p class="field"><strong>Direccion</strong>${escapeHtml(shippingAddress || "No informada")}</p>
       ${order?.payment_id ? `<p class="field"><strong>Pago</strong>${escapeHtml(order.payment_id)}</p>` : ""}
+      ${paymentDetail ? `<p class="field"><strong>Movimiento</strong>${escapeHtml(paymentDetail)}</p>` : ""}
     </section>
 
     <h2>Detalle</h2>

@@ -5,6 +5,19 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 
 ## Retomar por aquí
 
+### Actualización de pagos, reembolsos y seguridad — 12 de septiembre
+
+- Se documentó el flujo vigente en `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`.
+- Se agregó normalización de estados de Mercado Pago para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
+- Webhook y sincronización de retorno actualizan `orders.status`, `orders.payment_status`, `orders.payment_id` y `orders.payment_detail` también cuando Mercado Pago informa reembolsos o cancelaciones posteriores a la aprobación.
+- Los cambios reales de estado se registran en `audit_logs` con evento `order_payment_status_changed`; el registro incluye fuente, estado anterior/nuevo y resumen de Mercado Pago.
+- `orders.payment_detail` conserva la traza `mp_preference|marketplace_fee:...|oauth_seller:...` para compras nuevas y agrega `mp_status_detail:...` al impactar Mercado Pago. Órdenes viejas que quedaron sólo con `accredited` no prueban ni descartan split desde Supabase.
+- Mis ventas conserva historial de operaciones no aprobadas, pero sólo permite despacho en `approved`. `refund_pending`, `partially_refunded`, `refunded`, `cancelled`, `canceled`, `rejected` y `pending` no generan indicador verde de acción pendiente.
+- Mis compras y Detalle de compra muestran estado de pago y movimiento. Un reembolso pendiente pausa entrega/despacho; pagos cancelados, rechazados o reembolsados no se presentan como entregas pendientes.
+- La política de producto único bloquea el producto en `approved`, `refund_pending` y `partially_refunded`; lo libera cuando la orden queda rechazada, cancelada o reembolsada completa.
+- Se reforzaron APIs con lectura JSON limitada, headers `no-store`/`nosniff`, rate limit adicional y OAuth state de Mercado Pago sin fallback fijo de desarrollo.
+- Pruebas locales observadas: `node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs` con 22 tests aprobados. También se ejecutó chequeo de sintaxis JavaScript y `git diff --check`. No se ejecutó build.
+
 ### Actualización de interfaz y mantenimiento — 12 de septiembre
 
 - El commit local observado al iniciar la revisión fue `ed70f34` (Mejora interfaz de compras y ventas y detalles de operaciones), con árbol limpio. No se verificó el despliegue remoto de ese commit.
@@ -12,11 +25,11 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - Los indicadores de categorías excluyen productos vendidos. Las consultas simultáneas de navegación comparten la solicitud en curso; sigue existiendo un límite de 300 productos recientes.
 - El usuario confirmó que el producto debe ocultarse al aprobarse el pago. El botón de una venta ahora abre el detalle de la operación, no la publicación pública oculta.
 - El documento se presenta como Detalle de compra, con vendedor y referencia corta derivada del UUID; no es una numeración correlativa o fiscal. Se ocultó el identificador de preferencia en el documento.
-- Una cancelación muestra el importe como referencia de la compra cancelada y no presenta retiro/entrega pendientes. No se implementó un flujo de devolución ni se comprobó un reembolso real.
+- En ese mantenimiento, una cancelación mostraba el importe como referencia de la compra cancelada y no presentaba retiro/entrega pendientes. Después se agregó normalización de reembolsos y estados de devolución, documentada en `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`; todavía falta comprobar un reembolso real de punta a punta con Mercado Pago.
 - El mantenimiento posterior centraliza el documento en `src/lib/purchaseDetail.js`, compartido por `orders.js` y `confirmation.js`; estilos en `purchaseDetailStyles.js`. La venta reutiliza los estilos y conserva su propio contenido.
 - Se añadieron pruebas de documento con `node --test tests/purchaseDetail.test.mjs`. No equivalen a una prueba de pago ni de producción.
 - El usuario ejecuta los builds. El log compartido mostró compilación Astro exitosa seguida de `EPERM` al crear un symlink de una dependencia durante el empaquetado Vercel en Windows; después apareció un cierre de Node. No atribuirlo al SDK de MP ni dar el build completo por aprobado.
-- En este mantenimiento no se modificaron las APIs de pago, OAuth, split, webhooks, credenciales ni migraciones. La investigación de MP indicada a continuación sigue pendiente.
+- En ese mantenimiento de interfaz no se habían modificado APIs de pago, OAuth, split, webhooks, credenciales ni migraciones. La actualización posterior de pagos/reembolsos y seguridad está resumida arriba. La investigación del split de MP indicada a continuación sigue pendiente.
 
 Mercado Pago respondió al usuario con pruebas y, según su resumen, dice que no observa inconvenientes. El mensaje completo y las pruebas TODAVÍA NO se compartieron en este chat. El usuario sospecha que falta configuración fuera de Vercel, porque el problema aparece al configurar el split. NO conocemos el error exacto ni la etapa en que ocurre.
 

@@ -1,7 +1,9 @@
 /* API: registrar eventos de auditoría en Supabase. */
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { getClientIp } from "../../lib/requestMeta.js";
+import { readJsonBody } from "../../lib/serverRequest.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
+import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 /* Límites de seguridad para evitar payloads excesivos. */
@@ -20,6 +22,16 @@ const safeJsonSize = (value) => {
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
+    const rate = checkRateLimit({
+      request,
+      routeKey: "audit",
+      windowMs: 60_000,
+      max: 60,
+    });
+    if (!rate.allowed) {
+      return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
+    }
+
     /* Validación de configuración y autenticación. */
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
@@ -29,7 +41,9 @@ export const POST = async ({ request }) => {
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
     /* Normaliza y valida payload. */
-    const payload = await request.json().catch(() => null);
+    const body = await readJsonBody(request, { maxBytes: 10_000 });
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    const payload = body.data;
     if (!payload || typeof payload !== "object") {
       return jsonResponse({ error: "Payload inválido." }, 400);
     }

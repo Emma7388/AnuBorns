@@ -64,7 +64,10 @@ const showWelcomeModal = (name, avatarUrl) =>
         <div class="ab-auth-welcome__mark" aria-hidden="true">
           <span class="ab-auth-welcome__initial">${escapeHtml(String(name).trim().charAt(0).toUpperCase() || "U")}</span>
         </div>
-        <h2>Hola, ${safeName}</h2>
+        <h2 class="ab-auth-welcome__title">
+          <span class="ab-auth-welcome__greeting">Hola,</span>
+          <span class="ab-auth-welcome__name">${safeName}</span>
+        </h2>
         <p>Qué bueno verte de nuevo.</p>
       </div>
     `;

@@ -1,6 +1,8 @@
+import { PRODUCT_LOCKING_ORDER_STATUSES } from "./paymentStatus.js";
+
 /* Validaciones compartidas por checkout manual y Mercado Pago. */
 export const SHIPPING_FEE = 5000;
-const SOLD_ORDER_STATUSES = ["approved"];
+const SOLD_ORDER_STATUSES = [...PRODUCT_LOCKING_ORDER_STATUSES];
 
 /* El carrito puede mandar datos legacy, pero cantidad siempre queda fija en 1. */
 export const sanitizeCheckoutItems = (items) =>
