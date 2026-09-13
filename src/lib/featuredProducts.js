@@ -49,6 +49,9 @@ const toFeaturedItem = (product) => ({
   price: toSafeNumber(product?.price, 0),
   currency: String(product?.currency ?? "ARS"),
   imageUrl: String(product?.image_url ?? "").trim() || "/logo2.svg",
+  location: String(product?.location ?? "").trim(),
+  pickupAddress: String(product?.pickup_address ?? "").trim(),
+  createdAt: String(product?.created_at ?? "").trim(),
   sellerName: String(product?.seller_name ?? "Proveedor"),
   sellerUserId: String(product?.user_id ?? "").trim(),
   deliveryMethods: Array.isArray(product?.delivery_methods)
@@ -135,7 +138,7 @@ const getRecentAvailableProducts = async (supabaseAdmin) => {
   const { data: products, error } = await runWithTimeout(
     supabaseAdmin
       .from("products")
-      .select("id, title, description, price, currency, image_url, seller_name, user_id, delivery_methods, created_at")
+      .select("id, title, description, price, currency, image_url, location, pickup_address, seller_name, user_id, delivery_methods, created_at")
       .order("created_at", { ascending: false })
       .limit(PRODUCTS_QUERY_LIMIT),
   );
@@ -156,7 +159,7 @@ const getAvailableProductsForSellers = async (supabaseAdmin, sellers) => {
   const { data: products, error } = await runWithTimeout(
     supabaseAdmin
       .from("products")
-      .select("id, title, description, price, currency, image_url, seller_name, user_id, delivery_methods, created_at")
+      .select("id, title, description, price, currency, image_url, location, pickup_address, seller_name, user_id, delivery_methods, created_at")
       .in("user_id", sellerIds)
       .order("created_at", { ascending: false })
       .limit(PRODUCTS_QUERY_LIMIT),

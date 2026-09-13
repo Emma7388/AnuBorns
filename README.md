@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 15 de agosto de 2026 — rama `V0.7`.
+Actualizado al 12 de septiembre de 2026 — rama `V0.7`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones de producción, seguridad OAuth, renovación de tokens y una decisión definitiva para compras con múltiples vendedores.
 
@@ -34,7 +34,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 ### Limitaciones conocidas
 
 - Cada checkout admite productos de un solo vendedor. Un carrito multiproveedor debe separarse antes de pagar o convertirse en varios checkouts.
-- La seguridad y las políticas RLS de la tabla de credenciales OAuth deben endurecerse antes de producción.
+- El usuario reportó la ejecución del endurecimiento de OAuth y comercio en Supabase. Falta validar el circuito completo en producción; consultar el documento de continuidad para distinguir evidencias y pendientes.
 - Perfiles de profesionales, servicios y algunas rutas de proveedores todavía utilizan datos de demostración.
 - Los flujos de oferta y contratación de servicios continúan como MVP/placeholder.
 - Falta completar una prueba integral con cuentas de prueba o producción de Mercado Pago.
@@ -60,7 +60,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 1. Instalar Node.js 22.12 o superior y pnpm.
 2. Ejecutar `pnpm install`.
 3. Copiar `.env.example` a `.env` y completar las variables.
-4. Aplicar en Supabase los scripts SQL de `docs/` que correspondan al ambiente.
+4. Revisar las migraciones ya aplicadas y ejecutar únicamente los scripts SQL pendientes que correspondan al ambiente. No ejecutar todos los archivos de `docs/` indiscriminadamente.
 5. Ejecutar `pnpm dev`.
 
 Variables requeridas para compilar:
@@ -139,8 +139,29 @@ Archivos principales:
 ## Pendientes prioritarios
 
 1. Mantener el build limpio con variables reales.
-2. Endurecer el almacenamiento de credenciales OAuth de Mercado Pago.
+2. Verificar en el ambiente de destino el endurecimiento de OAuth y comercio ya reportado.
 3. Validar el flujo completo de Mercado Pago y comisiones.
 4. Definir la experiencia para carritos multiproveedor.
 5. Migrar los datos mock restantes a Supabase.
-6. Completar servicios/ofertas y pruebas de regresión antes de producción.
+6. Completar pruebas de regresión de productos; mantener servicios/ofertas retirados hasta una decisión explícita de retomarlos.
+
+## Interfaz de compras y ventas
+
+- El nombre de cada página aparece en la barra superior. Mis ventas distingue Ventas y Publicaciones activas.
+- `DeferredListControls.astro` comparte filtros, Buscar, Limpiar y Mostrar todos. Buscar requiere al menos una fecha. Los listados se cargan por acción del usuario.
+- Compras y ventas comparten la clase `ab-transaction-list`: tarjetas anchas y datos completos. El catálogo y las publicaciones mantienen una grilla compacta.
+- Un producto con pago aprobado deja de mostrarse en el catálogo. El detalle de venta usa los datos de la operación y no enlaza a la publicación oculta.
+- El documento imprimible se llama Detalle de compra: muestra al vendedor, una referencia corta y el estado del pago. No implementa numeración fiscal ni un circuito de reembolsos.
+- Un pago cancelado no muestra entrega pendiente; el importe se presenta como referencia de la compra cancelada, no como confirmación de cobro o devolución.
+- `src/lib/purchaseDetail.js` genera el documento compartido por Compras y Confirmación. `purchaseDetailStyles.js` también se reutiliza en el detalle de venta.
+- Los indicadores verdes de categorías excluyen productos vendidos y guardan las visitas por usuario en el navegador. Actualmente consultan hasta 300 productos recientes.
+
+## Verificación y despliegue
+
+- `node --test tests/purchaseDetail.test.mjs`: regresiones del documento compartido, cancelación y escape de contenido.
+- `git diff --check`: comprueba errores de formato en el diff.
+- `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
+- En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.
+- La última compilación completa y el despliegue remoto no fueron verificados por el asistente. Un chequeo de sintaxis no sustituye el build ni una prueba en navegador.
+
+El contexto de Mercado Pago y las verificaciones pendientes se mantienen en [docs/CONTINUIDAD_MP_Y_PRODUCCION.md](docs/CONTINUIDAD_MP_Y_PRODUCCION.md).

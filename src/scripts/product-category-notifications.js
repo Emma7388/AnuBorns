@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabaseClient";
 
 const STORAGE_KEY = "ab_seen_products_by_category_v1";
 let notificationSyncId = 0;
+let latestCategoriesRequest = null;
 
 const getCurrentCategorySlug = () => {
   const match = window.location.pathname.match(/^\/comprar\/productos\/([^/]+)/);
@@ -51,7 +52,7 @@ const extractCategorySlug = (product) => {
   return "";
 };
 
-const fetchLatestByCategory = async () => {
+const queryLatestByCategory = async () => {
   const { data, error } = await supabase
     .from("products")
     .select("id, created_at, categories!inner(slug)")
@@ -83,6 +84,17 @@ const fetchLatestByCategory = async () => {
     latestByCategory[slug] = createdAt;
   });
   return latestByCategory;
+};
+
+// Los eventos de navegación pueden llegar juntos. Comparten la consulta en curso,
+// sin guardar una caché que oculte cambios posteriores en disponibilidad.
+const fetchLatestByCategory = () => {
+  if (!latestCategoriesRequest) {
+    latestCategoriesRequest = queryLatestByCategory().finally(() => {
+      latestCategoriesRequest = null;
+    });
+  }
+  return latestCategoriesRequest;
 };
 
 const applyDots = (unseenSlugs) => {

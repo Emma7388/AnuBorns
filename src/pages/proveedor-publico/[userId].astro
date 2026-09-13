@@ -5,6 +5,7 @@ export const prerender = false;
 import MainLayout from "../../layouts/MainLayout.astro";
 import { getCurrentInternalPath, withReturnPath } from "../../lib/internalNavigation.js";
 import TitleBadge from "../../components/TitleBadge.astro";
+import { categories as categoryCatalog } from "../../data/categories.js";
 import { filterAvailableProducts } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
@@ -29,7 +30,7 @@ const fetchJson = async (url) => {
 
 const products = supabaseUrl && supabaseAnonKey && safeUserId
   ? await fetchJson(
-      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,contact,seller_name,user_id,created_at&user_id=eq.${safeUserId}&order=created_at.desc`
+      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,contact,seller_name,user_id,created_at,categories(slug,name)&user_id=eq.${safeUserId}&order=created_at.desc`
     )
   : [];
 
@@ -88,14 +89,40 @@ const shortId = (value) => {
   const raw = String(value ?? "").replace(/-/g, "");
   return raw ? raw.slice(0, 6).toUpperCase() : "N/A";
 };
+const categoryCatalogBySlug = new Map(categoryCatalog.map((category, index) => [
+  category.slug,
+  { ...category, order: index },
+]));
+const resolveProductCategory = (product) => {
+  const linkedCategory = Array.isArray(product?.categories)
+    ? product.categories[0]
+    : product?.categories;
+  const slug = String(linkedCategory?.slug ?? "").trim();
+  if (!slug) return null;
+  const fallback = categoryCatalogBySlug.get(slug);
+  return {
+    slug,
+    name: String(linkedCategory?.name || fallback?.name || slug),
+    icon: String(fallback?.icon || "/icons/destacado.svg"),
+    order: Number.isFinite(fallback?.order) ? fallback.order : Number.MAX_SAFE_INTEGER,
+  };
+};
+const categoryFilterMap = new Map();
+safeProducts.forEach((product) => {
+  const category = resolveProductCategory(product);
+  if (!category) return;
+  const current = categoryFilterMap.get(category.slug) ?? { ...category, count: 0 };
+  current.count += 1;
+  categoryFilterMap.set(category.slug, current);
+});
+const providerCategoryFilters = [...categoryFilterMap.values()]
+  .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "es"));
 ---
 
 <MainLayout title={`Proveedor: ${sellerName}`} backHref="/comprar">
   {first ? (
     <section class="ab-dark-panel">
-      <p class="ab-eyebrow">Perfil público</p>
       <TitleBadge title={sellerName} icon="/icons/proveedor.svg" tone="primary" />
-      <p class="ab-muted-text">Datos públicos del proveedor.</p>
 
       <div class="ab-provider-profile__meta" aria-label="Datos públicos del proveedor">
         <p class="ab-provider-profile__item">
@@ -142,13 +169,45 @@ const shortId = (value) => {
         </p>
       </div>
 
-      <TitleBadge title="Productos publicados" icon="/icons/destacado.svg" level={2} tone="secondary" class="ab-title-badge--spaced" />
+      <div class:list={["ab-sales-section-heading", "ab-sales-section-heading--spaced", safeProducts.length === 0 && "ab-profile-products-heading--empty"]}>
+        <TitleBadge title="Productos publicados" icon="/icons/destacado.svg" level={2} tone="secondary" />
+        <button
+          type="button"
+          class="ab-sales-show-all"
+          data-profile-product-category="all"
+          aria-pressed="true"
+          disabled={safeProducts.length === 0}
+        >
+          Mostrar todos
+        </button>
+      </div>
+      <div class:list={["ab-profile-products-filter", safeProducts.length === 0 && "ab-profile-products-filter--empty"]} aria-label="Filtrar productos publicados por categoría">
+        {providerCategoryFilters.length > 0 ? (
+          providerCategoryFilters.map((category) => (
+            <button
+              type="button"
+              class="ab-profile-products-filter__button"
+              data-profile-product-category={category.slug}
+              aria-pressed="false"
+            >
+              <img src={category.icon} alt="" aria-hidden="true" loading="lazy" />
+              <span>{category.name}</span>
+              <strong>{category.count}</strong>
+            </button>
+          ))
+        ) : (
+          <button type="button" class="ab-profile-products-filter__button" disabled>
+            <span>{safeProducts.length === 0 ? "Sin productos publicados" : "Sin categorías"}</span>
+          </button>
+        )}
+      </div>
+      <p class="ab-muted-text ab-profile-products-filter__status" data-profile-products-status aria-live="polite"></p>
       {safeProducts.length === 0 ? (
         <div class="ab-cart-empty">
           <p>Este proveedor todavía no publicó productos.</p>
         </div>
       ) : (
-        <div class="ab-provider-products-grid">
+        <div class="ab-provider-products-grid ab-transaction-list ab-catalog-products-list ab-profile-products-list">
           {safeProducts.map((product) => (
             <article
               class="ab-provider-product-card"
@@ -159,6 +218,7 @@ const shortId = (value) => {
               data-provider={product.seller_name || sellerName || "Vendedor"}
               data-currency={product.currency || "ARS"}
               data-delivery={serializeDelivery(product.delivery_methods)}
+              data-category-slug={resolveProductCategory(product)?.slug || ""}
               data-cart-id={product.id || ""}
             >
               <img
@@ -167,17 +227,15 @@ const shortId = (value) => {
                 alt={product.title || "Producto"}
                 loading="lazy"
               />
-              <div class="ab-provider-product-card__meta">
-                <div>
-                  <p class="ab-provider-product-card__label">Producto</p>
-                  <p class="ab-provider-product-card__code">ID {shortId(product.id)}</p>
+              <div class="ab-category-product-heading">
+                <h2>{product.title || "Sin título"}</h2>
+                <div class="ab-provider-product-card__meta">
+                  <p class="ab-provider-product-card__price">
+                    ${formatPrice(product.price)} <span>{product.currency || "ARS"}</span>
+                  </p>
                 </div>
-                <p class="ab-provider-product-card__price">
-                  ${formatPrice(product.price)} <span>{product.currency || "ARS"}</span>
-                </p>
               </div>
-              <h2>{product.title || "Sin título"}</h2>
-              <p class="ab-provider-product-card__description">{product.description || "Sin descripción"}</p>
+              <p class="ab-provider-product-card__description"><strong>Detalle:</strong> {product.description || "Sin descripción"}</p>
               <ul class="ab-provider-product-card__details">
                 <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
                 <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
@@ -222,7 +280,141 @@ const shortId = (value) => {
   import "../../scripts/comprar-productos.js";
 </script>
 
+<script is:inline>
+  const initProviderProductCategoryFilter = () => {
+    const buttons = Array.from(document.querySelectorAll("[data-profile-product-category]"));
+    const cards = Array.from(document.querySelectorAll(".ab-profile-products-list > .ab-provider-product-card"));
+    const status = document.querySelector("[data-profile-products-status]");
+    if (buttons.length === 0) return;
+
+    const setActiveCategory = (categorySlug) => {
+      const safeSlug = String(categorySlug || "all");
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        const matches = safeSlug === "all" || card.getAttribute("data-category-slug") === safeSlug;
+        card.classList.toggle("ab-profile-product-card--hidden", !matches);
+        if (matches) visibleCount += 1;
+      });
+      buttons.forEach((button) => {
+        const isActive = button.getAttribute("data-profile-product-category") === safeSlug;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+      if (status) {
+        status.textContent = safeSlug === "all" || visibleCount === cards.length
+          ? ""
+          : `Mostrando ${visibleCount} producto${visibleCount === 1 ? "" : "s"} publicado${visibleCount === 1 ? "" : "s"}.`;
+      }
+    };
+
+    buttons.forEach((button) => {
+      if (button.dataset.abProfileCategoryBound === "true") return;
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        setActiveCategory(button.getAttribute("data-profile-product-category"));
+      });
+      button.dataset.abProfileCategoryBound = "true";
+    });
+  };
+
+  initProviderProductCategoryFilter();
+  document.addEventListener("astro:page-load", initProviderProductCategoryFilter);
+  document.addEventListener("astro:after-swap", initProviderProductCategoryFilter);
+  window.addEventListener("pageshow", initProviderProductCategoryFilter);
+</script>
+
 <style>
+  .ab-profile-products-heading--empty {
+    opacity: 0.64;
+  }
+
+  .ab-profile-products-filter {
+    width: min(620px, 100%);
+    margin: 8px auto 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .ab-profile-products-filter__button {
+    min-height: 40px;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 7px 11px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 999px;
+    background: var(--color-panel-tint);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 800;
+    line-height: 1.15;
+    cursor: pointer;
+    transition:
+      transform 0.16s ease,
+      border-color 0.16s ease,
+      background 0.16s ease,
+      box-shadow 0.16s ease,
+      opacity 0.16s ease;
+  }
+
+  .ab-profile-products-filter__button img {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    object-fit: contain;
+  }
+
+  .ab-profile-products-filter__button strong {
+    min-width: 22px;
+    height: 22px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(22, 199, 132, 0.16);
+    color: var(--color-link);
+    font-size: 0.74rem;
+    font-weight: 900;
+  }
+
+  .ab-profile-products-filter__button:hover,
+  .ab-profile-products-filter__button:focus-visible,
+  .ab-profile-products-filter__button.is-active {
+    border-color: rgba(22, 199, 132, 0.55);
+    background: var(--glass-green-bg);
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+  }
+
+  .ab-profile-products-filter__button:hover,
+  .ab-profile-products-filter__button:focus-visible {
+    transform: translateY(-1px);
+  }
+
+  .ab-profile-products-filter__button:disabled,
+  .ab-profile-products-filter--empty .ab-profile-products-filter__button {
+    border-color: rgba(107, 114, 128, 0.24);
+    background: rgba(107, 114, 128, 0.12);
+    color: var(--color-text-muted);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.75;
+    transform: none;
+  }
+
+  .ab-profile-products-filter__status {
+    min-height: 1.2em;
+    margin: -6px auto 12px;
+    text-align: center;
+  }
+
+  .ab-profile-product-card--hidden {
+    display: none !important;
+  }
+
   .ab-provider-profile__meta {
     width: min(620px, 100%);
     margin: 14px auto 22px;
@@ -301,6 +493,10 @@ const shortId = (value) => {
   @media (max-width: 620px) {
     .ab-provider-profile__meta {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ab-provider-products-grid.ab-transaction-list.ab-profile-products-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) .ab-provider-product-card__price {
+      font-size: 1.45rem;
     }
   }
 </style>

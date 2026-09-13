@@ -51,7 +51,7 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#39;");
 
 /* Muestra modal de bienvenida por 4 segundos. */
-const showWelcomeModal = (name) =>
+const showWelcomeModal = (name, avatarUrl) =>
   new Promise((resolve) => {
     const safeName = escapeHtml(name);
     const modal = document.createElement("div");
@@ -62,12 +62,23 @@ const showWelcomeModal = (name) =>
       <div class="ab-orders-modal__backdrop"></div>
       <div class="ab-orders-modal__panel ab-auth-welcome" role="document">
         <div class="ab-auth-welcome__mark" aria-hidden="true">
-          <img src="/Logo_Final.webp" alt="" />
+          <span class="ab-auth-welcome__initial">${escapeHtml(String(name).trim().charAt(0).toUpperCase() || "U")}</span>
         </div>
         <h2>Hola, ${safeName}</h2>
         <p>Qué bueno verte de nuevo.</p>
       </div>
     `;
+    const mark = modal.querySelector(".ab-auth-welcome__mark");
+    if (avatarUrl && mark) {
+      const avatar = document.createElement("img");
+      avatar.alt = "";
+      avatar.addEventListener("load", () => {
+        mark.querySelector(".ab-auth-welcome__initial")?.remove();
+      });
+      avatar.addEventListener("error", () => avatar.remove());
+      avatar.src = avatarUrl;
+      mark.appendChild(avatar);
+    }
     document.body.appendChild(modal);
     window.setTimeout(() => {
       modal.remove();
@@ -110,7 +121,7 @@ const handleLoginSubmit = async (event) => {
     postAudit("login_success").catch(() => {});
     const displayName = await resolveDisplayName(data?.session ?? { user: data?.user });
     feedback.textContent = `Listo. Bienvenido, ${displayName}.`;
-    await showWelcomeModal(displayName);
+    await showWelcomeModal(displayName, data?.session?.user?.user_metadata?.avatar_url || data?.user?.user_metadata?.avatar_url);
     window.location.replace(returnTo);
   } catch (err) {
     const message =

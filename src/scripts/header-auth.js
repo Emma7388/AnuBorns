@@ -1,3 +1,4 @@
+import { getPendingSaleItems } from "../lib/salePendingAction.js";
 /* Header: gestión de sesión, avatar, logout y sincronización de carrito. */
 import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
@@ -247,7 +248,7 @@ const refreshSalesNotification = async (session) => {
     }
 
     const items = payload.items;
-    const latestCursor = getSalesNotificationCursor(items);
+    const latestCursor = getSalesNotificationCursor(getPendingSaleItems(items));
     if (!latestCursor) {
       setSalesNotificationVisible(false);
       return;

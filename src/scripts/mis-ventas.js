@@ -1,3 +1,4 @@
+import { getNextFulfillmentAction } from "../lib/salePendingAction.js";
 /* Mis ventas: render de productos publicados por el usuario. */
 import { supabase } from "../lib/supabaseClient";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
@@ -331,23 +332,6 @@ const showSalesStatusToast = (message) => {
     salesStatusToast?.classList.remove("is-visible");
     salesStatusToastTimer = 0;
   }, 3000);
-};
-
-const getNextFulfillmentAction = (status, shippingRequested) => {
-  const raw = String(status ?? "").trim();
-  if (shippingRequested) {
-    if (!raw || raw === "pending" || raw === "requested") {
-      return { status: "preparing", label: "Preparar envío" };
-    }
-    if (raw === "preparing") return { status: "shipped", label: "Marcar enviado" };
-    if (raw === "delivered") return { status: "completed", label: "Completar circuito" };
-    return null;
-  }
-  if (!raw || raw === "pending" || raw === "pickup_pending") {
-    return { status: "ready_for_pickup", label: "Listo para retirar" };
-  }
-  if (raw === "picked_up") return { status: "completed", label: "Completar circuito" };
-  return null;
 };
 
 const formatFulfillmentActionLabel = (status, shippingRequested) => {
@@ -735,7 +719,7 @@ const renderSoldProducts = (products) => {
       const isCompleted = !nextAction;
       const isLatestSale = index === 0;
       const isPendingDispatch = Boolean(saleOrderId) && !isCompleted;
-      card.className = `ab-provider-product-card ab-sales-product-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
+      card.className = `ab-provider-product-card ab-sales-product-card ab-sale-summary-card ${isPendingDispatch ? "ab-sale-card--pending" : ""}`.trim();
       card.dataset.salePendingDispatch = isPendingDispatch ? "true" : "false";
       const safeBuyerName = escapeHtml(sale.buyerName || "");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
@@ -756,17 +740,19 @@ const renderSoldProducts = (products) => {
           alt="${sale.title}"
           loading="lazy"
         />
-        <div class="ab-provider-product-card__meta">
-          <div>
-            <p class="ab-provider-product-card__label">${statusBadge}</p>
-            <p class="ab-provider-product-card__code">Orden ${safeOrderId || "N/A"}</p>
+        <div class="ab-category-product-heading">
+          <h2>${sale.title}</h2>
+          <div class="ab-provider-product-card__meta">
+            <p class="ab-provider-product-card__price">
+              $${formatPrice(sale.subtotal)} <span>${sale.currency}</span>
+            </p>
           </div>
-          <p class="ab-provider-product-card__price">
-            $${formatPrice(sale.subtotal)} <span>${sale.currency}</span>
-          </p>
         </div>
-        <h2>${sale.title}</h2>
-        <p class="ab-provider-product-card__description">Fecha: ${formatDate(sale.soldAt)}</p>
+        <div class="ab-sale-summary-card__status">
+          <p class="ab-provider-product-card__label">${statusBadge}</p>
+          <p class="ab-provider-product-card__code">Orden ${safeOrderId || "N/A"}</p>
+          <p class="ab-provider-product-card__description">Fecha: ${formatDate(sale.soldAt)}</p>
+        </div>
         <ul class="ab-provider-product-card__details">
           ${
             safeBuyerName
@@ -922,20 +908,19 @@ const renderMyProducts = (products) => {
         alt="${safeTitle}"
         loading="lazy"
       />
-      <div class="ab-provider-product-card__meta">
-        <div>
-          <p class="ab-provider-product-card__label">Producto</p>
-          <p class="ab-provider-product-card__code">ID ${shortId}</p>
+      <div class="ab-category-product-heading">
+        <h2>${safeTitle}</h2>
+        <div class="ab-provider-product-card__meta">
+          <p class="ab-provider-product-card__price">
+            $${formatPrice(product.price)} <span>${safeCurrency}</span>
+          </p>
         </div>
-        <p class="ab-provider-product-card__price">
-          $${formatPrice(product.price)} <span>${safeCurrency}</span>
-        </p>
       </div>
-      <h2>${safeTitle}</h2>
       <p class="ab-provider-product-card__description">
-        ${safeDescription}
+        <strong>Detalle:</strong> ${safeDescription}
       </p>
       <ul class="ab-provider-product-card__details">
+        <li>ID: <strong>${shortId}</strong></li>
         <li>Fecha: <strong>${formatDate(product.created_at)}</strong></li>
         <li>Ubicación: <strong>${safeLocation}</strong></li>
         ${safePickupAddress ? `<li>Dirección: <strong>${safePickupAddress}</strong></li>` : ""}

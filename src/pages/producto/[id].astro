@@ -74,7 +74,6 @@ const shortId = (value) => {
 <MainLayout title={current?.title ? `Producto: ${current.title}` : "Producto"} backHref="/comprar">
   {current ? (
     <section class="ab-dark-panel ab-provider-products-panel">
-      <p class="ab-eyebrow">Detalle de producto</p>
       <article
         class="ab-provider-product-card ab-provider-product-card--detail"
         data-user-id={current.user_id || ""}
@@ -94,14 +93,17 @@ const shortId = (value) => {
         />
         <div class="ab-provider-product-card__meta">
           <div>
-            <p class="ab-provider-product-card__label">Proveedor</p>
-            <p class="ab-provider-product-card__code">{current.seller_name || "Proveedor"}</p>
+            <p class="ab-provider-product-card__code">
+              {providerHref ? (
+                <a class="ab-product-detail-seller" href={providerHref}>{current.seller_name || "Proveedor"}</a>
+              ) : current.seller_name || "Proveedor"}
+            </p>
+            <p class="ab-provider-product-card__label">ID {shortId(current.id)}</p>
           </div>
           <p class="ab-provider-product-card__price">
             ${formatPrice(current.price)} <span>{current.currency || "ARS"}</span>
           </p>
         </div>
-        <p class="ab-provider-product-card__code">ID {shortId(current.id)}</p>
         <h2>{current.title || "Producto sin título"}</h2>
         <p class="ab-provider-product-card__description">{current.description || "Sin descripción."}</p>
         <ul class="ab-provider-product-card__details">
@@ -111,12 +113,6 @@ const shortId = (value) => {
           <li>Entrega: <strong>{formatDelivery(current.delivery_methods)}</strong></li>
         </ul>
         <div class="ab-provider-product-card__actions">
-          {providerHref ? (
-            <a class="ab-featured-products-provider" href={providerHref}>
-              <img src="/icons/proveedor.svg" alt="" aria-hidden="true" />
-              <span>Ver proveedor</span>
-            </a>
-          ) : null}
           <button
             type="button"
             class="ab-provider-product-card__add"
@@ -144,12 +140,12 @@ const shortId = (value) => {
 <style>
   .ab-provider-product-card--detail {
     margin: 0 auto;
-    width: min(100%, 680px);
+    width: min(100%, 760px);
     max-width: none;
     height: auto;
     min-height: 0;
     overflow: visible;
-    padding: 14px;
+    padding: 12px;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__image {
@@ -164,6 +160,7 @@ const shortId = (value) => {
     display: block;
     font-size: clamp(1.35rem, 5.4vw, 1.85rem);
     line-height: 1.12;
+    text-align: left;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__description,
@@ -199,13 +196,18 @@ const shortId = (value) => {
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__label {
-    font-size: 11px;
+    margin-top: 4px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__meta {
     align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 6px;
+    gap: 16px;
+    margin-bottom: 4px;
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__meta .ab-provider-product-card__code {
@@ -216,22 +218,21 @@ const shortId = (value) => {
     line-height: 1.08;
   }
 
-  .ab-provider-product-card--detail .ab-provider-product-card__price {
-    flex: 0 0 auto;
-    margin-left: auto;
-    padding: 7px 11px;
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 999px;
-    background: var(--color-panel-tint-strong);
-    font-size: clamp(1.25rem, 5.5vw, 1.75rem);
-    font-weight: 900;
-    line-height: 1;
-    white-space: nowrap;
+  .ab-product-detail-seller {
+    color: inherit;
+    text-decoration: none;
   }
 
-  .ab-provider-product-card--detail .ab-provider-product-card__price span {
-    font-size: 0.62em;
-    font-weight: 800;
+  .ab-product-detail-seller:hover,
+  .ab-product-detail-seller:focus-visible {
+    color: var(--color-link);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .ab-provider-product-card--detail .ab-provider-product-card__price {
+    margin-left: auto;
+    font-size: clamp(1.25rem, 5.5vw, 1.75rem);
   }
 
   .ab-provider-product-card--detail .ab-provider-product-card__actions {
@@ -241,14 +242,13 @@ const shortId = (value) => {
     flex-wrap: wrap;
   }
 
-  .ab-provider-product-card--detail .ab-featured-products-provider,
   .ab-provider-product-card--detail .ab-provider-product-card__add {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    flex: 1 1 180px;
-    width: auto;
+    flex: 1 1 100%;
+    width: 100%;
     max-width: none;
     height: var(--product-card-button-height);
     min-height: var(--product-card-button-height);
@@ -256,17 +256,16 @@ const shortId = (value) => {
 
   @media (min-width: 560px) {
     .ab-provider-product-card--detail {
-      width: min(100%, 920px);
+      width: min(100%, 980px);
       display: grid;
-      grid-template-columns: minmax(220px, 42%) minmax(0, 1fr);
+      grid-template-columns: minmax(260px, 40%) minmax(0, 1fr);
       grid-template-areas:
         "image meta"
-        "image code"
         "image title"
         "image description"
         "image details"
         "image actions";
-      gap: 4px 16px;
+      gap: 8px 18px;
       align-items: start;
       align-content: start;
     }
@@ -285,20 +284,14 @@ const shortId = (value) => {
     }
 
     .ab-provider-product-card--detail .ab-provider-product-card__price {
-      font-size: clamp(1.25rem, 2.1vw, 1.75rem);
-    }
-
-    .ab-provider-product-card--detail > .ab-provider-product-card__code {
-      grid-area: code;
-      margin: 0;
-      font-size: 13px;
+      font-size: 1.9rem;
     }
 
     .ab-provider-product-card--detail h2 {
       grid-area: title;
       margin: 0;
       align-self: start;
-      font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+      font-size: 1.85rem;
     }
 
     .ab-provider-product-card--detail .ab-provider-product-card__description {

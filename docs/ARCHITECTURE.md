@@ -1,6 +1,6 @@
 # Guía de arquitectura
 
-Actualizado el 6 de septiembre de 2026.
+Actualizado el 12 de septiembre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
@@ -23,6 +23,9 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/components/Footer.astro`: pie de página y navegación móvil.
 - `src/components/ActionSwitch.astro`: acceso a productos en los flujos de compra y venta.
 - `src/components/CategoryGrid.astro`: grilla dinámica de categorías de producto.
+- `src/components/DeferredListControls.astro`: controles de carga diferida y fechas; evita búsquedas sin fechas y permite ocultar encabezados repetidos.
+- `src/components/ConfirmationModal.astro`: estructura común de confirmación en carrito, checkout y ventas, conservando los identificadores de eventos.
+- `ab-transaction-list` en `global.css`: presentación compartida de compras y ventas, independiente de las tarjetas compactas del catálogo.
 
 ### Datos y lógica
 
@@ -32,6 +35,13 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
 - `src/lib/saleDispatches.js` y `src/lib/fulfillmentStatus.js`: estados de venta, retiro y entrega.
+- `src/lib/purchaseDetail.js`: HTML de detalle de compra compartido por historial y confirmación; escape de contenido, vendedor, referencia y presentación de cancelaciones.
+- `src/lib/purchaseDetailStyles.js`: estilo imprimible compartido por detalles de compra y venta.
+- El detalle de venta se construye con los datos cargados por la API autenticada de ventas; no abre la publicación pública del producto vendido.
+
+### Verificación
+
+`node --test tests/purchaseDetail.test.mjs` valida referencias, cancelaciones, cantidades, datos faltantes y escape de contenido. La integración con MP, el build y la revisión visual requieren verificaciones adicionales; consultar el README y la continuidad de producción.
 
 ### Flujos visibles
 

@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
+Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -15,11 +15,18 @@ Actualizado al 15 de agosto de 2026 para la rama `V0.7`.
 
 ## Componentes
 
+- `src/components/DeferredListControls.astro`: filtros compartidos de compras, ventas y publicaciones; habilitación de Buscar por fecha y mensaje inicial opcional.
+- `src/components/ConfirmationModal.astro`: contenedor compartido de confirmaciones de carrito, checkout y eliminación de publicaciones.
+
 - `src/components/Header.astro`: barra superior con estado invitado/autenticado, carrito, avatar y modal de logout.
 - `src/components/Footer.astro`: pie global con navegación inferior mobile y CTA volver.
 - `src/components/CategoryGrid.astro`: grilla de categorías de productos con links dinámicos.
 
 ## Datos y utilidades
+
+- `src/lib/purchaseDetail.js`: generación única del detalle imprimible de compra; formato de pago compartido con el historial.
+- `src/lib/purchaseDetailStyles.js`: presentación del detalle de compra y venta, responsive e imprimible.
+- `tests/purchaseDetail.test.mjs`: regresiones del documento compartido; ejecutar con `node --test tests/purchaseDetail.test.mjs`.
 
 - `src/data/categories.js`: catálogo fuente de categorías (nombre, slug, ícono).
 - `src/lib/supabaseClient.js`: cliente Supabase browser con validación de variables públicas.

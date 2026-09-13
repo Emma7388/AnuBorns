@@ -34,6 +34,24 @@ const getProviderHref = (item) => {
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
 
+const formatDate = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const formatDelivery = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return "No especificada";
+  const labels = value.map((item) => {
+    if (item === "retiro") return "Retiro";
+    if (item === "envio") return "Envío";
+    return String(item ?? "").trim();
+  });
+  return labels.filter(Boolean).join(" + ") || "No especificada";
+};
+
+
 const AUTOPLAY_MS = 4_200;
 
 const getFeaturedCards = (section) =>
@@ -44,10 +62,28 @@ const createCarouselButton = (direction) => {
   const isPrev = direction === "prev";
   button.type = "button";
   button.className = `ab-featured-products-nav ab-featured-products-nav--${direction}`;
-  button.setAttribute("aria-label", isPrev ? "Ver vendedor destacado anterior" : "Ver siguiente vendedor destacado");
+  button.setAttribute("aria-label", isPrev ? "Ver producto destacado anterior" : "Ver siguiente producto destacado");
   button.setAttribute(isPrev ? "data-featured-products-prev" : "data-featured-products-next", "");
   button.innerHTML = `<img src="/icons/${isPrev ? "atras2" : "adelante"}.svg" alt="" aria-hidden="true" />`;
   return button;
+};
+
+const createSellerLink = (sellerUserId) => {
+  const providerLink = document.createElement("a");
+  providerLink.className = "ab-featured-seller-link";
+  providerLink.href = sellerUserId ? withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`) : "#";
+  providerLink.innerHTML = "<span>A la venta por <strong>Proveedor</strong></span>";
+  if (!sellerUserId) providerLink.setAttribute("aria-disabled", "true");
+  return providerLink;
+};
+
+const createDetailLink = (productId) => {
+  const detailLink = document.createElement("a");
+  detailLink.className = "ab-featured-products-detail";
+  detailLink.href = productId ? withReturnPath(`/producto/${encodeURIComponent(productId)}`) : "#";
+  detailLink.innerHTML = '<img src="/icons/detalle.svg" alt="" aria-hidden="true" /><span>Detalle</span>';
+  if (!productId) detailLink.setAttribute("aria-disabled", "true");
+  return detailLink;
 };
 
 const ensureFeaturedCarouselMarkup = (section) => {
@@ -62,24 +98,11 @@ const ensureFeaturedCarouselMarkup = (section) => {
     if (!addButton) return;
     const sellerUserId = String(card.dataset.userId ?? "").trim();
     const productId = String(card.dataset.cartId ?? "").trim();
-    const providerLink = document.createElement("a");
-    providerLink.className = "ab-featured-products-provider";
-    providerLink.href = sellerUserId ? withReturnPath(`/proveedor-publico/${encodeURIComponent(sellerUserId)}`) : "#";
-    providerLink.innerHTML = '<img src="/icons/proveedor.svg" alt="" aria-hidden="true" /><span>Proveedor</span>';
-    if (!sellerUserId) providerLink.setAttribute("aria-disabled", "true");
-    const detailLink = document.createElement("a");
-    detailLink.className = "ab-featured-products-detail";
-    detailLink.href = productId ? withReturnPath(`/producto/${encodeURIComponent(productId)}`) : "#";
-    detailLink.innerHTML = '<img src="/icons/detalle.svg" alt="" aria-hidden="true" /><span>Detalle</span>';
-    if (!productId) detailLink.setAttribute("aria-disabled", "true");
-    const links = document.createElement("div");
-    links.className = "ab-featured-products-links";
     const actions = document.createElement("div");
-    actions.className = "ab-featured-products-actions";
+    actions.className = "ab-provider-product-card__actions ab-provider-product-card__actions--split ab-featured-products-actions";
+    card.insertBefore(createSellerLink(sellerUserId), addButton);
     card.insertBefore(actions, addButton);
-    links.appendChild(providerLink);
-    links.appendChild(detailLink);
-    actions.appendChild(links);
+    actions.appendChild(createDetailLink(productId));
     actions.appendChild(addButton);
   });
 
@@ -204,6 +227,7 @@ const renderFeaturedSection = (section, items) => {
     const providerHref = getProviderHref(item);
     const sellerUserId = String(item?.sellerUserId ?? "").trim();
     const productId = String(item?.productId ?? "").trim();
+    const pickupAddress = String(item?.pickupAddress ?? "").trim();
     const card = document.createElement("article");
     card.className = "ab-provider-product-card";
     card.dataset.userId = sellerUserId;
@@ -215,49 +239,49 @@ const renderFeaturedSection = (section, items) => {
     card.dataset.currency = String(item?.currency ?? "ARS");
     card.dataset.delivery = serializeDelivery(item?.deliveryMethods);
     card.innerHTML = `
+      <a
+        class="ab-featured-seller-link"
+        href="${escapeHtml(providerHref)}"
+        ${sellerUserId ? "" : 'aria-disabled="true"'}
+      >
+        <span>Vendedor: <strong>${escapeHtml(item?.sellerName ?? "Proveedor")}</strong></span>
+      </a>
+      <div class="ab-featured-product-body">
       <img
         class="ab-provider-product-card__image"
         src="${escapeHtml(item?.imageUrl ?? "/logo2.svg")}"
         alt="${escapeHtml(item?.title ?? "Producto")}"
         loading="lazy"
       />
-      <a href="${href}" class="ab-featured-card-link" ${sellerUserId || productId ? "" : 'aria-disabled="true"'}>
-        <div class="ab-provider-product-card__meta">
-          <div>
-            <p class="ab-provider-product-card__label">
-              <img src="/icons/destacado.svg" alt="" aria-hidden="true" />
-              <span>Vendedor destacado</span>
-            </p>
-            <p class="ab-provider-product-card__code">${escapeHtml(item?.sellerName ?? "Proveedor")}</p>
-          </div>
-          <p class="ab-provider-product-card__price">
-            $${formatPrice(item?.price ?? 0)} <span>${escapeHtml(item?.currency ?? "ARS")}</span>
-          </p>
-        </div>
+      <div class="ab-category-product-heading">
         <h2>${escapeHtml(item?.title ?? "Producto")}</h2>
-        <p class="ab-provider-product-card__description">
-          ${escapeHtml(item?.description || "Sin descripción")}
+        <div class="ab-provider-product-card__meta">
+
+        <p class="ab-provider-product-card__price">
+          $${formatPrice(item?.price ?? 0)} <span>${escapeHtml(item?.currency ?? "ARS")}</span>
         </p>
-      </a>
-      <div class="ab-featured-products-actions">
-        <div class="ab-featured-products-links">
-          <a
-            class="ab-featured-products-provider"
-            href="${providerHref}"
-            ${sellerUserId ? "" : 'aria-disabled="true"'}
-          >
-            <img src="/icons/proveedor.svg" alt="" aria-hidden="true" />
-            <span>Proveedor</span>
-          </a>
-          <a
-            class="ab-featured-products-detail"
-            href="${href}"
-            ${productId ? "" : 'aria-disabled="true"'}
-          >
-            <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
-            <span>Detalle</span>
-          </a>
-        </div>
+      </div>
+
+      </div>
+      <p class="ab-provider-product-card__description"><strong>Detalle:</strong>
+        ${escapeHtml(item?.description || "Sin descripción")}
+      </p>
+      <ul class="ab-provider-product-card__details">
+        <li>Fecha: <strong>${escapeHtml(formatDate(item?.createdAt))}</strong></li>
+        <li>Ubicación: <strong>${escapeHtml(item?.location || "Sin especificar")}</strong></li>
+        ${pickupAddress ? `<li>Dirección: <strong>${escapeHtml(pickupAddress)}</strong></li>` : ""}
+        <li>Entrega: <strong>${escapeHtml(formatDelivery(item?.deliveryMethods))}</strong></li>
+      </ul>
+
+      <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split ab-featured-products-actions">
+        <a
+          class="ab-featured-products-detail"
+          href="${escapeHtml(href)}"
+          ${productId ? "" : 'aria-disabled="true"'}
+        >
+          <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+          <span>Detalle</span>
+        </a>
         <button
           type="button"
           class="ab-provider-product-card__add"
@@ -267,6 +291,7 @@ const renderFeaturedSection = (section, items) => {
           <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
           <span>Enviar al carrito</span>
         </button>
+      </div>
       </div>
     `;
     grid.appendChild(card);
@@ -311,13 +336,13 @@ const loadFeaturedSection = async (section) => {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      status.textContent = "No se pudieron cargar los vendedores destacados.";
+      status.textContent = "No se pudieron cargar los productos destacados.";
       return;
     }
     renderFeaturedSection(section, Array.isArray(payload?.items) ? payload.items : []);
   } catch (error) {
     if (error?.name === "AbortError") return;
-    status.textContent = "No se pudieron cargar los vendedores destacados.";
+    status.textContent = "No se pudieron cargar los productos destacados.";
   } finally {
     if (section.__abFeaturedController === controller) {
       delete section.__abFeaturedController;

@@ -40,8 +40,13 @@ if (!safePrefix) throw new Error("DeferredListControls requiere idPrefix.");
     });
   };
 
-  document.addEventListener("input", updateSearchButtons);
-  document.addEventListener("change", updateSearchButtons);
+  const handleDateChange = (event: Event) => {
+    if (event.target instanceof HTMLInputElement && event.target.closest(".ab-sales-date-filter")) {
+      updateSearchButtons();
+    }
+  };
+  document.addEventListener("input", handleDateChange);
+  document.addEventListener("change", handleDateChange);
   document.addEventListener("click", (event) => {
     if (event.target instanceof Element && event.target.closest(".ab-sales-date-filter__clear, .ab-sales-show-all")) {
       // Espera a que los controles terminen de limpiar las fechas.

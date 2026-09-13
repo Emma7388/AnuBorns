@@ -1,6 +1,7 @@
 /* Interfaz del carrito: render, acciones y navegación. */
 import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
+import { getCurrentInternalPath, withReturnPath } from "../lib/internalNavigation.js";
 import { fetchUserProfile } from "../lib/userProfile";
 import {
   SHIPPING_FEE,
@@ -214,6 +215,10 @@ const renderCart = async () => {
       const safeImage = escapeHtml(image);
       const safeCurrency = escapeHtml(currency);
       const safeSelectedDelivery = escapeHtml(selectedDeliveryLabel);
+      const productId = String(item.product_id ?? "").trim();
+      const productHref = productId
+        ? withReturnPath(`/producto/${encodeURIComponent(productId)}`, getCurrentInternalPath(window.location))
+        : "";
 
       const row = document.createElement("article");
       row.className = "ab-cart-item";
@@ -228,6 +233,10 @@ const renderCart = async () => {
           </ul>
         </div>
         <div class="ab-cart-item__actions">
+          ${productHref ? `<a class="ab-provider-product-card__button ab-provider-product-card__button--ghost" href="${escapeHtml(productHref)}">
+            <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+            <span>Ver producto</span>
+          </a>` : ""}
           <button class="ab-cart-item__remove" type="button" data-action="remove" aria-label="Quitar producto" title="Quitar producto">
             <img src="/icons/borrar.svg" alt="" aria-hidden="true" />
           </button>

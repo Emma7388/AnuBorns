@@ -166,12 +166,12 @@ const resolveCategoryName = (product) => {
         {sellerEntries.map(([sellerName, items]) => (
           <article class="ab-order-card" data-seller-search={sellerName.toLowerCase()}>
             <div class="ab-order-card__header">
-              <div>
-                <p class="ab-order-card__label">Vendedor</p>
+              <div class="ab-category-seller-heading">
+                <p class="ab-order-card__label">Vendedor:</p>
                 <p class="ab-order-card__date ab-order-card__seller-name">{sellerName}</p>
               </div>
             </div>
-            <div class="ab-card-row" role="list">
+            <div class="ab-card-row ab-provider-products-grid ab-transaction-list ab-catalog-products-list" role="list">
               {items.map((product) => (
                 <article
                   class="ab-provider-product-card"
@@ -193,18 +193,16 @@ const resolveCategoryName = (product) => {
                     alt={product.title}
                     loading="lazy"
                   />
-                  <div class="ab-provider-product-card__meta">
-                    <div>
-                      <p class="ab-provider-product-card__label">Producto</p>
-                      <p class="ab-provider-product-card__code">ID {shortId(product.id)}</p>
-                    </div>
+                  <div class="ab-category-product-heading">
+                    <h2>{product.title}</h2>
+                    <div class="ab-provider-product-card__meta">
                     <p class="ab-provider-product-card__price">
                       ${formatPrice(product.price)} <span>{product.currency || "ARS"}</span>
                     </p>
+                    </div>
                   </div>
-                  <h2>{product.title}</h2>
                   <p class="ab-provider-product-card__description">
-                    {product.description || "Sin descripción"}
+                    <strong>Detalle:</strong> {product.description || "Sin descripción"}
                   </p>
                   <ul class="ab-provider-product-card__details">
                     <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
@@ -248,6 +246,28 @@ const resolveCategoryName = (product) => {
 </script>
 
 <style>
+  .ab-category-seller-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ab-category-seller-heading .ab-order-card__label {
+    margin: 0;
+    flex-shrink: 0;
+    font-size: 1rem;
+  }
+
+  .ab-category-seller-heading .ab-order-card__seller-name {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1.2;
+    color: var(--color-text);
+  }
+
   :global(.ab-list-panel .ab-order-card__seller-name),
   :global(.ab-list-panel .ab-provider-product-card h2),
   :global(.ab-list-panel .ab-provider-product-card__code),

@@ -81,7 +81,7 @@ const isSell = mode === "sell";
   }
 
   .ab-buy-switch__item {
-    position: static;
+    position: relative;
     padding-bottom: 8px;
     margin-bottom: -8px;
   }
@@ -129,11 +129,36 @@ const isSell = mode === "sell";
     background: var(--action-secondary);
   }
 
+  .ab-buy-switch:not(.ab-buy-switch--sell) .ab-buy-switch__item::before {
+    content: "";
+    position: absolute;
+    inset: 2px -18px -2px;
+    z-index: -1;
+    border-radius: 22px;
+    background:
+      radial-gradient(ellipse at center, rgba(121, 255, 211, 0.5) 0%, rgba(32, 185, 141, 0.32) 42%, transparent 72%);
+    filter: blur(12px);
+    opacity: 0.72;
+    pointer-events: none;
+    transform: scale(0.96);
+    transition:
+      opacity 0.18s ease,
+      transform 0.18s ease,
+      filter 0.18s ease;
+  }
+
   .ab-buy-switch__trigger--products:hover,
   .ab-buy-switch__trigger--products:focus-visible {
     filter: brightness(1.04);
     transform: translateY(-2px);
     box-shadow: var(--button-elevated-shadow-hover);
+  }
+
+  .ab-buy-switch:not(.ab-buy-switch--sell) .ab-buy-switch__item:hover::before,
+  .ab-buy-switch:not(.ab-buy-switch--sell) .ab-buy-switch__item:focus-within::before {
+    opacity: 0.95;
+    filter: blur(14px);
+    transform: scale(1);
   }
 
   .ab-buy-switch__menu {

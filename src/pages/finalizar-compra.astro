@@ -2,14 +2,12 @@
 // Página: checkout y datos de entrega.
 import MainLayout from "../layouts/MainLayout.astro";
 import ConfirmationModal from "../components/ConfirmationModal.astro";
-import TitleBadge from "../components/TitleBadge.astro";
 ---
 
 <MainLayout title="Finalizar compra" backHref="/carrito">
   <!-- Panel principal de checkout -->
   <section class="ab-dark-panel ab-checkout-panel">
-    <p class="ab-eyebrow">Checkout</p>
-    <TitleBadge title="Finalizar compra" icon="/icons/comprar.svg" tone="primary" />
+    <img class="ab-checkout-heading-icon" src="/icons/comprar.svg" alt="Finalizar compra" />
 
     <!-- Estado vacío -->
     <div id="checkout-empty" class="ab-cart-empty">
@@ -82,6 +80,16 @@ import TitleBadge from "../components/TitleBadge.astro";
 </MainLayout>
 
 <!-- Script de checkout -->
+<style>
+  .ab-checkout-heading-icon {
+    display: block;
+    width: 102px;
+    height: 102px;
+    margin: 12px auto;
+    object-fit: contain;
+  }
+</style>
+
 <script>
   import "../scripts/checkout.js";
 </script>

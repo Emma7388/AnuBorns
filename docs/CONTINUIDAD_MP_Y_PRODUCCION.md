@@ -1,9 +1,22 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 9 de septiembre de 2026.
+Documento de traspaso del chat, actualizado el 12 de septiembre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
+
+### Actualización de interfaz y mantenimiento — 12 de septiembre
+
+- El commit local observado al iniciar la revisión fue `ed70f34` (Mejora interfaz de compras y ventas y detalles de operaciones), con árbol limpio. No se verificó el despliegue remoto de ese commit.
+- Se simplificaron encabezados y se ajustaron estados vacíos, controles de fechas y tarjetas compartidas de Compras/Ventas. Buscar queda deshabilitado sin fechas; destildar despacho sin fechas limpia la lista de ventas.
+- Los indicadores de categorías excluyen productos vendidos. Las consultas simultáneas de navegación comparten la solicitud en curso; sigue existiendo un límite de 300 productos recientes.
+- El usuario confirmó que el producto debe ocultarse al aprobarse el pago. El botón de una venta ahora abre el detalle de la operación, no la publicación pública oculta.
+- El documento se presenta como Detalle de compra, con vendedor y referencia corta derivada del UUID; no es una numeración correlativa o fiscal. Se ocultó el identificador de preferencia en el documento.
+- Una cancelación muestra el importe como referencia de la compra cancelada y no presenta retiro/entrega pendientes. No se implementó un flujo de devolución ni se comprobó un reembolso real.
+- El mantenimiento posterior centraliza el documento en `src/lib/purchaseDetail.js`, compartido por `orders.js` y `confirmation.js`; estilos en `purchaseDetailStyles.js`. La venta reutiliza los estilos y conserva su propio contenido.
+- Se añadieron pruebas de documento con `node --test tests/purchaseDetail.test.mjs`. No equivalen a una prueba de pago ni de producción.
+- El usuario ejecuta los builds. El log compartido mostró compilación Astro exitosa seguida de `EPERM` al crear un symlink de una dependencia durante el empaquetado Vercel en Windows; después apareció un cierre de Node. No atribuirlo al SDK de MP ni dar el build completo por aprobado.
+- En este mantenimiento no se modificaron las APIs de pago, OAuth, split, webhooks, credenciales ni migraciones. La investigación de MP indicada a continuación sigue pendiente.
 
 Mercado Pago respondió al usuario con pruebas y, según su resumen, dice que no observa inconvenientes. El mensaje completo y las pruebas TODAVÍA NO se compartieron en este chat. El usuario sospecha que falta configuración fuera de Vercel, porque el problema aparece al configurar el split. NO conocemos el error exacto ni la etapa en que ocurre.
 

@@ -1,4 +1,5 @@
-import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
+import { resolvePurchaseProvider, purchaseProviderGroupKey } from "../lib/purchaseProvider.js";
+import { buildPurchaseDetailHtml, formatOrderPaymentStatus } from "../lib/purchaseDetail.js";
 /* Historial de compras: local o remoto. */
 import { supabase } from "../lib/supabaseClient";
 import {
@@ -175,31 +176,6 @@ const formatShippingStatus = (value, requested) => {
   return labels[statusValue] ?? labels.requested;
 };
 
-const formatOrderPaymentStatus = (value) => {
-  const labels = {
-    approved: "Pago aprobado",
-    pending: "Pago pendiente",
-    rejected: "Pago rechazado",
-    cancelled: "Pago cancelado",
-    refunded: "Pago reembolsado",
-  };
-  const statusValue = String(value ?? "").trim().toLowerCase();
-  return labels[statusValue] ?? "Compra registrada";
-};
-
-const formatInvoiceDateTime = (value) => {
-  if (!value) return "Sin fecha";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Sin fecha";
-  return date.toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 const isOrderPaymentApproved = (order) => {
   const statusValue = String(order?.status ?? "").trim().toLowerCase();
   return !statusValue || statusValue === "approved";
@@ -261,128 +237,11 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#39;");
 
 const toWhatsappDigits = (value) => String(value ?? "").replace(/\D+/g, "");
-const normalizeProviderKey = (value) =>
-  String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
 
 const getFulfillmentMapKey = (orderId, productId) => `${String(orderId ?? "").trim()}::${String(productId ?? "").trim()}`;
 
 const getItemFulfillmentStatus = (fulfillmentMap, orderId, productId, fallbackStatus) =>
   String(fulfillmentMap?.[getFulfillmentMapKey(orderId, productId)]?.fulfillmentStatus ?? fallbackStatus ?? "").trim();
-
-const buildInvoiceItemsRows = (order) => {
-  const items = Array.isArray(order?.order_items) ? order.order_items : [];
-  if (items.length === 0) {
-    return `<tr><td colspan="5" class="muted">Sin productos registrados.</td></tr>`;
-  }
-
-  return items
-    .map((item) => {
-      const qty = Number(item?.qty ?? 1) || 1;
-      const unitPrice = Number(item?.unit_price ?? 0) || 0;
-      const lineTotal = qty * unitPrice;
-      return `
-        <tr>
-          <td>${escapeHtml(item?.name ?? "Producto")}</td>
-          <td>${escapeHtml(item?.provider ?? "Proveedor")}</td>
-          <td class="number">${escapeHtml(qty)}</td>
-          <td class="number">$${formatPrice(unitPrice)}</td>
-          <td class="number">$${formatPrice(lineTotal)}</td>
-        </tr>
-      `;
-    })
-    .join("");
-};
-
-const buildOrderInvoiceHtml = (order) => {
-  const isCancelled = ["cancelled", "canceled"].includes(String(order?.status ?? "").trim().toLowerCase());
-  const providers = [...new Set(
-    (Array.isArray(order?.order_items) ? order.order_items : [])
-      .map((item) => String(item?.provider ?? "").trim())
-      .filter(Boolean),
-  )];
-  const providerHeading = providers.length
-    ? `${providers.length === 1 ? "Vendedor" : "Vendedores"}: ${providers.join(" · ")}`
-    : "Vendedor no informado";
-  const orderId = String(order?.id ?? "").trim();
-  const currency = String(order?.currency ?? "ARS").trim() || "ARS";
-  const paymentStatus = formatOrderPaymentStatus(order?.status);
-  const shippingRequested = Boolean(order?.shipping_requested);
-  const shippingCost = Number(order?.shipping_cost ?? 0) || 0;
-  const shippingAddress = [
-    String(order?.shipping_address ?? "").trim(),
-    String(order?.shipping_city ?? "").trim(),
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const buyerNote = extractBuyerNote(order);
-
-  return `<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Detalle de compra ${escapeHtml(orderId.slice(0, 8).toUpperCase() || "Sin referencia")}</title>
-  <style>${purchaseDetailStyles}</style>
-</head>
-<body>
-  <main>
-    <header>
-      <div>
-        <p class="brand">${escapeHtml(providerHeading)}</p>
-        <h1>Detalle de compra</h1>
-      </div>
-      <div class="meta">
-        <p><strong>Compra</strong> ${orderId ? "#" + escapeHtml(orderId.slice(0, 8).toUpperCase()) : "Sin referencia"}</p>
-        <p class="muted">${escapeHtml(formatInvoiceDateTime(order?.created_at))}</p>
-      </div>
-    </header>
-
-    ${isCancelled ? `<aside class="cancelled-notice"><strong>Pago cancelado</strong><p>El importe corresponde a los productos de esta compra. No es una constancia de cobro ni de reembolso.</p></aside>` : ""}
-
-    <section class="grid" aria-label="Datos de compra">
-      <p class="field"><strong>Estado de pago</strong>${escapeHtml(paymentStatus)}</p>
-      <p class="field"><strong>Moneda</strong>${escapeHtml(currency)}</p>
-      <p class="field"><strong>Entrega</strong>${isCancelled ? "No corresponde · pago cancelado" : shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
-      <p class="field"><strong>Direccion</strong>${escapeHtml(shippingAddress || "No informada")}</p>
-      ${order?.payment_id ? `<p class="field"><strong>Pago</strong>${escapeHtml(order.payment_id)}</p>` : ""}
-    </section>
-
-    <h2>Detalle</h2>
-    <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Vendedor</th>
-          <th class="number">Cant.</th>
-          <th class="number">Unitario</th>
-          <th class="number">Subtotal</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${buildInvoiceItemsRows(order)}
-      </tbody>
-    </table>
-    </div>
-
-    <section class="totals ${isCancelled ? "totals--cancelled" : ""}" aria-label="Totales">
-      <div class="total-row"><span>Envio</span><strong>$${formatPrice(shippingCost)}</strong></div>
-      <div class="total-row"><span>${isCancelled ? "Importe de la compra cancelada" : "Total"}</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
-    </section>
-
-    ${buyerNote ? `<h2>Nota</h2><p>${escapeHtml(buyerNote)}</p>` : ""}
-
-    <div class="actions">
-      <button type="button" onclick="window.print()">Imprimir</button>
-    </div>
-  </main>
-</body>
-</html>`;
-};
 
 const openOrderInvoice = (orderId) => {
   const order = renderedOrdersById.get(orderId);
@@ -398,7 +257,7 @@ const openOrderInvoice = (orderId) => {
   }
 
   invoiceWindow.document.open();
-  invoiceWindow.document.write(buildOrderInvoiceHtml(order));
+  invoiceWindow.document.write(buildPurchaseDetailHtml(order, { buyerNote: extractBuyerNote(order) }));
   invoiceWindow.document.close();
   invoiceWindow.opener = null;
   invoiceWindow.focus();
@@ -747,90 +606,14 @@ const syncLocalOrdersToServer = async (userId) => {
 };
 
 const buildProviderMetaMap = async (history = []) => {
-  const productIds = [
-    ...new Set(
-      history
-        .flatMap((order) => (Array.isArray(order?.order_items) ? order.order_items : []))
-        .map((item) => String(item?.product_id ?? "").trim())
-        .filter(Boolean)
-    ),
-  ];
-
-  const providerNames = [
-    ...new Set(
-      history
-        .flatMap((order) => (Array.isArray(order?.order_items) ? order.order_items : []))
-        .map((item) => String(item?.provider ?? "").trim())
-        .filter(Boolean)
-    ),
-  ];
-
-  if (providerNames.length === 0 && productIds.length === 0) return {};
-
-  const map = {};
-
-  if (productIds.length > 0) {
-    const { data: byProducts, error: byProductsError } = await supabase
-      .from("products")
-      .select("id, seller_name, contact, user_id")
-      .in("id", productIds);
-
-    if (!byProductsError && Array.isArray(byProducts)) {
-      byProducts.forEach((row) => {
-        const provider = String(row?.seller_name ?? "").trim();
-        const phone = toWhatsappDigits(row?.contact);
-        const userId = String(row?.user_id ?? "").trim();
-        const key = normalizeProviderKey(provider);
-        if (!key) return;
-        if (!map[key]) map[key] = { phone: "", userId: "" };
-        if (phone && !map[key].phone) map[key].phone = phone;
-        if (userId && !map[key].userId) map[key].userId = userId;
-      });
-    }
-  }
-
-  if (providerNames.length > 0) {
-    const { data, error } = await supabase
-      .from("products")
-      .select("seller_name, contact, user_id")
-      .in("seller_name", providerNames);
-
-    if (error || !Array.isArray(data)) return map;
-
-    data.forEach((row) => {
-      const provider = String(row?.seller_name ?? "").trim();
-      const phone = toWhatsappDigits(row?.contact);
-      const userId = String(row?.user_id ?? "").trim();
-      const key = normalizeProviderKey(provider);
-      if (!key) return;
-      if (!map[key]) map[key] = { phone: "", userId: "" };
-      if (phone && !map[key].phone) map[key].phone = phone;
-      if (userId && !map[key].userId) map[key].userId = userId;
-    });
-  }
-
-  /* Respaldo amplio para matchear nombres con pequeñas diferencias. */
-  if (Object.keys(map).length === 0 && providerNames.length > 0) {
-    const { data: allProducts, error: allProductsError } = await supabase
-      .from("products")
-      .select("seller_name, contact, user_id")
-      .not("contact", "is", null);
-
-    if (!allProductsError && Array.isArray(allProducts)) {
-      allProducts.forEach((row) => {
-        const provider = String(row?.seller_name ?? "").trim();
-        const phone = toWhatsappDigits(row?.contact);
-        const userId = String(row?.user_id ?? "").trim();
-        const key = normalizeProviderKey(provider);
-        if (!key) return;
-        if (!map[key]) map[key] = { phone: "", userId: "" };
-        if (phone && !map[key].phone) map[key].phone = phone;
-        if (userId && !map[key].userId) map[key].userId = userId;
-      });
-    }
-  }
-
-  return map;
+  const productIds = [...new Set(history
+    .flatMap((order) => Array.isArray(order?.order_items) ? order.order_items : [])
+    .map((item) => String(item?.product_id ?? "").trim()).filter(Boolean))];
+  if (!productIds.length) return {};
+  const { data, error } = await supabase.from("products")
+    .select("id, contact, user_id").in("id", productIds);
+  if (error || !Array.isArray(data)) return {};
+  return Object.fromEntries(data.map((product) => [String(product.id), product]));
 };
 
 const hydrateOrderItemImages = async (history = []) => {
@@ -899,26 +682,24 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
     const shippingPhone = String(order.shipping_phone ?? "").trim();
 
     const itemsByProvider = new Map();
-    items.forEach((item) => {
-      const provider = String(item?.provider ?? "Proveedor").trim() || "Proveedor";
-      const bucket = itemsByProvider.get(provider) ?? [];
+    items.forEach((item, index) => {
+      const key = purchaseProviderGroupKey(item, providerMetaMap, index);
+      const bucket = itemsByProvider.get(key) ?? [];
       bucket.push(item);
-      itemsByProvider.set(provider, bucket);
+      itemsByProvider.set(key, bucket);
     });
 
-    Array.from(itemsByProvider.entries()).forEach(([provider, providerItems]) => {
-      const firstWithUser = providerItems.find((item) => String(item?.provider_user_id ?? "").trim());
-      const firstWithPhone = providerItems.find((item) => toWhatsappDigits(item?.provider_whatsapp));
-      const providerKey = normalizeProviderKey(provider);
-      const providerMeta = providerMetaMap[providerKey] ?? { phone: "", userId: "" };
-      const providerPhone = toWhatsappDigits(firstWithPhone?.provider_whatsapp) || providerMeta.phone || "";
-      const providerUserId = String(firstWithUser?.provider_user_id ?? "").trim() || providerMeta.userId || "";
+    Array.from(itemsByProvider.values()).forEach((providerItems) => {
+      const provider = String(providerItems[0]?.provider ?? "Proveedor").trim() || "Proveedor";
+      const contacts = providerItems.map((item) => resolvePurchaseProvider(item, providerMetaMap));
+      const providerPhone = contacts.find((contact) => contact.phone)?.phone || "";
+      const providerUserId = contacts.find((contact) => contact.userId)?.userId || "";
       const providerProfileHref = providerUserId
         ? `/proveedor-publico/${encodeURIComponent(providerUserId)}?from=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
         : "";
       const waLink = buildWhatsappUrl(provider, providerPhone);
       const card = document.createElement("article");
-      card.className = "ab-provider-product-card ab-order-product-card";
+      card.className = "ab-provider-product-card ab-order-product-card ab-sale-summary-card";
       const coverImage = escapeHtml(String(providerItems[0]?.image ?? "").trim() || "/logo2.svg");
       const pickupProductIds = providerItems
         .filter((item) =>
@@ -968,15 +749,20 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
 
       card.innerHTML = `
         <img class="ab-provider-product-card__image" src="${coverImage}" alt="${escapeHtml(provider)}" loading="lazy" />
-        <div class="ab-provider-product-card__meta">
-          <div>
-            <p class="ab-provider-product-card__label">Compra #${escapeHtml(orderId.slice(0, 8).toUpperCase() || "N/A")}</p>
-            <p class="ab-provider-product-card__code">${orderDate || "Sin fecha"}</p>
+        <div class="ab-category-product-heading">
+          <h2>${providerNameMarkup}</h2>
+          <div class="ab-provider-product-card__meta">
+            <p class="ab-provider-product-card__price" title="${orderPaymentCancelled ? "Importe de la compra cancelada" : "Total de la orden"}">
+              $${formatPrice(order.total_amount ?? 0)} <span>${escapeHtml(currency)}</span>
+            </p>
           </div>
         </div>
-        <h2>${providerNameMarkup}</h2>
-        <ul class="ab-provider-product-card__details">
-          <li>Pago: <strong>${escapeHtml(orderPaymentStatus)}</strong></li>
+        <div class="ab-sale-summary-card__status">
+          <p class="ab-provider-product-card__label">Compra #${escapeHtml(orderId.slice(0, 8).toUpperCase() || "N/A")}</p>
+          <p class="ab-provider-product-card__code">Fecha: ${orderDate || "Sin fecha"}</p>
+          <p class="ab-provider-product-card__description">Pago: ${escapeHtml(orderPaymentStatus)}</p>
+          <p class="ab-provider-product-card__description">${orderPaymentCancelled ? "Importe de la compra cancelada" : "Importe total de la orden"}</p>
+          <ul class="ab-provider-product-card__details">
           ${providerItems
             .map((item) => {
               const price = Number(item?.unit_price ?? 0);
@@ -995,12 +781,16 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
               ? `<li>Entrega: <strong>No corresponde · pago cancelado</strong></li>`
               : providerShippingRequested
               ? `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>
-                 <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>
-                 <li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
-                 ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
+                 <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>`
               : `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>`
           }
-          <li class="ab-order-card__highlight">${orderPaymentCancelled ? "Importe de la compra cancelada:" : "TOTAL:"} <strong>$${formatPrice(order.total_amount ?? 0)} ${escapeHtml(currency)}</strong></li>
+          </ul>
+        </div>
+        <ul class="ab-provider-product-card__details">
+          ${!orderPaymentCancelled && providerShippingRequested
+            ? `<li>Dirección: <strong>${escapeHtml([shippingAddress, shippingCity].filter(Boolean).join(", ") || "Sin dirección")}</strong></li>
+               ${shippingPhone ? `<li>Teléfono: <strong>${escapeHtml(shippingPhone)}</strong></li>` : ""}`
+            : ""}
           ${buyerNote ? `<li class="ab-order-card__highlight ab-order-card__highlight--note">Nota: <strong>${escapeHtml(buyerNote)}</strong></li>` : ""}
         </ul>
         <div class="ab-provider-product-card__actions">
