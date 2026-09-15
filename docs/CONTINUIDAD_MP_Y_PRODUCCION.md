@@ -1,9 +1,19 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 12 de septiembre de 2026.
+Documento de traspaso del chat, actualizado el 14 de septiembre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
+
+### Optimización Supabase y regla de stack — 14 de septiembre
+
+- Stack acordado por el usuario: HTML, CSS, JavaScript y Astro. No incorporar React, Vue, Svelte ni librerías UI salvo pedido explícito.
+- El usuario remarcó que no quiere que el asistente ejecute build ni deploy. El usuario gestiona build, despliegues, commits, pushes y SQL en Supabase.
+- Se agregó `docs/supabase-performance-indexes.sql` con índices idempotentes para consultas reales: productos por vendedor/categoría/fecha, compras por usuario/fecha, checkouts pendientes, ventas por `order_items`, despachos y carritos.
+- Se agregó `docs/supabase-seller-sales-rpc.sql` con la RPC `get_seller_sales_page(...)` para paginar `Mis ventas` desde Postgres.
+- `src/pages/api/my-sales-list.js` intenta usar la RPC y conserva fallback al camino anterior si la función no existe o PostgREST todavía no actualizó schema cache.
+- Verificación local realizada antes de esta actualización documental: `node --test .\tests\*.test.mjs` con 24 tests aprobados y `node --check src\pages\api\my-sales-list.js` aprobado. No se debe presentar esto como build ni deploy.
+- Para aplicar en Supabase: ejecutar primero `docs/supabase-performance-indexes.sql`, luego `docs/supabase-seller-sales-rpc.sql`. Si la RPC no aparece de inmediato: `select pg_notify('pgrst', 'reload schema');`.
 
 ### Actualización de pagos, reembolsos y seguridad — 12 de septiembre
 

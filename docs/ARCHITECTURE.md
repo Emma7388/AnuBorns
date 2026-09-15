@@ -1,8 +1,14 @@
 # Guía de arquitectura
 
-Actualizado el 12 de septiembre de 2026.
+Actualizado el 14 de septiembre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
+
+## Stack acordado
+
+- HTML, CSS, JavaScript y Astro.
+- Sin framework de cliente: no React, Vue, Svelte ni librerías UI salvo decisión explícita del usuario.
+- Mantener CSS propio y scripts del navegador en `src/scripts/` siguiendo los patrones existentes.
 
 ## Backend
 
@@ -11,6 +17,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - Supabase Storage almacena imágenes de productos y avatares.
 - Las rutas de `src/pages/api/` autentican al usuario y usan el cliente admin sólo en el servidor.
 - El checkout permite un vendedor por orden y la preferencia se crea con su conexión Mercado Pago.
+- `src/pages/api/my-sales-list.js` usa la RPC `get_seller_sales_page(...)` si existe en Supabase para paginar ventas desde Postgres, con fallback al camino anterior.
 - El webhook firmado y la sincronización de retorno actualizan el pago de forma idempotente, incluyendo reembolsos y cancelaciones informados por Mercado Pago.
 
 ## Capas principales
@@ -41,6 +48,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/lib/purchaseDetail.js`: HTML de detalle de compra compartido por historial y confirmación; escape de contenido, vendedor, referencia y presentación de cancelaciones/reembolsos.
 - `src/lib/purchaseDetailStyles.js`: estilo imprimible compartido por detalles de compra y venta.
 - El detalle de venta se construye con los datos cargados por la API autenticada de ventas; no abre la publicación pública del producto vendido.
+- `docs/supabase-performance-indexes.sql` y `docs/supabase-seller-sales-rpc.sql` documentan la primera tanda de optimización de consultas Supabase.
 
 ### Verificación
 

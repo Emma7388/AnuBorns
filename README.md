@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 12 de septiembre de 2026 — rama `V0.7`.
+Actualizado al 14 de septiembre de 2026 — rama `V0.7`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones integrales de producción, pruebas reales de reembolsos/split y una decisión definitiva para compras con múltiples vendedores.
 
@@ -28,6 +28,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
+- Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
 
 ### Servicios retirados temporalmente
@@ -45,7 +46,8 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 ## Stack
 
 - Astro 6 con salida server-side y adaptador Vercel.
-- JavaScript y Astro, sin framework de cliente.
+- HTML, CSS, JavaScript y Astro como base del proyecto.
+- Sin framework de cliente: no React, Vue, Svelte ni librerías UI salvo decisión explícita.
 - Supabase Auth, Database, Storage y Realtime.
 - Mercado Pago SDK y Checkout Pro.
 - CSS propio compartido y estilos locales.
@@ -132,6 +134,8 @@ Archivos principales:
 - `src/data/categories.js` funciona como catálogo/fallback local.
 - `src/data/providers.js` contiene datos de demostración utilizados por rutas legacy.
 - Los scripts SQL de `docs/` documentan el esquema y sus ampliaciones incrementales.
+- `docs/supabase-performance-indexes.sql` agrega índices alineados a las consultas reales del marketplace.
+- `docs/supabase-seller-sales-rpc.sql` crea `get_seller_sales_page(...)` para que `Mis ventas` filtre, cuente y pagine en Postgres.
 
 ## Documentación
 
@@ -142,14 +146,25 @@ Archivos principales:
 - `docs/supabase-*.sql`: esquema, migraciones, RLS y funciones de Supabase.
 - `docs/PR_WORKFLOW.md`: criterios para ramas y pull requests.
 
+## Supabase: optimización
+
+Para mejorar consultas frecuentes sin cambiar datos ni policies:
+
+1. Ejecutar `docs/supabase-performance-indexes.sql`.
+2. Ejecutar `docs/supabase-seller-sales-rpc.sql`.
+3. Si PostgREST no ve la función inmediatamente, ejecutar `select pg_notify('pgrst', 'reload schema');`.
+
+`/api/my-sales-list` intenta usar la RPC `get_seller_sales_page(...)`. Si la función todavía no existe en Supabase, el endpoint conserva el camino anterior como fallback para no romper la pantalla.
+
 ## Pendientes prioritarios
 
-1. Mantener el build limpio con variables reales.
-2. Verificar en el ambiente de destino el endurecimiento de OAuth y comercio ya reportado.
-3. Validar el flujo completo de Mercado Pago, comisiones y reembolsos.
-4. Definir la experiencia para carritos multiproveedor.
-5. Migrar los datos mock restantes a Supabase.
-6. Completar pruebas de regresión de productos; mantener servicios/ofertas retirados hasta una decisión explícita de retomarlos.
+1. Ejecutar y verificar en Supabase los SQL de performance y la RPC de ventas.
+2. Mantener el build limpio con variables reales.
+3. Verificar en el ambiente de destino el endurecimiento de OAuth y comercio ya reportado.
+4. Validar el flujo completo de Mercado Pago, comisiones y reembolsos.
+5. Definir la experiencia para carritos multiproveedor.
+6. Migrar los datos mock restantes a Supabase.
+7. Completar pruebas de regresión de productos; mantener servicios/ofertas retirados hasta una decisión explícita de retomarlos.
 
 ## Interfaz de compras y ventas
 
@@ -165,6 +180,7 @@ Archivos principales:
 ## Verificación y despliegue
 
 - `node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs`: regresiones de estados de pago, indicador de ventas, detalle de compra, lectura JSON limitada y OAuth state.
+- `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.
