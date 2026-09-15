@@ -55,6 +55,12 @@ const buildInvoiceItemsRows = (order) => {
     .join("");
 };
 
+const getDeliveryLabel = ({ isCancelled, orderStatus, shippingRequested }) => {
+  if (isCancelled) return "No corresponde - pago cancelado";
+  if (orderStatus === "refund_pending") return "Pausada - reembolso pendiente";
+  return shippingRequested ? "Envío a domicilio" : "Retiro coordinado";
+};
+
 export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
   const orderStatus = normalizePaymentStatus(order?.status);
   const isCancelled = ["cancelled", "rejected", "refunded"].includes(orderStatus);
@@ -65,7 +71,7 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
       .filter(Boolean),
   )];
   const providerHeading = providers.length
-    ? `${providers.length === 1 ? "Vendedor" : "Vendedores"}: ${providers.join(" · ")}`
+    ? `${providers.length === 1 ? "Vendedor" : "Vendedores"}: ${providers.join(" - ")}`
     : "Vendedor no informado";
   const orderId = String(order?.id ?? "").trim();
   const currency = String(order?.currency ?? "ARS").trim() || "ARS";
@@ -73,12 +79,14 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
   const paymentDetail = getReadablePaymentDetail(order?.payment_detail);
   const shippingRequested = Boolean(order?.shipping_requested);
   const shippingCost = Number(order?.shipping_cost ?? 0) || 0;
+  const showShippingCost = shippingRequested && shippingCost > 0;
   const shippingAddress = [
     String(order?.shipping_address ?? "").trim(),
     String(order?.shipping_city ?? "").trim(),
   ]
     .filter(Boolean)
     .join(", ");
+  const deliveryLabel = getDeliveryLabel({ isCancelled, orderStatus, shippingRequested });
 
   return `<!doctype html>
 <html lang="es">
@@ -104,12 +112,12 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
     ${isCancelled || isRefundRelated ? `<aside class="cancelled-notice"><strong>${escapeHtml(paymentStatus)}</strong><p>${isRefundRelated ? "Este comprobante conserva el movimiento de la compra y su estado de devolución." : "El importe corresponde a los productos de esta compra. No es una constancia de cobro ni de reembolso."}</p></aside>` : ""}
 
     <section class="grid" aria-label="Datos de compra">
-      <p class="field"><strong>Estado de pago</strong>${escapeHtml(paymentStatus)}</p>
-      <p class="field"><strong>Moneda</strong>${escapeHtml(currency)}</p>
-      <p class="field"><strong>Entrega</strong>${isCancelled ? "No corresponde · pago cancelado" : orderStatus === "refund_pending" ? "Pausada · reembolso pendiente" : shippingRequested ? "Envio a domicilio" : "Retiro coordinado"}</p>
-      <p class="field"><strong>Direccion</strong>${escapeHtml(shippingAddress || "No informada")}</p>
-      ${order?.payment_id ? `<p class="field"><strong>Pago</strong>${escapeHtml(order.payment_id)}</p>` : ""}
-      ${paymentDetail ? `<p class="field"><strong>Movimiento</strong>${escapeHtml(paymentDetail)}</p>` : ""}
+      <p class="field"><strong>Estado de pago</strong><span>${escapeHtml(paymentStatus)}</span></p>
+      <p class="field"><strong>Moneda</strong><span>${escapeHtml(currency)}</span></p>
+      <p class="field"><strong>Entrega</strong><span>${escapeHtml(deliveryLabel)}</span></p>
+      <p class="field"><strong>Dirección</strong><span>${escapeHtml(shippingAddress || "No informada")}</span></p>
+      ${order?.payment_id ? `<p class="field"><strong>Pago</strong><span>${escapeHtml(order.payment_id)}</span></p>` : ""}
+      ${paymentDetail ? `<p class="field"><strong>Movimiento</strong><span>${escapeHtml(paymentDetail)}</span></p>` : ""}
     </section>
 
     <h2>Detalle</h2>
@@ -131,7 +139,7 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
     </div>
 
     <section class="totals ${isCancelled ? "totals--cancelled" : ""}" aria-label="Totales">
-      <div class="total-row"><span>Envio</span><strong>$${formatPrice(shippingCost)}</strong></div>
+      ${showShippingCost ? `<div class="total-row"><span>Envío</span><strong>$${formatPrice(shippingCost)}</strong></div>` : ""}
       <div class="total-row"><span>${isCancelled ? "Importe de la compra cancelada" : "Total"}</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
     </section>
 

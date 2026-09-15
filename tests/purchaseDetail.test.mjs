@@ -13,22 +13,39 @@ const order = {
 };
 
 test("muestra vendedor, referencia y cantidades sin exponer la preferencia", () => {
-  const html = buildPurchaseDetailHtml({ ...order, preference_id: "preferencia-privada" });
+  const html = buildPurchaseDetailHtml({
+    ...order,
+    preference_id: "preferencia-privada",
+    payment_detail: "mp_preference|marketplace_fee:0|marketplace:omitted|oauth_seller:257559702",
+  });
   assert.match(html, /Vendedor: María/);
   assert.match(html, /#198F5313/);
   assert.match(html, /Pago aprobado/);
   assert.match(html, />\$200</);
   assert.match(html, />\$210 ARS</);
-  assert.doesNotMatch(html, /preferencia-privada|Factura de compra|Vendedor: AnuBorns/);
+  assert.doesNotMatch(html, /preferencia-privada|mp_preference|marketplace_fee|oauth_seller|Factura de compra|Vendedor: AnuBorns/);
+});
+
+test("omite envío sin costo y muestra campos legibles", () => {
+  const html = buildPurchaseDetailHtml({
+    ...order,
+    shipping_requested: false,
+    shipping_cost: 0,
+    payment_detail: "mp_preference|marketplace_fee:0|marketplace:omitted|oauth_seller:257559702",
+  });
+  assert.match(html, /<strong>Estado de pago<\/strong><span>Pago aprobado<\/span>/);
+  assert.match(html, /<strong>Dirección<\/strong><span>No informada<\/span>/);
+  assert.match(html, /Retiro coordinado/);
+  assert.doesNotMatch(html, /<span>Envío<\/span>|mp_preference|marketplace_fee|oauth_seller/);
 });
 
 test("ambas variantes de cancelación omiten una entrega activa", () => {
   for (const status of ["cancelled", "canceled"]) {
     const html = buildPurchaseDetailHtml({ ...order, status, shipping_requested: true });
     assert.equal(formatOrderPaymentStatus(status), "Pago cancelado");
-    assert.match(html, /No corresponde · pago cancelado/);
+    assert.match(html, /No corresponde - pago cancelado/);
     assert.match(html, /Importe de la compra cancelada/);
-    assert.doesNotMatch(html, /Envio a domicilio|Retiro coordinado/);
+    assert.doesNotMatch(html, /Envío a domicilio|Retiro coordinado/);
   }
 });
 

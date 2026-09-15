@@ -353,9 +353,7 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: checkout.error }, checkout.status);
     }
 
-    const siteUrlResult = resolveCheckoutSiteUrl(
-      process.env.SITE_URL ?? request.headers.get("origin"),
-    );
+    const siteUrlResult = resolveCheckoutSiteUrl(process.env.SITE_URL);
     if (!siteUrlResult.ok) {
       return jsonResponse({ error: siteUrlResult.error }, 500);
     }

@@ -15,6 +15,7 @@ export const purchaseDetailStyles = `
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .field { padding: 14px 16px; border: 1px solid #17211c0d; border-radius: 12px; background: #f6f8f6; overflow-wrap: anywhere; font-size: 15px; }
   .field strong { display: block; color: #66736b; font-size: 12px; font-weight: 650; margin-bottom: 4px; }
+  .field span { display: block; }
   h2 { font-size: 18px; margin: 28px 0 12px; }
   .table-wrap { overflow-x: auto; border: 1px solid #17211c14; border-radius: 12px; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }

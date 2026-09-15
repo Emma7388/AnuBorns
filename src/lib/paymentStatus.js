@@ -146,6 +146,10 @@ export const getReadablePaymentDetail = (value) => {
   if (!detail) return "";
 
   const trace = parsePaymentDetailTrace(detail);
+  if (detail.startsWith("mp_preference|") && !trace.mp_status_detail) {
+    return "";
+  }
+
   const statusDetail = cleanPaymentDetail(trace.mp_status_detail || detail);
   const statusLabel = PAYMENT_DETAIL_LABELS[statusDetail.toLowerCase()] ?? statusDetail;
   const marketplaceFee = Number(trace.marketplace_fee ?? 0);
