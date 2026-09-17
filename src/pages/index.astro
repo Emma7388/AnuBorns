@@ -11,7 +11,10 @@ import MainLayout from "../layouts/MainLayout.astro";
         <div class="hero-logo-wrap">
           <img class="hero-logo" src="/Logo_Final.webp" alt="Desoluciones.com" loading="eager" />
         </div>
-        <h1>Comprá y vendé en un solo lugar</h1>
+        <div class="hero-copy">
+          <h1>Comprá y vendé en un solo lugar</h1>
+          <p>Productos, publicaciones y entregas organizadas para resolver sin vueltas.</p>
+        </div>
       </div>
 
       <!-- CTAs principales -->
@@ -62,6 +65,13 @@ import MainLayout from "../layouts/MainLayout.astro";
     min-height: clamp(210px, 36dvh, 360px);
   }
 
+  .hero-copy {
+    flex: 0.8 1 0;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+
   .hero-logo-wrap {
     width: min(34dvh, 340px);
     aspect-ratio: 1;
@@ -91,8 +101,17 @@ import MainLayout from "../layouts/MainLayout.astro";
     line-height: 1.05;
     letter-spacing: 0;
     text-align: left;
-    flex: 0.8 1 0;
     text-shadow: var(--hero-title-shadow);
+  }
+
+  .hero p {
+    width: min(440px, 100%);
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: left;
   }
 
   .hero-buttons {
@@ -148,6 +167,10 @@ import MainLayout from "../layouts/MainLayout.astro";
     .hero h1 {
       font-size: clamp(1.75rem, 6.6vw, 2.25rem);
       margin-bottom: 0;
+    }
+
+    .hero p {
+      font-size: 1rem;
     }
 
     .hero-buttons {
@@ -231,6 +254,10 @@ import MainLayout from "../layouts/MainLayout.astro";
     .hero h1 {
       font-size: clamp(1.45rem, 7.8vw, 1.8rem);
       margin-bottom: 0;
+    }
+
+    .hero p {
+      font-size: 0.92rem;
     }
   }
 </style>

@@ -2,7 +2,10 @@
 // Layout base: HTML, metas, transiciones y utilidades globales.
 import { ClientRouter } from "astro:transitions";
 
-const { title = "mvp-peach-six.vercel.app" } = Astro.props;
+const {
+  title = "Desoluciones",
+  description = "Marketplace local para comprar productos, publicar ventas y coordinar entregas en un solo lugar.",
+} = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -10,8 +13,14 @@ const { title = "mvp-peach-six.vercel.app" } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/jpeg" href="/LogoProvisorio.jpeg" />
-    <link rel="apple-touch-icon" href="/LogoProvisorio.jpeg" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f6f8f4" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/Logo_Final.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

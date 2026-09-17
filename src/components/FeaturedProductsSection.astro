@@ -3,11 +3,12 @@ import { getFeaturedProducts } from "../lib/featuredProducts.js";
 import TitleBadge from "./TitleBadge.astro";
 import { getCurrentInternalPath, withReturnPath } from "../lib/internalNavigation.js";
 
-const { title = "PRODUCTOS DESTACADOS", featured } = Astro.props;
+const { title = "Productos destacados", featured } = Astro.props;
 const result = featured ?? await getFeaturedProducts();
 const items = Array.isArray(result?.items) ? result.items : [];
 const error = String(result?.error ?? "");
 const isLoaded = error ? "false" : "true";
+const statusMessage = error ? "Estamos preparando productos destacados." : "";
 const currentPath = getCurrentInternalPath(Astro.url);
 
 const formatPrice = (value) => {
@@ -53,7 +54,7 @@ const serializeDelivery = (value) =>
   data-featured-loaded={isLoaded}
 >
   <TitleBadge title={title} icon="/icons/destacado.svg" level={2} tone="warning" />
-  <p class="ab-muted-text" data-featured-products-status>{error}</p>
+  <p class:list={["ab-muted-text", { "ab-is-hidden": !statusMessage }]} data-featured-products-status>{statusMessage}</p>
   <div class="ab-featured-products-carousel" data-featured-products-carousel>
     <button
       type="button"
@@ -145,7 +146,7 @@ const serializeDelivery = (value) =>
     </button>
   </div>
   <div class:list={["ab-cart-empty", { "ab-is-hidden": items.length > 0 || error }]} data-featured-products-empty>
-    <p>Aún no hay productos destacados para mostrar.</p>
+    <p>Pronto vas a ver productos destacados para mostrar.</p>
   </div>
 </section>
 

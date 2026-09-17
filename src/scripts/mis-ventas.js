@@ -917,7 +917,7 @@ const renderMyProducts = (products) => {
       || (publishedProductsTo instanceof HTMLInputElement && publishedProductsTo.value);
     if (emptyText) emptyText.textContent = hasDateFilter
       ? "No encontramos publicaciones en ese rango de fechas."
-      : "TodavÃ­a no publicaste productos.";
+      : "Todavía no publicaste productos.";
     productsEmpty.classList.remove("ab-is-hidden");
     return;
   }

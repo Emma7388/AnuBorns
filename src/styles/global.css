@@ -50,13 +50,13 @@
   --button-elevated-border: rgba(255, 255, 255, 0.28);
   --button-elevated-text-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
   --button-elevated-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
-    0 7px 12px rgba(32, 74, 91, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -7px 14px rgba(0, 0, 0, 0.08),
+    0 5px 10px rgba(32, 74, 91, 0.16);
   --button-elevated-shadow-hover:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    inset 0 -9px 16px rgba(0, 0, 0, 0.1),
-    0 11px 18px rgba(32, 74, 91, 0.26);
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -7px 14px rgba(0, 0, 0, 0.08),
+    0 8px 14px rgba(32, 74, 91, 0.2);
   --action-primary: linear-gradient(180deg, #48baa1 0%, #229478 100%);
   --action-secondary: linear-gradient(180deg, #3f8fc0 0%, #1e5d92 100%);
   --action-success: linear-gradient(180deg, #69ba75 0%, #2f8d58 100%);
@@ -79,8 +79,8 @@
   --product-card-height: 376px;
   --product-card-image-height: 94px;
   --product-card-button-height: 44px;
-  --hero-title-color: #357d73;
-  --hero-title-shadow: 0 2px 0 rgba(255, 255, 255, 0.78);
+  --hero-title-color: #245f57;
+  --hero-title-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
   --hero-logo-bg: linear-gradient(180deg, #ffffff 0%, #ffffff 72%, rgba(255, 255, 255, 0.92) 100%);
 }
 
@@ -3151,7 +3151,7 @@ input[type="submit"] {
   -webkit-box-orient: vertical;
 }
 
-/* Presentaci?n compartida del cat?logo por categor?a y del perfil del proveedor. */
+/* Presentación compartida del catálogo por categoría y del perfil del proveedor. */
   @media (min-width: 560px) {
     .ab-provider-products-grid.ab-transaction-list.ab-catalog-products-list > .ab-provider-product-card:not(.ab-provider-product-card--detail) {
       grid-template-columns: 150px minmax(0, 1fr);

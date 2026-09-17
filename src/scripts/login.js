@@ -14,6 +14,7 @@ let feedback = document.getElementById("login-feedback");
 let emailInput = document.getElementById("email");
 let passwordInput = document.getElementById("password");
 let submitButton = document.getElementById("login-submit");
+let forgotPasswordButton = document.getElementById("forgot-password");
 
 const bindLoginElements = () => {
   loginForm = document.getElementById("login-form");
@@ -21,6 +22,7 @@ const bindLoginElements = () => {
   emailInput = document.getElementById("email");
   passwordInput = document.getElementById("password");
   submitButton = document.getElementById("login-submit");
+  forgotPasswordButton = document.getElementById("forgot-password");
 };
 
 const bindLoginEvents = () => {
@@ -30,10 +32,23 @@ const bindLoginEvents = () => {
   loginForm.addEventListener("submit", handleLoginSubmit);
 };
 
+const bindForgotPasswordEvent = () => {
+  if (!forgotPasswordButton) return;
+  if (forgotPasswordButton.dataset.abForgotBound === "true") return;
+  forgotPasswordButton.dataset.abForgotBound = "true";
+  forgotPasswordButton.addEventListener("click", handleForgotPassword);
+};
+
 /* Sanitiza returnTo para evitar redirecciones externas. */
-const params = new URLSearchParams(window.location.search);
 const sanitizeReturnTo = (value) => (isSafeInternalPath(value) ? value : "/");
-const returnTo = sanitizeReturnTo(params.get("returnTo"));
+const getReturnTo = () =>
+  sanitizeReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
+
+const getRecoveryRedirectUrl = () => {
+  const url = new URL("/nueva-contrasena", window.location.origin);
+  url.searchParams.set("returnTo", getReturnTo());
+  return url.toString();
+};
 
 /* Obtiene nombre visible desde metadata o email. */
 const resolveDisplayName = async (session) => {
@@ -98,6 +113,40 @@ const withTimeout = (promise, ms) =>
     ),
   ]);
 
+const handleForgotPassword = async () => {
+  if (!emailInput || !feedback) return;
+  const email = emailInput.value.trim();
+
+  if (!email) {
+    feedback.textContent = "Ingresá tu email y te mandamos el enlace para recuperar la contraseña.";
+    emailInput.focus();
+    return;
+  }
+
+  if (forgotPasswordButton) forgotPasswordButton.disabled = true;
+  feedback.textContent = "Enviando enlace de recuperación...";
+
+  try {
+    const { error } = await withTimeout(
+      supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: getRecoveryRedirectUrl(),
+      }),
+      12000
+    );
+
+    if (error) {
+      feedback.textContent = "No se pudo enviar el enlace. Revisá el email e intentá de nuevo.";
+      return;
+    }
+
+    feedback.textContent = "Listo. Si el email existe, vas a recibir un enlace para crear una contraseña nueva.";
+  } catch (err) {
+    feedback.textContent = "No se pudo enviar el enlace. Probá de nuevo en unos segundos.";
+  } finally {
+    if (forgotPasswordButton) forgotPasswordButton.disabled = false;
+  }
+};
+
 /* Submit del formulario: valida, autentica y redirige. */
 const handleLoginSubmit = async (event) => {
   event.preventDefault();
@@ -125,7 +174,7 @@ const handleLoginSubmit = async (event) => {
     const displayName = await resolveDisplayName(data?.session ?? { user: data?.user });
     feedback.textContent = `Listo. Bienvenido, ${displayName}.`;
     await showWelcomeModal(displayName, data?.session?.user?.user_metadata?.avatar_url || data?.user?.user_metadata?.avatar_url);
-    window.location.replace(returnTo);
+    window.location.replace(getReturnTo());
   } catch (err) {
     const message =
       err instanceof Error && err.message === "timeout"
@@ -140,15 +189,19 @@ const handleLoginSubmit = async (event) => {
 /* Inicialización y eventos de navegación de Astro. */
 bindLoginElements();
 bindLoginEvents();
+bindForgotPasswordEvent();
 document.addEventListener("astro:page-load", () => {
   bindLoginElements();
   bindLoginEvents();
+  bindForgotPasswordEvent();
 });
 document.addEventListener("astro:after-swap", () => {
   bindLoginElements();
   bindLoginEvents();
+  bindForgotPasswordEvent();
 });
 window.addEventListener("pageshow", () => {
   bindLoginElements();
   bindLoginEvents();
+  bindForgotPasswordEvent();
 });

@@ -54,6 +54,12 @@ const formatDelivery = (value) => {
 
 const AUTOPLAY_MS = 4_200;
 
+const setStatusMessage = (status, message = "") => {
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("ab-is-hidden", !message);
+};
+
 const getFeaturedCards = (section) =>
   Array.from(section.querySelectorAll("[data-featured-products-grid] > .ab-provider-product-card"));
 
@@ -211,7 +217,7 @@ const renderFeaturedSection = (section, items) => {
 
   grid.innerHTML = "";
   if (!Array.isArray(items) || items.length === 0) {
-    status.textContent = "";
+    setStatusMessage(status);
     empty.classList.remove("ab-is-hidden");
     section.dataset.featuredLoaded = "true";
     initFeaturedCarousel(section);
@@ -220,7 +226,7 @@ const renderFeaturedSection = (section, items) => {
   }
 
   empty.classList.add("ab-is-hidden");
-  status.textContent = "";
+  setStatusMessage(status);
 
   items.forEach((item) => {
     const href = getProductHref(item);
@@ -322,7 +328,7 @@ const loadFeaturedSection = async (section) => {
   }
 
   section.dataset.featuredLoading = "true";
-  status.textContent = "Cargando destacados...";
+  setStatusMessage(status, "Cargando destacados...");
 
   const previousController = section.__abFeaturedController;
   previousController?.abort();
@@ -336,13 +342,13 @@ const loadFeaturedSection = async (section) => {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      status.textContent = "No se pudieron cargar los productos destacados.";
+      setStatusMessage(status, "Estamos preparando productos destacados.");
       return;
     }
     renderFeaturedSection(section, Array.isArray(payload?.items) ? payload.items : []);
   } catch (error) {
     if (error?.name === "AbortError") return;
-    status.textContent = "No se pudieron cargar los productos destacados.";
+    setStatusMessage(status, "Estamos preparando productos destacados.");
   } finally {
     if (section.__abFeaturedController === controller) {
       delete section.__abFeaturedController;

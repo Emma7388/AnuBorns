@@ -32,6 +32,9 @@ const REGISTER_TEXT_MAX = {
   place: 80,
   postal: 10,
 };
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_RULE_MESSAGE =
+  "La contraseña debe tener mínimo 8 caracteres, 1 mayúscula, 1 carácter especial y 1 número.";
 let isRegistering = false;
 let isRegistrationComplete = false;
 let avatarPreviewUrl = "";
@@ -126,6 +129,12 @@ const markField = (input, message, errors) => {
   setFieldError(input, message);
   if (message) errors.push({ input, message });
 };
+
+const validatePasswordStrength = (password) =>
+  password.length >= PASSWORD_MIN_LENGTH
+  && /[A-ZÁÉÍÓÚÑ]/.test(password)
+  && /\d/.test(password)
+  && /[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/.test(password);
 
 const validateRegisterForm = () => {
   const values = {
@@ -261,13 +270,15 @@ const handleRegisterSubmit = async (event) => {
       return;
     }
 
-    if (password !== confirm) {
-      feedback.textContent = "Las contraseñas no coinciden.";
+    if (!validatePasswordStrength(password)) {
+      feedback.textContent = PASSWORD_RULE_MESSAGE;
+      passwordInput.focus();
       return;
     }
 
-    if (password.length < 6) {
-      feedback.textContent = "La contraseña debe tener al menos 6 caracteres.";
+    if (password !== confirm) {
+      feedback.textContent = "Las contraseñas no coinciden.";
+      passwordConfirm.focus();
       return;
     }
 
@@ -276,20 +287,20 @@ const handleRegisterSubmit = async (event) => {
       if (!ALLOWED_AVATAR_TYPES.has(avatarFile.type)) {
         if (avatarInput) avatarInput.value = "";
         clearAvatarPreview();
-        feedback.textContent = "El avatar debe ser JPG, PNG o WEBP.";
+        feedback.textContent = "La foto de perfil debe ser JPG, PNG o WEBP.";
         return;
       }
       if (avatarFile.size > AVATAR_MAX_BYTES) {
         if (avatarInput) avatarInput.value = "";
         clearAvatarPreview();
-        feedback.textContent = "El avatar supera el tamaño máximo de 5MB.";
+        feedback.textContent = "La foto de perfil supera el tamaño máximo de 5MB.";
         return;
       }
       optimizedAvatarFile = await resizeAvatarImage(avatarFile);
       if (!ALLOWED_AVATAR_TYPES.has(optimizedAvatarFile.type)) {
         if (avatarInput) avatarInput.value = "";
         clearAvatarPreview();
-        feedback.textContent = "No se pudo preparar el avatar. Probá con JPG, PNG o WEBP.";
+        feedback.textContent = "No se pudo preparar la foto de perfil. Probá con JPG, PNG o WEBP.";
         return;
       }
     }
@@ -335,7 +346,7 @@ const handleRegisterSubmit = async (event) => {
             .upload(filePath, optimizedAvatarFile, { upsert: true, contentType: optimizedAvatarFile.type });
 
           if (uploadError) {
-            console.warn("Avatar upload error", uploadError);
+            console.warn("Profile photo upload error", uploadError);
           } else {
             const { data: publicData } = supabase.storage.from("avatar").getPublicUrl(filePath);
             const avatarUrl = publicData?.publicUrl ?? "";
@@ -346,7 +357,7 @@ const handleRegisterSubmit = async (event) => {
             }
           }
         } catch (uploadError) {
-          console.warn("Avatar upload error", uploadError);
+          console.warn("Profile photo upload error", uploadError);
         }
       }
 
@@ -363,7 +374,7 @@ const handleRegisterSubmit = async (event) => {
       } catch (storageError) {
         console.warn("Pending avatar save error", storageError);
         feedback.textContent =
-          "Cuenta creada. Revisá tu email para confirmar el acceso. No se pudo guardar el avatar, podés cargarlo después.";
+          "Cuenta creada. Revisá tu email para confirmar el acceso. No se pudo guardar la foto de perfil, podés cargarla después.";
         isRegistrationComplete = true;
         return;
       }
@@ -372,7 +383,7 @@ const handleRegisterSubmit = async (event) => {
     /* Mensaje final cuando requiere confirmación por email. */
     feedback.textContent =
       optimizedAvatarFile
-        ? "Cuenta creada. Revisá tu email para confirmar el acceso. El avatar se subirá cuando inicies sesión."
+        ? "Cuenta creada. Revisá tu email para confirmar el acceso. La foto de perfil se subirá cuando inicies sesión."
         : "Cuenta creada. Revisá tu email para confirmar el acceso.";
     isRegistrationComplete = true;
   } finally {

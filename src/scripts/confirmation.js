@@ -65,7 +65,7 @@ const statusMap = {
   },
   refund_pending: {
     title: "Reembolso pendiente",
-    message: "El reembolso estÃ¡ en proceso. Conservamos el movimiento en el detalle de compra.",
+    message: "El reembolso está en proceso. Conservamos el movimiento en el detalle de compra.",
   },
   partially_refunded: {
     title: "Reembolso parcial",
