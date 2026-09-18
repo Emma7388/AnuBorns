@@ -10,17 +10,21 @@ import TitleBadge from "../components/TitleBadge.astro";
 
     <form class="ab-form" id="new-password-form" method="post">
       <label for="password">Nueva contraseña</label>
+      <p class="ab-form-help" id="new-password-requirements">
+        Mínimo 8 caracteres, 1 mayúscula, 1 carácter especial y 1 número.
+      </p>
       <span class="ab-field-with-toggle">
         <input
           id="password"
           name="password"
           type="password"
-          placeholder="8 caracteres, mayúscula, número y símbolo"
+          placeholder="Elegí una contraseña nueva"
           autocomplete="new-password"
           required
           minlength="8"
           pattern="(?=.*[A-ZÁÉÍÓÚÑ])(?=.*[0-9])(?=.*[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]).{8,}"
-          title="Usá al menos 8 caracteres, una mayúscula, un número y un carácter especial."
+          title="Mínimo 8 caracteres, 1 mayúscula, 1 carácter especial y 1 número."
+          aria-describedby="new-password-requirements"
         />
         <button
           class="ab-field-visibility-toggle"
@@ -33,7 +37,6 @@ import TitleBadge from "../components/TitleBadge.astro";
           <img src="/icons/ojo.svg" alt="" aria-hidden="true" />
         </button>
       </span>
-      <p class="ab-form-help">Usá al menos 8 caracteres, una mayúscula, un número y un carácter especial, por ejemplo !, @, # o %.</p>
 
       <label for="password-confirm">Confirmar contraseña</label>
       <span class="ab-field-with-toggle">
@@ -69,9 +72,7 @@ import TitleBadge from "../components/TitleBadge.astro";
         </a>
       </div>
 
-      <p id="new-password-feedback" class="ab-muted-text" aria-live="polite">
-        Abrí esta página desde el enlace de recuperación que recibiste por email.
-      </p>
+      <p id="new-password-feedback" class="ab-muted-text" aria-live="polite"></p>
     </form>
   </section>
 </MainLayout>

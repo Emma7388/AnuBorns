@@ -54,6 +54,12 @@ const getProviderKey = (item) => {
   return `name:${providerName.toLowerCase() || "n/a"}`;
 };
 
+const isProviderCheckoutKey = (providerKey) =>
+  String(providerKey ?? "").trim().startsWith("id:");
+
+const getProviderCheckoutHref = (providerKey) =>
+  `/finalizar-compra?provider=${encodeURIComponent(providerKey)}&from=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
+
 const groupItemsByProvider = (items) => {
   const groups = new Map();
   items.forEach((item) => {
@@ -141,7 +147,7 @@ const closeRemoveModal = (dom = getCartDom()) => {
 
 /* Renderiza el carrito completo en el DOM. */
 const renderCart = async () => {
-  const { itemsWrap, emptyState, totalLabel } = getCartDom();
+  const { itemsWrap, emptyState, totalLabel, checkoutButton, feedback } = getCartDom();
   if (!itemsWrap || !emptyState || !totalLabel) return;
   const items = await getCart();
   itemsWrap.innerHTML = "";
@@ -152,6 +158,9 @@ const renderCart = async () => {
     emptyState.style.display = "grid";
     clearShippingPreference();
     totalLabel.textContent = "$0";
+    checkoutButton?.classList.remove("ab-is-hidden");
+    if (checkoutButton instanceof HTMLButtonElement) checkoutButton.disabled = false;
+    if (feedback) feedback.textContent = "";
     return;
   }
 
@@ -161,6 +170,14 @@ const renderCart = async () => {
   /* Lista de items y total. */
   let total = 0;
   const groups = groupItemsByProvider(items);
+  const hasMultipleProviders = groups.length > 1;
+  checkoutButton?.classList.toggle("ab-is-hidden", hasMultipleProviders);
+  if (checkoutButton instanceof HTMLButtonElement) checkoutButton.disabled = hasMultipleProviders;
+  if (feedback) {
+    feedback.textContent = hasMultipleProviders
+      ? "Elegí Comprar este producto dentro del bloque que quieras finalizar."
+      : "";
+  }
   clearUnavailableProviderShippingPreferences(groups.map((group) => group.key));
   groups.forEach((group) => {
     total += group.subtotal;
@@ -178,8 +195,18 @@ const renderCart = async () => {
     section.dataset.providerName = group.provider;
     section.innerHTML = `
       <div class="ab-cart-provider-group__header">
-        <h2>${safeGroupProvider}</h2>
-        <p>${shippingPrefix}${group.items.length} ${group.items.length === 1 ? "producto" : "productos"} · Subtotal: <strong>$${formatPrice(displayedSubtotal)}</strong></p>
+        <div>
+          <h2>${safeGroupProvider}</h2>
+          <p>${shippingPrefix}${group.items.length} ${group.items.length === 1 ? "producto" : "productos"} · <span class="ab-cart-provider-group__total">TOTAL: <strong>$${formatPrice(displayedSubtotal)}</strong></span></p>
+        </div>
+        ${
+          isProviderCheckoutKey(group.key)
+            ? `<a class="ab-provider-product-card__button ab-provider-product-card__button--buy" href="${escapeHtml(getProviderCheckoutHref(group.key))}">
+                <img src="/icons/comprar.svg" alt="" aria-hidden="true" />
+                <span>Comprar este producto</span>
+              </a>`
+            : ""
+        }
       </div>
       <div class="ab-cart-provider-group__items"></div>
       <div class="ab-checkout-shipping ab-cart-provider-shipping">
@@ -311,6 +338,10 @@ const initCartPage = () => {
       return;
     }
     const groups = groupItemsByProvider(items);
+    if (groups.length > 1) {
+      feedback.textContent = "Tenés productos de varios proveedores. Usá Comprar este producto en el bloque que quieras finalizar.";
+      return;
+    }
     for (const group of groups) {
       const preference = getProviderShippingPreference(group.key);
       if (!preference.requested) continue;
@@ -323,7 +354,10 @@ const initCartPage = () => {
         return;
       }
     }
-    window.location.href = `/finalizar-compra?from=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
+    const providerKey = groups[0]?.key ?? "";
+    window.location.href = isProviderCheckoutKey(providerKey)
+      ? getProviderCheckoutHref(providerKey)
+      : `/finalizar-compra?from=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   });
 
   itemsWrap.addEventListener("change", async (event) => {

@@ -1,0 +1,42 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import "../../styles/admin.css";
+---
+
+<MainLayout title="Panel operativo" headerTitle="Panel operativo" backHref="/mis-datos">
+  <section class="ab-dark-panel ab-admin-dashboard">
+    <div class="ab-admin-dashboard__head">
+      <div>
+        <p class="ab-admin-dashboard__eyebrow">Estado interno</p>
+        <h2>Operación AnuBorns</h2>
+      </div>
+      <a class="ab-secondary-button" href="/admin/usuarios">
+        <span>Usuarios</span>
+      </a>
+    </div>
+
+    <div class="ab-admin-summary" id="admin-health-summary">
+      <div class="ab-admin-summary__item">
+        <strong id="admin-health-ok">0</strong>
+        <span>OK</span>
+      </div>
+      <div class="ab-admin-summary__item">
+        <strong id="admin-health-warning">0</strong>
+        <span>Revisar</span>
+      </div>
+      <div class="ab-admin-summary__item">
+        <strong id="admin-health-error">0</strong>
+        <span>Error</span>
+      </div>
+    </div>
+
+    <p class="ab-muted-text" id="admin-health-status" aria-live="polite">Cargando estado operativo...</p>
+
+    <div class="ab-admin-health-grid" id="admin-health-list"></div>
+    <div class="ab-admin-health-notes" id="admin-health-notes"></div>
+  </section>
+</MainLayout>
+
+<script>
+  import "../../scripts/admin-dashboard.js";
+</script>

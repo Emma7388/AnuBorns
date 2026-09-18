@@ -9,7 +9,7 @@ let feedback = document.getElementById("new-password-feedback");
 
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_RULE_MESSAGE =
-  "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.";
+  "La contraseña debe tener mínimo 8 caracteres, 1 mayúscula, 1 carácter especial y 1 número.";
 
 const params = () => new URLSearchParams(window.location.search);
 const sanitizeReturnTo = (value) => (isSafeInternalPath(value) ? value : "/login");

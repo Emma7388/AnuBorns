@@ -4,16 +4,28 @@ import { supabase } from "../lib/supabaseClient";
 import { getCart, removeFromCart } from "../lib/cart";
 import { clearShippingPreference } from "../lib/shippingPreference";
 
-/* Limpia el carrito local/persistente tras la confirmación. */
-const clearCart = async () => {
+/* Limpia del carrito los productos de la orden confirmada. */
+const clearCart = async (productIds = []) => {
   try {
-    const items = await getCart();
+    const ids = [...new Set(
+      (Array.isArray(productIds) ? productIds : [])
+        .map((productId) => String(productId ?? "").trim())
+        .filter(Boolean),
+    )];
+    const items = ids.length
+      ? ids.map((productId) => ({ product_id: productId }))
+      : await getCart();
     for (const item of items) {
       await removeFromCart(item.product_id);
     }
-    clearShippingPreference();
+    const remainingItems = await getCart();
+    if (remainingItems.length === 0) {
+      clearShippingPreference();
+    }
+    return remainingItems;
   } catch {
     // Sin acción: limpiar carrito no debe bloquear la confirmación visual.
+    return [];
   }
 };
 
@@ -22,6 +34,7 @@ let title = document.getElementById("confirmation-title");
 let message = document.getElementById("confirmation-message");
 let orderLabel = document.getElementById("confirmation-order");
 let invoiceButton = document.getElementById("confirmation-invoice");
+let continueCartButton = document.getElementById("confirmation-continue-cart");
 let currentOrder = null;
 
 const params = () => new URLSearchParams(window.location.search);
@@ -39,6 +52,7 @@ const bindConfirmationElements = () => {
   message = document.getElementById("confirmation-message");
   orderLabel = document.getElementById("confirmation-order");
   invoiceButton = document.getElementById("confirmation-invoice");
+  continueCartButton = document.getElementById("confirmation-continue-cart");
 };
 
 /* Mapeo de estados a textos de UI. */
@@ -108,6 +122,11 @@ const setInvoiceButtonVisible = (visible) => {
   invoiceButton.disabled = !visible;
 };
 
+const setContinueCartButtonVisible = (visible) => {
+  if (!continueCartButton) return;
+  continueCartButton.classList.toggle("ab-is-hidden", !visible);
+};
+
 const getEffectiveStatus = (orderStatus, urlStatus) => {
   const safeOrderStatus = String(orderStatus ?? "").trim().toLowerCase();
   const safeUrlStatus = String(urlStatus ?? "").trim().toLowerCase();
@@ -149,6 +168,7 @@ const loadOrder = async () => {
     invoiceButton.dataset.invoiceBound = "true";
   }
   setInvoiceButtonVisible(false);
+  setContinueCartButtonVisible(false);
   currentOrder = null;
   const urlStatus = status();
   renderStatus(urlStatus);
@@ -157,7 +177,7 @@ const loadOrder = async () => {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, created_at, status, total_amount, currency, payment_id, preference_id, payment_detail, shipping_requested, shipping_cost, shipping_address, shipping_city, order_items (name, qty, unit_price, provider)",
+      "id, created_at, status, total_amount, currency, payment_id, preference_id, payment_detail, shipping_requested, shipping_cost, shipping_address, shipping_city, order_items (product_id, name, qty, unit_price, provider)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -171,7 +191,12 @@ const loadOrder = async () => {
       orderLabel.textContent = `Orden ${data.id.slice(0, 8)} · Total $${Number(data.total_amount).toLocaleString("es-AR")}`;
     }
     if (effectiveStatus === "approved") {
-      await clearCart();
+      const remainingItems = await clearCart((data.order_items ?? []).map((item) => item?.product_id));
+      const hasRemainingItems = remainingItems.length > 0;
+      setContinueCartButtonVisible(hasRemainingItems);
+      if (hasRemainingItems && message) {
+        message.textContent = "Compra aprobada. Todavía tenés productos pendientes en el carrito.";
+      }
     }
   }
 };

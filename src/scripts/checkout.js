@@ -65,6 +65,19 @@ const getProviderKey = (item) => {
   return `name:${providerName.toLowerCase() || "n/a"}`;
 };
 
+const getSelectedProviderKey = () =>
+  String(new URLSearchParams(window.location.search).get("provider") ?? "").trim();
+
+const getProviderUserIdFromKey = (providerKey) =>
+  String(providerKey ?? "").startsWith("id:") ? String(providerKey).slice(3).trim() : "";
+
+const getCheckoutItems = async () => {
+  const items = await getCart();
+  const providerKey = getSelectedProviderKey();
+  if (!providerKey) return items;
+  return items.filter((item) => getProviderKey(item) === providerKey);
+};
+
 const groupItemsByProvider = (items) => {
   const groups = new Map();
   items.forEach((item) => {
@@ -115,7 +128,7 @@ const renderSummary = async () => {
   const { itemsWrap, emptyState, summary, form, totalLabel, shippingTotalRow, subtotalLabel, shippingTotalLabel } =
     getCheckoutDom();
   if (!itemsWrap || !emptyState || !summary || !form || !totalLabel) return;
-  const items = await getCart();
+  const items = await getCheckoutItems();
   itemsWrap.innerHTML = "";
 
   /* Manejo del estado vacío. */
@@ -126,7 +139,7 @@ const renderSummary = async () => {
     currentSubtotal = 0;
     currentShippingGroups = [];
     shippingTotalRow?.classList.add("ab-is-hidden");
-    clearShippingPreference();
+    if (!getSelectedProviderKey()) clearShippingPreference();
     if (subtotalLabel) subtotalLabel.textContent = "$0";
     if (shippingTotalLabel) shippingTotalLabel.textContent = "$0";
     totalLabel.textContent = "$0";
@@ -210,7 +223,7 @@ const initCheckoutPage = () => {
     /* Mensaje inmediato para el usuario. */
     feedback.textContent = "Procesando compra...";
 
-    const items = await getCart();
+    const items = await getCheckoutItems();
     const { data } = await supabase.auth.getSession();
 
     /* Normaliza items para persistir orden y respaldo local. */
@@ -259,6 +272,7 @@ const initCheckoutPage = () => {
           items: orderItems,
           shipping,
           buyer_note: buyerNote,
+          provider_user_id: getProviderUserIdFromKey(getSelectedProviderKey()),
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -295,18 +309,22 @@ const initCheckoutPage = () => {
   /* Submit del checkout: validación, guardado local y redirección. */
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const items = await getCheckoutItems();
+    if (items.length === 0) {
+      feedback.textContent = "No hay productos para procesar.";
+      return;
+    }
+    if (!getSelectedProviderKey() && groupItemsByProvider(items).length > 1) {
+      feedback.textContent = "Volvé al carrito y elegí Comprar este producto para finalizar de a un vendedor.";
+      return;
+    }
+
     if (!checkoutConfirmed) {
       openCheckoutModal();
       return;
     }
     checkoutConfirmed = false;
     closeCheckoutModal();
-
-    const items = await getCart();
-    if (items.length === 0) {
-      feedback.textContent = "No hay productos para procesar.";
-      return;
-    }
 
     const requestedShippingGroups = getRequestedShippingGroups(items);
     for (const group of requestedShippingGroups) {
@@ -322,7 +340,7 @@ const initCheckoutPage = () => {
 
     const { data } = await supabase.auth.getSession();
     if (!data.session?.access_token) {
-      window.location.href = "/login?returnTo=/finalizar-compra";
+      window.location.href = `/login?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
       return;
     }
     await processCheckout();
@@ -372,7 +390,7 @@ const initCheckoutPage = () => {
 const preloadUser = async () => {
   const user = await resolveCheckoutUser();
   if (!user) {
-    window.location.href = "/login?returnTo=/finalizar-compra";
+    window.location.href = `/login?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
     return;
   }
   const profile = await fetchUserProfile(user);

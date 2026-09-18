@@ -344,10 +344,12 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: "El detalle de compra no es válido." }, 400);
     }
     const shipping = payload?.shipping ?? {};
+    const expectedProviderUserId = String(payload?.provider_user_id ?? "").trim();
     const checkout = await buildCheckoutContext(supabaseAdmin, {
       rawItems: payload?.items,
       shipping,
       buyerId: user.id,
+      expectedProviderUserId,
     });
     if (!checkout.ok) {
       return jsonResponse({ error: checkout.error }, checkout.status);

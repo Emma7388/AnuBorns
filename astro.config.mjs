@@ -15,6 +15,17 @@ export default defineConfig({
     enabled: false,
   },
   vite: {
+    optimizeDeps: {
+      exclude: [
+        "@supabase/supabase-js",
+        "astro:transitions",
+        "astro:transitions/client",
+        "astro/virtual-modules/transitions-router.js",
+        "astro/virtual-modules/transitions-types.js",
+        "astro/virtual-modules/transitions-events.js",
+        "astro/virtual-modules/transitions-swap-functions.js",
+      ],
+    },
     resolve: {
       alias: {
         "astro/entrypoints/prerender": astroPrerenderEntrypoint,

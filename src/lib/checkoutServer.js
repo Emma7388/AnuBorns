@@ -53,7 +53,7 @@ const getProviderGroupItems = (serverItems, providerKey) => {
 /* Construye el contexto confiable del checkout desde datos del servidor. */
 export const buildCheckoutContext = async (
   supabaseAdmin,
-  { rawItems = [], shipping = {}, buyerId = "", requirePositivePrice = true } = {},
+  { rawItems = [], shipping = {}, buyerId = "", expectedProviderUserId = "", requirePositivePrice = true } = {},
 ) => {
   if (!supabaseAdmin) {
     return { ok: false, status: 503, error: "Servicio no disponible." };
@@ -137,6 +137,16 @@ export const buildCheckoutContext = async (
   const hasOwnProducts = serverItems.some((item) => item.provider_user_id && item.provider_user_id === buyerId);
   if (hasOwnProducts) {
     return { ok: false, status: 400, error: "No podes comprar tus propios productos." };
+  }
+
+  const safeExpectedProviderUserId = String(expectedProviderUserId ?? "").trim();
+  if (safeExpectedProviderUserId) {
+    const hasUnexpectedProvider = serverItems.some(
+      (item) => item.provider_user_id !== safeExpectedProviderUserId,
+    );
+    if (hasUnexpectedProvider) {
+      return { ok: false, status: 400, error: "La compra incluye productos de otro vendedor." };
+    }
   }
 
   if (shippingRequested) {

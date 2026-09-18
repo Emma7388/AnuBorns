@@ -1,0 +1,48 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import "../../styles/admin.css";
+---
+
+<MainLayout title="Usuarios" headerTitle="Usuarios" backHref="/mis-datos">
+  <section class="ab-dark-panel ab-admin-users">
+    <div class="ab-admin-users__toolbar">
+      <label class="ab-admin-users__search">
+        <span>Buscar usuario</span>
+        <input
+          id="admin-user-search"
+          type="search"
+          autocomplete="off"
+          placeholder="Email, nombre, DNI o teléfono"
+        />
+      </label>
+      <div class="ab-admin-users__actions">
+        <button type="button" class="ab-cta-button" id="admin-user-search-button">
+          <img src="/icons/buscar.svg" alt="" aria-hidden="true" />
+          <span>Buscar</span>
+        </button>
+        <button type="button" class="ab-secondary-button" id="admin-user-clear-button">
+          <span>Limpiar</span>
+        </button>
+      </div>
+    </div>
+
+    <p class="ab-muted-text" id="admin-users-status" aria-live="polite">Cargando usuarios...</p>
+
+    <div class="ab-admin-users__layout">
+      <div class="ab-admin-users__list" id="admin-users-list"></div>
+      <aside class="ab-admin-users__detail" id="admin-user-detail" aria-live="polite">
+        <p class="ab-muted-text">Seleccioná un usuario para ver sus datos.</p>
+      </aside>
+    </div>
+
+    <div class="ab-admin-users__pagination">
+      <button type="button" class="ab-secondary-button" id="admin-users-prev">Anterior</button>
+      <span id="admin-users-page">Página 1</span>
+      <button type="button" class="ab-secondary-button" id="admin-users-next">Siguiente</button>
+    </div>
+  </section>
+</MainLayout>
+
+<script>
+  import "../../scripts/admin-users.js";
+</script>
