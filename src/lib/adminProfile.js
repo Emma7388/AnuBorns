@@ -90,3 +90,11 @@ export const buildProfileDiff = (before = {}, after = {}) =>
     }
     return diff;
   }, {});
+
+export const mergeAdminProfileMetadata = (metadata = {}, profile = {}) => ({
+  ...(metadata && typeof metadata === "object" ? metadata : {}),
+  ...ADMIN_PROFILE_FIELDS.reduce((merged, field) => {
+    merged[field] = String(profile?.[field] ?? "");
+    return merged;
+  }, {}),
+});

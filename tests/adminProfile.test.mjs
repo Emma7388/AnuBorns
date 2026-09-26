@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buildProfileDiff,
+  mergeAdminProfileMetadata,
   normalizeAdminReason,
   validateAdminProfileInput,
 } from "../src/lib/adminProfile.js";
@@ -53,4 +54,25 @@ test("arma diff solo con campos cambiados", () => {
 
 test("normaliza motivo admin", () => {
   assert.equal(normalizeAdminReason("  correccion   pedida\npor usuario  "), "correccion pedida por usuario");
+});
+
+test("mergea perfil admin en metadata auth sin borrar otros campos", () => {
+  const metadata = mergeAdminProfileMetadata(
+    { avatar_url: "https://example.com/a.png", first_name: "Viejo" },
+    {
+      first_name: "Ana",
+      last_name: "Molina",
+      phone: "1112345678",
+      dni: "12345678",
+      address: "Calle 123",
+      city: "Buenos Aires",
+      province: "Buenos Aires",
+      postal_code: "C1000",
+    },
+  );
+
+  assert.equal(metadata.avatar_url, "https://example.com/a.png");
+  assert.equal(metadata.first_name, "Ana");
+  assert.equal(metadata.last_name, "Molina");
+  assert.equal(metadata.phone, "1112345678");
 });

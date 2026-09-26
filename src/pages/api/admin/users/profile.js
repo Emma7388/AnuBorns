@@ -3,6 +3,7 @@ import { requireAdmin } from "../../../../lib/adminAuth.js";
 import {
   ADMIN_PROFILE_FIELDS,
   buildProfileDiff,
+  mergeAdminProfileMetadata,
   normalizeAdminReason,
   validateAdminProfileInput,
 } from "../../../../lib/adminProfile.js";
@@ -14,6 +15,29 @@ const PROFILE_SELECT = `user_id, ${ADMIN_PROFILE_FIELDS.join(", ")}, updated_at`
 
 const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value ?? ""));
+
+const syncAuthUserMetadata = async (supabaseAdmin, userId, profile) => {
+  const { data: targetAuthUser, error: targetAuthError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (targetAuthError || !targetAuthUser?.user) {
+    return { ok: false, error: "No se pudo leer el usuario de Auth para sincronizar metadata." };
+  }
+
+  const currentMetadata = targetAuthUser.user.user_metadata ?? {};
+  const nextMetadata = mergeAdminProfileMetadata(targetAuthUser.user.user_metadata, profile);
+  const changed = ADMIN_PROFILE_FIELDS.some((field) =>
+    String(currentMetadata?.[field] ?? "") !== String(nextMetadata?.[field] ?? ""),
+  );
+  if (!changed) return { ok: true, changed: false };
+
+  const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: nextMetadata,
+  });
+  if (metadataError) {
+    return { ok: false, error: "No se pudo sincronizar metadata de Auth." };
+  }
+
+  return { ok: true, changed: true };
+};
 
 /** @type {import("astro").APIRoute} */
 export const PATCH = async ({ request }) => {
@@ -69,6 +93,25 @@ export const PATCH = async ({ request }) => {
     const before = existingProfile ?? { user_id: targetUserId };
     const diff = buildProfileDiff(before, validation.profile);
     if (Object.keys(diff).length === 0) {
+      const metadataSync = await syncAuthUserMetadata(supabaseAdmin, targetUserId, validation.profile);
+      if (!metadataSync.ok) {
+        return jsonResponse({ error: metadataSync.error }, 500);
+      }
+      if (metadataSync.changed) {
+        await supabaseAdmin.from("audit_logs").insert({
+          user_id: admin.user.id,
+          event: "admin_profile_update",
+          metadata: {
+            target_user_id: targetUserId,
+            reason,
+            diff: {},
+            auth_metadata_synced: true,
+            profile_changed: false,
+          },
+          ip_address: request.headers.get("x-forwarded-for") ?? null,
+          user_agent: request.headers.get("user-agent") ?? null,
+        });
+      }
       return jsonResponse({ ok: true, changed: false, profile: { ...before, ...validation.profile } });
     }
 
@@ -88,6 +131,11 @@ export const PATCH = async ({ request }) => {
       return jsonResponse({ error: "No se pudo actualizar el perfil." }, 500);
     }
 
+    const metadataSync = await syncAuthUserMetadata(supabaseAdmin, targetUserId, validation.profile);
+    if (!metadataSync.ok) {
+      return jsonResponse({ error: `Perfil actualizado, pero ${metadataSync.error}` }, 500);
+    }
+
     await supabaseAdmin.from("audit_logs").insert({
       user_id: admin.user.id,
       event: "admin_profile_update",
@@ -95,6 +143,7 @@ export const PATCH = async ({ request }) => {
         target_user_id: targetUserId,
         reason,
         diff,
+        auth_metadata_synced: metadataSync.changed,
       },
       ip_address: request.headers.get("x-forwarded-for") ?? null,
       user_agent: request.headers.get("user-agent") ?? null,

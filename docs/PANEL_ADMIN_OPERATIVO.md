@@ -3,7 +3,7 @@
 El panel interno arranca con dos superficies:
 
 - `/admin`: tablero operativo read-only con estados OK, Revisar y Error.
-- `/admin/usuarios`: administracion read-only de usuarios, perfiles y estado Mercado Pago.
+- `/admin/usuarios`: administracion de usuarios, perfiles y estado Mercado Pago.
 
 ## Seguridad base
 
@@ -40,6 +40,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 
 - Tabla `profiles`.
 - Lectura de perfiles profundos para administracion interna.
+- La edicion admin escribe primero en `public.profiles` y sincroniza los mismos campos editables en `auth.users.user_metadata` para visibilidad operativa en Supabase Auth.
 
 ### Catalogo
 
