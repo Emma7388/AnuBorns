@@ -71,20 +71,22 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-health-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .ab-admin-health-card {
   display: grid;
-  gap: 6px;
-  min-height: 138px;
-  padding: 10px;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 0.9fr) minmax(0, 1.8fr) minmax(220px, 0.9fr);
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
-  border-left-width: 8px;
-  border-radius: 12px;
+  border-left-width: 7px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.86);
   color: var(--ab-text, #17231f);
+  align-items: center;
 }
 
 .ab-admin-health-card--ok {
@@ -137,13 +139,19 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-health-card h3 {
-  font-size: 17px;
+  font-size: 15px;
 }
 
 .ab-admin-health-card p {
   color: rgba(23, 35, 31, 0.76);
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.ab-admin-health-card small {
+  justify-self: end;
+  max-width: 320px;
+  text-align: right;
 }
 
 .ab-admin-health-notes {
@@ -274,6 +282,11 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.ab-admin-users__detail .ab-secondary-button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
 .ab-admin-users__detail-head h2,
 .ab-admin-users__detail-head p {
   margin: 0;
@@ -284,6 +297,85 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   gap: 4px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(23, 35, 31, 0.12);
+}
+
+.ab-admin-users__detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ab-admin-users__detail-actions .ab-secondary-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.ab-admin-users__edit-form {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(45, 166, 138, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.ab-admin-users__edit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.ab-admin-users__edit-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ab-admin-users__edit-field span {
+  color: rgba(23, 35, 31, 0.68);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ab-admin-users__edit-field input,
+.ab-admin-users__edit-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(23, 35, 31, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ab-text, #17231f);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+}
+
+.ab-admin-users__edit-field--wide {
+  grid-column: 1 / -1;
+}
+
+.ab-admin-users__edit-actions {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.5fr);
+  gap: 8px;
+}
+
+.ab-admin-users__edit-actions .ab-cta-button,
+.ab-admin-users__edit-actions .ab-secondary-button {
+  width: 100%;
+  min-height: 42px;
+}
+
+.ab-admin-reset-modal__last {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(199, 133, 21, 0.24);
+  border-radius: 8px;
+  background: rgba(199, 133, 21, 0.1);
+  color: rgba(23, 35, 31, 0.78);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .ab-admin-users__detail-row {
@@ -339,8 +431,29 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
     grid-template-columns: 1fr;
   }
 
+  .ab-admin-health-card {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .ab-admin-health-card small {
+    justify-self: start;
+    max-width: none;
+    text-align: left;
+  }
+
   .ab-admin-users__toolbar,
   .ab-admin-users__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-admin-users__edit-grid,
+  .ab-admin-users__edit-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-admin-users__detail-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 

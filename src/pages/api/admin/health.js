@@ -4,6 +4,7 @@ import {
   ADMIN_HEALTH_OPERATION_CHECKS,
   ADMIN_HEALTH_TABLE_CHECKS,
   buildHealthCheck,
+  evaluateMercadoPagoDiagnosticsConfig,
   evaluateEnvChecks,
   evaluateMarketplaceConfig,
   evaluateSiteUrl,
@@ -123,6 +124,7 @@ const buildOperationChecks = ({ envChecks, tableChecks, supabaseConfigured, supa
   }));
 
   operationChecks.push(evaluateMarketplaceConfig());
+  operationChecks.push(evaluateMercadoPagoDiagnosticsConfig());
 
   const multisellerReady =
     tableOk(tableChecks, "products") &&

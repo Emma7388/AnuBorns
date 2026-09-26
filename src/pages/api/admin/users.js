@@ -79,6 +79,29 @@ const fetchMercadoPagoAccounts = async (supabaseAdmin, userIds) => {
   return new Map((data ?? []).map((account) => [String(account.user_id), account]));
 };
 
+const fetchPasswordResetRequests = async (supabaseAdmin, userIds) => {
+  const targetUserIds = new Set(userIds.map((userId) => String(userId ?? "")).filter(Boolean));
+  if (!targetUserIds.size) return new Map();
+
+  const { data, error } = await supabaseAdmin
+    .from("audit_logs")
+    .select("metadata, created_at")
+    .eq("event", "admin_password_reset_requested")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) return new Map();
+
+  const resetMap = new Map();
+  for (const row of data ?? []) {
+    const targetUserId = String(row?.metadata?.target_user_id ?? "").trim();
+    if (!targetUserIds.has(targetUserId) || resetMap.has(targetUserId)) continue;
+    resetMap.set(targetUserId, {
+      last_sent_at: row?.created_at ?? "",
+    });
+  }
+  return resetMap;
+};
+
 const profileMatches = (profile, query) => {
   const needle = normalizeText(query);
   if (!needle) return true;
@@ -114,7 +137,7 @@ const getUserMetadata = (user) => {
   };
 };
 
-const formatUser = ({ user, profile, mpAccount }) => {
+const formatUser = ({ user, profile, mpAccount, passwordReset }) => {
   const metadata = getUserMetadata(user);
   const safeProfile = { ...metadata, ...(profile ?? {}) };
   return {
@@ -138,6 +161,9 @@ const formatUser = ({ user, profile, mpAccount }) => {
       connected: Boolean(mpAccount?.mp_user_id),
       mp_user_id: mpAccount?.mp_user_id ?? "",
       updated_at: mpAccount?.updated_at ?? "",
+    },
+    password_reset: {
+      last_sent_at: passwordReset?.last_sent_at ?? "",
     },
   };
 };
@@ -199,9 +225,10 @@ export const GET = async ({ request, url }) => {
 
     const { users, hasMore } = await findUsers(supabaseAdmin, { query, page, perPage });
     const userIds = users.map((user) => String(user.id)).filter(Boolean);
-    const [profilesById, mpAccountsById] = await Promise.all([
+    const [profilesById, mpAccountsById, passwordResetsById] = await Promise.all([
       fetchProfiles(supabaseAdmin, userIds),
       fetchMercadoPagoAccounts(supabaseAdmin, userIds),
+      fetchPasswordResetRequests(supabaseAdmin, userIds),
     ]);
 
     const records = users.map((user) =>
@@ -209,6 +236,7 @@ export const GET = async ({ request, url }) => {
         user,
         profile: profilesById.get(String(user.id)),
         mpAccount: mpAccountsById.get(String(user.id)),
+        passwordReset: passwordResetsById.get(String(user.id)),
       }),
     );
 

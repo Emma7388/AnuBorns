@@ -22,6 +22,9 @@ MERCADOPAGO_MARKETPLACE_ID=<marketplace-id-si-corresponde>
 MERCADOPAGO_SEND_MARKETPLACE_FIELD=false
 MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=1
 MERCADOPAGO_MARKETPLACE_FEE_PERCENT=0
+MERCADOPAGO_DIAGNOSTIC_MODE=false
+MERCADOPAGO_DIAGNOSTIC_ALLOWED_SELLER_USER_IDS=
+MERCADOPAGO_DIAGNOSTIC_ALLOWED_MP_USER_IDS=
 ```
 
 `SITE_URL` debe ser HTTPS y apuntar al dominio publico real. No dejarlo vacio: el checkout lo usa para `back_urls` y `notification_url`.
@@ -29,6 +32,8 @@ MERCADOPAGO_MARKETPLACE_FEE_PERCENT=0
 Despues de guardar las variables, hacer un redeploy. Las variables `PUBLIC_*` se incrustan durante `astro build`, asi que un despliegue anterior seguira fallando aunque las variables se agreguen despues.
 
 La `SUPABASE_SERVICE_ROLE_KEY` es solo para APIs server-side en Vercel. No debe exponerse en codigo del navegador ni en variables con prefijo `PUBLIC_`.
+
+`MERCADOPAGO_DIAGNOSTIC_MODE` debe quedar en `false` en operacion normal. Solo debe activarse para una prueba coordinada, con una cuenta de prueba o cuenta propia explicitamente incluida en `MERCADOPAGO_DIAGNOSTIC_ALLOWED_SELLER_USER_IDS` o `MERCADOPAGO_DIAGNOSTIC_ALLOWED_MP_USER_IDS`. Nunca usarlo para seleccionar automaticamente vendedores reales conectados.
 
 Si Supabase SQL editor devuelve:
 

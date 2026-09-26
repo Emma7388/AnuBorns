@@ -134,6 +134,7 @@ La documentación indica token OAuth del vendedor y `marketplace_fee` para Check
 4. Revisar nombres, presencia y entorno de variables en Vercel y el despliegue que las usa. No asumir que `.env.local` refleja Vercel.
 5. Comparar solicitud y respuesta de creación de preferencia, comisión calculada, campo marketplace y token OAuth utilizado, manteniendo secretos fuera de logs/chat.
 6. Reproducir de manera controlada sólo cuando esté definido qué se prueba. No realizar cobros reales sin autorización.
+7. No crear preferencias de diagnóstico usando una cuenta real de vendedor tomada automáticamente de `seller_mercadopago_accounts`. Para cualquier prueba que cree recursos en Mercado Pago, usar una cuenta propia/de test explícitamente permitida por `MERCADOPAGO_DIAGNOSTIC_MODE` y la allowlist documentada en `docs/mercadopago-wcs-48349-prueba-propuesta.md`.
 
 ## Supabase: auditorías y cambios anteriores
 

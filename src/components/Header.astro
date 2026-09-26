@@ -78,6 +78,18 @@ const loginHref = `/login?returnTo=${encodeURIComponent(currentPath)}`;
           </a>
           <span class="nav-user nav-user--plain" id="auth-name"></span>
         </div>
+        <a
+          class="nav-login nav-login--ghost nav-login--icon ab-is-hidden"
+          href="/admin/"
+          id="admin-platform-link"
+          aria-label="Ir al panel admin"
+          title="Panel admin"
+          aria-disabled="true"
+          tabindex="-1"
+        >
+          <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
+          <span>Admin</span>
+        </a>
         <button
           class="nav-login nav-login--ghost nav-login--icon nav-logout"
           type="button"

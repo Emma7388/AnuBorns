@@ -60,8 +60,11 @@ El panel interno arranca con dos superficies:
 - `MERCADOPAGO_MARKETPLACE_FEE_PERCENT`.
 - `MERCADOPAGO_SEND_MARKETPLACE_FIELD`.
 - `MERCADOPAGO_MARKETPLACE_ID`.
+- `MERCADOPAGO_DIAGNOSTIC_MODE`.
 
 Regla: la comision va por `marketplace_fee`. El campo `marketplace` queda omitido salvo confirmacion explicita de Mercado Pago.
+
+Regla de diagnostico: no se deben crear preferencias de prueba usando cuentas reales conectadas por OAuth. Cualquier diagnostico que cree recursos en Mercado Pago debe tener `MERCADOPAGO_DIAGNOSTIC_MODE=true` y una cuenta explicitamente permitida en la allowlist. En produccion, ese estado debe revisarse y apagarse al terminar.
 
 ### Mercado Pago OAuth vendedores
 
@@ -128,3 +131,4 @@ El panel muestra el entorno donde corre. Para produccion hay que revisar en Verc
 - Que el webhook configurado en Mercado Pago apunte al dominio real.
 - Que `MERCADOPAGO_SEND_MARKETPLACE_FIELD=false`, salvo confirmacion formal de Mercado Pago.
 - Que `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=1` si la comision fija de ARS 1 sigue siendo la configuracion buscada.
+- Que `MERCADOPAGO_DIAGNOSTIC_MODE=false`, salvo una prueba coordinada con cuenta propia o de test.

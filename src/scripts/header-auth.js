@@ -25,8 +25,11 @@ let modalClose = document.querySelector("[data-modal-close]");
 let cartCount = document.getElementById("cart-count");
 let cartSync = document.getElementById("cart-sync");
 let salesNotificationDot = document.getElementById("sales-notification-dot");
+let adminPlatformLink = document.getElementById("admin-platform-link");
 let isSigningOut = false;
 let lastSyncedUserId = "";
+let lastAdminStatusUserId = "";
+let lastAdminStatusValue = false;
 let cartSyncTimeout = 0;
 let salesRealtimeChannel = null;
 let salesRealtimeUserId = "";
@@ -95,6 +98,7 @@ const setView = (session, profile = {}) => {
   } else {
     user.classList.add("ab-is-hidden");
     guest.classList.remove("ab-is-hidden");
+    setAdminPlatformVisible(false);
     if (nameLabel) {
       nameLabel.textContent = "";
     }
@@ -115,6 +119,7 @@ const bindElements = () => {
   cartCount = document.getElementById("cart-count");
   cartSync = document.getElementById("cart-sync");
   salesNotificationDot = document.getElementById("sales-notification-dot");
+  adminPlatformLink = document.getElementById("admin-platform-link");
 };
 
 /* Evita registrar listeners duplicados. */
@@ -164,6 +169,50 @@ const setSalesNotificationVisible = (visible) => {
     return;
   }
   salesNotificationDot.classList.add("ab-is-hidden");
+};
+
+const setAdminPlatformVisible = (visible) => {
+  if (!adminPlatformLink) return;
+  if (visible) {
+    adminPlatformLink.classList.remove("ab-is-hidden");
+    adminPlatformLink.removeAttribute("aria-disabled");
+    adminPlatformLink.removeAttribute("tabindex");
+    return;
+  }
+  adminPlatformLink.classList.add("ab-is-hidden");
+  adminPlatformLink.setAttribute("aria-disabled", "true");
+  adminPlatformLink.setAttribute("tabindex", "-1");
+};
+
+const refreshAdminPlatformAccess = async (session) => {
+  const userId = session?.user?.id ?? "";
+  const token = session?.access_token ?? "";
+  if (!userId || !token) {
+    lastAdminStatusUserId = "";
+    lastAdminStatusValue = false;
+    setAdminPlatformVisible(false);
+    return;
+  }
+
+  if (lastAdminStatusUserId === userId) {
+    setAdminPlatformVisible(lastAdminStatusValue);
+    return;
+  }
+
+  setAdminPlatformVisible(false);
+  try {
+    const response = await fetch("/api/admin/status", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    lastAdminStatusUserId = userId;
+    lastAdminStatusValue = Boolean(response.ok && payload?.is_admin);
+    setAdminPlatformVisible(lastAdminStatusValue);
+  } catch {
+    lastAdminStatusUserId = userId;
+    lastAdminStatusValue = false;
+    setAdminPlatformVisible(false);
+  }
 };
 
 const getSalesNotificationCursor = (items) => {
@@ -364,6 +413,7 @@ const resolveSession = async () => {
   if (sessionData.session) {
     const session = await resolvePendingAvatar(sessionData.session);
     setView(session);
+    refreshAdminPlatformAccess(session).catch(() => setAdminPlatformVisible(false));
     renderCartCount(session);
     resolvePrivateProfile(session).then((profile) => setView(session, profile)).catch(() => {});
     runWhenIdle(() => {
@@ -376,6 +426,7 @@ const resolveSession = async () => {
   if (userData?.user) {
     const fallbackSession = { user: userData.user, access_token: sessionData?.session?.access_token ?? "" };
     setView(fallbackSession);
+    refreshAdminPlatformAccess(fallbackSession).catch(() => setAdminPlatformVisible(false));
     renderCartCount(fallbackSession);
     fetchUserProfile(userData.user).then((profile) => setView(fallbackSession, profile)).catch(() => {});
     runWhenIdle(() => {
@@ -385,6 +436,7 @@ const resolveSession = async () => {
   }
 
   setView(null);
+  setAdminPlatformVisible(false);
   setSalesNotificationVisible(false);
   void teardownSalesRealtime();
   void teardownPurchaseStatusNotifications();
@@ -442,6 +494,7 @@ const bindHeaderAuthEvents = () => {
   supabase.auth.onAuthStateChange(async (_event, incomingSession) => {
     const session = await resolvePendingAvatar(incomingSession);
     setView(session);
+    refreshAdminPlatformAccess(session).catch(() => setAdminPlatformVisible(false));
     resolvePrivateProfile(session).then((profile) => setView(session, profile)).catch(() => {});
     const userId = session?.user?.id ?? "";
     if (userId && userId !== lastSyncedUserId) {

@@ -1,3 +1,8 @@
+import {
+  getMercadoPagoDiagnosticsConfig,
+  isTruthyEnv,
+} from "./mercadopagoDiagnosticsSafety.js";
+
 const REQUIRED_ENV = [
   {
     key: "PUBLIC_SUPABASE_URL",
@@ -175,6 +180,12 @@ export const ADMIN_HEALTH_OPERATION_CHECKS = [
     detail: "Controla marketplace_fee y evita enviar marketplace salvo confirmacion.",
   },
   {
+    id: "mp-diagnostics",
+    area: "Mercado Pago",
+    label: "Diagnosticos Mercado Pago",
+    detail: "Evita pruebas sobre cuentas reales no autorizadas.",
+  },
+  {
     id: "multiseller-cart",
     area: "Carrito",
     label: "Carrito multiproveedor",
@@ -292,6 +303,63 @@ export const evaluateMarketplaceConfig = () => {
       : "No hay comision marketplace configurada.",
     action: hasFee ? "" : "Si corresponde cobrar comision, revisar importe fijo o porcentaje en Vercel.",
     meta: { fixedAmount, percent, sendMarketplaceField, hasFee },
+  });
+};
+
+export const evaluateMercadoPagoDiagnosticsConfig = () => {
+  const config = getMercadoPagoDiagnosticsConfig({
+    MERCADOPAGO_DIAGNOSTIC_MODE: getEnvValue("MERCADOPAGO_DIAGNOSTIC_MODE"),
+    MERCADOPAGO_DIAGNOSTIC_ALLOWED_SELLER_USER_IDS: getEnvValue(
+      "MERCADOPAGO_DIAGNOSTIC_ALLOWED_SELLER_USER_IDS",
+    ),
+    MERCADOPAGO_DIAGNOSTIC_ALLOWED_MP_USER_IDS: getEnvValue(
+      "MERCADOPAGO_DIAGNOSTIC_ALLOWED_MP_USER_IDS",
+    ),
+  });
+  const hasAllowlist =
+    config.allowedSellerUserIds.length > 0 || config.allowedMpUserIds.length > 0;
+  const productionLike = isTruthyEnv(getEnvValue("VERCEL_ENV") === "production" ? "true" : "");
+
+  if (!config.enabled) {
+    return buildHealthCheck({
+      id: "mp-diagnostics",
+      area: "Mercado Pago",
+      label: "Diagnosticos Mercado Pago",
+      status: "ok",
+      detail: "Los diagnosticos que crean recursos en Mercado Pago estan deshabilitados.",
+    });
+  }
+
+  if (!hasAllowlist) {
+    return buildHealthCheck({
+      id: "mp-diagnostics",
+      area: "Mercado Pago",
+      label: "Diagnosticos Mercado Pago",
+      status: "error",
+      detail: "MERCADOPAGO_DIAGNOSTIC_MODE esta activo sin allowlist.",
+      action:
+        "Apagar MERCADOPAGO_DIAGNOSTIC_MODE o configurar una cuenta de prueba explicitamente permitida.",
+      meta: { enabled: true, hasAllowlist: false },
+    });
+  }
+
+  return buildHealthCheck({
+    id: "mp-diagnostics",
+    area: "Mercado Pago",
+    label: "Diagnosticos Mercado Pago",
+    status: productionLike ? "warning" : "ok",
+    detail: productionLike
+      ? "Los diagnosticos Mercado Pago estan activos en produccion."
+      : "Los diagnosticos Mercado Pago estan activos con allowlist.",
+    action: productionLike
+      ? "Usar solo cuentas de prueba o apagar el modo diagnostico al terminar."
+      : "",
+    meta: {
+      enabled: true,
+      hasAllowlist: true,
+      allowedSellerUserIds: config.allowedSellerUserIds.length,
+      allowedMpUserIds: config.allowedMpUserIds.length,
+    },
   });
 };
 
