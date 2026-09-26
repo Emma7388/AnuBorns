@@ -69,35 +69,48 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   font-weight: 900;
 }
 
-.ab-admin-health-grid {
+.ab-admin-health-workspace {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+  grid-template-columns: minmax(170px, 240px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ab-admin-health-grid,
+.ab-admin-health-tabs {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 
 .ab-admin-health-tabs {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 2px 0 8px;
-  scrollbar-width: thin;
+  align-content: start;
 }
 
 .ab-admin-health-tab {
-  display: inline-flex;
-  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 12px;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
   border: 1px solid rgba(23, 35, 31, 0.14);
-  border-bottom-width: 3px;
+  border-left-width: 6px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.78);
   color: var(--ab-text, #17231f);
   font: inherit;
   font-weight: 900;
+  text-align: left;
   cursor: pointer;
+}
+
+.ab-admin-health-tab span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ab-admin-health-tab small {
@@ -111,15 +124,15 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-health-tab--ok {
-  border-bottom-color: #159a69;
+  border-left-color: #159a69;
 }
 
 .ab-admin-health-tab--warning {
-  border-bottom-color: #c78515;
+  border-left-color: #c78515;
 }
 
 .ab-admin-health-tab--error {
-  border-bottom-color: #c83b3b;
+  border-left-color: #c83b3b;
 }
 
 .ab-admin-health-tab:hover,
@@ -135,16 +148,23 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-health-card {
   display: grid;
-  grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 0.9fr) minmax(0, 1.8fr) minmax(220px, 0.9fr);
-  gap: 10px;
-  min-height: 58px;
-  padding: 8px 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(92px, 0.18fr) minmax(0, 1fr);
+  grid-template-areas:
+    "state title"
+    "state detail"
+    "state action";
+  gap: 6px 14px;
+  min-height: 82px;
+  padding: 14px 16px;
   border: 1px solid rgba(23, 35, 31, 0.14);
   border-left-width: 7px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.86);
   color: var(--ab-text, #17231f);
-  align-items: center;
+  align-items: start;
 }
 
 .ab-admin-health-card--ok {
@@ -160,10 +180,12 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-health-card__top {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
+  grid-area: state;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  align-items: start;
+  min-width: 0;
 }
 
 .ab-admin-health-card__top span,
@@ -194,22 +216,39 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-health-card h3,
 .ab-admin-health-card p {
   margin: 0;
+  min-width: 0;
 }
 
 .ab-admin-health-card h3 {
+  grid-area: title;
   font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: break-word;
 }
 
 .ab-admin-health-card p {
+  grid-area: detail;
   color: rgba(23, 35, 31, 0.76);
   font-size: 13px;
-  line-height: 1.3;
+  line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 .ab-admin-health-card small {
-  justify-self: end;
-  max-width: 320px;
-  text-align: right;
+  grid-area: action;
+  justify-self: start;
+  max-width: none;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1280px) {
+  .ab-admin-health-card {
+    grid-template-columns: minmax(104px, 0.18fr) minmax(180px, 0.34fr) minmax(0, 1fr);
+    grid-template-areas:
+      "state title detail"
+      "state action action";
+  }
 }
 
 .ab-admin-health-notes {
@@ -279,8 +318,8 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.78fr) minmax(520px, 1.22fr);
-  gap: 10px;
+  grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
@@ -288,14 +327,16 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-users__detail {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .ab-admin-user-card {
   display: flex;
+  box-sizing: border-box;
   width: 100%;
   min-height: 62px;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   padding: 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
@@ -304,6 +345,11 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   color: var(--ab-text, #17231f);
   text-align: left;
   cursor: pointer;
+}
+
+.ab-admin-user-card > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .ab-admin-user-card:hover,
@@ -316,6 +362,10 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-user-card strong,
 .ab-admin-user-card small {
   display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ab-admin-user-card strong {
@@ -325,15 +375,46 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-user-card small,
 .ab-admin-user-card__meta {
   color: rgba(23, 35, 31, 0.68);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .ab-admin-user-card__meta {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  justify-content: flex-end;
+  min-width: 96px;
+  text-align: right;
+  white-space: nowrap;
   font-weight: 800;
 }
 
+.ab-admin-user-card__meta::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #c83b3b;
+  box-shadow: 0 0 0 3px rgba(200, 59, 59, 0.12);
+}
+
+.ab-admin-user-card__meta--connected {
+  color: #126f4e;
+}
+
+.ab-admin-user-card__meta--connected::before {
+  background: #159a69;
+  box-shadow: 0 0 0 3px rgba(21, 154, 105, 0.13);
+}
+
+.ab-admin-user-card__meta--disconnected {
+  color: #8a2f2f;
+}
+
 .ab-admin-users__detail {
+  min-width: 0;
   padding: 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
   border-radius: 12px;
@@ -348,11 +429,14 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-users__detail-head h2,
 .ab-admin-users__detail-head p {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ab-admin-users__detail-head {
   display: grid;
   gap: 4px;
+  min-width: 0;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(23, 35, 31, 0.12);
 }
@@ -441,6 +525,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   grid-template-columns: 140px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
+  min-width: 0;
   padding: 6px 0;
   border-bottom: 1px solid rgba(23, 35, 31, 0.08);
 }
@@ -454,6 +539,39 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-users__detail-row strong {
   overflow-wrap: anywhere;
   font-size: 14px;
+}
+
+.ab-admin-users__mp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(200, 59, 59, 0.1);
+  color: #8a2f2f;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.ab-admin-users__mp-status::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #c83b3b;
+  box-shadow: 0 0 0 3px rgba(200, 59, 59, 0.12);
+}
+
+.ab-admin-users__mp-status--connected {
+  background: rgba(21, 154, 105, 0.11);
+  color: #126f4e;
+}
+
+.ab-admin-users__mp-status--connected::before {
+  background: #159a69;
+  box-shadow: 0 0 0 3px rgba(21, 154, 105, 0.13);
 }
 
 .ab-admin-users__pagination {
@@ -489,13 +607,64 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
     grid-template-columns: 1fr;
   }
 
+  .ab-admin-health-workspace {
+    grid-template-columns: minmax(118px, 34vw) minmax(0, 1fr);
+    gap: 7px;
+    overflow: hidden;
+  }
+
+  .ab-admin-health-grid,
   .ab-admin-health-tabs {
     gap: 6px;
   }
 
+  .ab-admin-health-tab {
+    min-height: 40px;
+    padding: 8px 7px;
+    border-left-width: 5px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .ab-admin-health-tab small {
+    min-width: 22px;
+    padding: 1px 5px;
+    font-size: 11px;
+  }
+
   .ab-admin-health-card {
-    grid-template-columns: 1fr;
-    min-height: 0;
+    grid-template-columns: minmax(52px, 0.24fr) minmax(0, 1fr);
+    grid-template-areas:
+      "state title"
+      "state detail"
+      "state action";
+    gap: 4px 7px;
+    min-height: 68px;
+    padding: 10px 8px;
+    border-left-width: 5px;
+  }
+
+  .ab-admin-health-card__top {
+    gap: 4px;
+  }
+
+  .ab-admin-health-card__top span,
+  .ab-admin-health-card small {
+    font-size: 11px;
+  }
+
+  .ab-admin-health-card__top strong {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .ab-admin-health-card h3 {
+    font-size: 13px;
+  }
+
+  .ab-admin-health-card p {
+    font-size: 12px;
+    line-height: 1.25;
   }
 
   .ab-admin-health-card small {

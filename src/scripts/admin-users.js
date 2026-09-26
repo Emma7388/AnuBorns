@@ -74,6 +74,15 @@ const renderDetailRow = (label, value) => `
   </div>
 `;
 
+const renderMercadoPagoDetailRow = (connected) => `
+  <div class="ab-admin-users__detail-row">
+    <span>Mercado Pago</span>
+    <strong class="ab-admin-users__mp-status ${connected ? "ab-admin-users__mp-status--connected" : "ab-admin-users__mp-status--disconnected"}">
+      ${connected ? "MP CONECTADO" : "SIN MP"}
+    </strong>
+  </div>
+`;
+
 const renderEditField = ([field, label, type], profile = {}) => `
   <label class="ab-admin-users__edit-field">
     <span>${escapeHtml(label)}</span>
@@ -192,6 +201,7 @@ const renderDetail = (user) => {
   }
 
   const name = fullName(user) || "Usuario sin nombre";
+  const mpConnected = Boolean(user.mercado_pago?.connected);
   detailElement.innerHTML = `
     <div class="ab-admin-users__detail-head">
       <h2>${escapeHtml(name)}</h2>
@@ -216,7 +226,7 @@ const renderDetail = (user) => {
     ${renderDetailRow("Alta", formatDate(user.created_at))}
     ${renderDetailRow("Último ingreso", formatDate(user.last_sign_in_at))}
     ${renderDetailRow("Email confirmado", formatDate(user.email_confirmed_at))}
-    ${renderDetailRow("Mercado Pago", user.mercado_pago?.connected ? "Conectado" : "No conectado")}
+    ${renderMercadoPagoDetailRow(mpConnected)}
     ${renderDetailRow("MP user id", user.mercado_pago?.mp_user_id)}
   `;
 };
@@ -236,14 +246,15 @@ const renderUsers = () => {
     .map((user) => {
       const name = fullName(user) || "Usuario sin nombre";
       const selected = user.id === state.selectedId;
+      const mpConnected = Boolean(user.mercado_pago?.connected);
       return `
         <button type="button" class="ab-admin-user-card${selected ? " is-selected" : ""}" data-user-id="${escapeHtml(user.id)}">
           <span>
             <strong>${escapeHtml(name)}</strong>
             <small>${escapeHtml(user.email || "Sin email")}</small>
           </span>
-          <span class="ab-admin-user-card__meta">
-            ${user.mercado_pago?.connected ? "MP conectado" : "Sin MP"}
+          <span class="ab-admin-user-card__meta ${mpConnected ? "ab-admin-user-card__meta--connected" : "ab-admin-user-card__meta--disconnected"}">
+            ${mpConnected ? "MP CONECTADO" : "SIN MP"}
           </span>
         </button>
       `;

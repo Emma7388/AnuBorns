@@ -89,6 +89,7 @@ const renderTabs = (checks = []) => {
           aria-selected="${selected ? "true" : "false"}"
           class="ab-admin-health-tab ab-admin-health-tab--${escapeHtml(status)}${selected ? " is-selected" : ""}"
           data-admin-health-process="${escapeHtml(group.area)}"
+          title="${escapeHtml(group.area)}"
         >
           <span>${escapeHtml(group.area)}</span>
           <small>${group.checks.length}</small>
