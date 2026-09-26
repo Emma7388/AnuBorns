@@ -8,7 +8,6 @@ import {
   evaluateEnvChecks,
   evaluateMarketplaceConfig,
   evaluateSiteUrl,
-  hasEnvValue,
   summarizeHealth,
 } from "../../../lib/adminHealth.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
@@ -188,13 +187,6 @@ export const GET = async ({ request }) => {
       generated_at: new Date().toISOString(),
       summary: summarizeHealth(checks),
       checks,
-      notes: [
-        "Este panel refleja la configuracion y base conectadas al entorno actual.",
-        "No muestra valores secretos ni confirma variables de Vercel si estas probando en local.",
-        hasEnvValue("MERCADOPAGO_SEND_MARKETPLACE_FIELD")
-          ? "El campo marketplace solo debe enviarse si Mercado Pago lo confirmo explicitamente."
-          : "MERCADOPAGO_SEND_MARKETPLACE_FIELD ausente se interpreta como false en checkout.",
-      ],
     });
   } catch (error) {
     console.error("[admin-health] Unhandled error", error);

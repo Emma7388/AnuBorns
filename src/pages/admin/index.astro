@@ -18,20 +18,21 @@ import "../../styles/admin.css";
     <div class="ab-admin-summary" id="admin-health-summary">
       <div class="ab-admin-summary__item">
         <strong id="admin-health-ok">0</strong>
-        <span>OK</span>
+        <span>Chequeos OK</span>
       </div>
       <div class="ab-admin-summary__item">
         <strong id="admin-health-warning">0</strong>
-        <span>Revisar</span>
+        <span>Chequeos a revisar</span>
       </div>
       <div class="ab-admin-summary__item">
         <strong id="admin-health-error">0</strong>
-        <span>Error</span>
+        <span>Chequeos con error</span>
       </div>
     </div>
 
     <p class="ab-muted-text" id="admin-health-status" aria-live="polite">Cargando estado operativo...</p>
 
+    <div class="ab-admin-health-tabs" id="admin-health-tabs" role="tablist" aria-label="Procesos operativos"></div>
     <div class="ab-admin-health-grid" id="admin-health-list"></div>
     <div class="ab-admin-health-notes" id="admin-health-notes"></div>
   </section>

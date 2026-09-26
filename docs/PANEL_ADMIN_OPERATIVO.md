@@ -14,6 +14,9 @@ El panel interno arranca con dos superficies:
 
 ## Estados
 
+Los contadores de `/admin` resumen chequeos operativos, no cantidad de usuarios.
+El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las etapas de validacion de ese proceso.
+
 - OK: pieza operativa disponible.
 - Revisar: la pieza existe, pero requiere decision humana o confirmacion externa.
 - Error: falta configuracion, tabla o permiso necesario.

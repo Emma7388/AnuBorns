@@ -75,6 +75,64 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   gap: 6px;
 }
 
+.ab-admin-health-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 8px;
+  scrollbar-width: thin;
+}
+
+.ab-admin-health-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(23, 35, 31, 0.14);
+  border-bottom-width: 3px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ab-text, #17231f);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ab-admin-health-tab small {
+  min-width: 26px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(23, 35, 31, 0.08);
+  color: rgba(23, 35, 31, 0.66);
+  font-size: 12px;
+  text-align: center;
+}
+
+.ab-admin-health-tab--ok {
+  border-bottom-color: #159a69;
+}
+
+.ab-admin-health-tab--warning {
+  border-bottom-color: #c78515;
+}
+
+.ab-admin-health-tab--error {
+  border-bottom-color: #c83b3b;
+}
+
+.ab-admin-health-tab:hover,
+.ab-admin-health-tab:focus-visible,
+.ab-admin-health-tab.is-selected {
+  border-color: rgba(45, 166, 138, 0.68);
+  box-shadow: 0 8px 18px rgba(18, 28, 25, 0.11);
+}
+
+.ab-admin-health-tab.is-selected {
+  background: rgba(255, 255, 255, 0.96);
+}
+
 .ab-admin-health-card {
   display: grid;
   grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 0.9fr) minmax(0, 1.8fr) minmax(220px, 0.9fr);
@@ -429,6 +487,10 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
   .ab-admin-summary {
     grid-template-columns: 1fr;
+  }
+
+  .ab-admin-health-tabs {
+    gap: 6px;
   }
 
   .ab-admin-health-card {

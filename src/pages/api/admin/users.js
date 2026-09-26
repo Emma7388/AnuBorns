@@ -6,9 +6,10 @@ import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 const PROFILE_SELECT =
   "user_id, first_name, last_name, phone, dni, address, city, province, postal_code, created_at, updated_at";
 const MP_SELECT = "user_id, mp_user_id, updated_at";
-const SEARCH_AUTH_LIMIT = 1000;
 const DEFAULT_PER_PAGE = 30;
 const MAX_PER_PAGE = 50;
+const AUTH_LIST_PAGE_SIZE = 1000;
+const AUTH_LIST_MAX_PAGES = 100;
 
 const cleanSearch = (value) => String(value ?? "").trim().slice(0, 80);
 
@@ -37,6 +38,19 @@ const listAuthUsers = async (supabaseAdmin, { page, perPage }) => {
   const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
   if (error) throw error;
   return data?.users ?? [];
+};
+
+const listAllAuthUsers = async (supabaseAdmin) => {
+  const users = [];
+  for (let page = 1; page <= AUTH_LIST_MAX_PAGES; page += 1) {
+    const pageUsers = await listAuthUsers(supabaseAdmin, {
+      page,
+      perPage: AUTH_LIST_PAGE_SIZE,
+    });
+    users.push(...pageUsers);
+    if (pageUsers.length < AUTH_LIST_PAGE_SIZE) break;
+  }
+  return users;
 };
 
 const fetchProfiles = async (supabaseAdmin, userIds) => {
@@ -169,15 +183,26 @@ const formatUser = ({ user, profile, mpAccount, passwordReset }) => {
 };
 
 const findUsers = async (supabaseAdmin, { query, page, perPage }) => {
-  if (!query) {
+  const slicePage = (users) => {
+    const total = users.length;
+    const totalPages = Math.ceil(total / perPage);
+    const safePage = totalPages === 0 ? 1 : Math.min(Math.max(1, page), totalPages);
+    const offset = (safePage - 1) * perPage;
     return {
-      users: await listAuthUsers(supabaseAdmin, { page, perPage }),
-      hasMore: false,
+      users: users.slice(offset, offset + perPage),
+      page: safePage,
+      total,
+      totalPages,
+      hasMore: safePage < totalPages,
     };
+  };
+
+  if (!query) {
+    return slicePage(await listAllAuthUsers(supabaseAdmin));
   }
 
   const [authUsers, matchingProfiles] = await Promise.all([
-    listAuthUsers(supabaseAdmin, { page: 1, perPage: SEARCH_AUTH_LIMIT }),
+    listAllAuthUsers(supabaseAdmin),
     fetchMatchingProfiles(supabaseAdmin, query),
   ]);
 
@@ -193,7 +218,7 @@ const findUsers = async (supabaseAdmin, { query, page, perPage }) => {
     if (profile && profileMatches(profile, query)) usersById.set(String(user.id), user);
   }
 
-  return { users: Array.from(usersById.values()).slice(0, perPage), hasMore: false };
+  return slicePage(Array.from(usersById.values()));
 };
 
 /** @type {import("astro").APIRoute} */
@@ -223,7 +248,7 @@ export const GET = async ({ request, url }) => {
       fallback: DEFAULT_PER_PAGE,
     });
 
-    const { users, hasMore } = await findUsers(supabaseAdmin, { query, page, perPage });
+    const { users, hasMore, total, totalPages, page: resolvedPage } = await findUsers(supabaseAdmin, { query, page, perPage });
     const userIds = users.map((user) => String(user.id)).filter(Boolean);
     const [profilesById, mpAccountsById, passwordResetsById] = await Promise.all([
       fetchProfiles(supabaseAdmin, userIds),
@@ -244,9 +269,11 @@ export const GET = async ({ request, url }) => {
       ok: true,
       users: records,
       pagination: {
-        page,
+        page: resolvedPage,
         perPage,
-        hasMore: hasMore || (!query && records.length === perPage),
+        total,
+        totalPages,
+        hasMore,
       },
     });
   } catch (error) {

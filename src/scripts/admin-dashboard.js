@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 
 const statusElement = document.getElementById("admin-health-status");
+const tabsElement = document.getElementById("admin-health-tabs");
 const listElement = document.getElementById("admin-health-list");
 const notesElement = document.getElementById("admin-health-notes");
 const okElement = document.getElementById("admin-health-ok");
@@ -9,6 +10,11 @@ const errorElement = document.getElementById("admin-health-error");
 
 const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
+};
+
+const state = {
+  checks: [],
+  selectedProcess: "",
 };
 
 const escapeHtml = (value) =>
@@ -25,10 +31,71 @@ const statusLabel = (status) => {
   return "Error";
 };
 
+const statusRank = (status) => {
+  if (status === "error") return 3;
+  if (status === "warning") return 2;
+  if (status === "ok") return 1;
+  return 0;
+};
+
+const getWorstStatus = (checks = []) =>
+  checks.reduce((worst, check) => (
+    statusRank(check?.status) > statusRank(worst) ? check.status : worst
+  ), "ok");
+
 const renderSummary = (summary = {}) => {
   if (okElement) okElement.textContent = String(summary.ok ?? 0);
   if (warningElement) warningElement.textContent = String(summary.warnings ?? 0);
   if (errorElement) errorElement.textContent = String(summary.errors ?? 0);
+};
+
+const getSummaryTotal = (summary = {}) =>
+  Number(summary.ok ?? 0) + Number(summary.warnings ?? 0) + Number(summary.errors ?? 0);
+
+const getProcessGroups = (checks = []) => {
+  const groups = [];
+  const byArea = new Map();
+  checks.forEach((check) => {
+    const area = String(check?.area ?? "General").trim() || "General";
+    if (!byArea.has(area)) {
+      const group = { area, checks: [] };
+      byArea.set(area, group);
+      groups.push(group);
+    }
+    byArea.get(area).checks.push(check);
+  });
+  return groups;
+};
+
+const renderTabs = (checks = []) => {
+  if (!tabsElement) return;
+  const groups = getProcessGroups(checks);
+  if (groups.length === 0) {
+    tabsElement.innerHTML = "";
+    return;
+  }
+  if (!groups.some((group) => group.area === state.selectedProcess)) {
+    state.selectedProcess = groups[0].area;
+  }
+
+  tabsElement.innerHTML = groups
+    .map((group) => {
+      const selected = group.area === state.selectedProcess;
+      const status = getWorstStatus(group.checks);
+      return `
+        <button
+          type="button"
+          role="tab"
+          aria-selected="${selected ? "true" : "false"}"
+          class="ab-admin-health-tab ab-admin-health-tab--${escapeHtml(status)}${selected ? " is-selected" : ""}"
+          data-admin-health-process="${escapeHtml(group.area)}"
+        >
+          <span>${escapeHtml(group.area)}</span>
+          <small>${group.checks.length}</small>
+        </button>
+      `;
+    })
+    .join("");
 };
 
 const renderChecks = (checks = []) => {
@@ -39,10 +106,10 @@ const renderChecks = (checks = []) => {
   }
 
   listElement.innerHTML = checks
-    .map((check) => `
+    .map((check, index) => `
       <article class="ab-admin-health-card ab-admin-health-card--${escapeHtml(check.status)}">
         <div class="ab-admin-health-card__top">
-          <span>${escapeHtml(check.area)}</span>
+          <span>Etapa ${index + 1}</span>
           <strong>${escapeHtml(statusLabel(check.status))}</strong>
         </div>
         <h3>${escapeHtml(check.label)}</h3>
@@ -51,6 +118,14 @@ const renderChecks = (checks = []) => {
       </article>
     `)
     .join("");
+};
+
+const renderSelectedProcess = () => {
+  const groups = getProcessGroups(state.checks);
+  const selectedGroup = groups.find((group) => group.area === state.selectedProcess) ?? groups[0];
+  state.selectedProcess = selectedGroup?.area ?? "";
+  renderTabs(state.checks);
+  renderChecks(selectedGroup?.checks ?? []);
 };
 
 const renderNotes = (notes = []) => {
@@ -83,11 +158,21 @@ const loadHealth = async () => {
     return;
   }
 
-  renderSummary(payload.summary);
-  renderChecks(Array.isArray(payload.checks) ? payload.checks : []);
+  const summary = payload.summary ?? {};
+  renderSummary(summary);
+  state.checks = Array.isArray(payload.checks) ? payload.checks : [];
+  renderSelectedProcess();
   renderNotes(Array.isArray(payload.notes) ? payload.notes : []);
-  setStatus(`Estado actualizado: ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
+  const total = getSummaryTotal(summary);
+  setStatus(`Estado actualizado: ${total} chequeos operativos · ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
 };
+
+tabsElement?.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-admin-health-process]");
+  if (!tab) return;
+  state.selectedProcess = tab.getAttribute("data-admin-health-process") ?? "";
+  renderSelectedProcess();
+});
 
 loadHealth().catch(() => {
   setStatus("No se pudo cargar el estado operativo.");

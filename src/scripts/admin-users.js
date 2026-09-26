@@ -17,6 +17,8 @@ const state = {
   users: [],
   selectedId: "",
   hasMore: false,
+  total: 0,
+  totalPages: 0,
   isEditing: false,
   isSaving: false,
   isResettingPassword: false,
@@ -252,9 +254,13 @@ const renderUsers = () => {
 };
 
 const updatePagination = () => {
-  if (pageElement) pageElement.textContent = `Página ${state.page}`;
+  const totalPages = Math.max(1, Number(state.totalPages) || 1);
+  if (pageElement) {
+    const totalLabel = state.total === 1 ? "1 usuario" : `${state.total} usuarios`;
+    pageElement.textContent = `Pagina ${state.page} de ${totalPages} · ${totalLabel}`;
+  }
   if (prevButton) prevButton.disabled = state.page <= 1;
-  if (nextButton) nextButton.disabled = !state.hasMore || Boolean(state.query);
+  if (nextButton) nextButton.disabled = !state.hasMore;
 };
 
 const fetchUsers = async () => {
@@ -282,17 +288,29 @@ const fetchUsers = async () => {
   if (!response.ok) {
     setStatus(payload?.error ?? "No se pudieron cargar los usuarios.");
     state.users = [];
+    state.total = 0;
+    state.totalPages = 0;
     renderUsers();
     updatePagination();
     return;
   }
 
   state.users = Array.isArray(payload?.users) ? payload.users : [];
-  state.hasMore = Boolean(payload?.pagination?.hasMore);
+  const pagination = payload?.pagination ?? {};
+  state.page = Number(pagination.page) || state.page;
+  state.hasMore = Boolean(pagination.hasMore);
+  state.total = Number(pagination.total) || state.users.length;
+  state.totalPages = Number(pagination.totalPages) || (state.total > 0 ? 1 : 0);
   if (!state.users.some((user) => user.id === state.selectedId)) {
     state.selectedId = state.users[0]?.id ?? "";
   }
-  setStatus(state.query ? `Resultados para "${state.query}".` : "Usuarios cargados.");
+  const loadedCount = state.users.length;
+  const totalText = state.total === 1 ? "1 usuario" : `${state.total} usuarios`;
+  setStatus(
+    state.query
+      ? `Resultados para "${state.query}": ${totalText}.`
+      : `Usuarios cargados: ${totalText}. Mostrando ${loadedCount}.`,
+  );
   renderUsers();
   updatePagination();
 };

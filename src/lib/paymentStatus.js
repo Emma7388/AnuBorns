@@ -1,7 +1,12 @@
-export const PRODUCT_LOCKING_ORDER_STATUSES = new Set([
+export const PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES = new Set([
   "approved",
   "partially_refunded",
   "refund_pending",
+]);
+
+export const PRODUCT_LOCKING_ORDER_STATUSES = new Set([
+  "pending",
+  ...PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES,
 ]);
 
 export const SALES_HISTORY_ORDER_STATUSES = new Set([

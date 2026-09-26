@@ -6,6 +6,7 @@ import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
+import { isSaleDispatchable } from "../../lib/paymentStatus.js";
 
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
@@ -45,7 +46,7 @@ export const POST = async ({ request }) => {
     /* El comprador solo puede confirmar recepciones de sus propias órdenes. */
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .select("id, user_id, shipping_requested, shipping_status")
+      .select("id, user_id, status, shipping_requested, shipping_status")
       .eq("id", orderId)
       .eq("user_id", buyerId)
       .maybeSingle();
@@ -55,6 +56,9 @@ export const POST = async ({ request }) => {
     }
     if (!order) {
       return jsonResponse({ error: "No autorizado para confirmar esta compra." }, 403);
+    }
+    if (!isSaleDispatchable(order.status)) {
+      return jsonResponse({ error: "La compra no tiene un pago aprobado para confirmar la recepcion." }, 409);
     }
     if (!Boolean(order.shipping_requested)) {
       return jsonResponse({ error: "Esta confirmación aplica sólo a envíos." }, 400);

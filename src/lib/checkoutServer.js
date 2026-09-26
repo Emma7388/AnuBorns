@@ -1,4 +1,5 @@
 import { PRODUCT_LOCKING_ORDER_STATUSES } from "./paymentStatus.js";
+import { cancelAbandonedCheckoutOrdersForProducts } from "./checkoutPendingOrders.js";
 
 /* Validaciones compartidas por checkout manual y Mercado Pago. */
 export const SHIPPING_FEE = 5000;
@@ -67,7 +68,12 @@ export const buildCheckoutContext = async (
   const shippingRequested = requestedShippingGroups.length > 0 || Boolean(shipping?.requested);
   const productIds = [...new Set(items.map((item) => item.product_id))];
 
-  /* Producto único: una orden approved bloquea nuevas compras del mismo producto. */
+  const cleanupResult = await cancelAbandonedCheckoutOrdersForProducts(supabaseAdmin, { productIds });
+  if (!cleanupResult.ok) {
+    return { ok: false, status: 500, error: "No se pudo validar la disponibilidad de los productos." };
+  }
+
+  /* Producto unico: una orden pendiente o confirmada bloquea nuevas compras del mismo producto. */
   const { data: soldRows, error: soldError } = await supabaseAdmin
     .from("order_items")
     .select("product_id, orders!inner(status)")

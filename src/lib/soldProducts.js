@@ -1,6 +1,6 @@
-import { PRODUCT_LOCKING_ORDER_STATUSES } from "./paymentStatus.js";
+import { PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES } from "./paymentStatus.js";
 
-const SOLD_ORDER_STATUSES = [...PRODUCT_LOCKING_ORDER_STATUSES];
+const SOLD_ORDER_STATUSES = [...PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES];
 
 const normalizeProductIds = (productIds = []) =>
   [...new Set(

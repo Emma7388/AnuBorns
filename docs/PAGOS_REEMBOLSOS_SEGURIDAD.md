@@ -24,14 +24,16 @@ La normalización vive en `src/lib/paymentStatus.js`. El sistema traduce la resp
 | Mercado Pago | Estado interno | Producto bloqueado | Venta visible | Despacho permitido | Uso en interfaz |
 | --- | --- | --- | --- | --- | --- |
 | `approved` | `approved` | Sí | Sí | Sí | Pago aprobado |
-| `pending`, `in_process`, `authorized` | `pending` | No | Sí | No | Pago pendiente |
+| `pending`, `in_process`, `authorized` | `pending` | Sí | Sí | No | Pago pendiente |
 | `rejected` | `rejected` | No | Sí | No | Pago rechazado |
 | `cancelled`, `canceled` | `cancelled` | No | Sí | No | Pago cancelado |
 | `refunded`, `charged_back` | `refunded` | No | Sí | No | Pago reembolsado |
 | `status_detail=refund_in_progress` o refund `processing/pending/in_process` | `refund_pending` | Sí | Sí | No | Reembolso pendiente |
 | `status_detail=partially_refunded` | `partially_refunded` | Sí | Sí | No | Reembolso parcial |
 
-La regla intencional es conservar bloqueado el producto cuando el dinero todavía está en un estado intermedio de devolución (`refund_pending`) o cuando el reembolso fue parcial (`partially_refunded`). Cuando el pago queda finalmente cancelado, rechazado o reembolsado completo, el producto deja de estar bloqueado por esa orden.
+La regla intencional es reservar el producto mientras el pago está pendiente para reducir carreras entre dos checkouts simultáneos. También se conserva bloqueado cuando el dinero todavía está en un estado intermedio de devolución (`refund_pending`) o cuando el reembolso fue parcial (`partially_refunded`). Cuando el pago queda finalmente cancelado, rechazado o reembolsado completo, el producto deja de estar bloqueado por esa orden.
+
+Antes de validar disponibilidad, el checkout cancela reservas `pending` antiguas sin `payment_id` para que un intento abandonado no bloquee indefinidamente una nueva compra.
 
 ## Reembolsos y botón de arrepentimiento
 
@@ -77,6 +79,7 @@ La política de producto único se basa en `PRODUCT_LOCKING_ORDER_STATUSES`:
 
 ```text
 approved
+pending
 partially_refunded
 refund_pending
 ```
@@ -110,7 +113,7 @@ canceled
 
 El despacho sólo se permite con `approved`. Para cualquier otro estado, la card muestra el estado de pago y pausa las acciones de preparación/despacho. En particular:
 
-- `pending`: “Esperando confirmación de pago”.
+- `pending`: “Esperando confirmación de pago”. Reserva el producto, pero no permite despacho.
 - `refund_pending`: “Pausada por reembolso pendiente”.
 - `partially_refunded`: visible como reembolso parcial, sin despacho.
 - `refunded`, `cancelled`, `rejected`: visibles como historial, sin despacho.

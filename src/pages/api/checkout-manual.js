@@ -1,6 +1,6 @@
 /* API: checkout manual (sin MercadoPago) para registrar compras reales. */
 import { jsonResponse } from "../../lib/apiResponse.js";
-import { getAuthenticatedUser } from "../../lib/serverAuth.js";
+import { requireAdmin } from "../../lib/adminAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { getClientIp } from "../../lib/requestMeta.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
@@ -26,8 +26,8 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: "Servicio no disponible." }, 503);
     }
 
-    const auth = await getAuthenticatedUser(supabaseAdmin, request);
-    if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
+    const admin = await requireAdmin(supabaseAdmin, request);
+    if (!admin.ok) return jsonResponse({ error: admin.error }, admin.status);
 
     const body = await readJsonBody(request, { maxBytes: 20_000 });
     if (!body.ok) return jsonResponse({ error: body.error }, body.status);
@@ -40,7 +40,7 @@ export const POST = async ({ request }) => {
     const checkout = await buildCheckoutContext(supabaseAdmin, {
       rawItems: payload?.items,
       shipping,
-      buyerId: auth.user.id,
+      buyerId: admin.user.id,
     });
     if (!checkout.ok) {
       return jsonResponse(
@@ -55,7 +55,7 @@ export const POST = async ({ request }) => {
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
-        user_id: auth.user.id,
+        user_id: admin.user.id,
         status: "approved",
         total_amount: checkout.totalAmount,
         currency: checkout.orderCurrency,
@@ -96,7 +96,7 @@ export const POST = async ({ request }) => {
 
     /* Auditoría de mejor esfuerzo para compra manual. */
     await supabaseAdmin.from("audit_logs").insert({
-      user_id: auth.user.id,
+      user_id: admin.user.id,
       event: "manual_checkout_created",
       metadata: {
         order_id: order.id,

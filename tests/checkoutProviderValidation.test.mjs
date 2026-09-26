@@ -10,6 +10,17 @@ const createSupabaseMock = ({ products = [], soldRows = [] } = {}) => ({
           return {
             in() {
               return {
+                eq() {
+                  return {
+                    is() {
+                      return {
+                        async lt() {
+                          return { data: [], error: null };
+                        },
+                      };
+                    },
+                  };
+                },
                 async in() {
                   return { data: soldRows, error: null };
                 },

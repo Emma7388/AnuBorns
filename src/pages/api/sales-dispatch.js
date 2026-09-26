@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { refreshOrderShippingStatus } from "../../lib/fulfillmentStatus.js";
+import { isSaleDispatchable } from "../../lib/paymentStatus.js";
 
 /* Estados que el vendedor puede marcar desde Mis ventas. */
 const allowedStatuses = new Set([
@@ -82,6 +83,22 @@ export const POST = async ({ request }) => {
     }
     if (!orderItem) {
       return jsonResponse({ error: "La venta no coincide con el producto indicado." }, 400);
+    }
+
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from("orders")
+      .select("id, status")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderError) {
+      return jsonResponse({ error: "No se pudo validar el estado de pago." }, 500);
+    }
+    if (!order) {
+      return jsonResponse({ error: "La venta no existe." }, 404);
+    }
+    if (!isSaleDispatchable(order.status)) {
+      return jsonResponse({ error: "La venta no tiene un pago aprobado para despachar." }, 409);
     }
 
     if (status === "completed") {

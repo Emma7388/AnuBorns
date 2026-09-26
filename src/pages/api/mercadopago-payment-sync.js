@@ -3,7 +3,7 @@ import { jsonResponse } from "../../lib/apiResponse.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 import {
-  PRODUCT_LOCKING_ORDER_STATUSES,
+  PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES,
   getInternalPaymentStatusFromMercadoPago,
   mergeMercadoPagoPaymentDetail,
 } from "../../lib/paymentStatus.js";
@@ -74,7 +74,7 @@ const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
     .from("order_items")
     .select("product_id, order_id, orders!inner(status)")
     .in("product_id", productIds)
-    .in("orders.status", [...PRODUCT_LOCKING_ORDER_STATUSES])
+    .in("orders.status", [...PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES])
     .neq("order_id", orderId);
 
   if (approvedError) return { ok: false, error: approvedError.message };

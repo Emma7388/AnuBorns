@@ -40,6 +40,12 @@ test("detecta reembolso total desde status_detail", () => {
   );
 });
 
+test("pagos pendientes reservan producto pero no despacho", () => {
+  assert.equal(isProductLockedByOrderStatus("pending"), true);
+  assert.equal(isSaleDispatchable("pending"), false);
+  assert.equal(getPaymentStatusLabel("pending"), "Pago pendiente");
+});
+
 test("reembolsos pendientes bloquean producto pero no despacho", () => {
   assert.equal(isProductLockedByOrderStatus("refund_pending"), true);
   assert.equal(isSaleDispatchable("refund_pending"), false);
