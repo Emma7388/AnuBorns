@@ -7,8 +7,24 @@ import { getSupabaseAdmin } from "../../../../lib/supabaseServer.js";
 const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value ?? ""));
 
-const buildRecoveryRedirectUrl = (request) => {
-  const url = new URL("/nueva-contrasena", request.url);
+const resolveSiteUrl = () => {
+  const raw = String(process.env.SITE_URL ?? import.meta.env?.SITE_URL ?? "").trim();
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return null;
+    url.pathname = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+};
+
+const buildRecoveryRedirectUrl = () => {
+  const siteUrl = resolveSiteUrl();
+  if (!siteUrl) return null;
+  const url = new URL("/nueva-contrasena", siteUrl);
   url.searchParams.set("returnTo", "/login");
   return url.toString();
 };
@@ -46,9 +62,12 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: "No se pudo obtener el email del usuario." }, 404);
     }
 
-    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: buildRecoveryRedirectUrl(request),
-    });
+    const redirectTo = buildRecoveryRedirectUrl();
+    if (!redirectTo) {
+      return jsonResponse({ error: "SITE_URL debe estar configurado con HTTPS para enviar restablecimientos." }, 503);
+    }
+
+    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
     if (resetError) {
       return jsonResponse({ error: "No se pudo enviar el email de restablecimiento." }, 502);
     }

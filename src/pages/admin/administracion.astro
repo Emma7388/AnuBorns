@@ -1,0 +1,56 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import "../../styles/admin.css";
+---
+
+<MainLayout title="Administración" headerTitle="Administración" backHref="/admin/">
+  <section class="ab-dark-panel ab-admin-finance">
+    <div class="ab-admin-dashboard__head">
+      <div>
+        <p class="ab-admin-dashboard__eyebrow">Administración</p>
+        <h2>Fee AnuBorns</h2>
+      </div>
+      <a class="ab-secondary-button" href="/admin/usuarios">
+        <span>Usuarios</span>
+      </a>
+    </div>
+
+    <p class="ab-muted-text" id="admin-finance-status" aria-live="polite">Cargando administración...</p>
+
+    <div class="ab-admin-finance__summary">
+      <div class="ab-admin-summary__item">
+        <strong id="admin-fee-approved">$0</strong>
+        <span>Fee aprobado</span>
+      </div>
+      <div class="ab-admin-summary__item">
+        <strong id="admin-fee-registered">$0</strong>
+        <span>Fee registrado</span>
+      </div>
+      <div class="ab-admin-summary__item">
+        <strong id="admin-fee-orders">0</strong>
+        <span>Ordenes con fee</span>
+      </div>
+    </div>
+
+    <div class="ab-admin-finance__grid">
+      <article class="ab-admin-finance__panel">
+        <h3>Resumen</h3>
+        <div id="admin-finance-detail" class="ab-admin-finance__detail"></div>
+      </article>
+
+      <article class="ab-admin-finance__panel">
+        <h3>Fee aprobado por día</h3>
+        <div id="admin-finance-chart" class="ab-admin-finance-chart" aria-label="Fee aprobado por día"></div>
+      </article>
+
+      <article class="ab-admin-finance__panel">
+        <h3>Últimas órdenes con fee</h3>
+        <div id="admin-finance-orders" class="ab-admin-finance__orders"></div>
+      </article>
+    </div>
+  </section>
+</MainLayout>
+
+<script>
+  import "../../scripts/admin-administracion.js";
+</script>

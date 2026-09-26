@@ -3,7 +3,7 @@
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users not null,
+  user_id uuid references auth.users(id) on delete restrict not null,
   status text not null default 'pending',
   total_amount numeric(12,2) not null default 0,
   currency text not null default 'ARS',

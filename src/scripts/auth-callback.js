@@ -8,6 +8,21 @@ let isCompletingAuthCallback = false;
 const sanitizeReturnTo = (value) => (isSafeInternalPath(value) ? value : "/mis-datos");
 const getParams = () => new URLSearchParams(window.location.search);
 const getReturnTo = () => sanitizeReturnTo(getParams().get("returnTo"));
+const getHashParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ""));
+const isPasswordRecoveryCallback = () => {
+  const searchParams = getParams();
+  const hashParams = getHashParams();
+  const type = searchParams.get("type") || hashParams.get("type");
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  return type === "recovery" || returnTo.startsWith("/nueva-contrasena");
+};
+const getPasswordRecoveryHref = () => {
+  const rawReturnTo = getParams().get("returnTo");
+  const returnTo = isSafeInternalPath(rawReturnTo) ? rawReturnTo : "/login";
+  const url = new URL("/nueva-contrasena", window.location.origin);
+  url.searchParams.set("returnTo", returnTo === "/nueva-contrasena" ? "/login" : returnTo);
+  return `${url.pathname}${url.search}`;
+};
 
 const bindAuthCallbackElements = () => {
   feedback = document.getElementById("auth-callback-feedback");
@@ -31,6 +46,12 @@ const completeAuthCallback = async () => {
         setFeedback("No se pudo confirmar la sesión. Iniciá sesión manualmente.");
         return;
       }
+    }
+
+    if (isPasswordRecoveryCallback()) {
+      setFeedback("Enlace verificado. Redirigiendo para crear una contraseÃ±a nueva...");
+      window.location.replace(getPasswordRecoveryHref());
+      return;
     }
 
     const { data } = await supabase.auth.getSession();

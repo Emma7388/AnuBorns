@@ -46,7 +46,7 @@ const getReturnTo = () =>
 
 const getRecoveryRedirectUrl = () => {
   const url = new URL("/nueva-contrasena", window.location.origin);
-  url.searchParams.set("returnTo", getReturnTo());
+  url.searchParams.set("returnTo", "/login");
   return url.toString();
 };
 

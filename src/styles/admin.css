@@ -1,11 +1,13 @@
 main[data-ab-pathname="/admin"],
 main[data-ab-pathname="/admin/"],
+main[data-ab-pathname="/admin/administracion"],
 main[data-ab-pathname="/admin/usuarios"] {
   padding-inline: max(10px, 1vw);
 }
 
 main[data-ab-pathname="/admin"] .ab-dark-panel,
 main[data-ab-pathname="/admin/"] .ab-dark-panel,
+main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
 main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   width: min(98vw, 1800px);
   max-width: none;
@@ -23,11 +25,23 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   gap: 12px;
 }
 
+.ab-admin-finance {
+  display: grid;
+  gap: 12px;
+}
+
 .ab-admin-dashboard__head {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: center;
+}
+
+.ab-admin-dashboard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .ab-admin-dashboard__head h2,
@@ -292,6 +306,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-users .ab-secondary-button,
+.ab-admin-finance .ab-secondary-button,
 .ab-admin-dashboard .ab-secondary-button {
   display: inline-flex;
   justify-content: center;
@@ -310,10 +325,125 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users .ab-secondary-button:hover,
 .ab-admin-users .ab-secondary-button:focus-visible,
+.ab-admin-finance .ab-secondary-button:hover,
+.ab-admin-finance .ab-secondary-button:focus-visible,
 .ab-admin-dashboard .ab-secondary-button:hover,
 .ab-admin-dashboard .ab-secondary-button:focus-visible {
   border-color: rgba(45, 166, 138, 0.65);
   box-shadow: 0 8px 18px rgba(18, 28, 25, 0.11);
+}
+
+.ab-admin-finance__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ab-admin-finance__grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.ab-admin-finance__panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(23, 35, 31, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.ab-admin-finance__panel h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.ab-admin-finance__detail,
+.ab-admin-finance__orders {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ab-admin-finance-chart {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(46px, 1fr);
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+  min-height: 220px;
+  padding: 8px 2px 0;
+  overflow-x: auto;
+}
+
+.ab-admin-finance-chart__bar {
+  display: grid;
+  grid-template-rows: auto minmax(120px, 1fr) auto;
+  gap: 6px;
+  align-items: end;
+  min-width: 46px;
+  height: 100%;
+  text-align: center;
+}
+
+.ab-admin-finance-chart__bar strong {
+  min-width: 0;
+  color: rgba(23, 35, 31, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-finance-chart__bar span {
+  display: block;
+  width: 100%;
+  min-height: 8px;
+  border: 1px solid rgba(21, 154, 105, 0.22);
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, rgba(45, 166, 138, 0.78), rgba(21, 154, 105, 0.92));
+}
+
+.ab-admin-finance-chart__bar small {
+  color: rgba(23, 35, 31, 0.62);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ab-admin-finance-order {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.ab-admin-finance-order div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ab-admin-finance-order div:last-child {
+  justify-items: end;
+}
+
+.ab-admin-finance-order strong,
+.ab-admin-finance-order span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-finance-order span {
+  color: rgba(23, 35, 31, 0.66);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .ab-admin-users__layout {
@@ -586,12 +716,14 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 @media (max-width: 760px) {
   main[data-ab-pathname="/admin"],
   main[data-ab-pathname="/admin/"],
+  main[data-ab-pathname="/admin/administracion"],
   main[data-ab-pathname="/admin/usuarios"] {
     padding-inline: 8px;
   }
 
   main[data-ab-pathname="/admin"] .ab-dark-panel,
   main[data-ab-pathname="/admin/"] .ab-dark-panel,
+  main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
   main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
     width: 100%;
     margin: 8px auto;
@@ -605,6 +737,17 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
   .ab-admin-summary {
     grid-template-columns: 1fr;
+  }
+
+  .ab-admin-dashboard__actions,
+  .ab-admin-finance__summary,
+  .ab-admin-finance__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-admin-dashboard__actions {
+    display: grid;
+    justify-content: stretch;
   }
 
   .ab-admin-health-workspace {

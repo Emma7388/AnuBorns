@@ -11,9 +11,11 @@ const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_RULE_MESSAGE =
   "La contraseña debe tener mínimo 8 caracteres, 1 mayúscula, 1 carácter especial y 1 número.";
 
-const params = () => new URLSearchParams(window.location.search);
+const searchParams = () => new URLSearchParams(window.location.search);
+const hashParams = () => new URLSearchParams(window.location.hash.replace(/^#/, ""));
+const getUrlParam = (name) => searchParams().get(name) || hashParams().get(name);
 const sanitizeReturnTo = (value) => (isSafeInternalPath(value) ? value : "/login");
-const getReturnTo = () => sanitizeReturnTo(params().get("returnTo"));
+const getReturnTo = () => sanitizeReturnTo(getUrlParam("returnTo"));
 
 const bindElements = () => {
   form = document.getElementById("new-password-form");
@@ -25,6 +27,14 @@ const bindElements = () => {
 
 const setFeedback = (message) => {
   if (feedback) feedback.textContent = message;
+};
+
+const clearRecoveryParamsFromUrl = () => {
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("code");
+  cleanUrl.searchParams.delete("type");
+  cleanUrl.hash = "";
+  window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}`);
 };
 
 const bindEvents = () => {
@@ -41,6 +51,15 @@ const validatePasswordStrength = (password) =>
   && /[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/.test(password);
 
 const waitForRecoverySession = async () => {
+  const code = getUrlParam("code");
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      clearRecoveryParamsFromUrl();
+      return true;
+    }
+  }
+
   const { data } = await supabase.auth.getSession();
   if (data?.session?.user) return true;
 
@@ -96,7 +115,10 @@ const handleSubmit = async (event) => {
       return;
     }
 
+    window.dispatchEvent(new Event("ab-password-recovery-complete"));
     setFeedback("Contraseña actualizada. Redirigiendo...");
+    await supabase.auth.signOut();
+
     window.setTimeout(() => {
       window.location.replace(getReturnTo());
     }, 900);

@@ -3,6 +3,7 @@
 El panel interno arranca con dos superficies:
 
 - `/admin`: tablero operativo read-only con estados OK, Revisar y Error.
+- `/admin/administracion`: resumen administrativo del `marketplace_fee` registrado localmente.
 - `/admin/usuarios`: administracion de usuarios, perfiles y estado Mercado Pago.
 
 ## Seguridad base
@@ -54,6 +55,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - Tabla `order_items`.
 - Checkout Pro con piezas minimas: `SITE_URL`, Mercado Pago, `orders`, `order_items`, `products`, `seller_mercadopago_accounts`.
 - Carrito multiproveedor: finalizar un vendedor por vez y validar en servidor.
+- El panel de administracion suma el `marketplace_fee` guardado en `orders.payment_detail`; no confirma por si solo la acreditacion real en Mercado Pago.
 
 ### Mercado Pago
 
