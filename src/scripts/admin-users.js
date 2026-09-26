@@ -254,7 +254,7 @@ const renderUsers = () => {
             <small>${escapeHtml(user.email || "Sin email")}</small>
           </span>
           <span class="ab-admin-user-card__meta ${mpConnected ? "ab-admin-user-card__meta--connected" : "ab-admin-user-card__meta--disconnected"}">
-            ${mpConnected ? "MP CONECTADO" : "SIN MP"}
+            ${mpConnected ? "MP OK" : "SIN MP"}
           </span>
         </button>
       `;

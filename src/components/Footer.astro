@@ -73,7 +73,7 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
   min-height: calc(var(--footer-height) - 2px);
 }
@@ -81,7 +81,7 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
 .footer-content p {
   grid-column: 1;
   margin: 0;
-  font-size: clamp(0.78rem, 1.6dvh, 0.95rem);
+  font-size: clamp(0.68rem, 1.25dvh, 0.82rem);
   line-height: 1.2;
   text-align: left;
 }
@@ -89,8 +89,8 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
 .footer-back {
   grid-column: 2;
   justify-self: center;
-  width: clamp(58px, 7.2dvh, 72px);
-  height: clamp(54px, 6.8dvh, 68px);
+  width: clamp(38px, 4.8dvh, 46px);
+  height: clamp(36px, 4.6dvh, 44px);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -103,8 +103,8 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
 }
 
 .footer-back img {
-  width: clamp(30px, 3.8dvh, 38px);
-  height: clamp(30px, 3.8dvh, 38px);
+  width: clamp(20px, 2.7dvh, 26px);
+  height: clamp(20px, 2.7dvh, 26px);
   object-fit: contain;
 }
 
@@ -122,7 +122,7 @@ const resolvedBackHref = useHistoryBack ? "/" : backHref;
   .footer-content p {
     min-width: 0;
     text-align: left;
-    font-size: clamp(0.68rem, 1.4dvh, 0.82rem);
+    font-size: clamp(0.62rem, 1.2dvh, 0.76rem);
   }
 }
 </style>

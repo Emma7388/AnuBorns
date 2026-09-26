@@ -47,19 +47,10 @@ const statusLabel = (order) => {
   return state || "-";
 };
 
-const dayKey = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-};
-
-const formatDayLabel = (value) => {
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value || "-";
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
+const formatPercent = (value, total) => {
+  const safeTotal = Number(total) || 0;
+  if (safeTotal <= 0) return "0%";
+  return `${Math.round(((Number(value) || 0) / safeTotal) * 100)}%`;
 };
 
 const renderSummary = (payload) => {
@@ -118,39 +109,58 @@ const renderOrders = (payload) => {
 const renderChart = (payload) => {
   if (!chartElement) return;
   const currency = payload?.currency ?? "ARS";
-  const orders = Array.isArray(payload?.recent) ? payload.recent : [];
-  const daily = orders
-    .filter((order) => order?.fee_approved)
-    .reduce((map, order) => {
-      const key = dayKey(order.created_at);
-      if (!key) return map;
-      map.set(key, (map.get(key) ?? 0) + (Number(order.marketplace_fee) || 0));
-      return map;
-    }, new Map());
+  const summary = payload?.summary ?? {};
+  const approved = Math.max(0, Number(summary.approved_fee_total) || 0);
+  const pending = Math.max(0, Number(summary.pending_fee_total) || 0);
+  const registered = Math.max(0, Number(summary.registered_fee_total) || 0);
+  const other = Math.max(0, registered - approved - pending);
+  const total = Math.max(0, approved + pending + other);
 
-  const points = [...daily.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .slice(-10)
-    .map(([date, total]) => ({ date, total }));
-
-  if (!points.length) {
-    chartElement.innerHTML = `<div class="ab-cart-empty"><p>No hay fee aprobado para graficar.</p></div>`;
+  if (total <= 0) {
+    chartElement.innerHTML = `<div class="ab-cart-empty"><p>No hay fee registrado para graficar.</p></div>`;
     return;
   }
 
-  const max = Math.max(...points.map((point) => point.total), 1);
-  chartElement.innerHTML = points
-    .map((point) => {
-      const height = Math.max(8, Math.round((point.total / max) * 100));
-      return `
-        <div class="ab-admin-finance-chart__bar" title="${escapeHtml(`${formatDayLabel(point.date)} · ${formatMoney(point.total, currency)}`)}">
-          <strong>${escapeHtml(formatMoney(point.total, currency))}</strong>
-          <span style="height: ${height}%"></span>
-          <small>${escapeHtml(formatDayLabel(point.date))}</small>
+  const approvedAngle = (approved / total) * 360;
+  const pendingAngle = ((approved + pending) / total) * 360;
+
+  chartElement.innerHTML = `
+    <div class="ab-admin-finance-pie" style="--approved-angle: 0deg; --pending-angle: 0deg;" aria-hidden="true">
+      <div class="ab-admin-finance-pie__center">
+        <strong>${escapeHtml(formatMoney(registered, currency))}</strong>
+        <span>Registrado</span>
+      </div>
+    </div>
+    <div class="ab-admin-finance-legend">
+      <div class="ab-admin-finance-legend__item ab-admin-finance-legend__item--approved">
+        <span></span>
+        <div>
+          <strong>${escapeHtml(formatMoney(approved, currency))}</strong>
+          <small>Aprobado · ${escapeHtml(formatPercent(approved, total))}</small>
         </div>
-      `;
-    })
-    .join("");
+      </div>
+      <div class="ab-admin-finance-legend__item ab-admin-finance-legend__item--pending">
+        <span></span>
+        <div>
+          <strong>${escapeHtml(formatMoney(pending, currency))}</strong>
+          <small>Pendiente · ${escapeHtml(formatPercent(pending, total))}</small>
+        </div>
+      </div>
+      <div class="ab-admin-finance-legend__item ab-admin-finance-legend__item--other">
+        <span></span>
+        <div>
+          <strong>${escapeHtml(formatMoney(other, currency))}</strong>
+          <small>Otros · ${escapeHtml(formatPercent(other, total))}</small>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const pieElement = chartElement.querySelector(".ab-admin-finance-pie");
+  window.requestAnimationFrame(() => {
+    pieElement?.style.setProperty("--approved-angle", `${approvedAngle}deg`);
+    pieElement?.style.setProperty("--pending-angle", `${pendingAngle}deg`);
+  });
 };
 
 const loadAdministration = async () => {

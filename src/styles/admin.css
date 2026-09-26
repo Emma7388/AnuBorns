@@ -9,31 +9,46 @@ main[data-ab-pathname="/admin"] .ab-dark-panel,
 main[data-ab-pathname="/admin/"] .ab-dark-panel,
 main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
 main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
-  width: min(98vw, 1800px);
+  box-sizing: border-box;
+  width: min(96vw, 1180px);
   max-width: none;
   margin: 10px auto;
-  padding: 12px;
+  padding: 14px;
+}
+
+@property --approved-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --pending-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
 
 .ab-admin-users {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  overflow-x: clip;
 }
 
 .ab-admin-dashboard {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  overflow-x: clip;
 }
 
 .ab-admin-finance {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .ab-admin-dashboard__head {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -63,13 +78,47 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-summary__item {
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: 2px;
   padding: 10px;
   border: 1px solid rgba(23, 35, 31, 0.12);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.82);
   text-align: center;
+}
+
+.ab-admin-summary__item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: #596a75;
+}
+
+.ab-admin-summary__item--approved::before {
+  background: #159a69;
+}
+
+.ab-admin-summary__item--registered::before {
+  background: #2d6f91;
+}
+
+.ab-admin-summary__item--orders::before {
+  background: #c78515;
+}
+
+.ab-admin-dashboard .ab-admin-summary__item:nth-child(1)::before {
+  background: #159a69;
+}
+
+.ab-admin-dashboard .ab-admin-summary__item:nth-child(2)::before {
+  background: #c78515;
+}
+
+.ab-admin-dashboard .ab-admin-summary__item:nth-child(3)::before {
+  background: #c83b3b;
 }
 
 .ab-admin-summary__item strong {
@@ -85,8 +134,8 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-health-workspace {
   display: grid;
-  grid-template-columns: minmax(170px, 240px) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(168px, 224px) minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
   max-width: 100%;
   overflow: hidden;
@@ -175,8 +224,8 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   padding: 14px 16px;
   border: 1px solid rgba(23, 35, 31, 0.14);
   border-left-width: 7px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 248, 0.82));
   color: var(--ab-text, #17231f);
   align-items: start;
 }
@@ -268,9 +317,9 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-health-notes {
   display: grid;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid rgba(23, 35, 31, 0.1);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.58);
 }
 
@@ -285,6 +334,11 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.14);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 248, 0.82));
 }
 
 .ab-admin-users__search {
@@ -303,6 +357,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   display: flex;
   gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 
 .ab-admin-users .ab-secondary-button,
@@ -336,29 +391,47 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-finance__summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .ab-admin-finance__grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
-  gap: 12px;
-  align-items: start;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(280px, 1fr);
+  grid-template-areas:
+    "chart detail"
+    "orders orders";
+  gap: 10px;
+  align-items: stretch;
 }
 
 .ab-admin-finance__panel {
   display: grid;
   gap: 8px;
   min-width: 0;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 248, 0.82));
+}
+
+.ab-admin-finance__panel--chart {
+  grid-area: chart;
+}
+
+.ab-admin-finance__panel:not(.ab-admin-finance__panel--chart):not(.ab-admin-finance__panel--orders) {
+  grid-area: detail;
+}
+
+.ab-admin-finance__panel--orders {
+  grid-area: orders;
 }
 
 .ab-admin-finance__panel h3 {
   margin: 0;
-  font-size: 16px;
+  color: rgba(23, 35, 31, 0.82);
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: 0;
 }
 
 .ab-admin-finance__detail,
@@ -370,47 +443,124 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-finance-chart {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(46px, 1fr);
-  gap: 8px;
-  align-items: end;
+  grid-template-columns: minmax(168px, 0.9fr) minmax(150px, 1fr);
+  gap: 12px;
+  align-items: center;
   min-width: 0;
-  min-height: 220px;
-  padding: 8px 2px 0;
-  overflow-x: auto;
+  min-height: 210px;
 }
 
-.ab-admin-finance-chart__bar {
+.ab-admin-finance-pie {
+  position: relative;
   display: grid;
-  grid-template-rows: auto minmax(120px, 1fr) auto;
-  gap: 6px;
-  align-items: end;
-  min-width: 46px;
-  height: 100%;
-  text-align: center;
+  place-items: center;
+  width: min(100%, 190px);
+  aspect-ratio: 1;
+  justify-self: center;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      #159a69 0 var(--approved-angle),
+      #c78515 var(--approved-angle) var(--pending-angle),
+      #596a75 var(--pending-angle) 360deg
+    );
+  box-shadow: 0 16px 34px rgba(18, 28, 25, 0.16);
+  transition:
+    --approved-angle 850ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pending-angle 850ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.ab-admin-finance-chart__bar strong {
+.ab-admin-finance-pie::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.ab-admin-finance-pie__center {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(23, 35, 31, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  text-align: center;
+  box-shadow: inset 0 0 0 6px rgba(23, 35, 31, 0.03);
+}
+
+.ab-admin-finance-pie__center strong,
+.ab-admin-finance-pie__center span {
   min-width: 0;
-  color: rgba(23, 35, 31, 0.78);
-  font-size: 11px;
-  font-weight: 900;
   overflow-wrap: anywhere;
 }
 
-.ab-admin-finance-chart__bar span {
-  display: block;
-  width: 100%;
-  min-height: 8px;
-  border: 1px solid rgba(21, 154, 105, 0.22);
-  border-radius: 8px 8px 3px 3px;
-  background: linear-gradient(180deg, rgba(45, 166, 138, 0.78), rgba(21, 154, 105, 0.92));
+.ab-admin-finance-pie__center strong {
+  color: rgba(23, 35, 31, 0.9);
+  font-size: 22px;
+  line-height: 1;
 }
 
-.ab-admin-finance-chart__bar small {
+.ab-admin-finance-pie__center span {
   color: rgba(23, 35, 31, 0.62);
   font-size: 11px;
   font-weight: 900;
+}
+
+.ab-admin-finance-legend {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ab-admin-finance-legend__item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(23, 35, 31, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.ab-admin-finance-legend__item > span {
+  width: 10px;
+  height: 28px;
+  border-radius: 999px;
+  background: #596a75;
+}
+
+.ab-admin-finance-legend__item--approved > span {
+  background: #159a69;
+}
+
+.ab-admin-finance-legend__item--pending > span {
+  background: #c78515;
+}
+
+.ab-admin-finance-legend__item strong,
+.ab-admin-finance-legend__item small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-finance-legend__item strong {
+  color: rgba(23, 35, 31, 0.86);
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.ab-admin-finance-legend__item small {
+  color: rgba(23, 35, 31, 0.62);
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .ab-admin-finance-order {
@@ -418,7 +568,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  padding: 10px;
+  padding: 8px 10px;
   border: 1px solid rgba(23, 35, 31, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
@@ -448,9 +598,12 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__layout {
   display: grid;
-  grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
 }
 
 .ab-admin-users__list,
@@ -460,15 +613,21 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   min-width: 0;
 }
 
+.ab-admin-users__list {
+  width: 100%;
+  max-width: 300px;
+  overflow: hidden;
+}
+
 .ab-admin-user-card {
   display: flex;
   box-sizing: border-box;
   width: 100%;
-  min-height: 62px;
+  min-height: 58px;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  padding: 10px;
+  padding: 9px 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.78);
@@ -499,7 +658,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-user-card strong {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .ab-admin-user-card small,
@@ -514,7 +673,8 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   align-items: center;
   gap: 5px;
   justify-content: flex-end;
-  min-width: 96px;
+  min-width: 68px;
+  max-width: 78px;
   text-align: right;
   white-space: nowrap;
   font-weight: 800;
@@ -547,8 +707,9 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   min-width: 0;
   padding: 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 248, 0.82));
+  overflow: hidden;
 }
 
 .ab-admin-users__detail .ab-secondary-button {
@@ -594,8 +755,9 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__edit-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
+  min-width: 0;
 }
 
 .ab-admin-users__edit-field {
@@ -631,6 +793,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   display: grid;
   grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.5fr);
   gap: 8px;
+  min-width: 0;
 }
 
 .ab-admin-users__edit-actions .ab-cta-button,
@@ -706,11 +869,22 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__pagination {
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .ab-admin-users__pagination button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+@media (max-width: 1020px) {
+  .ab-admin-users__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-admin-users__list {
+    max-width: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -743,6 +917,22 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   .ab-admin-finance__summary,
   .ab-admin-finance__grid {
     grid-template-columns: 1fr;
+  }
+
+  .ab-admin-finance__grid {
+    grid-template-areas:
+      "chart"
+      "detail"
+      "orders";
+  }
+
+  .ab-admin-finance-chart {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .ab-admin-finance-pie {
+    width: min(230px, 74vw);
   }
 
   .ab-admin-dashboard__actions {

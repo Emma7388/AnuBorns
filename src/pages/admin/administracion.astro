@@ -17,33 +17,33 @@ import "../../styles/admin.css";
 
     <p class="ab-muted-text" id="admin-finance-status" aria-live="polite">Cargando administración...</p>
 
-    <div class="ab-admin-finance__summary">
-      <div class="ab-admin-summary__item">
+    <div class="ab-admin-finance__summary" aria-label="Resumen de fee">
+      <div class="ab-admin-summary__item ab-admin-summary__item--approved">
         <strong id="admin-fee-approved">$0</strong>
         <span>Fee aprobado</span>
       </div>
-      <div class="ab-admin-summary__item">
+      <div class="ab-admin-summary__item ab-admin-summary__item--registered">
         <strong id="admin-fee-registered">$0</strong>
         <span>Fee registrado</span>
       </div>
-      <div class="ab-admin-summary__item">
+      <div class="ab-admin-summary__item ab-admin-summary__item--orders">
         <strong id="admin-fee-orders">0</strong>
         <span>Ordenes con fee</span>
       </div>
     </div>
 
     <div class="ab-admin-finance__grid">
+      <article class="ab-admin-finance__panel ab-admin-finance__panel--chart">
+        <h3>Distribución del fee</h3>
+        <div id="admin-finance-chart" class="ab-admin-finance-chart" aria-label="Distribución del fee"></div>
+      </article>
+
       <article class="ab-admin-finance__panel">
         <h3>Resumen</h3>
         <div id="admin-finance-detail" class="ab-admin-finance__detail"></div>
       </article>
 
-      <article class="ab-admin-finance__panel">
-        <h3>Fee aprobado por día</h3>
-        <div id="admin-finance-chart" class="ab-admin-finance-chart" aria-label="Fee aprobado por día"></div>
-      </article>
-
-      <article class="ab-admin-finance__panel">
+      <article class="ab-admin-finance__panel ab-admin-finance__panel--orders">
         <h3>Últimas órdenes con fee</h3>
         <div id="admin-finance-orders" class="ab-admin-finance__orders"></div>
       </article>

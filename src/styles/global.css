@@ -66,7 +66,7 @@
   --chip-warning-text: #6f5411;
   --color-disabled-text: rgba(23, 33, 28, 0.62);
   --header-height: clamp(82px, 10dvh, 104px);
-  --footer-height: var(--header-height);
+  --footer-height: clamp(42px, 5dvh, 52px);
   --chrome-peek-size: 10px;
   --card-radius: 12px;
   --card-padding: 12px;
