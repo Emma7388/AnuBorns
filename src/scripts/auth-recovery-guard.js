@@ -11,7 +11,7 @@ const hashParams = () => new URLSearchParams(window.location.hash.replace(/^#/, 
 const getUrlParam = (name) => searchParams().get(name) || hashParams().get(name);
 
 const isRecoveryPage = () => window.location.pathname === RECOVERY_PATH;
-const isAllowedRecoveryPath = () => [RECOVERY_PATH, LOGIN_PATH].includes(window.location.pathname);
+const isAllowedRecoveryPath = () => window.location.pathname === RECOVERY_PATH;
 
 const hasRecoveryUrlSignal = () => {
   const type = getUrlParam("type");
