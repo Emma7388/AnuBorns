@@ -149,20 +149,19 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-health-tabs {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 6px;
   align-content: start;
 }
 
 .ab-admin-health-tab {
-  display: inline-grid;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  width: auto;
-  min-height: 38px;
-  max-width: 210px;
+  width: 100%;
+  min-height: 42px;
   padding: 8px 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
   border-left-width: 5px;
@@ -206,11 +205,16 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-health-tab:focus-visible,
 .ab-admin-health-tab.is-selected {
   border-color: rgba(45, 166, 138, 0.68);
-  box-shadow: 0 8px 18px rgba(18, 28, 25, 0.11);
+  box-shadow: 0 8px 18px rgba(18, 28, 25, 0.09);
 }
 
 .ab-admin-health-tab.is-selected {
-  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(21, 154, 105, 0.72);
+  border-left-color: #159a69;
+  background: rgba(21, 154, 105, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(21, 154, 105, 0.2),
+    0 10px 20px rgba(18, 28, 25, 0.1);
 }
 
 .ab-admin-health-card {
@@ -218,11 +222,10 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  grid-template-columns: minmax(76px, 0.18fr) minmax(0, 1fr);
+  grid-template-columns: minmax(92px, 0.14fr) minmax(160px, 0.28fr) minmax(0, 1fr);
   grid-template-areas:
-    "state title"
-    "state detail"
-    "state action";
+    "state title detail"
+    "state action action";
   gap: 5px 10px;
   min-height: 70px;
   padding: 10px 12px;
@@ -312,7 +315,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 @media (min-width: 1280px) {
   .ab-admin-health-card {
-    grid-template-columns: minmax(76px, 0.14fr) minmax(160px, 0.32fr) minmax(0, 1fr);
+    grid-template-columns: minmax(92px, 0.14fr) minmax(180px, 0.26fr) minmax(0, 1fr);
     grid-template-areas:
       "state title detail"
       "state action action";
@@ -320,7 +323,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-health-section .ab-admin-health-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .ab-admin-health-notes {
@@ -1337,7 +1340,6 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
   .ab-admin-health-tab {
     min-height: 40px;
-    max-width: none;
     padding: 8px 7px;
     border-left-width: 5px;
     font-size: 12px;
@@ -1351,7 +1353,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   }
 
   .ab-admin-health-card {
-    grid-template-columns: minmax(52px, 0.24fr) minmax(0, 1fr);
+    grid-template-columns: minmax(64px, 0.22fr) minmax(0, 1fr);
     grid-template-areas:
       "state title"
       "state detail"

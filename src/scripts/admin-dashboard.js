@@ -91,8 +91,8 @@ const renderTabs = (checks = []) => {
     tabsElement.innerHTML = "";
     return;
   }
-  if (!groups.some((group) => group.area === state.selectedProcess)) {
-    state.selectedProcess = groups[0].area;
+  if (state.selectedProcess && !groups.some((group) => group.area === state.selectedProcess)) {
+    state.selectedProcess = "";
   }
 
   tabsElement.innerHTML = groups
@@ -119,7 +119,7 @@ const renderTabs = (checks = []) => {
 const renderChecks = (checks = []) => {
   if (!listElement) return;
   if (!checks.length) {
-    listElement.innerHTML = `<div class="ab-cart-empty"><p>No hay chequeos para mostrar.</p></div>`;
+    listElement.innerHTML = "";
     return;
   }
 
@@ -140,7 +140,7 @@ const renderChecks = (checks = []) => {
 
 const renderSelectedProcess = () => {
   const groups = getProcessGroups(state.checks);
-  const selectedGroup = groups.find((group) => group.area === state.selectedProcess) ?? groups[0];
+  const selectedGroup = groups.find((group) => group.area === state.selectedProcess);
   state.selectedProcess = selectedGroup?.area ?? "";
   renderTabs(state.checks);
   renderChecks(selectedGroup?.checks ?? []);
@@ -487,7 +487,8 @@ const loadVercelAnalytics = async () => {
 tabsElement?.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-admin-health-process]");
   if (!tab) return;
-  state.selectedProcess = tab.getAttribute("data-admin-health-process") ?? "";
+  const nextProcess = tab.getAttribute("data-admin-health-process") ?? "";
+  state.selectedProcess = state.selectedProcess === nextProcess ? "" : nextProcess;
   renderSelectedProcess();
 });
 
