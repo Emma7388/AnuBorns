@@ -14,6 +14,10 @@ const metricsRefreshButton = document.getElementById("admin-supabase-metrics-ref
 const usagePanelElement = document.getElementById("admin-supabase-usage");
 const usageMetaElement = document.getElementById("admin-supabase-usage-meta");
 const usageListElement = document.getElementById("admin-supabase-usage-list");
+const analyticsPanelElement = document.getElementById("admin-vercel-analytics");
+const analyticsMetaElement = document.getElementById("admin-vercel-analytics-meta");
+const analyticsListElement = document.getElementById("admin-vercel-analytics-list");
+const analyticsRefreshButton = document.getElementById("admin-vercel-analytics-refresh");
 
 const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
@@ -251,6 +255,77 @@ const renderUsage = (usage = {}) => {
   usageListElement.innerHTML = `${cardsHtml}${unavailableHtml}`;
 };
 
+const renderAnalytics = (analytics = {}) => {
+  if (!analyticsPanelElement || !analyticsListElement) return;
+
+  const items = Array.isArray(analytics.items) ? analytics.items : [];
+  const sections = Array.isArray(analytics.sections) ? analytics.sections : [];
+  const check = analytics.check ?? null;
+  const configured = Boolean(analytics.configured);
+  const generatedAt = analytics.generated_at ? new Date(analytics.generated_at) : null;
+
+  if (analyticsMetaElement) {
+    analyticsMetaElement.textContent = analytics.pending
+      ? "Consulta manual"
+      : generatedAt && !Number.isNaN(generatedAt.getTime())
+      ? generatedAt.toLocaleString("es-AR")
+      : configured
+      ? "Sin fecha"
+      : "Configurar API";
+  }
+
+  if (!items.length) {
+    analyticsListElement.innerHTML = `
+      <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
+        <div class="ab-admin-metric-card__top">
+          <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
+          <strong>${escapeHtml(check?.label ?? "Vercel Analytics")}</strong>
+        </div>
+        <p>${escapeHtml(check?.detail ?? "Toca Consultar para leer Vercel Web Analytics.")}</p>
+        ${check?.action ? `<small>${escapeHtml(check.action)}</small>` : ""}
+      </article>
+    `;
+    return;
+  }
+
+  const cardsHtml = items
+    .map((metric) => `
+      <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
+        <div class="ab-admin-metric-card__top">
+          <span>${escapeHtml(statusLabel(metric.status))}</span>
+          <strong>${escapeHtml(metric.label)}</strong>
+        </div>
+        <div class="ab-admin-metric-card__value">${escapeHtml(metric.value_display)}</div>
+        <p>${escapeHtml(metric.detail)}</p>
+      </article>
+    `)
+    .join("");
+
+  const sectionsHtml = sections.length
+    ? `
+      <div class="ab-admin-analytics-sections">
+        ${sections.map((section) => `
+          <article class="ab-admin-analytics-section">
+            <strong>${escapeHtml(section.label)}</strong>
+            <div>
+              ${Array.isArray(section.rows) && section.rows.length
+                ? section.rows.map((row) => `
+                  <span>
+                    ${escapeHtml(row.label)}
+                    <small>${escapeHtml(row.pageviews ?? 0)} pv${row.visitors ? ` - ${escapeHtml(row.visitors)} vis.` : ""}</small>
+                  </span>
+                `).join("")
+                : `<em>${escapeHtml(section.empty ?? "Sin datos.")}</em>`}
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    `
+    : "";
+
+  analyticsListElement.innerHTML = `${cardsHtml}${sectionsHtml}`;
+};
+
 const loadHealth = async () => {
   setStatus("Cargando estado operativo...");
   const { data: sessionData } = await supabase.auth.getSession();
@@ -290,13 +365,21 @@ const getAccessToken = async () => {
   return sessionData?.session?.access_token ?? "";
 };
 
-const replaceSupabaseMetricChecks = (checks = []) => {
-  const metricAreas = new Set(["Supabase metricas", "Supabase uso del plan"]);
+const replaceChecksByArea = (areas = [], checks = []) => {
+  const metricAreas = new Set(areas);
   state.checks = state.checks
     .filter((check) => !metricAreas.has(check?.area))
     .concat(checks);
   renderSummary(summarizeChecks(state.checks));
   renderSelectedProcess();
+};
+
+const replaceSupabaseMetricChecks = (checks = []) => {
+  replaceChecksByArea(["Supabase metricas", "Supabase uso del plan"], checks);
+};
+
+const replaceVercelAnalyticsChecks = (checks = []) => {
+  replaceChecksByArea(["Vercel Analytics"], checks);
 };
 
 const loadSupabaseMetrics = async () => {
@@ -352,6 +435,55 @@ const loadSupabaseMetrics = async () => {
   }
 };
 
+const loadVercelAnalytics = async () => {
+  if (!analyticsRefreshButton) return;
+  analyticsRefreshButton.disabled = true;
+  analyticsRefreshButton.textContent = "Consultando...";
+  if (analyticsMetaElement) analyticsMetaElement.textContent = "Consultando";
+
+  try {
+    const token = await getAccessToken();
+    if (!token) {
+      setStatus("Tenes que iniciar sesion para consultar Vercel Analytics.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/vercel-analytics", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      renderAnalytics({
+        check: {
+          label: "Vercel Analytics",
+          status: "error",
+          detail: payload?.error ?? "No se pudo cargar Vercel Analytics.",
+        },
+      });
+      setStatus(payload?.error ?? "No se pudo cargar Vercel Analytics.");
+      return;
+    }
+
+    renderAnalytics(payload.analytics ?? {});
+    replaceVercelAnalyticsChecks(Array.isArray(payload.checks) ? payload.checks : []);
+    setStatus(`Vercel Analytics actualizado - ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
+  } catch {
+    renderAnalytics({
+      check: {
+        label: "Vercel Analytics",
+        status: "error",
+        detail: "No se pudo cargar Vercel Analytics.",
+      },
+    });
+    setStatus("No se pudo cargar Vercel Analytics.");
+  } finally {
+    analyticsRefreshButton.disabled = false;
+    analyticsRefreshButton.textContent = "Consultar";
+  }
+};
+
 tabsElement?.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-admin-health-process]");
   if (!tab) return;
@@ -363,6 +495,10 @@ metricsRefreshButton?.addEventListener("click", () => {
   loadSupabaseMetrics();
 });
 
+analyticsRefreshButton?.addEventListener("click", () => {
+  loadVercelAnalytics();
+});
+
 renderMetrics({
   pending: true,
   check: {
@@ -372,6 +508,14 @@ renderMetrics({
   },
 });
 renderUsage({});
+renderAnalytics({
+  pending: true,
+  check: {
+    label: "Consulta manual",
+    status: "warning",
+    detail: "Toca Consultar para leer Vercel Web Analytics.",
+  },
+});
 
 loadHealth().catch(() => {
   setStatus("No se pudo cargar el estado operativo.");

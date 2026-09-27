@@ -502,6 +502,65 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   font-weight: 850;
 }
 
+.ab-admin-analytics-sections {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.ab-admin-analytics-section {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(23, 35, 31, 0.1);
+  border-radius: 8px;
+  background: rgba(23, 35, 31, 0.04);
+}
+
+.ab-admin-analytics-section strong {
+  color: rgba(23, 35, 31, 0.78);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.ab-admin-analytics-section div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ab-admin-analytics-section span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: rgba(23, 35, 31, 0.78);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ab-admin-analytics-section small {
+  color: rgba(23, 35, 31, 0.54);
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.ab-admin-analytics-section em {
+  color: rgba(23, 35, 31, 0.58);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .ab-admin-users__toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

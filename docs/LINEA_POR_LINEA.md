@@ -36,6 +36,7 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/lib/supabaseClient.js`: cliente Supabase browser con validación de variables públicas.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
+- `src/lib/vercelAnalytics.js`: lectura server-side de Vercel Web Analytics para visitas, page views y rankings del panel admin.
 - `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login y evento `ab-cart-updated`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
 - `src/lib/checkoutPendingOrders.js`: cancela checkouts pendientes abandonados y contempla aprobaciones tardías.
@@ -83,6 +84,7 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/pages/api/purchase-fulfillment.js`: consulta el resumen de cumplimiento de una compra.
 - `src/pages/api/admin/health.js`: estado operativo admin, tablas requeridas y variables sin disparar la lectura pesada de Metrics API.
 - `src/pages/api/admin/supabase-metrics.js`: endpoint admin de consulta manual para mediciones Supabase y uso del plan.
+- `src/pages/api/admin/vercel-analytics.js`: endpoint admin de consulta manual para Vercel Web Analytics.
 
 ## Páginas
 
@@ -108,7 +110,7 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 
 - `src/pages/oferta.astro`: entrada de segundo nivel para ofertar.
 - `src/pages/oferta/productos.astro`: placeholder de flujo de oferta de productos.
-- `src/pages/admin/index.astro`: tablero operativo interno con chequeos por proceso y mediciones read-only de Supabase.
+- `src/pages/admin/index.astro`: tablero operativo interno con chequeos por proceso, mediciones read-only de Supabase y analitica manual de Vercel.
 
 
 ## Estilos

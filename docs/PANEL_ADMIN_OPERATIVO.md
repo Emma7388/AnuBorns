@@ -41,6 +41,15 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - Las mediciones visibles incluyen memoria, swap, disco, carga, I/O en curso, conexiones reportadas y reinicios de Postgres. El navegador no recibe la clave de metricas.
 - El bloque `Uso del plan` muestra como tarjetas solo las cuotas que puede leer sin consultas costosas: database size, monthly active users y file storage cuando estan disponibles. Egress, Log ingestion y Log Query quedan agrupados como referencia de Supabase Usage porque no conviene consultarlos desde la app.
 
+### Vercel
+
+- `VERCEL_ANALYTICS_TOKEN`.
+- `VERCEL_ANALYTICS_PROJECT_ID`.
+- `VERCEL_ANALYTICS_TEAM_ID` cuando el proyecto pertenece a un team.
+- La lectura de Web Analytics es manual desde el boton `Consultar`; la carga inicial del panel no llama a Vercel.
+- El bloque muestra visitantes y page views de 7 y 30 dias, pagina principal, origen principal y rankings compactos de paginas, origenes, paises y dispositivos.
+- El navegador no recibe el token de Vercel Analytics.
+
 ### Usuarios
 
 - Tabla `profiles`.
@@ -126,6 +135,7 @@ Estas son las funciones posibles para sumar al panel, en orden prudente:
    - Separar local vs produccion como revision manual.
    - Avisar si `MERCADOPAGO_SEND_MARKETPLACE_FIELD=true`.
    - Mostrar si falta la configuracion de Metrics API sin bloquear el resto del panel.
+   - Mostrar si falta la configuracion de Vercel Analytics sin bloquear el resto del panel.
 
 6. Acciones controladas
    - Reprocesar sincronizacion de una orden puntual.
@@ -138,6 +148,7 @@ Estas son las funciones posibles para sumar al panel, en orden prudente:
 El panel muestra el entorno donde corre. Para produccion hay que revisar en Vercel:
 
 - Variables `PUBLIC_*`, Supabase server y Mercado Pago.
+- Variables privadas de Vercel Analytics si se quiere ver visitas dentro de `/admin`.
 - Que `SITE_URL` sea HTTPS y corresponda al dominio real.
 - Que el webhook configurado en Mercado Pago apunte al dominio real.
 - Que `MERCADOPAGO_SEND_MARKETPLACE_FIELD=false`, salvo confirmacion formal de Mercado Pago.

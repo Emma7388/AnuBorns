@@ -28,7 +28,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
-- Panel admin con chequeos operativos y consulta manual de mediciones read-only de Supabase cuando Metrics API está configurada.
+- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase y consulta manual de Vercel Analytics cuando las APIs estan configuradas.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
 
@@ -78,11 +78,16 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_PROJECT_REF=
 SUPABASE_METRICS_SECRET_KEY=
+VERCEL_ANALYTICS_TOKEN=
+VERCEL_ANALYTICS_PROJECT_ID=
+VERCEL_ANALYTICS_TEAM_ID=
 ```
 
 `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` son opcionales para compilar, pero habilitan el boton manual de mediciones del servidor Supabase en `/admin`. La clave debe ser privada/server-side, idealmente una Secret API key `sb_secret_...`.
 
-El panel intenta leer automaticamente lo liviano disponible, como database size, Storage y usuarios activos aproximados. Egress, Log ingestion y Log Query quedan indicados como datos de dashboard porque no conviene consultarlos desde la app.
+Cuando un admin toca `Consultar`, el panel intenta leer lo liviano disponible, como database size, Storage y usuarios activos aproximados. Egress, Log ingestion y Log Query quedan indicados como datos de dashboard porque no conviene consultarlos desde la app.
+
+`VERCEL_ANALYTICS_TOKEN` y `VERCEL_ANALYTICS_PROJECT_ID` habilitan el boton manual de Vercel Analytics en `/admin`. `VERCEL_ANALYTICS_TEAM_ID` es opcional y solo hace falta si el proyecto pertenece a un team. El token es privado/server-side; no debe tener prefijo `PUBLIC_`.
 
 Variables requeridas para Mercado Pago:
 
