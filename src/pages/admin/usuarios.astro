@@ -8,14 +8,14 @@ import "../../styles/admin.css";
     <div class="ab-admin-dashboard__head">
       <div>
         <p class="ab-admin-dashboard__eyebrow">Estado interno</p>
-        <h2>Gestion de usuarios</h2>
+        <h2>Gestión de usuarios</h2>
       </div>
       <div class="ab-admin-dashboard__actions">
         <a class="ab-secondary-button" href="/admin/">
-          <span>Operacion</span>
+          <span>Operación</span>
         </a>
         <a class="ab-secondary-button" href="/admin/administracion">
-          <span>Administracion</span>
+          <span>Administración</span>
         </a>
       </div>
     </div>
@@ -27,7 +27,7 @@ import "../../styles/admin.css";
           id="admin-user-search"
           type="search"
           autocomplete="off"
-          placeholder="Email, nombre, DNI o telefono"
+          placeholder="Email, nombre, DNI o teléfono"
         />
       </label>
       <div class="ab-admin-users__actions">
@@ -44,7 +44,21 @@ import "../../styles/admin.css";
     <p class="ab-muted-text" id="admin-users-status" aria-live="polite">Cargando usuarios...</p>
 
     <div class="ab-admin-users__layout">
-      <div class="ab-admin-users__list" id="admin-users-list"></div>
+      <div class="ab-admin-users__side">
+        <section class="ab-admin-users__mp-summary" aria-labelledby="admin-users-mp-summary-title">
+          <div class="ab-admin-users__mp-chart" id="admin-users-mp-chart" aria-hidden="true"></div>
+          <div class="ab-admin-users__mp-copy">
+            <p class="ab-admin-dashboard__eyebrow">Mercado Pago</p>
+            <h3 id="admin-users-mp-summary-title">Conexión vendedores</h3>
+            <div class="ab-admin-users__mp-counts">
+              <span><strong id="admin-users-mp-connected">0</strong> conectados</span>
+              <span><strong id="admin-users-mp-disconnected">0</strong> sin MP</span>
+            </div>
+            <small id="admin-users-mp-total">0 usuarios</small>
+          </div>
+        </section>
+        <div class="ab-admin-users__list" id="admin-users-list"></div>
+      </div>
       <aside class="ab-admin-users__detail" id="admin-user-detail" aria-live="polite">
         <p class="ab-muted-text">Seleccioná un usuario para ver sus datos.</p>
       </aside>

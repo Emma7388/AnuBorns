@@ -48,6 +48,6 @@ export const GET = async ({ request }) => {
     });
   } catch (error) {
     console.error("[admin-vercel-analytics] Unhandled error", error);
-    return jsonResponse({ error: "No se pudo cargar Vercel Analytics." }, 500);
+    return jsonResponse({ error: "No se pudo cargar la analitica de Vercel." }, 500);
   }
 };

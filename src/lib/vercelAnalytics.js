@@ -143,7 +143,7 @@ const queryVercelAnalytics = async (path, params, config) => {
 
 const buildMetric = ({ id, label, value, status = "ok", detail, meta = {} }) => ({
   id,
-  area: "Vercel Analytics",
+  area: "Analitica Vercel",
   label,
   value,
   value_display: value,
@@ -189,7 +189,7 @@ export const buildVercelAnalyticsSnapshot = ({
     }),
     buildMetric({
       id: "vercel-pageviews-7d",
-      label: "Page views 7 dias",
+      label: "Vistas 7 dias",
       value: formatNumber(last7.pageviews),
       detail: `Rango ${range7Text}.`,
       meta: { raw: last7.pageviews },
@@ -203,7 +203,7 @@ export const buildVercelAnalyticsSnapshot = ({
     }),
     buildMetric({
       id: "vercel-pageviews-30d",
-      label: "Page views 30 dias",
+      label: "Vistas 30 dias",
       value: formatNumber(last30.pageviews),
       detail: `Rango ${range30Text}.`,
       meta: { raw: last30.pageviews },
@@ -215,9 +215,9 @@ export const buildVercelAnalyticsSnapshot = ({
   if (firstPage) {
     items.push(buildMetric({
       id: "vercel-top-page",
-      label: "Pagina principal",
+      label: "Página principal",
       value: firstPage.label,
-      detail: `${formatNumber(firstPage.pageviews)} page views en 30 dias.`,
+      detail: `${formatNumber(firstPage.pageviews)} vistas en 30 dias.`,
       meta: firstPage,
     }));
   }
@@ -226,7 +226,7 @@ export const buildVercelAnalyticsSnapshot = ({
       id: "vercel-top-referrer",
       label: "Origen principal",
       value: firstReferrer.label,
-      detail: `${formatNumber(firstReferrer.pageviews)} page views referidas.`,
+      detail: `${formatNumber(firstReferrer.pageviews)} vistas referidas.`,
       meta: firstReferrer,
     }));
   }
@@ -265,10 +265,10 @@ export const buildVercelAnalyticsSnapshot = ({
     sections,
     check: buildHealthCheck({
       id: "vercel-analytics-api",
-      area: "Vercel Analytics",
-      label: "Web Analytics API",
+      area: "Analitica Vercel",
+      label: "API de analitica web",
       status: "ok",
-      detail: "Lectura manual OK desde Vercel Web Analytics.",
+      detail: "Lectura manual correcta desde la analitica web de Vercel.",
     }),
   };
 };
@@ -283,8 +283,8 @@ export const getVercelAnalyticsSnapshot = async () => {
       sections: [],
       check: buildHealthCheck({
         id: "vercel-analytics-api",
-        area: "Vercel Analytics",
-        label: "Web Analytics API",
+        area: "Analitica Vercel",
+        label: "API de analitica web",
         status: "warning",
         detail: "El panel esta listo, pero faltan variables privadas de Vercel.",
         action: `Configurar ${config.missing.join(" y ")} en Vercel/local.`,
@@ -328,12 +328,12 @@ export const getVercelAnalyticsSnapshot = async () => {
       sections: [],
       check: buildHealthCheck({
         id: "vercel-analytics-api",
-        area: "Vercel Analytics",
-        label: "Web Analytics API",
+        area: "Analitica Vercel",
+        label: "API de analitica web",
         status: "error",
         detail: aborted
-          ? "La lectura de Vercel Analytics excedio el tiempo maximo."
-          : "No se pudo consultar Vercel Analytics.",
+          ? "La lectura de la analitica de Vercel excedio el tiempo maximo."
+          : "No se pudo consultar la analitica de Vercel.",
         action: "Revisar VERCEL_ANALYTICS_TOKEN, project id y permisos del token.",
         meta: { error: String(error?.message ?? error), status: error?.status ?? null },
       }),

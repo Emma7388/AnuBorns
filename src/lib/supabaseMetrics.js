@@ -265,7 +265,7 @@ const monthStartIso = () => {
 
 const getMonthlyActiveUsers = async (supabaseAdmin) => {
   if (!supabaseAdmin?.auth?.admin?.listUsers) {
-    return { ok: false, count: null, source: "auth", error: "Admin Auth no disponible." };
+    return { ok: false, count: null, source: "auth", error: "Administrador de autenticacion no disponible." };
   }
 
   const since = monthStartIso();
@@ -298,7 +298,7 @@ const getMonthlyActiveUsers = async (supabaseAdmin) => {
 
 const getFileStorageBytes = async (supabaseAdmin) => {
   if (!supabaseAdmin?.storage?.listBuckets) {
-    return { ok: false, bytes: null, source: "storage-api", error: "Storage API no disponible." };
+    return { ok: false, bytes: null, source: "storage-api", error: "API de Storage no disponible." };
   }
 
   let objectCount = 0;
@@ -512,19 +512,19 @@ export const buildSupabasePlanUsageSnapshot = async ({
   const unavailable = [
     buildUsageUnavailable({
       id: "usage-egress",
-      label: "Egress",
+      label: "Egreso",
       limitDisplay: "5 GB",
-      detail: "Supabase lo muestra en Usage/Billing; no viene en Metrics API como lectura liviana.",
+      detail: "Supabase lo muestra en Uso/Facturacion; no viene en la API de metricas como lectura liviana.",
     }),
     buildUsageUnavailable({
       id: "usage-log-ingestion",
-      label: "Log ingestion",
+      label: "Ingreso de logs",
       limitDisplay: "1 GB",
-      detail: "Supabase lo calcula desde sus servicios internos y lo muestra en Usage.",
+      detail: "Supabase lo calcula desde sus servicios internos y lo muestra en Uso.",
     }),
     buildUsageUnavailable({
       id: "usage-log-query",
-      label: "Log Query",
+      label: "Consulta de logs",
       limitDisplay: "100 GB",
       detail: "No lo consultamos desde la app para no gastar el mismo cupo que queremos vigilar.",
     }),
@@ -533,7 +533,7 @@ export const buildSupabasePlanUsageSnapshot = async ({
   if (Number.isFinite(databaseSize.value)) {
     items.push(buildUsageMetric({
       id: "usage-database-size",
-      label: "Database size",
+      label: "Tamaño de base de datos",
       used: databaseSize.value,
       limit: FREE_PLAN_LIMITS.databaseBytes,
       usedDisplay: Number.isFinite(databaseSize.value) ? bytesToDisplay(databaseSize.value) : "Sin dato",
@@ -546,52 +546,52 @@ export const buildSupabasePlanUsageSnapshot = async ({
   } else {
     unavailable.push(buildUsageUnavailable({
       id: "usage-database-size",
-      label: "Database size",
+      label: "Tamaño de base de datos",
       limitDisplay: "500 MB",
-      detail: "No vino en esta lectura de Metrics API; revisar el valor exacto en Supabase Usage.",
+      detail: "No vino en esta lectura de la API de metricas; revisar el valor exacto en Uso de Supabase.",
     }));
   }
 
   if (mau.ok && Number.isFinite(mau.count)) {
     items.push(buildUsageMetric({
       id: "usage-monthly-active-users",
-      label: "Monthly active users",
+      label: "Usuarios activos del mes",
       used: mau.count,
       limit: FREE_PLAN_LIMITS.monthlyActiveUsers,
       usedDisplay: Number.isFinite(mau.count) ? String(round(mau.count, 0)) : "Sin dato",
       limitDisplay: "50.000",
       detail: mau.ok
-        ? `Aproximado desde Auth desde el inicio del mes${mau.truncated ? "; lectura truncada" : ""}.`
-        : `No se pudo leer Auth: ${mau.error}`,
+        ? `Aproximado desde autenticacion desde el inicio del mes${mau.truncated ? "; lectura truncada" : ""}.`
+        : `No se pudo leer autenticacion: ${mau.error}`,
       source: mau.source,
     }));
   } else {
     unavailable.push(buildUsageUnavailable({
       id: "usage-monthly-active-users",
-      label: "Monthly active users",
+      label: "Usuarios activos del mes",
       limitDisplay: "50.000",
-      detail: mau.error ?? "No se pudo leer Auth en esta consulta.",
+      detail: mau.error ?? "No se pudo leer autenticacion en esta consulta.",
     }));
   }
 
   if (storage.ok && Number.isFinite(storage.bytes)) {
     items.push(buildUsageMetric({
       id: "usage-file-storage",
-      label: "File storage",
+      label: "Archivos almacenados",
       used: storage.bytes,
       limit: FREE_PLAN_LIMITS.fileStorageBytes,
       usedDisplay: Number.isFinite(storage.bytes) ? bytesToDisplay(storage.bytes) : "Sin dato",
       limitDisplay: "1 GB",
       detail: storage.ok
         ? `Suma aproximada de objetos en Storage${storage.truncated ? "; lectura truncada" : ""}.`
-        : `No se pudo leer Storage API: ${storage.error}`,
+        : `No se pudo leer la API de Storage: ${storage.error}`,
       source: storage.source,
       meta: { objectCount: storage.objectCount ?? null },
     }));
   } else {
     unavailable.push(buildUsageUnavailable({
       id: "usage-file-storage",
-      label: "File storage",
+      label: "Archivos almacenados",
       limitDisplay: "1 GB",
       detail: storage.error ?? "No se pudo leer Storage en esta consulta.",
     }));
@@ -623,7 +623,7 @@ export const getSupabaseMetricsSnapshot = async () => {
       check: {
         id: "supabase-metrics-api",
         area: "Supabase metricas",
-        label: "Metrics API",
+        label: "API de metricas",
         status: "warning",
         detail: "El panel de mediciones esta disponible, pero falta configurar la clave server-side.",
         action: `Configurar ${config.missing.join(" y ")} en Vercel/local.`,
@@ -654,7 +654,7 @@ export const getSupabaseMetricsSnapshot = async () => {
         check: {
           id: "supabase-metrics-api",
           area: "Supabase metricas",
-          label: "Metrics API",
+          label: "API de metricas",
           status: "error",
           detail: `Supabase respondio ${response.status} al leer metricas.`,
           action: "Revisar SUPABASE_METRICS_SECRET_KEY y el project ref.",
@@ -669,9 +669,9 @@ export const getSupabaseMetricsSnapshot = async () => {
     snapshot.check = {
       id: "supabase-metrics-api",
       area: "Supabase metricas",
-      label: "Metrics API",
+      label: "API de metricas",
       status: "ok",
-      detail: `Lectura OK desde Metrics API: ${snapshot.sampled_metrics} muestras.`,
+      detail: `Lectura correcta desde la API de metricas: ${snapshot.sampled_metrics} muestras.`,
       meta: { projectRef: config.projectRef },
     };
     return snapshot;
@@ -686,11 +686,11 @@ export const getSupabaseMetricsSnapshot = async () => {
       check: {
         id: "supabase-metrics-api",
         area: "Supabase metricas",
-        label: "Metrics API",
+        label: "API de metricas",
         status: "error",
         detail: aborted
           ? "La lectura de metricas excedio el tiempo maximo."
-          : "No se pudo conectar con Metrics API.",
+          : "No se pudo conectar con la API de metricas.",
         action: "Revisar conectividad, project ref y clave de metricas.",
         meta: { error: String(error?.message ?? error) },
       },

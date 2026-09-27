@@ -85,12 +85,18 @@ const fetchMatchingProfiles = async (supabaseAdmin, query) => {
 
 const fetchMercadoPagoAccounts = async (supabaseAdmin, userIds) => {
   if (!userIds.length) return new Map();
-  const { data, error } = await supabaseAdmin
-    .from("seller_mercadopago_accounts")
-    .select(MP_SELECT)
-    .in("user_id", userIds);
-  if (error) return new Map();
-  return new Map((data ?? []).map((account) => [String(account.user_id), account]));
+  const rows = [];
+  const ids = unique(userIds);
+  for (let index = 0; index < ids.length; index += 500) {
+    const chunk = ids.slice(index, index + 500);
+    const { data, error } = await supabaseAdmin
+      .from("seller_mercadopago_accounts")
+      .select(MP_SELECT)
+      .in("user_id", chunk);
+    if (error) return new Map();
+    rows.push(...(data ?? []));
+  }
+  return new Map(rows.map((account) => [String(account.user_id), account]));
 };
 
 const fetchPasswordResetRequests = async (supabaseAdmin, userIds) => {
@@ -115,6 +121,9 @@ const fetchPasswordResetRequests = async (supabaseAdmin, userIds) => {
   }
   return resetMap;
 };
+
+const countConnectedMercadoPagoAccounts = (accountsById) =>
+  Array.from(accountsById.values()).filter((account) => String(account?.mp_user_id ?? "").trim()).length;
 
 const profileMatches = (profile, query) => {
   const needle = normalizeText(query);
@@ -184,12 +193,14 @@ const formatUser = ({ user, profile, mpAccount, passwordReset }) => {
 
 const findUsers = async (supabaseAdmin, { query, page, perPage }) => {
   const slicePage = (users) => {
+    const allUserIds = users.map((user) => String(user.id ?? "")).filter(Boolean);
     const total = users.length;
     const totalPages = Math.ceil(total / perPage);
     const safePage = totalPages === 0 ? 1 : Math.min(Math.max(1, page), totalPages);
     const offset = (safePage - 1) * perPage;
     return {
       users: users.slice(offset, offset + perPage),
+      allUserIds,
       page: safePage,
       total,
       totalPages,
@@ -248,12 +259,13 @@ export const GET = async ({ request, url }) => {
       fallback: DEFAULT_PER_PAGE,
     });
 
-    const { users, hasMore, total, totalPages, page: resolvedPage } = await findUsers(supabaseAdmin, { query, page, perPage });
+    const { users, allUserIds, hasMore, total, totalPages, page: resolvedPage } = await findUsers(supabaseAdmin, { query, page, perPage });
     const userIds = users.map((user) => String(user.id)).filter(Boolean);
-    const [profilesById, mpAccountsById, passwordResetsById] = await Promise.all([
+    const [profilesById, mpAccountsById, passwordResetsById, allMpAccountsById] = await Promise.all([
       fetchProfiles(supabaseAdmin, userIds),
       fetchMercadoPagoAccounts(supabaseAdmin, userIds),
       fetchPasswordResetRequests(supabaseAdmin, userIds),
+      fetchMercadoPagoAccounts(supabaseAdmin, allUserIds ?? []),
     ]);
 
     const records = users.map((user) =>
@@ -264,6 +276,7 @@ export const GET = async ({ request, url }) => {
         passwordReset: passwordResetsById.get(String(user.id)),
       }),
     );
+    const connectedMercadoPago = countConnectedMercadoPagoAccounts(allMpAccountsById);
 
     return jsonResponse({
       ok: true,
@@ -274,6 +287,12 @@ export const GET = async ({ request, url }) => {
         total,
         totalPages,
         hasMore,
+      },
+      mercado_pago_summary: {
+        total,
+        connected: connectedMercadoPago,
+        disconnected: Math.max(0, total - connectedMercadoPago),
+        filtered: Boolean(query),
       },
     });
   } catch (error) {

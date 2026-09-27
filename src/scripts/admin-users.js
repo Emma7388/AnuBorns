@@ -9,6 +9,10 @@ const detailElement = document.getElementById("admin-user-detail");
 const prevButton = document.getElementById("admin-users-prev");
 const nextButton = document.getElementById("admin-users-next");
 const pageElement = document.getElementById("admin-users-page");
+const mpChartElement = document.getElementById("admin-users-mp-chart");
+const mpConnectedElement = document.getElementById("admin-users-mp-connected");
+const mpDisconnectedElement = document.getElementById("admin-users-mp-disconnected");
+const mpTotalElement = document.getElementById("admin-users-mp-total");
 
 const state = {
   page: 1,
@@ -19,6 +23,12 @@ const state = {
   hasMore: false,
   total: 0,
   totalPages: 0,
+  mercadoPagoSummary: {
+    total: 0,
+    connected: 0,
+    disconnected: 0,
+    filtered: false,
+  },
   isEditing: false,
   isSaving: false,
   isResettingPassword: false,
@@ -78,7 +88,7 @@ const renderMercadoPagoDetailRow = (connected) => `
   <div class="ab-admin-users__detail-row">
     <span>Mercado Pago</span>
     <strong class="ab-admin-users__mp-status ${connected ? "ab-admin-users__mp-status--connected" : "ab-admin-users__mp-status--disconnected"}">
-      ${connected ? "MP CONECTADO" : "SIN MP"}
+      ${connected ? "Mercado Pago conectado" : "Sin Mercado Pago"}
     </strong>
   </div>
 `;
@@ -254,7 +264,7 @@ const renderUsers = () => {
             <small>${escapeHtml(user.email || "Sin email")}</small>
           </span>
           <span class="ab-admin-user-card__meta ${mpConnected ? "ab-admin-user-card__meta--connected" : "ab-admin-user-card__meta--disconnected"}">
-            ${mpConnected ? "MP OK" : "SIN MP"}
+            ${mpConnected ? "Conectado" : "Sin MP"}
           </span>
         </button>
       `;
@@ -264,11 +274,35 @@ const renderUsers = () => {
   renderDetail(selectedUser);
 };
 
+const renderMercadoPagoSummary = () => {
+  const summary = state.mercadoPagoSummary ?? {};
+  const total = Number(summary.total) || 0;
+  const connected = Number(summary.connected) || 0;
+  const disconnected = Math.max(0, Number(summary.disconnected) || 0);
+  const connectedAngle = total > 0 ? Math.round((connected / total) * 360) : 0;
+
+  if (mpChartElement) {
+    mpChartElement.style.setProperty("--mp-connected-angle", `${connectedAngle}deg`);
+    mpChartElement.setAttribute(
+      "title",
+      `${connected} conectados y ${disconnected} sin Mercado Pago`,
+    );
+  }
+  if (mpConnectedElement) mpConnectedElement.textContent = String(connected);
+  if (mpDisconnectedElement) mpDisconnectedElement.textContent = String(disconnected);
+  if (mpTotalElement) {
+    const totalLabel = total === 1 ? "1 usuario" : `${total} usuarios`;
+    mpTotalElement.textContent = summary.filtered
+      ? `${totalLabel} en la busqueda`
+      : `${totalLabel} registrados`;
+  }
+};
+
 const updatePagination = () => {
   const totalPages = Math.max(1, Number(state.totalPages) || 1);
   if (pageElement) {
     const totalLabel = state.total === 1 ? "1 usuario" : `${state.total} usuarios`;
-    pageElement.textContent = `Pagina ${state.page} de ${totalPages} · ${totalLabel}`;
+    pageElement.textContent = `Página ${state.page} de ${totalPages} · ${totalLabel}`;
   }
   if (prevButton) prevButton.disabled = state.page <= 1;
   if (nextButton) nextButton.disabled = !state.hasMore;
@@ -301,7 +335,14 @@ const fetchUsers = async () => {
     state.users = [];
     state.total = 0;
     state.totalPages = 0;
+    state.mercadoPagoSummary = {
+      total: 0,
+      connected: 0,
+      disconnected: 0,
+      filtered: Boolean(state.query),
+    };
     renderUsers();
+    renderMercadoPagoSummary();
     updatePagination();
     return;
   }
@@ -312,6 +353,12 @@ const fetchUsers = async () => {
   state.hasMore = Boolean(pagination.hasMore);
   state.total = Number(pagination.total) || state.users.length;
   state.totalPages = Number(pagination.totalPages) || (state.total > 0 ? 1 : 0);
+  state.mercadoPagoSummary = payload?.mercado_pago_summary ?? {
+    total: state.total,
+    connected: state.users.filter((user) => user.mercado_pago?.connected).length,
+    disconnected: state.users.filter((user) => !user.mercado_pago?.connected).length,
+    filtered: Boolean(state.query),
+  };
   if (!state.users.some((user) => user.id === state.selectedId)) {
     state.selectedId = state.users[0]?.id ?? "";
   }
@@ -320,9 +367,10 @@ const fetchUsers = async () => {
   setStatus(
     state.query
       ? `Resultados para "${state.query}": ${totalText}.`
-      : `Usuarios cargados: ${totalText}. Mostrando ${loadedCount}.`,
+      : `Usuarios cargados: ${totalText}. Visibles ${loadedCount}.`,
   );
   renderUsers();
+  renderMercadoPagoSummary();
   updatePagination();
 };
 

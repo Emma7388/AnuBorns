@@ -37,7 +37,7 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#039;");
 
 const statusLabel = (status) => {
-  if (status === "ok") return "OK";
+  if (status === "ok") return "Correcto";
   if (status === "warning") return "Revisar";
   return "Error";
 };
@@ -166,7 +166,7 @@ const renderMetrics = (metrics = {}) => {
       ? "Consulta manual"
       : configured
       ? `${sampledMetrics} muestras`
-      : "Configurar Metrics API";
+      : "Configurar API de metricas";
   }
 
   if (!items.length) {
@@ -174,7 +174,7 @@ const renderMetrics = (metrics = {}) => {
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
         <div class="ab-admin-metric-card__top">
           <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
-          <strong>${escapeHtml(check?.label ?? "Metrics API")}</strong>
+          <strong>${escapeHtml(check?.label ?? "API de metricas")}</strong>
         </div>
         <p>${escapeHtml(check?.detail ?? "No hay mediciones disponibles.")}</p>
         ${check?.action ? `<small>${escapeHtml(check.action)}</small>` : ""}
@@ -239,7 +239,7 @@ const renderUsage = (usage = {}) => {
   const unavailableHtml = unavailable.length
     ? `
       <aside class="ab-admin-usage-note">
-        <strong>Datos que se revisan en Supabase Usage</strong>
+        <strong>Datos que se revisan en Uso de Supabase</strong>
         <div>
           ${unavailable.map((item) => `
             <span>
@@ -279,9 +279,9 @@ const renderAnalytics = (analytics = {}) => {
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
         <div class="ab-admin-metric-card__top">
           <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
-          <strong>${escapeHtml(check?.label ?? "Vercel Analytics")}</strong>
+          <strong>${escapeHtml(check?.label ?? "Analitica Vercel")}</strong>
         </div>
-        <p>${escapeHtml(check?.detail ?? "Toca Consultar para leer Vercel Web Analytics.")}</p>
+        <p>${escapeHtml(check?.detail ?? "Toca Consultar para leer la analitica web de Vercel.")}</p>
         ${check?.action ? `<small>${escapeHtml(check.action)}</small>` : ""}
       </article>
     `;
@@ -379,7 +379,7 @@ const replaceSupabaseMetricChecks = (checks = []) => {
 };
 
 const replaceVercelAnalyticsChecks = (checks = []) => {
-  replaceChecksByArea(["Vercel Analytics"], checks);
+  replaceChecksByArea(["Analitica Vercel"], checks);
 };
 
 const loadSupabaseMetrics = async () => {
@@ -444,7 +444,7 @@ const loadVercelAnalytics = async () => {
   try {
     const token = await getAccessToken();
     if (!token) {
-      setStatus("Tenes que iniciar sesion para consultar Vercel Analytics.");
+      setStatus("Tenes que iniciar sesion para consultar la analitica de Vercel.");
       return;
     }
 
@@ -457,27 +457,27 @@ const loadVercelAnalytics = async () => {
     if (!response.ok) {
       renderAnalytics({
         check: {
-          label: "Vercel Analytics",
+          label: "Analitica Vercel",
           status: "error",
-          detail: payload?.error ?? "No se pudo cargar Vercel Analytics.",
+          detail: payload?.error ?? "No se pudo cargar la analitica de Vercel.",
         },
       });
-      setStatus(payload?.error ?? "No se pudo cargar Vercel Analytics.");
+      setStatus(payload?.error ?? "No se pudo cargar la analitica de Vercel.");
       return;
     }
 
     renderAnalytics(payload.analytics ?? {});
     replaceVercelAnalyticsChecks(Array.isArray(payload.checks) ? payload.checks : []);
-    setStatus(`Vercel Analytics actualizado - ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
+    setStatus(`Analitica de Vercel actualizada - ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
   } catch {
     renderAnalytics({
       check: {
-        label: "Vercel Analytics",
+        label: "Analitica Vercel",
         status: "error",
-        detail: "No se pudo cargar Vercel Analytics.",
+        detail: "No se pudo cargar la analitica de Vercel.",
       },
     });
-    setStatus("No se pudo cargar Vercel Analytics.");
+    setStatus("No se pudo cargar la analitica de Vercel.");
   } finally {
     analyticsRefreshButton.disabled = false;
     analyticsRefreshButton.textContent = "Consultar";
@@ -504,7 +504,7 @@ renderMetrics({
   check: {
     label: "Consulta manual",
     status: "warning",
-    detail: "Toca Consultar para leer Metrics API y uso del plan.",
+    detail: "Toca Consultar para leer la API de metricas y el uso del plan.",
   },
 });
 renderUsage({});
@@ -513,7 +513,7 @@ renderAnalytics({
   check: {
     label: "Consulta manual",
     status: "warning",
-    detail: "Toca Consultar para leer Vercel Web Analytics.",
+    detail: "Toca Consultar para leer la analitica web de Vercel.",
   },
 });
 

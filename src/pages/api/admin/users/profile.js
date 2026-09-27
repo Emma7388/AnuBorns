@@ -19,7 +19,7 @@ const isUuid = (value) =>
 const syncAuthUserMetadata = async (supabaseAdmin, userId, profile) => {
   const { data: targetAuthUser, error: targetAuthError } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (targetAuthError || !targetAuthUser?.user) {
-    return { ok: false, error: "No se pudo leer el usuario de Auth para sincronizar metadata." };
+    return { ok: false, error: "No se pudo leer el usuario de autenticacion para sincronizar metadata." };
   }
 
   const currentMetadata = targetAuthUser.user.user_metadata ?? {};
@@ -33,7 +33,7 @@ const syncAuthUserMetadata = async (supabaseAdmin, userId, profile) => {
     user_metadata: nextMetadata,
   });
   if (metadataError) {
-    return { ok: false, error: "No se pudo sincronizar metadata de Auth." };
+    return { ok: false, error: "No se pudo sincronizar metadata de autenticacion." };
   }
 
   return { ok: true, changed: true };
