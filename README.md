@@ -28,7 +28,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
-- Panel admin con chequeos operativos y mediciones read-only del servidor Supabase cuando Metrics API está configurada.
+- Panel admin con chequeos operativos y consulta manual de mediciones read-only de Supabase cuando Metrics API está configurada.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
 
@@ -80,7 +80,20 @@ SUPABASE_PROJECT_REF=
 SUPABASE_METRICS_SECRET_KEY=
 ```
 
-`SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` son opcionales para compilar, pero habilitan las mediciones del servidor Supabase en `/admin`. La clave debe ser privada/server-side, idealmente una Secret API key `sb_secret_...`.
+`SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` son opcionales para compilar, pero habilitan el boton manual de mediciones del servidor Supabase en `/admin`. La clave debe ser privada/server-side, idealmente una Secret API key `sb_secret_...`.
+
+Variables opcionales para copiar manualmente el resumen de Usage de Supabase dentro del panel admin:
+
+```env
+SUPABASE_USAGE_EGRESS_GB=
+SUPABASE_USAGE_DATABASE_SIZE_MB=
+SUPABASE_USAGE_MONTHLY_ACTIVE_USERS=
+SUPABASE_USAGE_FILE_STORAGE_GB=
+SUPABASE_USAGE_LOG_INGESTION_GB=
+SUPABASE_USAGE_LOG_QUERY_GB=
+```
+
+El panel intenta leer automaticamente lo liviano disponible, como Storage y usuarios activos aproximados. Egress, Log ingestion y Log Query quedan como valor manual o referencia al dashboard para no consultar logs desde la app y consumir ese mismo cupo.
 
 Variables requeridas para Mercado Pago:
 
@@ -148,6 +161,7 @@ Archivos principales:
 - `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`: estados de Mercado Pago, reembolsos, auditoría y defensas de API.
 - `docs/LINEA_POR_LINEA.md`: inventario funcional de archivos.
 - `docs/vercel-supabase-env.md`: variables de despliegue.
+- `docs/SUPABASE_REINICIO_CONTROLADO.md`: checklist para reinicio manual y lectura de métricas Supabase.
 - `docs/supabase-*.sql`: esquema, migraciones, RLS y funciones de Supabase.
 - `docs/PR_WORKFLOW.md`: criterios para ramas y pull requests.
 

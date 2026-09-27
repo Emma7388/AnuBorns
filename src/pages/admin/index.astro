@@ -43,9 +43,25 @@ import "../../styles/admin.css";
           <p class="ab-admin-dashboard__eyebrow">Supabase</p>
           <h3 id="admin-supabase-metrics-title">Mediciones del servidor</h3>
         </div>
-        <span id="admin-supabase-metrics-meta">Sin datos</span>
+        <div class="ab-admin-metrics__actions">
+          <span id="admin-supabase-metrics-meta">Consulta manual</span>
+          <button class="ab-secondary-button" id="admin-supabase-metrics-refresh" type="button">
+            Consultar
+          </button>
+        </div>
       </div>
       <div class="ab-admin-metrics__grid" id="admin-supabase-metrics-list"></div>
+    </section>
+
+    <section class="ab-admin-metrics" id="admin-supabase-usage" aria-labelledby="admin-supabase-usage-title">
+      <div class="ab-admin-metrics__head">
+        <div>
+          <p class="ab-admin-dashboard__eyebrow">Supabase</p>
+          <h3 id="admin-supabase-usage-title">Uso del plan</h3>
+        </div>
+        <span id="admin-supabase-usage-meta">Consulta manual</span>
+      </div>
+      <div class="ab-admin-metrics__grid" id="admin-supabase-usage-list"></div>
     </section>
 
     <div class="ab-admin-health-workspace">

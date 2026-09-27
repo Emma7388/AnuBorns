@@ -12,7 +12,6 @@ import {
 } from "../../../lib/adminHealth.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../../lib/supabaseServer.js";
-import { getSupabaseMetricsSnapshot } from "../../../lib/supabaseMetrics.js";
 
 const tableCheckToHealth = async (supabaseAdmin, tableCheck) => {
   try {
@@ -181,26 +180,13 @@ export const GET = async ({ request }) => {
       supabaseConfigured: config.missing.length === 0,
       supabaseAdmin,
     });
-    const metrics = await getSupabaseMetricsSnapshot();
-    const metricChecks = [
-      metrics.check,
-      ...(Array.isArray(metrics.items) ? metrics.items : []).map((metric) => buildHealthCheck({
-        id: `metric-${metric.id}`,
-        area: metric.area,
-        label: metric.label,
-        status: metric.status,
-        detail: `${metric.value_display}. ${metric.detail}`,
-        meta: metric.meta,
-      })),
-    ].filter(Boolean);
-    const checks = [...operationChecks, ...metricChecks, ...tableChecks, ...envChecks];
+    const checks = [...operationChecks, ...tableChecks, ...envChecks];
 
     return jsonResponse({
       ok: true,
       generated_at: new Date().toISOString(),
       summary: summarizeHealth(checks),
       checks,
-      metrics,
     });
   } catch (error) {
     console.error("[admin-health] Unhandled error", error);

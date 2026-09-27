@@ -37,7 +37,9 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - `SUPABASE_SERVICE_ROLE_KEY`.
 - Cliente server disponible.
 - Mediciones read-only del servidor via Metrics API cuando estan configuradas `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY`.
+- La lectura de mediciones es manual desde el boton `Consultar`; la carga inicial del panel no llama a Metrics API.
 - Las mediciones visibles incluyen memoria, swap, disco, carga, I/O en curso, conexiones reportadas y reinicios de Postgres. El navegador no recibe la clave de metricas.
+- El bloque `Uso del plan` muestra las cuotas Free principales: egress, database size, monthly active users, file storage, log ingestion y log query. Storage y usuarios activos se calculan con lecturas livianas server-side; egress/logs pueden cargarse manualmente con variables `SUPABASE_USAGE_*` o revisarse en el dashboard de Supabase.
 
 ### Usuarios
 

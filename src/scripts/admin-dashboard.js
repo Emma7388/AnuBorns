@@ -10,6 +10,10 @@ const errorElement = document.getElementById("admin-health-error");
 const metricsPanelElement = document.getElementById("admin-supabase-metrics");
 const metricsMetaElement = document.getElementById("admin-supabase-metrics-meta");
 const metricsListElement = document.getElementById("admin-supabase-metrics-list");
+const metricsRefreshButton = document.getElementById("admin-supabase-metrics-refresh");
+const usagePanelElement = document.getElementById("admin-supabase-usage");
+const usageMetaElement = document.getElementById("admin-supabase-usage-meta");
+const usageListElement = document.getElementById("admin-supabase-usage-list");
 
 const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
@@ -51,6 +55,12 @@ const renderSummary = (summary = {}) => {
   if (warningElement) warningElement.textContent = String(summary.warnings ?? 0);
   if (errorElement) errorElement.textContent = String(summary.errors ?? 0);
 };
+
+const summarizeChecks = (checks = []) => ({
+  ok: checks.filter((check) => check.status === "ok").length,
+  warnings: checks.filter((check) => check.status === "warning").length,
+  errors: checks.filter((check) => check.status === "error").length,
+});
 
 const getSummaryTotal = (summary = {}) =>
   Number(summary.ok ?? 0) + Number(summary.warnings ?? 0) + Number(summary.errors ?? 0);
@@ -148,7 +158,9 @@ const renderMetrics = (metrics = {}) => {
   const sampledMetrics = Number(metrics.sampled_metrics ?? 0);
 
   if (metricsMetaElement) {
-    metricsMetaElement.textContent = configured
+    metricsMetaElement.textContent = metrics.pending
+      ? "Consulta manual"
+      : configured
       ? `${sampledMetrics} muestras`
       : "Configurar Metrics API";
   }
@@ -168,6 +180,45 @@ const renderMetrics = (metrics = {}) => {
   }
 
   metricsListElement.innerHTML = items
+    .map((metric) => `
+      <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
+        <div class="ab-admin-metric-card__top">
+          <span>${escapeHtml(statusLabel(metric.status))}</span>
+          <strong>${escapeHtml(metric.label)}</strong>
+        </div>
+        <div class="ab-admin-metric-card__value">${escapeHtml(metric.value_display)}</div>
+        <p>${escapeHtml(metric.detail)}</p>
+      </article>
+    `)
+    .join("");
+};
+
+const renderUsage = (usage = {}) => {
+  if (!usagePanelElement || !usageListElement) return;
+
+  const items = Array.isArray(usage.items) ? usage.items : [];
+  const generatedAt = usage.generated_at ? new Date(usage.generated_at) : null;
+
+  if (usageMetaElement) {
+    usageMetaElement.textContent = generatedAt && !Number.isNaN(generatedAt.getTime())
+      ? generatedAt.toLocaleString("es-AR")
+      : "Consulta manual";
+  }
+
+  if (!items.length) {
+    usageListElement.innerHTML = `
+      <article class="ab-admin-metric-card ab-admin-metric-card--warning">
+        <div class="ab-admin-metric-card__top">
+          <span>Manual</span>
+          <strong>Uso del plan</strong>
+        </div>
+        <p>Toca Consultar para leer los datos livianos disponibles.</p>
+      </article>
+    `;
+    return;
+  }
+
+  usageListElement.innerHTML = items
     .map((metric) => `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
         <div class="ab-admin-metric-card__top">
@@ -202,6 +253,7 @@ const loadHealth = async () => {
     renderChecks([]);
     renderNotes([]);
     renderMetrics({});
+    renderUsage({});
     return;
   }
 
@@ -210,9 +262,75 @@ const loadHealth = async () => {
   state.checks = Array.isArray(payload.checks) ? payload.checks : [];
   renderSelectedProcess();
   renderNotes(Array.isArray(payload.notes) ? payload.notes : []);
-  renderMetrics(payload.metrics ?? {});
   const total = getSummaryTotal(summary);
   setStatus(`Estado actualizado: ${total} chequeos operativos · ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
+};
+
+const getAccessToken = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  return sessionData?.session?.access_token ?? "";
+};
+
+const replaceSupabaseMetricChecks = (checks = []) => {
+  const metricAreas = new Set(["Supabase metricas", "Supabase uso del plan"]);
+  state.checks = state.checks
+    .filter((check) => !metricAreas.has(check?.area))
+    .concat(checks);
+  renderSummary(summarizeChecks(state.checks));
+  renderSelectedProcess();
+};
+
+const loadSupabaseMetrics = async () => {
+  if (!metricsRefreshButton) return;
+  metricsRefreshButton.disabled = true;
+  metricsRefreshButton.textContent = "Consultando...";
+  if (metricsMetaElement) metricsMetaElement.textContent = "Consultando";
+  if (usageMetaElement) usageMetaElement.textContent = "Consultando";
+
+  try {
+    const token = await getAccessToken();
+    if (!token) {
+      setStatus("Tenes que iniciar sesion para consultar Supabase.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/supabase-metrics", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      renderMetrics({
+        check: {
+          label: "Supabase",
+          status: "error",
+          detail: payload?.error ?? "No se pudieron cargar las mediciones.",
+        },
+      });
+      renderUsage({});
+      setStatus(payload?.error ?? "No se pudieron cargar las mediciones de Supabase.");
+      return;
+    }
+
+    renderMetrics(payload.metrics ?? {});
+    renderUsage(payload.usage ?? {});
+    replaceSupabaseMetricChecks(Array.isArray(payload.checks) ? payload.checks : []);
+    setStatus(`Mediciones Supabase actualizadas - ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
+  } catch {
+    renderMetrics({
+      check: {
+        label: "Supabase",
+        status: "error",
+        detail: "No se pudieron cargar las mediciones.",
+      },
+    });
+    renderUsage({});
+    setStatus("No se pudieron cargar las mediciones de Supabase.");
+  } finally {
+    metricsRefreshButton.disabled = false;
+    metricsRefreshButton.textContent = "Consultar";
+  }
 };
 
 tabsElement?.addEventListener("click", (event) => {
@@ -221,6 +339,20 @@ tabsElement?.addEventListener("click", (event) => {
   state.selectedProcess = tab.getAttribute("data-admin-health-process") ?? "";
   renderSelectedProcess();
 });
+
+metricsRefreshButton?.addEventListener("click", () => {
+  loadSupabaseMetrics();
+});
+
+renderMetrics({
+  pending: true,
+  check: {
+    label: "Consulta manual",
+    status: "warning",
+    detail: "Toca Consultar para leer Metrics API y uso del plan.",
+  },
+});
+renderUsage({});
 
 loadHealth().catch(() => {
   setStatus("No se pudo cargar el estado operativo.");

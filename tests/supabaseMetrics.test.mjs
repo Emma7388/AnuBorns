@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  buildSupabasePlanUsageSnapshot,
   buildSupabaseMetricsSnapshot,
   parsePrometheusMetrics,
 } from "../src/lib/supabaseMetrics.js";
@@ -22,6 +23,7 @@ node_disk_io_now{supabase_project_ref="demo",service_type="db",device="disk-b"} 
 db_sql_connection_open{supabase_project_ref="demo",service_type="gotrue",status="idle"} 4
 db_sql_connection_open{supabase_project_ref="demo",service_type="gotrue",status="inuse"} 1
 postgresql_restarts_total{supabase_project_ref="demo",service_type="db"} 0
+pg_database_size_mb{supabase_project_ref="demo",datname="postgres"} 31
 `;
 
 test("parsea muestras Prometheus con labels", () => {
@@ -50,4 +52,51 @@ test("construye snapshot de mediciones principales", () => {
   assert.equal(disk.value, 60);
   assert.equal(io.value, 3);
   assert.equal(connections.value, 5);
+  assert.equal(snapshot.raw.databaseSizeBytes.value, 31 * 1024 * 1024);
+});
+
+test("construye uso del plan con datos livianos disponibles", async () => {
+  const snapshot = buildSupabaseMetricsSnapshot(parsePrometheusMetrics(SAMPLE_METRICS), {
+    projectRef: "demo",
+  });
+  const supabaseAdmin = {
+    auth: {
+      admin: {
+        listUsers: async () => ({
+          data: {
+            users: [
+              { last_sign_in_at: new Date().toISOString() },
+              { last_sign_in_at: "2020-01-01T00:00:00.000Z" },
+            ],
+          },
+          error: null,
+        }),
+      },
+    },
+    schema: () => ({
+      from: () => ({
+        select: () => ({
+          range: async () => ({
+            data: [
+              { metadata: { size: 1200 } },
+              { metadata: { size: 800 } },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  };
+
+  const usage = await buildSupabasePlanUsageSnapshot({ supabaseAdmin, metrics: snapshot });
+  const database = usage.items.find((item) => item.id === "usage-database-size");
+  const storage = usage.items.find((item) => item.id === "usage-file-storage");
+  const mau = usage.items.find((item) => item.id === "usage-monthly-active-users");
+  const egress = usage.items.find((item) => item.id === "usage-egress");
+
+  assert.equal(database.status, "ok");
+  assert.equal(storage.meta.objectCount, 2);
+  assert.equal(storage.meta.used, 2000);
+  assert.equal(mau.value_display, "1 / 50.000");
+  assert.equal(egress.status, "warning");
 });

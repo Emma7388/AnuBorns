@@ -10,6 +10,8 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 
 > Estados de pago, reembolsos, auditoría y defensas de API: [`PAGOS_REEMBOLSOS_SEGURIDAD.md`](PAGOS_REEMBOLSOS_SEGURIDAD.md).
 
+> Reinicio manual y lectura de métricas Supabase: [`SUPABASE_REINICIO_CONTROLADO.md`](SUPABASE_REINICIO_CONTROLADO.md).
+
 ## Layouts
 
 - `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido.
@@ -33,7 +35,7 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/data/categories.js`: catálogo fuente de categorías (nombre, slug, ícono).
 - `src/lib/supabaseClient.js`: cliente Supabase browser con validación de variables públicas.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
-- `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API y resumen read-only para el panel admin.
+- `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
 - `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login y evento `ab-cart-updated`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
 - `src/lib/checkoutPendingOrders.js`: cancela checkouts pendientes abandonados y contempla aprobaciones tardías.
@@ -79,7 +81,8 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 - `src/pages/api/purchase-delivery.js`: permite al comprador confirmar la recepción de un envío.
 - `src/pages/api/purchase-pickup.js`: permite al comprador confirmar el retiro.
 - `src/pages/api/purchase-fulfillment.js`: consulta el resumen de cumplimiento de una compra.
-- `src/pages/api/admin/health.js`: estado operativo admin, tablas requeridas, variables y mediciones Supabase cuando Metrics API está configurada.
+- `src/pages/api/admin/health.js`: estado operativo admin, tablas requeridas y variables sin disparar la lectura pesada de Metrics API.
+- `src/pages/api/admin/supabase-metrics.js`: endpoint admin de consulta manual para mediciones Supabase y uso del plan.
 
 ## Páginas
 
