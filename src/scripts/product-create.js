@@ -361,7 +361,6 @@ const onFieldInput = () => {
 const onNextStep = () => {
   if (!validateStep(currentStep)) return;
   showStep(currentStep + 1);
-  window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 const onPreviousStep = () => {

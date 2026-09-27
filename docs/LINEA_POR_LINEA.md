@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
+Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -115,4 +115,6 @@ Actualizado al 12 de septiembre de 2026 para la rama `V0.7`.
 
 ## Estilos
 
-- `src/styles/global.css`: tokens visuales, resets y estilos compartidos (`ab-*`) para paneles, cards, formularios y estados.
+- `src/styles/global.css`: tokens visuales, resets y estilos compartidos (`ab-*`) para paneles, cards, formularios y estados; en mobile normaliza las imágenes de cards de producto a 190px de alto.
+- `src/styles/featured-products.css`: presentación del carrusel de productos destacados; en mobile reutiliza el tamaño uniforme de imagen y oculta las flechas laterales.
+- `src/styles/commerce-flow.css`: estilos de carrito y checkout; en mobile alinea las imágenes de carrito con el tamaño de las cards de producto.

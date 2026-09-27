@@ -1,6 +1,6 @@
 # Guía de arquitectura
 
-Actualizado el 14 de septiembre de 2026.
+Actualizado el 27 de septiembre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
@@ -33,6 +33,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/components/DeferredListControls.astro`: controles de carga diferida y fechas; evita búsquedas sin fechas y permite ocultar encabezados repetidos.
 - `src/components/ConfirmationModal.astro`: estructura común de confirmación en carrito, checkout y ventas, conservando los identificadores de eventos.
 - `ab-transaction-list` en `global.css`: presentación compartida de compras y ventas, independiente de las tarjetas compactas del catálogo.
+- Las cards de producto comparten `ab-provider-product-card__image`; en mobile se mantiene un alto uniforme de 190px con `object-fit: contain`. `featured-products.css` usa la misma medida y oculta las flechas del carrusel en pantallas chicas.
 
 ### Datos y lógica
 

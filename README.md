@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 14 de septiembre de 2026 — rama `V0.7`.
+Actualizado al 27 de septiembre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones integrales de producción, pruebas reales de reembolsos/split y una decisión definitiva para compras con múltiples vendedores.
 
@@ -31,6 +31,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase y consulta manual de Vercel Analytics cuando las APIs estan configuradas.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
+- En mobile, las cards de productos usan imágenes de tamaño uniforme y el carrusel de destacados oculta las flechas laterales para conservar espacio.
 
 ### Servicios retirados temporalmente
 
@@ -184,6 +185,7 @@ Para mejorar consultas frecuentes sin cambiar datos ni policies:
 - El nombre de cada página aparece en la barra superior. Mis ventas distingue Ventas y Publicaciones activas.
 - `DeferredListControls.astro` comparte filtros, Buscar, Limpiar y Mostrar todos. Buscar requiere al menos una fecha. Los listados se cargan por acción del usuario.
 - Compras y ventas comparten la clase `ab-transaction-list`: tarjetas anchas y datos completos. El catálogo y las publicaciones mantienen una grilla compacta.
+- En mobile, las cards de producto normalizan sus imágenes a 190px de alto con `object-fit: contain`; destacados usa la misma medida y oculta la navegación lateral.
 - Un producto con pago aprobado deja de mostrarse en el catálogo. El detalle de venta usa los datos de la operación y no enlaza a la publicación oculta.
 - El documento imprimible se llama Detalle de compra: muestra al vendedor, una referencia corta, el estado del pago y el movimiento de reembolso/cancelación cuando Mercado Pago lo informa. No implementa numeración fiscal.
 - Un pago cancelado, rechazado o reembolsado no muestra entrega pendiente; un reembolso pendiente pausa la entrega y el despacho.
