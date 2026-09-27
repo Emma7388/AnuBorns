@@ -40,7 +40,9 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/data/categories.js`: catálogo canónico de categorías.
 - `src/lib/supabaseClient.js`: cliente Supabase de navegador con validación de variables públicas.
 - `src/lib/supabaseServer.js`: cliente admin de servidor.
-- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión.
+- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; en cliente deduplica `cartId`, conteo y lectura completa con cachés cortas para absorber ráfagas del header/router.
+- `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
+- `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
 - `src/lib/paymentStatus.js`: normaliza estados de Mercado Pago y define qué estados bloquean producto, cuáles son visibles en ventas y cuáles permiten despacho.
 - `src/lib/paymentMovement.js`: registra cambios reales de estado de pago en `audit_logs`.
@@ -49,6 +51,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/lib/purchaseDetail.js`: HTML de detalle de compra compartido por historial y confirmación; escape de contenido, vendedor, referencia y presentación de cancelaciones/reembolsos.
 - `src/lib/purchaseDetailStyles.js`: estilo imprimible compartido por detalles de compra y venta.
 - El detalle de venta se construye con los datos cargados por la API autenticada de ventas; no abre la publicación pública del producto vendido.
+- `src/pages/api/purchase-fulfillment.js` acepta lectura por `POST` con `orderIds` en JSON para evitar URLs largas; el `GET` queda como compatibilidad liviana.
 - `docs/supabase-performance-indexes.sql` y `docs/supabase-seller-sales-rpc.sql` documentan la primera tanda de optimización de consultas Supabase.
 
 ### Verificación

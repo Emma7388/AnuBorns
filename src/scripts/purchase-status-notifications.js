@@ -19,7 +19,7 @@ let lastPurchaseStatusRefreshUserId = "";
 const announcedPurchaseStatusKeys = new Set();
 
 const PURCHASE_REALTIME_REFRESH_DEBOUNCE_MS = 900;
-const PURCHASE_STATUS_MIN_REFRESH_MS = 2500;
+const PURCHASE_STATUS_MIN_REFRESH_MS = 10000;
 
 /* En Mis compras la página ya muestra los cambios; no hace falta toast global. */
 const isPurchasesPageActive = () => window.location.pathname === "/mis-compras";

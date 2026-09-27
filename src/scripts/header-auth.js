@@ -31,6 +31,8 @@ let isSigningOut = false;
 let lastSyncedUserId = "";
 let lastAdminStatusUserId = "";
 let lastAdminStatusValue = false;
+let adminStatusRequestUserId = "";
+let adminStatusRequest = null;
 let cartSyncTimeout = 0;
 let salesRealtimeChannel = null;
 let salesRealtimeUserId = "";
@@ -38,12 +40,31 @@ let salesRealtimeRefreshTimer = 0;
 let salesNoticeToast = null;
 let salesNoticeToastMessage = null;
 let salesNoticeToastTimer = 0;
+let resolveSessionRequest = null;
+let resolveSessionTimer = 0;
+let lastResolvedSession = null;
+let lastResolvedProfile = {};
+let lastResolvedAt = 0;
 const LAST_SEEN_SALE_KEY = "ab_last_seen_sale_at_v1";
 const SALES_NOTICE_SHOWN_KEY = "ab_sales_notice_shown_v1";
 const SALES_REALTIME_REFRESH_DEBOUNCE_MS = 900;
 const HEADER_BACKGROUND_TIMEOUT_MS = 1600;
+const HEADER_RESOLVE_CACHE_MS = 1200;
 
 const isSalesPageActive = () => window.location.pathname === "/mis-ventas";
+
+const applyResolvedSession = () => {
+  setView(lastResolvedSession, lastResolvedProfile);
+  if (lastResolvedSession?.user) {
+    setAdminPlatformVisible(lastAdminStatusValue);
+  }
+};
+
+const rememberResolvedSession = (session, profile = {}) => {
+  lastResolvedSession = session ?? null;
+  lastResolvedProfile = profile ?? {};
+  lastResolvedAt = Date.now();
+};
 
 const runWhenIdle = (callback) => {
   if (typeof window.requestIdleCallback === "function") {
@@ -200,8 +221,15 @@ const refreshAdminPlatformAccess = async (session) => {
     return;
   }
 
+  if (adminStatusRequest && adminStatusRequestUserId === userId) {
+    await adminStatusRequest;
+    setAdminPlatformVisible(lastAdminStatusValue);
+    return;
+  }
+
   setAdminPlatformVisible(false);
-  try {
+  adminStatusRequestUserId = userId;
+  adminStatusRequest = (async () => {
     const response = await fetch("/api/admin/status", {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -209,10 +237,17 @@ const refreshAdminPlatformAccess = async (session) => {
     lastAdminStatusUserId = userId;
     lastAdminStatusValue = Boolean(response.ok && payload?.is_admin);
     setAdminPlatformVisible(lastAdminStatusValue);
+  })();
+
+  try {
+    await adminStatusRequest;
   } catch {
     lastAdminStatusUserId = userId;
     lastAdminStatusValue = false;
     setAdminPlatformVisible(false);
+  } finally {
+    adminStatusRequest = null;
+    adminStatusRequestUserId = "";
   }
 };
 
@@ -416,14 +451,20 @@ const syncHeaderBackgroundState = async (session) => {
 };
 
 /* Resuelve la sesión actual y sincroniza carrito si aplica. */
-const resolveSession = async () => {
+const doResolveSession = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session) {
     const session = await resolvePendingAvatar(sessionData.session);
+    rememberResolvedSession(session);
     setView(session);
     refreshAdminPlatformAccess(session).catch(() => setAdminPlatformVisible(false));
     renderCartCount(session);
-    resolvePrivateProfile(session).then((profile) => setView(session, profile)).catch(() => {});
+    resolvePrivateProfile(session)
+      .then((profile) => {
+        rememberResolvedSession(session, profile);
+        setView(session, profile);
+      })
+      .catch(() => {});
     runWhenIdle(() => {
       syncHeaderBackgroundState(session).catch(() => {});
     });
@@ -433,22 +474,51 @@ const resolveSession = async () => {
   const { data: userData } = await supabase.auth.getUser();
   if (userData?.user) {
     const fallbackSession = { user: userData.user, access_token: sessionData?.session?.access_token ?? "" };
+    rememberResolvedSession(fallbackSession);
     setView(fallbackSession);
     refreshAdminPlatformAccess(fallbackSession).catch(() => setAdminPlatformVisible(false));
     renderCartCount(fallbackSession);
-    fetchUserProfile(userData.user).then((profile) => setView(fallbackSession, profile)).catch(() => {});
+    fetchUserProfile(userData.user)
+      .then((profile) => {
+        rememberResolvedSession(fallbackSession, profile);
+        setView(fallbackSession, profile);
+      })
+      .catch(() => {});
     runWhenIdle(() => {
       syncHeaderBackgroundState(fallbackSession).catch(() => {});
     });
     return;
   }
 
+  rememberResolvedSession(null);
   setView(null);
   setAdminPlatformVisible(false);
   setSalesNotificationVisible(false);
   void teardownSalesRealtime();
   void teardownPurchaseStatusNotifications();
   renderCartCount();
+};
+
+const resolveSession = async ({ force = false } = {}) => {
+  if (!force && lastResolvedAt && Date.now() - lastResolvedAt < HEADER_RESOLVE_CACHE_MS) {
+    applyResolvedSession();
+    return;
+  }
+
+  if (resolveSessionRequest) return resolveSessionRequest;
+
+  resolveSessionRequest = doResolveSession().finally(() => {
+    resolveSessionRequest = null;
+  });
+  return resolveSessionRequest;
+};
+
+const queueResolveSession = ({ force = false } = {}) => {
+  if (resolveSessionTimer) return;
+  resolveSessionTimer = window.setTimeout(() => {
+    resolveSessionTimer = 0;
+    resolveSession({ force }).catch(() => {});
+  }, 0);
 };
 
 /* Inicializa listeners e interfaz del header. */
@@ -491,7 +561,7 @@ const initHeaderAuth = () => {
   });
 
   /* Estado inicial. */
-  resolveSession();
+  queueResolveSession();
 };
 
 const bindHeaderAuthEvents = () => {
@@ -501,9 +571,15 @@ const bindHeaderAuthEvents = () => {
   /* Reacciona a cambios de auth (login/logout). */
   supabase.auth.onAuthStateChange(async (_event, incomingSession) => {
     const session = await resolvePendingAvatar(incomingSession);
+    rememberResolvedSession(session);
     setView(session);
     refreshAdminPlatformAccess(session).catch(() => setAdminPlatformVisible(false));
-    resolvePrivateProfile(session).then((profile) => setView(session, profile)).catch(() => {});
+    resolvePrivateProfile(session)
+      .then((profile) => {
+        rememberResolvedSession(session, profile);
+        setView(session, profile);
+      })
+      .catch(() => {});
     const userId = session?.user?.id ?? "";
     if (userId && userId !== lastSyncedUserId) {
       lastSyncedUserId = userId;
@@ -559,7 +635,7 @@ const bindHeaderAuthEvents = () => {
       event.key === "ab_auth_refresh" ||
       event.key.includes("ab_last_seen_sale_at_v1")
     ) {
-      resolveSession();
+      queueResolveSession({ force: true });
     }
   });
 };

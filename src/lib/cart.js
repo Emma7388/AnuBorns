@@ -4,10 +4,38 @@ import { supabase } from "./supabaseClient";
 /* Clave localStorage para carrito anónimo. */
 const CART_KEY = "ab_cart_v1";
 const CART_LOCAL_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 días
+const CART_COUNT_CACHE_TTL_MS = 2500;
+const CART_DATA_CACHE_TTL_MS = 1000;
+
+const cartIdCache = new Map();
+const cartIdRequests = new Map();
+const cartCountCache = new Map();
+const cartCountRequests = new Map();
+const cartDataCache = new Map();
+const cartDataRequests = new Map();
+
+const getUserCacheKey = (userId) => String(userId ?? "").trim();
+
+const clearCartComputedCache = (userId = "") => {
+  const key = getUserCacheKey(userId);
+  if (!key) {
+    cartCountCache.clear();
+    cartCountRequests.clear();
+    cartDataCache.clear();
+    cartDataRequests.clear();
+    return;
+  }
+
+  cartCountCache.delete(key);
+  cartCountRequests.delete(key);
+  cartDataCache.delete(key);
+  cartDataRequests.delete(key);
+};
 
 /* Dispara un evento global para que la interfaz reaccione a cambios de carrito. */
 const emitCartUpdate = () => {
   if (typeof window === "undefined") return;
+  clearCartComputedCache();
   const event = new CustomEvent("ab-cart-updated");
   window.dispatchEvent(event);
 };
@@ -135,21 +163,34 @@ export const getCartCount = async (knownUserId = null) => {
   if (!userId) return loadLocalCart().length;
 
   try {
-    const { data: cart } = await supabase
-      .from("carts")
-      .select("id")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (!cart?.id) return 0;
+    const cacheKey = getUserCacheKey(userId);
+    const cached = cartCountCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < CART_COUNT_CACHE_TTL_MS) {
+      return cached.count;
+    }
 
-    const { data: items, error } = await supabase
-      .from("cart_items")
-      .select("id")
-      .eq("cart_id", cart.id);
-    if (error) return 0;
-    return Array.isArray(items) ? items.length : 0;
+    const pending = cartCountRequests.get(cacheKey);
+    if (pending) return pending;
+
+    const request = (async () => {
+      const cartId = await getExistingCartId(userId);
+      if (!cartId) return 0;
+
+      const { data: items, error } = await supabase
+        .from("cart_items")
+        .select("id")
+        .eq("cart_id", cartId);
+      if (error) return 0;
+
+      const count = Array.isArray(items) ? items.length : 0;
+      cartCountCache.set(cacheKey, { fetchedAt: Date.now(), count });
+      return count;
+    })().finally(() => {
+      cartCountRequests.delete(cacheKey);
+    });
+
+    cartCountRequests.set(cacheKey, request);
+    return request;
   } catch {
     return 0;
   }
@@ -177,17 +218,41 @@ const getSessionUserId = async () => {
   }
 };
 
-/* Busca o crea el carrito persistente asociado al usuario. */
-const getOrCreateCart = async (userId) => {
-  const { data: existing } = await supabase
+const getExistingCartId = async (userId) => {
+  const cacheKey = getUserCacheKey(userId);
+  if (!cacheKey) return "";
+
+  const cached = cartIdCache.get(cacheKey);
+  if (cached) return cached;
+
+  const pending = cartIdRequests.get(cacheKey);
+  if (pending) return pending;
+
+  const request = supabase
     .from("carts")
     .select("id")
     .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()
+    .then(({ data }) => {
+      const cartId = String(data?.id ?? "").trim();
+      if (cartId) cartIdCache.set(cacheKey, cartId);
+      return cartId;
+    })
+    .catch(() => "")
+    .finally(() => {
+      cartIdRequests.delete(cacheKey);
+    });
 
-  if (existing?.id) return existing.id;
+  cartIdRequests.set(cacheKey, request);
+  return request;
+};
+
+/* Busca o crea el carrito persistente asociado al usuario. */
+const getOrCreateCart = async (userId) => {
+  const existingId = await getExistingCartId(userId);
+  if (existingId) return existingId;
 
   const { data: created, error } = await supabase
     .from("carts")
@@ -198,6 +263,7 @@ const getOrCreateCart = async (userId) => {
   if (error || !created?.id) {
     throw error ?? new Error("No se pudo crear el carrito.");
   }
+  cartIdCache.set(getUserCacheKey(userId), created.id);
   return created.id;
 };
 
@@ -431,30 +497,48 @@ export const getCart = async () => {
     }
   }
 
-  const cartId = await getOrCreateCart(userId);
-  const { data } = await supabase
-    .from("cart_items")
-    .select(
-      "product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)",
-    )
-    .eq("cart_id", cartId);
-  const normalized = (data ?? []).map((item) => ({
-    product_id: item.product_id,
-    quantity: SINGLE_ITEM_QTY,
-    price_snapshot: normalizePrice(item.price_snapshot),
-    product: item.products ?? null,
-  }));
-  const { availableItems, removedCount } = await splitSoldProductsFromItems(normalized);
-  if (removedCount > 0) {
-    const soldIds = normalized
-      .filter((item) => !availableItems.some((available) => available.product_id === item.product_id))
-      .map((item) => item.product_id);
-    await supabase
-      .from("cart_items")
-      .delete()
-      .eq("cart_id", cartId)
-      .in("product_id", soldIds);
-    emitCartUpdate();
+  const cacheKey = getUserCacheKey(userId);
+  const cached = cartDataCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CART_DATA_CACHE_TTL_MS) {
+    return cached.items;
   }
-  return availableItems;
+
+  const pending = cartDataRequests.get(cacheKey);
+  if (pending) return pending;
+
+  const cartId = await getOrCreateCart(userId);
+  const request = (async () => {
+    const { data } = await supabase
+      .from("cart_items")
+      .select(
+        "product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)",
+      )
+      .eq("cart_id", cartId);
+    const normalized = (data ?? []).map((item) => ({
+      product_id: item.product_id,
+      quantity: SINGLE_ITEM_QTY,
+      price_snapshot: normalizePrice(item.price_snapshot),
+      product: item.products ?? null,
+    }));
+    const { availableItems, removedCount } = await splitSoldProductsFromItems(normalized);
+    if (removedCount > 0) {
+      const soldIds = normalized
+        .filter((item) => !availableItems.some((available) => available.product_id === item.product_id))
+        .map((item) => item.product_id);
+      await supabase
+        .from("cart_items")
+        .delete()
+        .eq("cart_id", cartId)
+        .in("product_id", soldIds);
+      emitCartUpdate();
+    }
+    cartDataCache.set(cacheKey, { fetchedAt: Date.now(), items: availableItems });
+    cartCountCache.set(cacheKey, { fetchedAt: Date.now(), count: availableItems.length });
+    return availableItems;
+  })().finally(() => {
+    cartDataRequests.delete(cacheKey);
+  });
+
+  cartDataRequests.set(cacheKey, request);
+  return request;
 };

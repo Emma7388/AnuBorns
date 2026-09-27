@@ -37,7 +37,9 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
 - `src/lib/vercelAnalytics.js`: lectura server-side de Vercel Web Analytics para visitas, page views y rankings del panel admin.
-- `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login y evento `ab-cart-updated`.
+- `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login, evento `ab-cart-updated` y cachés cortas para deduplicar conteos/lecturas repetidas.
+- `src/lib/sessionToken.js`: helper de cliente para no consultar endpoints privados con sesiones sin token o próximas a vencer.
+- `src/lib/userProfile.js`: perfil privado del usuario, perfil pendiente de registro y caché corta de lecturas a `profiles`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
 - `src/lib/checkoutPendingOrders.js`: cancela checkouts pendientes abandonados y contempla aprobaciones tardías.
 - `src/lib/mercadopagoOAuthState.js`: firma y valida el estado temporal de la conexión OAuth de Mercado Pago.
@@ -50,7 +52,7 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 
 ## Scripts de cliente
 
-- `src/scripts/header-auth.js`: controla sesión en header, sincroniza carrito al login, maneja logout con modal y escucha cambios cross-tab.
+- `src/scripts/header-auth.js`: controla sesión en header, sincroniza carrito al login, maneja logout con modal, escucha cambios cross-tab y coalesce eventos Astro/Auth para evitar requests repetidos.
 - `src/scripts/login.js`: login por email/password con timeout, auditoría y redirect seguro por `returnTo`.
 - `src/scripts/register.js`: registro, validaciones, subida opcional de avatar y flujo de confirmación por email.
 - `src/scripts/auth-callback.js`: intercambio de `code` por sesión en Supabase y redirección segura post-verificación.
@@ -63,7 +65,7 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 - `src/scripts/product-create.js`: formulario de publicación de producto, categorías dinámicas, optimización/subida de imagen y alta en Supabase.
 - `src/scripts/mis-ventas.js`: carga ventas y publicaciones del usuario autenticado; muestra estados de pago/reembolso y habilita despacho sólo para pagos aprobados.
 - `src/scripts/mercadopago-connect.js`: consulta, conecta, reconecta y desconecta la cuenta Mercado Pago del vendedor.
-- `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador.
+- `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador, usando lectura por POST y antirráfaga para navegación/realtime.
 - `src/scripts/audit.js`: cliente liviano para enviar eventos a `/api/audit` con token de sesión.
 
 ## API routes
@@ -81,7 +83,7 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 - `src/pages/api/sales-dispatch.js`: actualiza preparación, envío y despacho desde el panel de ventas.
 - `src/pages/api/purchase-delivery.js`: permite al comprador confirmar la recepción de un envío.
 - `src/pages/api/purchase-pickup.js`: permite al comprador confirmar el retiro.
-- `src/pages/api/purchase-fulfillment.js`: consulta el resumen de cumplimiento de una compra.
+- `src/pages/api/purchase-fulfillment.js`: consulta estados de cumplimiento por compra y marca lecturas; la lectura masiva usa POST con `orderIds` en JSON para evitar URLs largas.
 - `src/pages/api/admin/health.js`: estado operativo admin, tablas requeridas y variables sin disparar la lectura pesada de Metrics API.
 - `src/pages/api/admin/supabase-metrics.js`: endpoint admin de consulta manual para mediciones Supabase y uso del plan.
 - `src/pages/api/admin/vercel-analytics.js`: endpoint admin de consulta manual para Vercel Web Analytics.

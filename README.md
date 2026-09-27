@@ -191,6 +191,7 @@ Para mejorar consultas frecuentes sin cambiar datos ni policies:
 - Un pago cancelado, rechazado o reembolsado no muestra entrega pendiente; un reembolso pendiente pausa la entrega y el despacho.
 - `src/lib/purchaseDetail.js` genera el documento compartido por Compras y Confirmación. `purchaseDetailStyles.js` también se reutiliza en el detalle de venta.
 - Los indicadores verdes de categorías excluyen productos vendidos y guardan las visitas por usuario en el navegador. Actualmente consultan hasta 300 productos recientes.
+- El header deduplica ráfagas de sesión, perfil, carrito, admin y notificaciones con cachés cortas del lado cliente; no reemplaza validaciones server-side.
 
 ## Verificación y despliegue
 
