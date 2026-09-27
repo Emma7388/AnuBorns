@@ -82,18 +82,7 @@ SUPABASE_METRICS_SECRET_KEY=
 
 `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` son opcionales para compilar, pero habilitan el boton manual de mediciones del servidor Supabase en `/admin`. La clave debe ser privada/server-side, idealmente una Secret API key `sb_secret_...`.
 
-Variables opcionales para copiar manualmente el resumen de Usage de Supabase dentro del panel admin:
-
-```env
-SUPABASE_USAGE_EGRESS_GB=
-SUPABASE_USAGE_DATABASE_SIZE_MB=
-SUPABASE_USAGE_MONTHLY_ACTIVE_USERS=
-SUPABASE_USAGE_FILE_STORAGE_GB=
-SUPABASE_USAGE_LOG_INGESTION_GB=
-SUPABASE_USAGE_LOG_QUERY_GB=
-```
-
-El panel intenta leer automaticamente lo liviano disponible, como Storage y usuarios activos aproximados. Egress, Log ingestion y Log Query quedan como valor manual o referencia al dashboard para no consultar logs desde la app y consumir ese mismo cupo.
+El panel intenta leer automaticamente lo liviano disponible, como database size, Storage y usuarios activos aproximados. Egress, Log ingestion y Log Query quedan indicados como datos de dashboard porque no conviene consultarlos desde la app.
 
 Variables requeridas para Mercado Pago:
 

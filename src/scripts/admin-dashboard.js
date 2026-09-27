@@ -197,6 +197,7 @@ const renderUsage = (usage = {}) => {
   if (!usagePanelElement || !usageListElement) return;
 
   const items = Array.isArray(usage.items) ? usage.items : [];
+  const unavailable = Array.isArray(usage.unavailable) ? usage.unavailable : [];
   const generatedAt = usage.generated_at ? new Date(usage.generated_at) : null;
 
   if (usageMetaElement) {
@@ -205,7 +206,7 @@ const renderUsage = (usage = {}) => {
       : "Consulta manual";
   }
 
-  if (!items.length) {
+  if (!items.length && !unavailable.length) {
     usageListElement.innerHTML = `
       <article class="ab-admin-metric-card ab-admin-metric-card--warning">
         <div class="ab-admin-metric-card__top">
@@ -218,7 +219,7 @@ const renderUsage = (usage = {}) => {
     return;
   }
 
-  usageListElement.innerHTML = items
+  const cardsHtml = items
     .map((metric) => `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
         <div class="ab-admin-metric-card__top">
@@ -230,6 +231,24 @@ const renderUsage = (usage = {}) => {
       </article>
     `)
     .join("");
+
+  const unavailableHtml = unavailable.length
+    ? `
+      <aside class="ab-admin-usage-note">
+        <strong>Datos que se revisan en Supabase Usage</strong>
+        <div>
+          ${unavailable.map((item) => `
+            <span>
+              ${escapeHtml(item.label)}
+              <small>${escapeHtml(item.limit_display ? `limite ${item.limit_display}` : item.detail)}</small>
+            </span>
+          `).join("")}
+        </div>
+      </aside>
+    `
+    : "";
+
+  usageListElement.innerHTML = `${cardsHtml}${unavailableHtml}`;
 };
 
 const loadHealth = async () => {

@@ -6,6 +6,7 @@ const BYTES_IN_MB = 1024 ** 2;
 const BYTES_IN_GB = 1024 ** 3;
 const STORAGE_PAGE_SIZE = 1_000;
 const STORAGE_MAX_PAGES = 8;
+const STORAGE_MAX_DEPTH = 5;
 const AUTH_USERS_PAGE_SIZE = 1_000;
 const AUTH_USERS_MAX_PAGES = 5;
 
@@ -32,13 +33,6 @@ const round = (value, decimals = 1) => {
 const clampPercent = (value) => {
   if (!Number.isFinite(value)) return null;
   return Math.max(0, Math.min(100, value));
-};
-
-const numberFromEnv = (key) => {
-  const raw = String(getEnvValue(key) ?? "").trim().replace(",", ".");
-  if (!raw) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
 };
 
 const bytesToDisplay = (bytes) => {
@@ -261,11 +255,6 @@ const getDatabaseSizeBytesFromSamples = (samples = []) => {
     return { name: fromMb.name, value: fromMb.value * BYTES_IN_MB };
   }
 
-  const manualMb = numberFromEnv("SUPABASE_USAGE_DATABASE_SIZE_MB");
-  if (Number.isFinite(manualMb)) {
-    return { name: "SUPABASE_USAGE_DATABASE_SIZE_MB", value: manualMb * BYTES_IN_MB };
-  }
-
   return { name: "", value: null };
 };
 
@@ -275,10 +264,6 @@ const monthStartIso = () => {
 };
 
 const getMonthlyActiveUsers = async (supabaseAdmin) => {
-  const manual = numberFromEnv("SUPABASE_USAGE_MONTHLY_ACTIVE_USERS");
-  if (Number.isFinite(manual)) {
-    return { ok: true, count: manual, source: "SUPABASE_USAGE_MONTHLY_ACTIVE_USERS" };
-  }
   if (!supabaseAdmin?.auth?.admin?.listUsers) {
     return { ok: false, count: null, source: "auth", error: "Admin Auth no disponible." };
   }
@@ -312,46 +297,81 @@ const getMonthlyActiveUsers = async (supabaseAdmin) => {
 };
 
 const getFileStorageBytes = async (supabaseAdmin) => {
-  const manualGb = numberFromEnv("SUPABASE_USAGE_FILE_STORAGE_GB");
-  if (Number.isFinite(manualGb)) {
-    return { ok: true, bytes: manualGb * BYTES_IN_GB, source: "SUPABASE_USAGE_FILE_STORAGE_GB" };
-  }
-  if (!supabaseAdmin?.schema) {
-    return { ok: false, bytes: null, source: "storage.objects", error: "Cliente Supabase sin schema()." };
+  if (!supabaseAdmin?.storage?.listBuckets) {
+    return { ok: false, bytes: null, source: "storage-api", error: "Storage API no disponible." };
   }
 
-  let page = 0;
-  let total = 0;
   let objectCount = 0;
+  let truncated = false;
 
-  while (page < STORAGE_MAX_PAGES) {
-    const from = page * STORAGE_PAGE_SIZE;
-    const to = from + STORAGE_PAGE_SIZE - 1;
-    const { data, error } = await supabaseAdmin
-      .schema("storage")
-      .from("objects")
-      .select("metadata")
-      .range(from, to);
-
-    if (error) {
-      return { ok: false, bytes: null, source: "storage.objects", error: error.message };
-    }
-
-    const rows = Array.isArray(data) ? data : [];
-    for (const row of rows) {
-      const size = Number(row?.metadata?.size ?? 0);
-      if (Number.isFinite(size) && size > 0) total += size;
-    }
-    objectCount += rows.length;
-
-    if (rows.length < STORAGE_PAGE_SIZE) {
-      return { ok: true, bytes: total, source: "storage.objects", objectCount, truncated: false };
-    }
-    page += 1;
+  const { data: buckets, error } = await supabaseAdmin.storage.listBuckets();
+  if (error) {
+    return { ok: false, bytes: null, source: "storage-api", error: error.message };
   }
 
-  return { ok: true, bytes: total, source: "storage.objects", objectCount, truncated: true };
+  const readPath = async (bucketId, path = "", depth = 0) => {
+    if (depth > STORAGE_MAX_DEPTH) {
+      truncated = true;
+      return 0;
+    }
+
+    let page = 0;
+    let total = 0;
+    while (page < STORAGE_MAX_PAGES) {
+      const offset = page * STORAGE_PAGE_SIZE;
+      const { data, error: listError } = await supabaseAdmin.storage
+        .from(bucketId)
+        .list(path, {
+          limit: STORAGE_PAGE_SIZE,
+          offset,
+        });
+
+      if (listError) throw listError;
+
+      const rows = Array.isArray(data) ? data : [];
+      for (const row of rows) {
+        const name = String(row?.name ?? "").trim();
+        if (!name || name === ".emptyFolderPlaceholder") continue;
+
+        const size = Number(row?.metadata?.size ?? 0);
+        if (Number.isFinite(size) && size > 0) {
+          total += size;
+          objectCount += 1;
+          continue;
+        }
+
+        const childPath = path ? `${path}/${name}` : name;
+        total += await readPath(bucketId, childPath, depth + 1);
+      }
+
+      if (rows.length < STORAGE_PAGE_SIZE) return total;
+      page += 1;
+    }
+
+    truncated = true;
+    return total;
+  };
+
+  try {
+    let total = 0;
+    for (const bucket of Array.isArray(buckets) ? buckets : []) {
+      const bucketId = String(bucket?.id ?? bucket?.name ?? "").trim();
+      if (!bucketId) continue;
+      total += await readPath(bucketId);
+    }
+
+    return { ok: true, bytes: total, source: "storage-api", objectCount, truncated };
+  } catch (listError) {
+    return { ok: false, bytes: null, source: "storage-api", error: listError.message };
+  }
 };
+
+const buildUsageUnavailable = ({ id, label, limitDisplay, detail }) => ({
+  id,
+  label,
+  limit_display: limitDisplay,
+  detail,
+});
 
 export const buildSupabaseMetricsSnapshot = (samples = [], { projectRef = "" } = {}) => {
   const memoryTotal = findSample(samples, "node_memory_MemTotal_bytes", { service_type: "db" })?.value;
@@ -487,24 +507,31 @@ export const buildSupabasePlanUsageSnapshot = async ({
   const databaseSize = metrics?.raw?.databaseSizeBytes ?? { value: null, name: "" };
   const storage = await getFileStorageBytes(supabaseAdmin);
   const mau = await getMonthlyActiveUsers(supabaseAdmin);
-  const manualEgressGb = numberFromEnv("SUPABASE_USAGE_EGRESS_GB");
-  const manualLogIngestionGb = numberFromEnv("SUPABASE_USAGE_LOG_INGESTION_GB");
-  const manualLogQueryGb = numberFromEnv("SUPABASE_USAGE_LOG_QUERY_GB");
 
-  const items = [
-    buildUsageMetric({
+  const items = [];
+  const unavailable = [
+    buildUsageUnavailable({
       id: "usage-egress",
       label: "Egress",
-      used: Number.isFinite(manualEgressGb) ? manualEgressGb * BYTES_IN_GB : null,
-      limit: FREE_PLAN_LIMITS.egressBytes,
-      usedDisplay: Number.isFinite(manualEgressGb) ? `${round(manualEgressGb, 2)} GB` : "Ver dashboard",
       limitDisplay: "5 GB",
-      detail: Number.isFinite(manualEgressGb)
-        ? "Dato manual del ciclo actual. Supabase lo calcula con trafico de DB, Auth, Storage, Realtime y funciones."
-        : "Supabase no expone este total por Metrics API liviana; mirarlo en Usage o cargar SUPABASE_USAGE_EGRESS_GB.",
-      source: Number.isFinite(manualEgressGb) ? "manual" : "dashboard",
+      detail: "Supabase lo muestra en Usage/Billing; no viene en Metrics API como lectura liviana.",
     }),
-    buildUsageMetric({
+    buildUsageUnavailable({
+      id: "usage-log-ingestion",
+      label: "Log ingestion",
+      limitDisplay: "1 GB",
+      detail: "Supabase lo calcula desde sus servicios internos y lo muestra en Usage.",
+    }),
+    buildUsageUnavailable({
+      id: "usage-log-query",
+      label: "Log Query",
+      limitDisplay: "100 GB",
+      detail: "No lo consultamos desde la app para no gastar el mismo cupo que queremos vigilar.",
+    }),
+  ];
+
+  if (Number.isFinite(databaseSize.value)) {
+    items.push(buildUsageMetric({
       id: "usage-database-size",
       label: "Database size",
       used: databaseSize.value,
@@ -513,10 +540,20 @@ export const buildSupabasePlanUsageSnapshot = async ({
       limitDisplay: "500 MB",
       detail: Number.isFinite(databaseSize.value)
         ? `Lectura desde ${databaseSize.name}.`
-        : "No vino una metrica de database size; se puede cargar SUPABASE_USAGE_DATABASE_SIZE_MB si hace falta.",
+        : "No vino una metrica de database size.",
       source: databaseSize.name ? "metrics" : "dashboard",
-    }),
-    buildUsageMetric({
+    }));
+  } else {
+    unavailable.push(buildUsageUnavailable({
+      id: "usage-database-size",
+      label: "Database size",
+      limitDisplay: "500 MB",
+      detail: "No vino en esta lectura de Metrics API; revisar el valor exacto en Supabase Usage.",
+    }));
+  }
+
+  if (mau.ok && Number.isFinite(mau.count)) {
+    items.push(buildUsageMetric({
       id: "usage-monthly-active-users",
       label: "Monthly active users",
       used: mau.count,
@@ -527,8 +564,18 @@ export const buildSupabasePlanUsageSnapshot = async ({
         ? `Aproximado desde Auth desde el inicio del mes${mau.truncated ? "; lectura truncada" : ""}.`
         : `No se pudo leer Auth: ${mau.error}`,
       source: mau.source,
-    }),
-    buildUsageMetric({
+    }));
+  } else {
+    unavailable.push(buildUsageUnavailable({
+      id: "usage-monthly-active-users",
+      label: "Monthly active users",
+      limitDisplay: "50.000",
+      detail: mau.error ?? "No se pudo leer Auth en esta consulta.",
+    }));
+  }
+
+  if (storage.ok && Number.isFinite(storage.bytes)) {
+    items.push(buildUsageMetric({
       id: "usage-file-storage",
       label: "File storage",
       used: storage.bytes,
@@ -537,41 +584,25 @@ export const buildSupabasePlanUsageSnapshot = async ({
       limitDisplay: "1 GB",
       detail: storage.ok
         ? `Suma aproximada de objetos en Storage${storage.truncated ? "; lectura truncada" : ""}.`
-        : `No se pudo leer storage.objects: ${storage.error}`,
+        : `No se pudo leer Storage API: ${storage.error}`,
       source: storage.source,
       meta: { objectCount: storage.objectCount ?? null },
-    }),
-    buildUsageMetric({
-      id: "usage-log-ingestion",
-      label: "Log ingestion",
-      used: Number.isFinite(manualLogIngestionGb) ? manualLogIngestionGb * BYTES_IN_GB : null,
-      limit: FREE_PLAN_LIMITS.logIngestionBytes,
-      usedDisplay: Number.isFinite(manualLogIngestionGb) ? `${round(manualLogIngestionGb, 2)} GB` : "Ver dashboard",
+    }));
+  } else {
+    unavailable.push(buildUsageUnavailable({
+      id: "usage-file-storage",
+      label: "File storage",
       limitDisplay: "1 GB",
-      detail: Number.isFinite(manualLogIngestionGb)
-        ? "Dato manual del ciclo actual."
-        : "Supabase muestra este consumo en Usage; no lo consultamos por logs para no sumar Log Query.",
-      source: Number.isFinite(manualLogIngestionGb) ? "manual" : "dashboard",
-    }),
-    buildUsageMetric({
-      id: "usage-log-query",
-      label: "Log Query",
-      used: Number.isFinite(manualLogQueryGb) ? manualLogQueryGb * BYTES_IN_GB : null,
-      limit: FREE_PLAN_LIMITS.logQueryBytes,
-      usedDisplay: Number.isFinite(manualLogQueryGb) ? `${round(manualLogQueryGb, 1)} GB` : "Ver dashboard",
-      limitDisplay: "100 GB",
-      detail: Number.isFinite(manualLogQueryGb)
-        ? "Dato manual del ciclo actual."
-        : "Evito consultar logs desde la app porque leer logs consume este mismo cupo.",
-      source: Number.isFinite(manualLogQueryGb) ? "manual" : "dashboard",
-    }),
-  ];
+      detail: storage.error ?? "No se pudo leer Storage en esta consulta.",
+    }));
+  }
 
   return {
     configured: true,
     plan: "Free",
     generated_at: new Date().toISOString(),
     items,
+    unavailable,
     summary: {
       ok: items.filter((item) => item.status === "ok").length,
       warnings: items.filter((item) => item.status === "warning").length,

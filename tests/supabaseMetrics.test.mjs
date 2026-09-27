@@ -73,30 +73,34 @@ test("construye uso del plan con datos livianos disponibles", async () => {
         }),
       },
     },
-    schema: () => ({
+    storage: {
+      listBuckets: async () => ({
+        data: [{ id: "product-images" }],
+        error: null,
+      }),
       from: () => ({
-        select: () => ({
-          range: async () => ({
-            data: [
-              { metadata: { size: 1200 } },
-              { metadata: { size: 800 } },
-            ],
-            error: null,
-          }),
+        list: async (path) => ({
+          data: path
+            ? [
+                { name: "image-1.jpg", metadata: { size: 1200 } },
+                { name: "image-2.jpg", metadata: { size: 800 } },
+              ]
+            : [{ name: "user-1", metadata: null }],
+          error: null,
         }),
       }),
-    }),
+    },
   };
 
   const usage = await buildSupabasePlanUsageSnapshot({ supabaseAdmin, metrics: snapshot });
   const database = usage.items.find((item) => item.id === "usage-database-size");
   const storage = usage.items.find((item) => item.id === "usage-file-storage");
   const mau = usage.items.find((item) => item.id === "usage-monthly-active-users");
-  const egress = usage.items.find((item) => item.id === "usage-egress");
+  const egress = usage.unavailable.find((item) => item.id === "usage-egress");
 
   assert.equal(database.status, "ok");
   assert.equal(storage.meta.objectCount, 2);
   assert.equal(storage.meta.used, 2000);
   assert.equal(mau.value_display, "1 / 50.000");
-  assert.equal(egress.status, "warning");
+  assert.equal(egress.limit_display, "5 GB");
 });
