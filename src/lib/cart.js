@@ -144,12 +144,12 @@ export const getCartCount = async (knownUserId = null) => {
       .maybeSingle();
     if (!cart?.id) return 0;
 
-    const { count, error } = await supabase
+    const { data: items, error } = await supabase
       .from("cart_items")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("cart_id", cart.id);
     if (error) return 0;
-    return Number(count ?? 0);
+    return Array.isArray(items) ? items.length : 0;
   } catch {
     return 0;
   }

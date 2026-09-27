@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { postAudit } from "./audit.js";
 import { getCartCount, syncCartOnLogin } from "../lib/cart";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
+import { hasUsableAccessToken } from "../lib/sessionToken";
 import { uploadPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
 import {
   fetchUserProfile,
@@ -187,7 +188,7 @@ const setAdminPlatformVisible = (visible) => {
 const refreshAdminPlatformAccess = async (session) => {
   const userId = session?.user?.id ?? "";
   const token = session?.access_token ?? "";
-  if (!userId || !token) {
+  if (!userId || !token || !hasUsableAccessToken(session)) {
     lastAdminStatusUserId = "";
     lastAdminStatusValue = false;
     setAdminPlatformVisible(false);
@@ -279,7 +280,7 @@ const showSalesNoticeToast = ({ userId, cursor, message }) => {
 const refreshSalesNotification = async (session) => {
   const userId = session?.user?.id ?? "";
   const token = session?.access_token ?? "";
-  if (!userId || !token) {
+  if (!userId || !token || !hasUsableAccessToken(session)) {
     setSalesNotificationVisible(false);
     return;
   }
@@ -359,7 +360,7 @@ const teardownSalesRealtime = async () => {
 
 const setupSalesRealtime = async (session) => {
   const userId = session?.user?.id ?? "";
-  if (!userId || isSalesPageActive()) {
+  if (!userId || !hasUsableAccessToken(session) || isSalesPageActive()) {
     await teardownSalesRealtime();
     return;
   }
@@ -395,6 +396,13 @@ const resolvePrivateProfile = async (session) => {
 
 const syncHeaderBackgroundState = async (session) => {
   const userId = session?.user?.id ?? "";
+  if (!userId || !hasUsableAccessToken(session)) {
+    setSalesNotificationVisible(false);
+    await teardownSalesRealtime();
+    await teardownPurchaseStatusNotifications();
+    return;
+  }
+
   if (userId && userId !== lastSyncedUserId) {
     lastSyncedUserId = userId;
     if (cartSync) cartSync.classList.remove("ab-is-hidden");

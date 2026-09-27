@@ -1,5 +1,6 @@
 /* Notificaciones globales para cambios de estado en compras del usuario. */
 import { supabase } from "../lib/supabaseClient";
+import { hasUsableAccessToken } from "../lib/sessionToken";
 import {
   getPurchaseStatusMessage,
   getPurchaseStatusReadKey,
@@ -104,7 +105,7 @@ const fetchPurchaseOrders = async (userId) => {
 const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   const userId = session?.user?.id ?? "";
   const token = session?.access_token ?? "";
-  if (!userId || !token) return;
+  if (!userId || !token || !hasUsableAccessToken(session)) return;
 
   const now = Date.now();
   /* Evita ráfagas por eventos realtime sucesivos. */
@@ -122,8 +123,13 @@ const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   const orderIds = [...new Set(orders.map((order) => String(order?.id ?? "").trim()).filter(Boolean))];
   if (orderIds.length === 0) return;
 
-  const response = await fetch(`/api/purchase-fulfillment?orderIds=${encodeURIComponent(orderIds.join(","))}`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetch("/api/purchase-fulfillment", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ orderIds }),
   }).catch(() => null);
   const payload = response ? await response.json().catch(() => ({})) : {};
   if (!response?.ok || !Array.isArray(payload?.items)) return;
@@ -206,7 +212,7 @@ const schedulePurchaseStatusRefresh = () => {
 /* Suscripción realtime acotada al usuario comprador activo. */
 const setupPurchaseStatusRealtime = async (session) => {
   const userId = session?.user?.id ?? "";
-  if (!userId || purchaseRealtimeChannel) return;
+  if (!userId || !hasUsableAccessToken(session) || purchaseRealtimeChannel) return;
   purchaseRealtimeUserId = userId;
   purchaseRealtimeChannel = supabase
     .channel(`home-purchase-status-${userId}`)
@@ -240,7 +246,7 @@ export const teardownPurchaseStatusNotifications = async () => {
 /* Punto de entrada usado por el header para activar o refrescar notificaciones. */
 export const refreshPurchaseStatusNotifications = async (session, options = {}) => {
   const userId = session?.user?.id ?? "";
-  if (!userId || isPurchasesPageActive()) {
+  if (!userId || !hasUsableAccessToken(session) || isPurchasesPageActive()) {
     await teardownPurchaseStatusNotifications();
     return;
   }

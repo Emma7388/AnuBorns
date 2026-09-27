@@ -320,8 +320,13 @@ const fetchPurchaseFulfillmentMap = async (orders = []) => {
   const token = sessionData.session?.access_token ?? "";
   if (!token) return {};
 
-  const response = await fetch(`/api/purchase-fulfillment?orderIds=${encodeURIComponent(orderIds.join(","))}`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetch("/api/purchase-fulfillment", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ orderIds }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !Array.isArray(payload?.items)) return {};
