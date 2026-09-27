@@ -38,6 +38,7 @@ const formatDate = (value) => {
 };
 
 const statusLabel = (order) => {
+  if (order?.mp_without_fee_trace) return "Sin traza fee";
   if (order?.fee_approved) return "Aprobado";
   const state = String(order?.payment_state ?? "").toLowerCase();
   if (state === "pending") return "Pendiente";
@@ -58,7 +59,7 @@ const renderSummary = (payload) => {
   const currency = payload?.currency ?? "ARS";
   if (approvedFeeElement) approvedFeeElement.textContent = formatMoney(summary.approved_fee_total, currency);
   if (registeredFeeElement) registeredFeeElement.textContent = formatMoney(summary.registered_fee_total, currency);
-  if (feeOrdersElement) feeOrdersElement.textContent = String(summary.fee_orders ?? 0);
+  if (feeOrdersElement) feeOrdersElement.textContent = String(summary.mp_approved_orders ?? 0);
 
   if (!detailElement) return;
   detailElement.innerHTML = `
@@ -67,8 +68,16 @@ const renderSummary = (payload) => {
       <strong>${escapeHtml(summary.reviewed_orders ?? 0)}</strong>
     </div>
     <div class="ab-admin-users__detail-row">
-      <span>Con traza MP</span>
-      <strong>${escapeHtml(summary.traced_orders ?? 0)}</strong>
+      <span>Pagos MP registrados</span>
+      <strong>${escapeHtml(summary.mp_orders ?? 0)}</strong>
+    </div>
+    <div class="ab-admin-users__detail-row">
+      <span>Con fee local</span>
+      <strong>${escapeHtml(summary.fee_orders ?? 0)}</strong>
+    </div>
+    <div class="ab-admin-users__detail-row">
+      <span>Sin traza de fee</span>
+      <strong>${escapeHtml(summary.mp_without_fee_trace_orders ?? 0)}</strong>
     </div>
     <div class="ab-admin-users__detail-row">
       <span>Fee pendiente</span>
@@ -86,7 +95,7 @@ const renderOrders = (payload) => {
   const currency = payload?.currency ?? "ARS";
   const orders = Array.isArray(payload?.recent) ? payload.recent : [];
   if (!orders.length) {
-    ordersElement.innerHTML = `<div class="ab-cart-empty"><p>No hay órdenes con fee registrado.</p></div>`;
+    ordersElement.innerHTML = `<div class="ab-cart-empty"><p>No hay operaciones Mercado Pago registradas.</p></div>`;
     return;
   }
 

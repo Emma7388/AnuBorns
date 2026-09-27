@@ -20,6 +20,10 @@ const formatRecentOrder = (order) => ({
   currency: order.currency,
   marketplace_fee: order.marketplace_fee,
   fee_approved: order.fee_approved,
+  mp_approved: order.mp_approved,
+  mp_without_fee_trace: order.mp_without_fee_trace,
+  has_fee_trace: order.has_fee_trace,
+  has_mp_trace: order.has_mp_trace,
   mp_status_detail: order.mp_status_detail,
 });
 
@@ -54,7 +58,7 @@ export const GET = async ({ request }) => {
 
     const { orders, summary } = summarizeMarketplaceFeeOrders(data ?? []);
     const recent = orders
-      .filter((order) => order.marketplace_fee > 0)
+      .filter((order) => order.has_mp_trace || order.marketplace_fee > 0)
       .slice(0, RECENT_LIMIT)
       .map(formatRecentOrder);
 
