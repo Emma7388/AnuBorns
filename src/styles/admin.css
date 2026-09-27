@@ -149,19 +149,20 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-health-tabs {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-content: start;
 }
 
 .ab-admin-health-tab {
-  display: grid;
+  display: inline-grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  width: fit-content;
   min-height: 42px;
+  max-width: min(100%, 240px);
   padding: 8px 10px;
   border: 1px solid rgba(23, 35, 31, 0.14);
   border-left-width: 5px;
@@ -1340,6 +1341,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
   .ab-admin-health-tab {
     min-height: 40px;
+    max-width: 100%;
     padding: 8px 7px;
     border-left-width: 5px;
     font-size: 12px;
