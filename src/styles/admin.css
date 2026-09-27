@@ -563,14 +563,14 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 8px;
   align-items: end;
   min-width: 0;
   padding: 10px;
-  border: 1px solid rgba(23, 35, 31, 0.14);
+  border: 1px solid rgba(23, 35, 31, 0.12);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 248, 0.82));
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .ab-admin-users__search {
@@ -582,6 +582,13 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__search input {
   min-height: 48px;
+  border: 1px solid rgba(23, 35, 31, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ab-text, #17231f);
+  font: inherit;
+  font-size: 15px;
+  padding: 0 12px;
 }
 
 .ab-admin-users__actions,
@@ -830,12 +837,12 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__layout {
   display: grid;
-  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: minmax(250px, 330px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
   min-width: 0;
   max-width: 100%;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .ab-admin-users__list,
@@ -847,21 +854,29 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__list {
   width: 100%;
-  max-width: 300px;
-  overflow: hidden;
+  max-width: none;
+  max-height: min(58vh, 620px);
+  padding: 8px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  overflow: auto;
 }
 
 .ab-admin-user-card {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   box-sizing: border-box;
   width: 100%;
   min-height: 58px;
-  justify-content: space-between;
   gap: 8px;
   align-items: center;
-  padding: 9px 10px;
+  padding: 9px 10px 9px 14px;
   border: 1px solid rgba(23, 35, 31, 0.14);
-  border-radius: 10px;
+  border-left-width: 5px;
+  border-radius: 8px;
+  border-left-color: #c83b3b;
   background: rgba(255, 255, 255, 0.78);
   color: var(--ab-text, #17231f);
   text-align: left;
@@ -877,6 +892,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-user-card:focus-visible,
 .ab-admin-user-card.is-selected {
   border-color: rgba(45, 166, 138, 0.65);
+  border-left-color: #159a69;
   box-shadow: 0 10px 24px rgba(18, 28, 25, 0.12);
 }
 
@@ -905,8 +921,8 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   align-items: center;
   gap: 5px;
   justify-content: flex-end;
-  min-width: 68px;
-  max-width: 78px;
+  min-width: 62px;
+  max-width: 74px;
   text-align: right;
   white-space: nowrap;
   font-weight: 800;
@@ -937,10 +953,11 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__detail {
   min-width: 0;
-  padding: 10px;
-  border: 1px solid rgba(23, 35, 31, 0.14);
+  min-height: 100%;
+  padding: 12px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 248, 0.82));
+  background: rgba(255, 255, 255, 0.58);
   overflow: hidden;
 }
 
@@ -958,17 +975,21 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__detail-head {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
   min-width: 0;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(23, 35, 31, 0.12);
 }
 
 .ab-admin-users__detail-actions {
+  grid-row: 1 / span 2;
+  grid-column: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .ab-admin-users__detail-actions .ab-secondary-button:disabled {
@@ -1047,11 +1068,11 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
 .ab-admin-users__detail-row {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 0.24fr) minmax(0, 1fr);
   gap: 10px;
   align-items: start;
   min-width: 0;
-  padding: 6px 0;
+  padding: 8px 0;
   border-bottom: 1px solid rgba(23, 35, 31, 0.08);
 }
 
@@ -1100,6 +1121,12 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 }
 
 .ab-admin-users__pagination {
+  justify-self: center;
+  width: fit-content;
+  padding: 6px;
+  border: 1px solid rgba(23, 35, 31, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
   justify-content: center;
   flex-wrap: wrap;
 }
@@ -1116,6 +1143,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
   .ab-admin-users__list {
     max-width: none;
+    max-height: 340px;
   }
 }
 
@@ -1276,7 +1304,13 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   }
 
   .ab-admin-users__detail-actions {
+    grid-row: auto;
+    grid-column: auto;
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ab-admin-users__detail-head {
     grid-template-columns: 1fr;
   }
 
