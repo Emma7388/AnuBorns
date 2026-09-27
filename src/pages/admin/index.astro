@@ -37,6 +37,20 @@ import "../../styles/admin.css";
 
     <p class="ab-muted-text" id="admin-health-status" aria-live="polite">Cargando estado operativo...</p>
 
+    <section class="ab-admin-metrics ab-admin-health-section" aria-labelledby="admin-health-section-title">
+      <div class="ab-admin-metrics__head">
+        <div>
+          <p class="ab-admin-dashboard__eyebrow">Operación</p>
+          <h3 id="admin-health-section-title">Chequeos principales</h3>
+        </div>
+      </div>
+      <div class="ab-admin-health-workspace">
+        <div class="ab-admin-health-tabs" id="admin-health-tabs" role="tablist" aria-label="Procesos operativos"></div>
+        <div class="ab-admin-health-grid" id="admin-health-list"></div>
+      </div>
+      <div class="ab-admin-health-notes" id="admin-health-notes"></div>
+    </section>
+
     <section class="ab-admin-metrics" id="admin-supabase-metrics" aria-labelledby="admin-supabase-metrics-title">
       <div class="ab-admin-metrics__head">
         <div>
@@ -79,12 +93,6 @@ import "../../styles/admin.css";
       </div>
       <div class="ab-admin-metrics__grid" id="admin-vercel-analytics-list"></div>
     </section>
-
-    <div class="ab-admin-health-workspace">
-      <div class="ab-admin-health-tabs" id="admin-health-tabs" role="tablist" aria-label="Procesos operativos"></div>
-      <div class="ab-admin-health-grid" id="admin-health-list"></div>
-    </div>
-    <div class="ab-admin-health-notes" id="admin-health-notes"></div>
   </section>
 </MainLayout>
 

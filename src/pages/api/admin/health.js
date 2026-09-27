@@ -8,6 +8,7 @@ import {
   evaluateEnvChecks,
   evaluateMarketplaceConfig,
   evaluateSiteUrl,
+  evaluateVercelAnalyticsConfig,
   summarizeHealth,
 } from "../../../lib/adminHealth.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
@@ -146,6 +147,8 @@ const buildOperationChecks = ({ envChecks, tableChecks, supabaseConfigured, supa
       : "La tabla de auditoria no esta disponible.",
     action: tableOk(tableChecks, "audit_logs") ? "" : "Ejecutar/revisar docs/audit-log.sql.",
   }));
+
+  operationChecks.push(evaluateVercelAnalyticsConfig());
 
   return operationChecks;
 };

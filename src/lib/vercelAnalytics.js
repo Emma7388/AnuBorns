@@ -143,7 +143,7 @@ const queryVercelAnalytics = async (path, params, config) => {
 
 const buildMetric = ({ id, label, value, status = "ok", detail, meta = {} }) => ({
   id,
-  area: "Analitica Vercel",
+  area: "Analítica Vercel",
   label,
   value,
   value_display: value,
@@ -265,7 +265,7 @@ export const buildVercelAnalyticsSnapshot = ({
     sections,
     check: buildHealthCheck({
       id: "vercel-analytics-api",
-      area: "Analitica Vercel",
+      area: "Analítica Vercel",
       label: "API de analitica web",
       status: "ok",
       detail: "Lectura manual correcta desde la analitica web de Vercel.",
@@ -283,7 +283,7 @@ export const getVercelAnalyticsSnapshot = async () => {
       sections: [],
       check: buildHealthCheck({
         id: "vercel-analytics-api",
-        area: "Analitica Vercel",
+        area: "Analítica Vercel",
         label: "API de analitica web",
         status: "warning",
         detail: "El panel esta listo, pero faltan variables privadas de Vercel.",
@@ -328,7 +328,7 @@ export const getVercelAnalyticsSnapshot = async () => {
       sections: [],
       check: buildHealthCheck({
         id: "vercel-analytics-api",
-        area: "Analitica Vercel",
+        area: "Analítica Vercel",
         label: "API de analitica web",
         status: "error",
         detail: aborted

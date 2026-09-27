@@ -197,6 +197,12 @@ export const ADMIN_HEALTH_OPERATION_CHECKS = [
     label: "Trazabilidad",
     detail: "Los eventos criticos tienen tabla disponible para registro.",
   },
+  {
+    id: "vercel-analytics",
+    area: "Analítica Vercel",
+    label: "Analítica web",
+    detail: "El panel puede consultar visitas y vistas desde Vercel.",
+  },
 ];
 
 export const getEnvValue = (key) => {
@@ -360,6 +366,26 @@ export const evaluateMercadoPagoDiagnosticsConfig = () => {
       allowedSellerUserIds: config.allowedSellerUserIds.length,
       allowedMpUserIds: config.allowedMpUserIds.length,
     },
+  });
+};
+
+export const evaluateVercelAnalyticsConfig = () => {
+  const hasToken = hasEnvValue("VERCEL_ANALYTICS_TOKEN") || hasEnvValue("VERCEL_TOKEN");
+  const hasProject = hasEnvValue("VERCEL_ANALYTICS_PROJECT_ID") || hasEnvValue("VERCEL_PROJECT_ID");
+  const configured = hasToken && hasProject;
+
+  return buildHealthCheck({
+    id: "vercel-analytics",
+    area: "Analítica Vercel",
+    label: "Analítica web",
+    status: configured ? "ok" : "warning",
+    detail: configured
+      ? "La consulta manual de visitas y vistas esta configurada."
+      : "La consulta manual esta disponible, pero faltan variables privadas de Vercel.",
+    action: configured
+      ? ""
+      : "Configurar VERCEL_ANALYTICS_TOKEN y VERCEL_ANALYTICS_PROJECT_ID si se quiere ver tráfico desde el panel.",
+    meta: { hasToken, hasProject },
   });
 };
 

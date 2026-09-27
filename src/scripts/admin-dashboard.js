@@ -279,7 +279,7 @@ const renderAnalytics = (analytics = {}) => {
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
         <div class="ab-admin-metric-card__top">
           <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
-          <strong>${escapeHtml(check?.label ?? "Analitica Vercel")}</strong>
+          <strong>${escapeHtml(check?.label ?? "Analítica Vercel")}</strong>
         </div>
         <p>${escapeHtml(check?.detail ?? "Toca Consultar para leer la analitica web de Vercel.")}</p>
         ${check?.action ? `<small>${escapeHtml(check.action)}</small>` : ""}
@@ -379,7 +379,7 @@ const replaceSupabaseMetricChecks = (checks = []) => {
 };
 
 const replaceVercelAnalyticsChecks = (checks = []) => {
-  replaceChecksByArea(["Analitica Vercel"], checks);
+  replaceChecksByArea(["Analítica Vercel"], checks);
 };
 
 const loadSupabaseMetrics = async () => {
@@ -457,7 +457,7 @@ const loadVercelAnalytics = async () => {
     if (!response.ok) {
       renderAnalytics({
         check: {
-          label: "Analitica Vercel",
+          label: "Analítica Vercel",
           status: "error",
           detail: payload?.error ?? "No se pudo cargar la analitica de Vercel.",
         },
@@ -468,11 +468,11 @@ const loadVercelAnalytics = async () => {
 
     renderAnalytics(payload.analytics ?? {});
     replaceVercelAnalyticsChecks(Array.isArray(payload.checks) ? payload.checks : []);
-    setStatus(`Analitica de Vercel actualizada - ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
+    setStatus(`Analítica de Vercel actualizada - ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
   } catch {
     renderAnalytics({
       check: {
-        label: "Analitica Vercel",
+        label: "Analítica Vercel",
         status: "error",
         detail: "No se pudo cargar la analitica de Vercel.",
       },
