@@ -329,6 +329,120 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   font-size: 14px;
 }
 
+.ab-admin-metrics {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.ab-admin-metrics__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.ab-admin-metrics__head h3,
+.ab-admin-metrics__head p {
+  margin: 0;
+}
+
+.ab-admin-metrics__head h3 {
+  color: rgba(23, 35, 31, 0.86);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.ab-admin-metrics__head span {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(23, 35, 31, 0.08);
+  color: rgba(23, 35, 31, 0.64);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ab-admin-metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.ab-admin-metric-card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  min-height: 136px;
+  padding: 11px;
+  border: 1px solid rgba(23, 35, 31, 0.13);
+  border-left-width: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.ab-admin-metric-card--ok {
+  border-left-color: #159a69;
+}
+
+.ab-admin-metric-card--warning {
+  border-left-color: #c78515;
+}
+
+.ab-admin-metric-card--error {
+  border-left-color: #c83b3b;
+}
+
+.ab-admin-metric-card__top {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ab-admin-metric-card__top span {
+  color: rgba(23, 35, 31, 0.62);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ab-admin-metric-card__top strong,
+.ab-admin-metric-card p,
+.ab-admin-metric-card small,
+.ab-admin-metric-card__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-metric-card__top strong {
+  color: rgba(23, 35, 31, 0.86);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.ab-admin-metric-card__value {
+  color: rgba(23, 35, 31, 0.92);
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.ab-admin-metric-card p,
+.ab-admin-metric-card small {
+  margin: 0;
+  color: rgba(23, 35, 31, 0.68);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .ab-admin-users__toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -917,6 +1031,29 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   .ab-admin-finance__summary,
   .ab-admin-finance__grid {
     grid-template-columns: 1fr;
+  }
+
+  .ab-admin-metrics__head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .ab-admin-metrics__head span {
+    width: fit-content;
+  }
+
+  .ab-admin-metrics__grid {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  .ab-admin-metric-card {
+    min-height: 126px;
+    padding: 9px;
+  }
+
+  .ab-admin-metric-card__value {
+    font-size: 24px;
   }
 
   .ab-admin-finance__grid {

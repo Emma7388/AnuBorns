@@ -36,6 +36,8 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - `SUPABASE_URL`.
 - `SUPABASE_SERVICE_ROLE_KEY`.
 - Cliente server disponible.
+- Mediciones read-only del servidor via Metrics API cuando estan configuradas `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY`.
+- Las mediciones visibles incluyen memoria, swap, disco, carga, I/O en curso, conexiones reportadas y reinicios de Postgres. El navegador no recibe la clave de metricas.
 
 ### Usuarios
 
@@ -121,6 +123,7 @@ Estas son las funciones posibles para sumar al panel, en orden prudente:
    - Mostrar variables presentes/ausentes sin revelar valores.
    - Separar local vs produccion como revision manual.
    - Avisar si `MERCADOPAGO_SEND_MARKETPLACE_FIELD=true`.
+   - Mostrar si falta la configuracion de Metrics API sin bloquear el resto del panel.
 
 6. Acciones controladas
    - Reprocesar sincronizacion de una orden puntual.

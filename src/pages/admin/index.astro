@@ -37,6 +37,17 @@ import "../../styles/admin.css";
 
     <p class="ab-muted-text" id="admin-health-status" aria-live="polite">Cargando estado operativo...</p>
 
+    <section class="ab-admin-metrics" id="admin-supabase-metrics" aria-labelledby="admin-supabase-metrics-title">
+      <div class="ab-admin-metrics__head">
+        <div>
+          <p class="ab-admin-dashboard__eyebrow">Supabase</p>
+          <h3 id="admin-supabase-metrics-title">Mediciones del servidor</h3>
+        </div>
+        <span id="admin-supabase-metrics-meta">Sin datos</span>
+      </div>
+      <div class="ab-admin-metrics__grid" id="admin-supabase-metrics-list"></div>
+    </section>
+
     <div class="ab-admin-health-workspace">
       <div class="ab-admin-health-tabs" id="admin-health-tabs" role="tablist" aria-label="Procesos operativos"></div>
       <div class="ab-admin-health-grid" id="admin-health-list"></div>

@@ -28,6 +28,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
+- Panel admin con chequeos operativos y mediciones read-only del servidor Supabase cuando Metrics API está configurada.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
 
@@ -75,7 +76,11 @@ PUBLIC_SUPABASE_URL=
 PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_PROJECT_REF=
+SUPABASE_METRICS_SECRET_KEY=
 ```
+
+`SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` son opcionales para compilar, pero habilitan las mediciones del servidor Supabase en `/admin`. La clave debe ser privada/server-side, idealmente una Secret API key `sb_secret_...`.
 
 Variables requeridas para Mercado Pago:
 

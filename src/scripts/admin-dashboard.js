@@ -7,6 +7,9 @@ const notesElement = document.getElementById("admin-health-notes");
 const okElement = document.getElementById("admin-health-ok");
 const warningElement = document.getElementById("admin-health-warning");
 const errorElement = document.getElementById("admin-health-error");
+const metricsPanelElement = document.getElementById("admin-supabase-metrics");
+const metricsMetaElement = document.getElementById("admin-supabase-metrics-meta");
+const metricsListElement = document.getElementById("admin-supabase-metrics-list");
 
 const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
@@ -136,6 +139,48 @@ const renderNotes = (notes = []) => {
     : "";
 };
 
+const renderMetrics = (metrics = {}) => {
+  if (!metricsPanelElement || !metricsListElement) return;
+
+  const items = Array.isArray(metrics.items) ? metrics.items : [];
+  const check = metrics.check ?? null;
+  const configured = Boolean(metrics.configured);
+  const sampledMetrics = Number(metrics.sampled_metrics ?? 0);
+
+  if (metricsMetaElement) {
+    metricsMetaElement.textContent = configured
+      ? `${sampledMetrics} muestras`
+      : "Configurar Metrics API";
+  }
+
+  if (!items.length) {
+    metricsListElement.innerHTML = `
+      <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
+        <div class="ab-admin-metric-card__top">
+          <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
+          <strong>${escapeHtml(check?.label ?? "Metrics API")}</strong>
+        </div>
+        <p>${escapeHtml(check?.detail ?? "No hay mediciones disponibles.")}</p>
+        ${check?.action ? `<small>${escapeHtml(check.action)}</small>` : ""}
+      </article>
+    `;
+    return;
+  }
+
+  metricsListElement.innerHTML = items
+    .map((metric) => `
+      <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
+        <div class="ab-admin-metric-card__top">
+          <span>${escapeHtml(statusLabel(metric.status))}</span>
+          <strong>${escapeHtml(metric.label)}</strong>
+        </div>
+        <div class="ab-admin-metric-card__value">${escapeHtml(metric.value_display)}</div>
+        <p>${escapeHtml(metric.detail)}</p>
+      </article>
+    `)
+    .join("");
+};
+
 const loadHealth = async () => {
   setStatus("Cargando estado operativo...");
   const { data: sessionData } = await supabase.auth.getSession();
@@ -156,6 +201,7 @@ const loadHealth = async () => {
     renderSummary({ ok: 0, warnings: 0, errors: 1 });
     renderChecks([]);
     renderNotes([]);
+    renderMetrics({});
     return;
   }
 
@@ -164,6 +210,7 @@ const loadHealth = async () => {
   state.checks = Array.isArray(payload.checks) ? payload.checks : [];
   renderSelectedProcess();
   renderNotes(Array.isArray(payload.notes) ? payload.notes : []);
+  renderMetrics(payload.metrics ?? {});
   const total = getSummaryTotal(summary);
   setStatus(`Estado actualizado: ${total} chequeos operativos · ${new Date(payload.generated_at).toLocaleString("es-AR")}`);
 };
