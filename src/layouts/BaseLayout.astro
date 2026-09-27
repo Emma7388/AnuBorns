@@ -1,11 +1,13 @@
 ---
 // Layout base: HTML, metas, transiciones y utilidades globales.
 import { ClientRouter } from "astro:transitions";
+import Analytics from "@vercel/analytics/astro";
 
 const {
   title = "Desoluciones",
   description = "Marketplace local para comprar productos, publicar ventas y coordinar entregas en un solo lugar.",
 } = Astro.props;
+const enableAnalytics = !Astro.url.pathname.startsWith("/admin");
 ---
 
 <!DOCTYPE html>
@@ -51,6 +53,18 @@ const {
     </script>
     <title>{title}</title>
     <ClientRouter />
+    <script is:inline>
+      function webAnalyticsBeforeSend(event) {
+        try {
+          const url = new URL(event.url, window.location.origin);
+          if (url.pathname.startsWith("/admin")) return null;
+        } catch {
+          if (String(event?.url ?? "").includes("/admin")) return null;
+        }
+        return event;
+      }
+    </script>
+    {enableAnalytics && <Analytics />}
   </head>
   <body>
     <script>
