@@ -55,6 +55,44 @@ test("construye snapshot de mediciones principales", () => {
   assert.equal(snapshot.raw.databaseSizeBytes.value, 31 * 1024 * 1024);
 });
 
+test("marca swap como error recien desde 80 por ciento", () => {
+  const buildSwapSample = (free) => parsePrometheusMetrics(`
+node_memory_SwapTotal_bytes{supabase_project_ref="demo",service_type="db"} 100
+node_memory_SwapFree_bytes{supabase_project_ref="demo",service_type="db"} ${free}
+`);
+
+  const warningSnapshot = buildSupabaseMetricsSnapshot(buildSwapSample(50), {
+    projectRef: "demo",
+  });
+  const errorSnapshot = buildSupabaseMetricsSnapshot(buildSwapSample(20), {
+    projectRef: "demo",
+  });
+
+  assert.equal(warningSnapshot.items.find((item) => item.id === "swap-used").status, "warning");
+  assert.equal(errorSnapshot.items.find((item) => item.id === "swap-used").status, "error");
+});
+
+test("marca disco como error recien desde 95 por ciento", () => {
+  const buildDiskSample = (available) => parsePrometheusMetrics(`
+node_filesystem_size_bytes{supabase_project_ref="demo",service_type="db",mountpoint="/"} 100
+node_filesystem_avail_bytes{supabase_project_ref="demo",service_type="db",mountpoint="/"} ${available}
+`);
+
+  const okSnapshot = buildSupabaseMetricsSnapshot(buildDiskSample(20), {
+    projectRef: "demo",
+  });
+  const warningSnapshot = buildSupabaseMetricsSnapshot(buildDiskSample(15), {
+    projectRef: "demo",
+  });
+  const errorSnapshot = buildSupabaseMetricsSnapshot(buildDiskSample(5), {
+    projectRef: "demo",
+  });
+
+  assert.equal(okSnapshot.items.find((item) => item.id === "disk-used").status, "ok");
+  assert.equal(warningSnapshot.items.find((item) => item.id === "disk-used").status, "warning");
+  assert.equal(errorSnapshot.items.find((item) => item.id === "disk-used").status, "error");
+});
+
 test("construye uso del plan con datos livianos disponibles", async () => {
   const snapshot = buildSupabaseMetricsSnapshot(parsePrometheusMetrics(SAMPLE_METRICS), {
     projectRef: "demo",

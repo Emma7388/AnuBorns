@@ -424,9 +424,9 @@ export const buildSupabaseMetricsSnapshot = (samples = [], { projectRef = "" } =
       label: "Swap usado",
       value: round(swapUsedPercent ?? 0),
       unit: "%",
-      status: swapUsedPercent >= 25 ? "error" : swapUsedPercent > 0 ? "warning" : "ok",
+      status: swapUsedPercent >= 80 ? "error" : swapUsedPercent > 0 ? "warning" : "ok",
       detail: Number.isFinite(swapUsed)
-        ? `${bytesToDisplay(swapUsed)} en swap. Si se mantiene arriba de 0, hay presion de memoria.`
+        ? `${bytesToDisplay(swapUsed)} en swap. En compute chico puede aparecer sin ser critico; error desde 80%.`
         : "Supabase no devolvio datos de swap en esta muestra.",
       meta: { swapTotal, swapFree, swapUsed },
     }),
@@ -436,9 +436,9 @@ export const buildSupabaseMetricsSnapshot = (samples = [], { projectRef = "" } =
       label: "Disco usado",
       value: round(diskUsedPercent ?? 0),
       unit: "%",
-      status: statusFromPercent(diskUsedPercent, 75, 90),
+      status: statusFromPercent(diskUsedPercent, 85, 95),
       detail: Number.isFinite(diskUsed)
-        ? `${bytesToDisplay(diskUsed)} usados de ${bytesToDisplay(diskSize)}.`
+        ? `${bytesToDisplay(diskUsed)} usados de ${bytesToDisplay(diskSize)}. Incluye filesystem principal, no solo datos de la base.`
         : "Supabase no devolvio uso del filesystem principal.",
       meta: { diskSize, diskAvailable, diskUsed },
     }),
