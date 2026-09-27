@@ -6,23 +6,16 @@ const clearButton = document.getElementById("admin-user-clear-button");
 const statusElement = document.getElementById("admin-users-status");
 const listElement = document.getElementById("admin-users-list");
 const detailElement = document.getElementById("admin-user-detail");
-const prevButton = document.getElementById("admin-users-prev");
-const nextButton = document.getElementById("admin-users-next");
-const pageElement = document.getElementById("admin-users-page");
 const mpChartElement = document.getElementById("admin-users-mp-chart");
 const mpConnectedElement = document.getElementById("admin-users-mp-connected");
 const mpDisconnectedElement = document.getElementById("admin-users-mp-disconnected");
 const mpTotalElement = document.getElementById("admin-users-mp-total");
 
 const state = {
-  page: 1,
-  perPage: 30,
   query: "",
   users: [],
   selectedId: "",
-  hasMore: false,
   total: 0,
-  totalPages: 0,
   mercadoPagoSummary: {
     total: 0,
     connected: 0,
@@ -298,16 +291,6 @@ const renderMercadoPagoSummary = () => {
   }
 };
 
-const updatePagination = () => {
-  const totalPages = Math.max(1, Number(state.totalPages) || 1);
-  if (pageElement) {
-    const totalLabel = state.total === 1 ? "1 usuario" : `${state.total} usuarios`;
-    pageElement.textContent = `Página ${state.page} de ${totalPages} · ${totalLabel}`;
-  }
-  if (prevButton) prevButton.disabled = state.page <= 1;
-  if (nextButton) nextButton.disabled = !state.hasMore;
-};
-
 const fetchUsers = async () => {
   setStatus("Cargando usuarios...");
   const { data: sessionData } = await supabase.auth.getSession();
@@ -318,10 +301,7 @@ const fetchUsers = async () => {
     return;
   }
 
-  const params = new URLSearchParams({
-    page: String(state.page),
-    perPage: String(state.perPage),
-  });
+  const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
 
   const response = await fetch(`/api/admin/users?${params.toString()}`, {
@@ -334,7 +314,6 @@ const fetchUsers = async () => {
     setStatus(payload?.error ?? "No se pudieron cargar los usuarios.");
     state.users = [];
     state.total = 0;
-    state.totalPages = 0;
     state.mercadoPagoSummary = {
       total: 0,
       connected: 0,
@@ -343,16 +322,11 @@ const fetchUsers = async () => {
     };
     renderUsers();
     renderMercadoPagoSummary();
-    updatePagination();
     return;
   }
 
   state.users = Array.isArray(payload?.users) ? payload.users : [];
-  const pagination = payload?.pagination ?? {};
-  state.page = Number(pagination.page) || state.page;
-  state.hasMore = Boolean(pagination.hasMore);
-  state.total = Number(pagination.total) || state.users.length;
-  state.totalPages = Number(pagination.totalPages) || (state.total > 0 ? 1 : 0);
+  state.total = Number(payload?.total) || state.users.length;
   state.mercadoPagoSummary = payload?.mercado_pago_summary ?? {
     total: state.total,
     connected: state.users.filter((user) => user.mercado_pago?.connected).length,
@@ -371,7 +345,6 @@ const fetchUsers = async () => {
   );
   renderUsers();
   renderMercadoPagoSummary();
-  updatePagination();
 };
 
 const getSelectedUser = () => state.users.find((user) => user.id === state.selectedId) ?? null;
@@ -498,7 +471,6 @@ const sendPasswordReset = async () => {
 
 const runSearch = () => {
   state.query = String(searchInput?.value ?? "").trim();
-  state.page = 1;
   state.selectedId = "";
   fetchUsers().catch(() => setStatus("No se pudieron cargar los usuarios."));
 };
@@ -510,18 +482,7 @@ searchInput?.addEventListener("keydown", (event) => {
 clearButton?.addEventListener("click", () => {
   if (searchInput) searchInput.value = "";
   state.query = "";
-  state.page = 1;
   state.selectedId = "";
-  fetchUsers().catch(() => setStatus("No se pudieron cargar los usuarios."));
-});
-prevButton?.addEventListener("click", () => {
-  if (state.page <= 1) return;
-  state.page -= 1;
-  fetchUsers().catch(() => setStatus("No se pudieron cargar los usuarios."));
-});
-nextButton?.addEventListener("click", () => {
-  if (!state.hasMore || state.query) return;
-  state.page += 1;
   fetchUsers().catch(() => setStatus("No se pudieron cargar los usuarios."));
 });
 listElement?.addEventListener("click", (event) => {

@@ -591,8 +591,7 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   padding: 0 12px;
 }
 
-.ab-admin-users__actions,
-.ab-admin-users__pagination {
+.ab-admin-users__actions {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -1223,22 +1222,6 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-users__mp-status--connected::before {
   background: #159a69;
   box-shadow: 0 0 0 3px rgba(21, 154, 105, 0.13);
-}
-
-.ab-admin-users__pagination {
-  justify-self: center;
-  width: fit-content;
-  padding: 6px;
-  border: 1px solid rgba(23, 35, 31, 0.1);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.58);
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.ab-admin-users__pagination button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 @media (max-width: 1020px) {

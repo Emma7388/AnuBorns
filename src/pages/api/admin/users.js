@@ -6,18 +6,11 @@ import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 const PROFILE_SELECT =
   "user_id, first_name, last_name, phone, dni, address, city, province, postal_code, created_at, updated_at";
 const MP_SELECT = "user_id, mp_user_id, updated_at";
-const DEFAULT_PER_PAGE = 30;
 const MAX_PER_PAGE = 50;
 const AUTH_LIST_PAGE_SIZE = 1000;
 const AUTH_LIST_MAX_PAGES = 100;
 
 const cleanSearch = (value) => String(value ?? "").trim().slice(0, 80);
-
-const clampInt = (value, { min, max, fallback }) => {
-  const number = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.min(max, Math.max(min, number));
-};
 
 const sanitizeLike = (value) => cleanSearch(value).replace(/[%_,]/g, " ");
 
@@ -191,25 +184,15 @@ const formatUser = ({ user, profile, mpAccount, passwordReset }) => {
   };
 };
 
-const findUsers = async (supabaseAdmin, { query, page, perPage }) => {
-  const slicePage = (users) => {
-    const allUserIds = users.map((user) => String(user.id ?? "")).filter(Boolean);
-    const total = users.length;
-    const totalPages = Math.ceil(total / perPage);
-    const safePage = totalPages === 0 ? 1 : Math.min(Math.max(1, page), totalPages);
-    const offset = (safePage - 1) * perPage;
-    return {
-      users: users.slice(offset, offset + perPage),
-      allUserIds,
-      page: safePage,
-      total,
-      totalPages,
-      hasMore: safePage < totalPages,
-    };
-  };
+const buildUsersResult = (users) => ({
+  users,
+  allUserIds: users.map((user) => String(user.id ?? "")).filter(Boolean),
+  total: users.length,
+});
 
+const findUsers = async (supabaseAdmin, { query }) => {
   if (!query) {
-    return slicePage(await listAllAuthUsers(supabaseAdmin));
+    return buildUsersResult(await listAllAuthUsers(supabaseAdmin));
   }
 
   const [authUsers, matchingProfiles] = await Promise.all([
@@ -229,7 +212,7 @@ const findUsers = async (supabaseAdmin, { query, page, perPage }) => {
     if (profile && profileMatches(profile, query)) usersById.set(String(user.id), user);
   }
 
-  return slicePage(Array.from(usersById.values()));
+  return buildUsersResult(Array.from(usersById.values()));
 };
 
 /** @type {import("astro").APIRoute} */
@@ -252,14 +235,8 @@ export const GET = async ({ request, url }) => {
     if (!admin.ok) return jsonResponse({ error: admin.error }, admin.status);
 
     const query = cleanSearch(url.searchParams.get("q"));
-    const page = clampInt(url.searchParams.get("page"), { min: 1, max: 1000, fallback: 1 });
-    const perPage = clampInt(url.searchParams.get("perPage"), {
-      min: 1,
-      max: MAX_PER_PAGE,
-      fallback: DEFAULT_PER_PAGE,
-    });
 
-    const { users, allUserIds, hasMore, total, totalPages, page: resolvedPage } = await findUsers(supabaseAdmin, { query, page, perPage });
+    const { users, allUserIds, total } = await findUsers(supabaseAdmin, { query });
     const userIds = users.map((user) => String(user.id)).filter(Boolean);
     const [profilesById, mpAccountsById, passwordResetsById, allMpAccountsById] = await Promise.all([
       fetchProfiles(supabaseAdmin, userIds),
@@ -281,13 +258,7 @@ export const GET = async ({ request, url }) => {
     return jsonResponse({
       ok: true,
       users: records,
-      pagination: {
-        page: resolvedPage,
-        perPage,
-        total,
-        totalPages,
-        hasMore,
-      },
+      total,
       mercado_pago_summary: {
         total,
         connected: connectedMercadoPago,
