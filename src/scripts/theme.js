@@ -1,13 +1,16 @@
-/* Tema global: claro por defecto, oscuro persistido por usuario. */
+/* Tema global: claro u oscuro. */
 const THEME_STORAGE_KEY = "ab_theme";
+const THEMES = ["light", "dark"];
+
+const normalizeTheme = (theme) => (THEMES.includes(theme) ? theme : "light");
 
 const getCurrentTheme = () => {
-  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  return normalizeTheme(document.documentElement.dataset.theme);
 };
 
 const getSavedTheme = () => {
   try {
-    return localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+    return normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
     return getCurrentTheme();
   }
@@ -22,23 +25,31 @@ const saveTheme = (theme) => {
 };
 
 const applyTheme = (theme) => {
-  const nextTheme = theme === "dark" ? "dark" : "light";
+  const nextTheme = normalizeTheme(theme);
   document.documentElement.dataset.theme = nextTheme;
-  document.documentElement.style.colorScheme = nextTheme;
+  document.documentElement.style.colorScheme = nextTheme === "light" ? "light" : "dark";
   updateThemeToggles(nextTheme);
 };
 
 const applyThemeToDocument = (targetDocument, theme = getSavedTheme()) => {
-  const nextTheme = theme === "dark" ? "dark" : "light";
+  const nextTheme = normalizeTheme(theme);
   targetDocument.documentElement.dataset.theme = nextTheme;
-  targetDocument.documentElement.style.colorScheme = nextTheme;
+  targetDocument.documentElement.style.colorScheme = nextTheme === "light" ? "light" : "dark";
 };
 
 const updateThemeToggles = (theme = getCurrentTheme()) => {
-  const isDark = theme === "dark";
+  const nextThemeIndex = (THEMES.indexOf(theme) + 1) % THEMES.length;
+  const nextTheme = THEMES[nextThemeIndex];
+  const nextThemeLabel = {
+    light: "claro",
+    dark: "oscuro",
+  }[nextTheme];
+
   document.querySelectorAll("[data-theme-toggle]").forEach((toggle) => {
-    toggle.setAttribute("aria-pressed", String(isDark));
-    toggle.setAttribute("aria-label", isDark ? "Activar modo claro" : "Activar modo oscuro");
+    toggle.dataset.theme = theme;
+    toggle.setAttribute("aria-pressed", String(theme !== "light"));
+    toggle.setAttribute("aria-label", `Activar tema ${nextThemeLabel}`);
+    toggle.setAttribute("title", `Activar tema ${nextThemeLabel}`);
     const label = toggle.querySelector("[data-theme-label]");
     if (label) label.textContent = "";
   });
@@ -51,7 +62,8 @@ const initTheme = () => {
   document.querySelectorAll("[data-theme-toggle]").forEach((toggle) => {
     if (toggle.dataset.themeBound === "true") return;
     toggle.addEventListener("click", () => {
-      const nextTheme = getCurrentTheme() === "dark" ? "light" : "dark";
+      const currentThemeIndex = THEMES.indexOf(getCurrentTheme());
+      const nextTheme = THEMES[(currentThemeIndex + 1) % THEMES.length];
       applyTheme(nextTheme);
       saveTheme(nextTheme);
     });

@@ -1,6 +1,6 @@
 # Guía de arquitectura
 
-Actualizado el 27 de septiembre de 2026.
+Actualizado el 3 de octubre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
@@ -30,6 +30,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/components/Footer.astro`: pie de página y navegación móvil.
 - `src/components/ActionSwitch.astro`: acceso a productos en los flujos de compra y venta.
 - `src/components/CategoryGrid.astro`: grilla dinámica de categorías de producto.
+- `src/scripts/theme.js`: selector persistente de temas `light` y `dark`.
 - `src/components/DeferredListControls.astro`: controles de carga diferida y fechas; evita búsquedas sin fechas y permite ocultar encabezados repetidos.
 - `src/components/ConfirmationModal.astro`: estructura común de confirmación en carrito, checkout y ventas, conservando los identificadores de eventos.
 - `ab-transaction-list` en `global.css`: presentación compartida de compras y ventas, independiente de las tarjetas compactas del catálogo.
@@ -38,9 +39,10 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 ### Datos y lógica
 
 - `src/data/categories.js`: catálogo canónico de categorías.
+- `docs/supabase-product-catalog-reset.sql`: reinicio manual de datos comerciales y carga del catálogo vigente; preserva cuentas y perfiles.
 - `src/lib/supabaseClient.js`: cliente Supabase de navegador con validación de variables públicas.
 - `src/lib/supabaseServer.js`: cliente admin de servidor.
-- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; en cliente deduplica `cartId`, conteo y lectura completa con cachés cortas para absorber ráfagas del header/router.
+- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; en cliente deduplica creación de carrito, altas de producto, conteo y lectura completa con cachés cortas para absorber ráfagas del header/router. Las altas usan `upsert` sobre el índice único `(cart_id, product_id)`.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.

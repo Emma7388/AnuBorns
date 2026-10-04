@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 27 de septiembre de 2026 — rama `V0.8`.
+Actualizado al 3 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones integrales de producción, pruebas reales de reembolsos/split y una decisión definitiva para compras con múltiples vendedores.
 
@@ -30,7 +30,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
 - Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase y consulta manual de Vercel Analytics cuando las APIs estan configuradas.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
-- Productos destacados, notificaciones, tema claro/oscuro y navegación responsive.
+- Productos destacados, notificaciones, temas claro y oscuro, y navegación responsive.
 - En mobile, las cards de productos usan imágenes de tamaño uniforme y el carrusel de destacados oculta las flechas laterales para conservar espacio.
 
 ### Servicios retirados temporalmente

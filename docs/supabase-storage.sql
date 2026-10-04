@@ -4,12 +4,9 @@ values ('product-images', 'product-images', true)
 on conflict (id) do update
 set public = true;
 
--- Public read
+-- A public bucket serves known object URLs without a SELECT policy.
+-- Remove the legacy policy that allowed clients to list every object.
 drop policy if exists product_images_public_read on storage.objects;
-create policy "product_images_public_read"
-  on storage.objects
-  for select
-  using (bucket_id = 'product-images');
 
 -- Authenticated upload
 drop policy if exists product_images_auth_insert on storage.objects;

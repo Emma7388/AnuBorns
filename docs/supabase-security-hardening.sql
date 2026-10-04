@@ -24,16 +24,13 @@ commit;
 
 -- 3. Manual follow-up for public buckets:
 -- The linter warning means your public buckets can be listed, not just read by URL.
--- Review storage policies for:
---   - avatar
---   - product-images
--- and replace broad SELECT policies with narrower ones if you don't want file listing.
+-- Review the avatar bucket policy separately if it is configured as public.
 --
--- In this project, the current broad read policies can be removed if the buckets
--- stay configured as public in Supabase Storage:
+-- The product-images policy is removed by docs/supabase-storage.sql. Public
+-- buckets can still serve known object URLs without a broad SELECT policy.
+-- Remove this separately only if the avatar bucket is also public:
 --
 -- drop policy if exists "Public avatars are readable" on storage.objects;
--- drop policy if exists "product_images_public_read" on storage.objects;
 --
 -- Helpful inspection query:
 -- select

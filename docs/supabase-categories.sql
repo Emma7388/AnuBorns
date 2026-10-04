@@ -42,21 +42,16 @@ for each row execute function public.set_updated_at();
 -- Seed data (idempotent)
 insert into public.categories (name, slug, icon)
 values
-  ('Plomería', 'plomeria', '/icons/Plomeria.svg'),
-  ('Electricidad', 'electricidad', '/icons/electricidad.svg'),
-  ('Corralón', 'corralon', '/icons/corralon.svg'),
-  ('Ferretería', 'ferreteria', '/icons/ferreteria.svg'),
-  ('Construcción', 'construccion', '/icons/construccion.svg'),
-  ('Pinturería', 'pintureria', '/icons/pintureria.svg'),
-  ('Carpintería', 'carpinteria', '/icons/carpinteria.svg'),
   ('Hogar', 'hogar', '/icons/hogar.svg'),
-  ('Cocina', 'cocina', '/icons/cocina.svg'),
-  ('Cuidado personal', 'cuidado-personal', '/icons/cuidadopersonal.svg'),
-  ('Deporte', 'deporte', '/icons/deporte.svg'),
-  ('Dispositivos', 'dispositivos', '/icons/dispositivo.svg'),
-  ('Mascotas', 'mascotas', '/icons/mascotas.svg'),
+  ('Electrodomésticos', 'electrodomesticos', '/icons/cocina.svg'),
+  ('Tecnología', 'tecnologia', '/icons/dispositivo.svg'),
+  ('Automóviles y accesorios', 'automoviles-y-accesorios', '/icons/vehiculos.svg'),
   ('Moda', 'moda', '/icons/moda.svg'),
-  ('Vehículos', 'vehiculos', '/icons/vehiculos.svg')
+  ('Belleza y cuidado personal', 'belleza-y-cuidado-personal', '/icons/cuidadopersonal.svg'),
+  ('Artículos para mascotas', 'articulos-para-mascotas', '/icons/mascotas.svg'),
+  ('Deportes', 'deportes', '/icons/deporte.svg'),
+  ('Jardín y exteriores', 'jardin-y-exteriores', '/icons/casa.svg'),
+  ('Moda y calzado', 'moda-y-calzado', '/icons/moda.svg')
 on conflict (slug) do update
 set name = excluded.name,
     icon = excluded.icon;

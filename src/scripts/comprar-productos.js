@@ -107,6 +107,8 @@ const initBuyButtons = async () => {
         setCartButtonState(button, true);
         void refreshCartButtons();
         showCartToast();
+      } catch (error) {
+        console.error("No se pudo agregar el producto al carrito.", error);
       } finally {
         delete button.dataset.abLoading;
       }

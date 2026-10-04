@@ -32,12 +32,12 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 - `src/lib/purchaseDetailStyles.js`: presentación del detalle de compra y venta, responsive e imprimible.
 - `tests/purchaseDetail.test.mjs`: regresiones del documento compartido; ejecutar con `node --test tests/purchaseDetail.test.mjs`.
 
-- `src/data/categories.js`: catálogo fuente de categorías (nombre, slug, ícono).
+- `src/data/categories.js`: catálogo fuente de las diez categorías vigentes (nombre, slug, ícono).
 - `src/lib/supabaseClient.js`: cliente Supabase browser con validación de variables públicas.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
 - `src/lib/vercelAnalytics.js`: lectura server-side de Vercel Web Analytics para visitas, page views y rankings del panel admin.
-- `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login, evento `ab-cart-updated` y cachés cortas para deduplicar conteos/lecturas repetidas.
+- `src/lib/cart.js`: carrito híbrido (localStorage para anónimo + tablas `carts/cart_items` para usuario logueado), sincronización al login, evento `ab-cart-updated`, altas atómicas con `upsert` y deduplicación de altas, creación de carrito, conteos y lecturas repetidas.
 - `src/lib/sessionToken.js`: helper de cliente para no consultar endpoints privados con sesiones sin token o próximas a vencer.
 - `src/lib/userProfile.js`: perfil privado del usuario, perfil pendiente de registro y caché corta de lecturas a `profiles`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
@@ -53,6 +53,7 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 ## Scripts de cliente
 
 - `src/scripts/header-auth.js`: controla sesión en header, sincroniza carrito al login, maneja logout con modal, escucha cambios cross-tab y coalesce eventos Astro/Auth para evitar requests repetidos.
+- `src/scripts/theme.js`: persiste y alterna los temas `light` y `dark`.
 - `src/scripts/login.js`: login por email/password con timeout, auditoría y redirect seguro por `returnTo`.
 - `src/scripts/register.js`: registro, validaciones, subida opcional de avatar y flujo de confirmación por email.
 - `src/scripts/auth-callback.js`: intercambio de `code` por sesión en Supabase y redirección segura post-verificación.
@@ -117,6 +118,6 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 
 ## Estilos
 
-- `src/styles/global.css`: tokens visuales, resets y estilos compartidos (`ab-*`) para paneles, cards, formularios y estados; en mobile normaliza las imágenes de cards de producto a 190px de alto.
+- `src/styles/global.css`: tokens visuales, resets y estilos compartidos (`ab-*`) para paneles, cards, formularios y estados. En mobile normaliza las imágenes de cards de producto a 190px de alto.
 - `src/styles/featured-products.css`: presentación del carrusel de productos destacados; en mobile reutiliza el tamaño uniforme de imagen y oculta las flechas laterales.
 - `src/styles/commerce-flow.css`: estilos de carrito y checkout; en mobile alinea las imágenes de carrito con el tamaño de las cards de producto.

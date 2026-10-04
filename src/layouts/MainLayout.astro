@@ -57,6 +57,16 @@ const autoHideChrome = pathname === "/";
       const titleWrap = document.getElementById("ab-header-page-title");
       const main = document.querySelector("main[data-ab-page-title]");
       const pageTitle = main?.getAttribute("data-ab-page-title")?.trim() ?? "";
+      const hideChrome = main?.getAttribute("data-ab-home-chrome") === "true";
+      const header = document.querySelector(".header");
+      const footer = document.querySelector(".footer");
+
+      [header, footer].forEach((element) => {
+        if (!(element instanceof HTMLElement)) return;
+        element.classList.toggle(`${element.classList.contains("header") ? "header" : "footer"}--home-hidden`, hideChrome);
+        element.toggleAttribute("inert", hideChrome);
+        element.setAttribute("aria-hidden", hideChrome ? "true" : "false");
+      });
 
       if (titleWrap) {
         let heading = titleWrap.querySelector("h1");

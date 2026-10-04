@@ -8,7 +8,7 @@ const cartHref = withReturnPath("/carrito", currentPath);
 const loginHref = `/login?returnTo=${encodeURIComponent(currentPath)}`;
 ---
 
-<header class:list={["header", { "header--auto-hide": autoHide }]} transition:name="ab-header" transition:persist transition:animate="none">
+<header class:list={["header", { "header--auto-hide": autoHide, "header--home-hidden": autoHide }]} transition:name="ab-header" transition:persist transition:animate="none">
   <div class="container header-inner">
     <div class="brand-row header-zone header-zone--brand">
       <!-- Marca / logo -->
@@ -140,6 +140,10 @@ const loginHref = `/login?returnTo=${encodeURIComponent(currentPath)}`;
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+.header--home-hidden {
+  display: none;
 }
 
 @media (hover: hover) and (pointer: fine) {

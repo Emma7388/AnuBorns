@@ -9,12 +9,16 @@ const CART_DATA_CACHE_TTL_MS = 1000;
 
 const cartIdCache = new Map();
 const cartIdRequests = new Map();
+const cartCreationRequests = new Map();
 const cartCountCache = new Map();
 const cartCountRequests = new Map();
 const cartDataCache = new Map();
 const cartDataRequests = new Map();
+const cartAddRequests = new Map();
 
 const getUserCacheKey = (userId) => String(userId ?? "").trim();
+const getCartAddRequestKey = (userId, productId) =>
+  `${getUserCacheKey(userId) || "anonymous"}:${String(productId ?? "").trim()}`;
 
 const clearCartComputedCache = (userId = "") => {
   const key = getUserCacheKey(userId);
@@ -254,17 +258,28 @@ const getOrCreateCart = async (userId) => {
   const existingId = await getExistingCartId(userId);
   if (existingId) return existingId;
 
-  const { data: created, error } = await supabase
+  const cacheKey = getUserCacheKey(userId);
+  const pending = cartCreationRequests.get(cacheKey);
+  if (pending) return pending;
+
+  const request = supabase
     .from("carts")
     .insert({ user_id: userId })
     .select("id")
-    .single();
+    .single()
+    .then(({ data: created, error }) => {
+      if (error || !created?.id) {
+        throw error ?? new Error("No se pudo crear el carrito.");
+      }
+      cartIdCache.set(cacheKey, created.id);
+      return created.id;
+    })
+    .finally(() => {
+      cartCreationRequests.delete(cacheKey);
+    });
 
-  if (error || !created?.id) {
-    throw error ?? new Error("No se pudo crear el carrito.");
-  }
-  cartIdCache.set(getUserCacheKey(userId), created.id);
-  return created.id;
+  cartCreationRequests.set(cacheKey, request);
+  return request;
 };
 
 const splitOwnProductsFromLocalItems = async (userId, localItems) => {
@@ -296,45 +311,22 @@ const splitOwnProductsFromLocalItems = async (userId, localItems) => {
 /* Une items locales con el carrito en base de datos. */
 const mergeLocalIntoDb = async (cartId, localItems) => {
   if (localItems.length === 0) return;
-  const { data: existingItems } = await supabase
-    .from("cart_items")
-    .select("id, product_id, quantity, price_snapshot")
-    .eq("cart_id", cartId);
-
-  const existingMap = new Map(
-    (existingItems ?? []).map((item) => [item.product_id, item]),
-  );
-
-  const inserts = [];
-  const updates = [];
-
-  localItems.forEach((item) => {
-    const existing = existingMap.get(item.product_id);
-    if (!existing) {
-      inserts.push({
+  const itemsByProductId = new Map(
+    localItems.map((item) => [
+      item.product_id,
+      {
         cart_id: cartId,
         product_id: item.product_id,
         quantity: SINGLE_ITEM_QTY,
         price_snapshot: item.price_snapshot,
-      });
-      return;
-    }
-    updates.push({
-      id: existing.id,
-      quantity: SINGLE_ITEM_QTY,
-    });
-  });
+      },
+    ]),
+  );
+  const { error } = await supabase
+    .from("cart_items")
+    .upsert([...itemsByProductId.values()], { onConflict: "cart_id,product_id" });
 
-  if (inserts.length) {
-    await supabase.from("cart_items").insert(inserts);
-  }
-
-  for (const update of updates) {
-    await supabase
-      .from("cart_items")
-      .update({ quantity: update.quantity })
-      .eq("id", update.id);
-  }
+  if (error) throw error;
 };
 
 /* Sincroniza el carrito local al iniciar sesión. */
@@ -354,16 +346,12 @@ export const syncCartOnLogin = async (userId) => {
   }
 };
 
-/* Agrega un producto al carrito (local o persistente). */
-export const addToCart = async (product) => {
-  const productId = String(product?.id ?? "");
-  if (!productId) return false;
+const addProductToCart = async ({ product, productId, userId }) => {
   if (await isProductSold(productId)) return false;
   const priceSnapshot = normalizePrice(product?.price);
   const productSnapshot = normalizeProductSnapshot(product);
 
   /* Si no hay sesión, se guarda en localStorage. */
-  const userId = await getSessionUserId();
   if (!userId) {
     const items = loadLocalCart();
     const existing = items.find((item) => item.product_id === productId);
@@ -386,28 +374,35 @@ export const addToCart = async (product) => {
 
   /* Si hay sesión, se actualiza el carrito en base de datos. */
   const cartId = await getOrCreateCart(userId);
-  const { data: existing } = await supabase
+  const { error } = await supabase
     .from("cart_items")
-    .select("id, quantity")
-    .eq("cart_id", cartId)
-    .eq("product_id", productId)
-    .maybeSingle();
-
-  if (existing?.id) {
-    await supabase
-      .from("cart_items")
-      .update({ quantity: SINGLE_ITEM_QTY })
-      .eq("id", existing.id);
-  } else {
-    await supabase.from("cart_items").insert({
+    .upsert({
       cart_id: cartId,
       product_id: productId,
       quantity: SINGLE_ITEM_QTY,
       price_snapshot: priceSnapshot,
-    });
-  }
+    }, { onConflict: "cart_id,product_id" });
+  if (error) throw error;
   emitCartUpdate();
   return true;
+};
+
+/* Agrega un producto una sola vez, incluso ante eventos de UI simultáneos. */
+export const addToCart = async (product) => {
+  const productId = String(product?.id ?? "").trim();
+  if (!productId) return false;
+
+  const userId = await getSessionUserId();
+  const requestKey = getCartAddRequestKey(userId, productId);
+  const pending = cartAddRequests.get(requestKey);
+  if (pending) return pending;
+
+  const request = addProductToCart({ product, productId, userId })
+    .finally(() => {
+      cartAddRequests.delete(requestKey);
+    });
+  cartAddRequests.set(requestKey, request);
+  return request;
 };
 
 /* Mantiene compatibilidad: solo permite conservar una unidad o eliminar. */

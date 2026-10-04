@@ -33,9 +33,9 @@ const enableAnalytics = !Astro.url.pathname.startsWith("/admin");
     <script is:inline>
       try {
         const savedTheme = localStorage.getItem("ab_theme");
-        const theme = savedTheme === "dark" ? "dark" : "light";
+        const theme = ["light", "dark"].includes(savedTheme) ? savedTheme : "light";
         document.documentElement.dataset.theme = theme;
-        document.documentElement.style.colorScheme = theme;
+        document.documentElement.style.colorScheme = theme === "light" ? "light" : "dark";
       } catch {
         document.documentElement.dataset.theme = "light";
         document.documentElement.style.colorScheme = "light";
