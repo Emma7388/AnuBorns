@@ -1,7 +1,8 @@
 /* Estilo compartido del detalle imprimible, alineado con la interfaz de la web. */
 export const purchaseDetailStyles = `
+  @import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
   * { box-sizing: border-box; }
-  body { margin: 0; color: #17211c; background: radial-gradient(ellipse at top left, #d8eee5, transparent 65%), #f6f8f4; font-family: "Nunito", system-ui, -apple-system, sans-serif; line-height: 1.5; }
+  body { margin: 0; color: #17211c; background: radial-gradient(ellipse at top left, #d8eee5, transparent 65%), #f6f8f4; font-family: "Montserrat", system-ui, -apple-system, sans-serif; font-weight: 600; line-height: 1.5; }
   main { width: min(920px, calc(100% - 32px)); margin: 36px auto; padding: clamp(20px, 4vw, 40px); background: #ffffffed; border: 1px solid #17211c1a; border-radius: 20px; box-shadow: 0 20px 55px #203d3214; }
   h1, h2, p { margin: 0; }
   header { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid #17211c1a; margin-bottom: 24px; }
@@ -33,7 +34,7 @@ export const purchaseDetailStyles = `
   .cancelled-notice { margin: 0 0 20px; padding: 16px 18px; border: 1px solid #ecc9c2; border-left: 4px solid #b95748; border-radius: 12px; background: #fff4f1; color: #893c30; }
   .cancelled-notice p { margin-top: 4px; font-size: 13px; }
   .actions { display: flex; justify-content: flex-end; margin-top: 24px; }
-  button { border: 1px solid #ffffff47; border-radius: 10px; padding: 11px 20px; background: linear-gradient(180deg, #3f8fc0, #1e5d92); color: white; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: inset 0 1px 0 #ffffff57, 0 7px 12px #204a5b26; }
+  button { border: 1px solid #ffffff47; border-radius: 10px; padding: 11px 20px; background: linear-gradient(180deg, #3f8fc0, #1e5d92); color: white; font-family: "Montserrat", system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 400; cursor: pointer; box-shadow: inset 0 1px 0 #ffffff57, 0 7px 12px #204a5b26; }
   button:hover { filter: brightness(1.08); }
   button:focus-visible { outline: 3px solid #16c784; outline-offset: 3px; }
   @media (max-width: 600px) { main { width: calc(100% - 20px); margin: 10px auto; padding: 20px 16px; } header { flex-direction: column; align-items: stretch; gap: 18px; } .meta { text-align: left; } .grid { grid-template-columns: 1fr; } th, td { padding: 10px 8px; } .actions button { width: 100%; } }

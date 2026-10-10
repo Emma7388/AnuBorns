@@ -1,6 +1,14 @@
 -- Reinicio controlado del catalogo de productos.
 -- Conserva Auth, perfiles, admins y cuentas Mercado Pago.
 -- Ejecutar solo cuando no haya un checkout o pago en curso.
+--
+-- ESTADO HISTORICO:
+-- El usuario confirmo el 10 de octubre de 2026 que este procedimiento ya se
+-- habia ejecutado anteriormente; la fecha exacta de ejecucion no quedo
+-- registrada. Ademas del catalogo, el procedimiento elimina ordenes, items,
+-- despachos y la auditoria comercial indicada mas abajo. En consecuencia, las
+-- operaciones anteriores no pueden reconstruirse de punta a punta desde la
+-- base actual y deben contrastarse con evidencia externa de Mercado Pago.
 
 -- Paso 1: registrar el estado anterior antes de borrar.
 select

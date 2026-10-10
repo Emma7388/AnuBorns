@@ -17,6 +17,7 @@ let lastRemoveModalTrigger = null;
 let profileAddressLoaded = false;
 let profileShippingAddress = "";
 let profileShippingCity = "";
+let cartRenderVersion = 0;
 
 const getCartDom = () => ({
   itemsWrap: document.getElementById("cart-items"),
@@ -145,12 +146,24 @@ const closeRemoveModal = (dom = getCartDom()) => {
   removeModal.setAttribute("aria-hidden", "true");
 };
 
+/*
+ * La navegación de Astro puede solicitar más de un render casi al mismo tiempo.
+ * Sólo la versión más reciente puede escribir sobre el DOM vigente.
+ */
+const isCurrentCartRender = (version, itemsWrap) =>
+  version === cartRenderVersion &&
+  itemsWrap?.isConnected &&
+  itemsWrap === document.getElementById("cart-items");
+
 /* Renderiza el carrito completo en el DOM. */
 const renderCart = async () => {
+  const renderVersion = ++cartRenderVersion;
   const { itemsWrap, emptyState, totalLabel, checkoutButton, feedback } = getCartDom();
   if (!itemsWrap || !emptyState || !totalLabel) return;
   const items = await getCart();
-  itemsWrap.innerHTML = "";
+  if (!isCurrentCartRender(renderVersion, itemsWrap)) return;
+
+  itemsWrap.replaceChildren();
   totalLabel.closest(".ab-cart-summary")?.classList.toggle("ab-is-hidden", items.length === 0);
 
   /* Estado vacío. */
@@ -166,6 +179,7 @@ const renderCart = async () => {
 
   emptyState.style.display = "none";
   await preloadShippingFromProfile();
+  if (!isCurrentCartRender(renderVersion, itemsWrap)) return;
 
   /* Lista de items y total. */
   let total = 0;
@@ -416,7 +430,6 @@ const bindCartLifecycleEvents = () => {
 
   window.addEventListener("ab-cart-updated", renderCart);
   document.addEventListener("astro:page-load", initCartPage);
-  document.addEventListener("astro:after-swap", initCartPage);
   window.addEventListener("pageshow", initCartPage);
 };
 

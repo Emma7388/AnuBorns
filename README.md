@@ -4,9 +4,15 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 3 de octubre de 2026 — rama `V0.8`.
+Actualizado al 10 de octubre de 2026 — rama `V0.8`.
 
-El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Aún quedan validaciones integrales de producción, pruebas reales de reembolsos/split y una decisión definitiva para compras con múltiples vendedores.
+El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una operación real anterior al reinicio comercial validó el pago, el split 1:1 y una comisión de ARS 1. Aún quedan una prueba real de reembolso, repetir el circuito de manera controlada y una decisión definitiva para compras con múltiples vendedores.
+
+### Estado del historial comercial
+
+El 10 de octubre de 2026 el usuario confirmó que anteriormente se ejecutó el reinicio controlado definido en `docs/supabase-product-catalog-reset.sql`. La fecha exacta de esa ejecución no quedó registrada. Ese procedimiento eliminó intencionalmente productos, carritos, órdenes, ítems de órdenes, despachos, lecturas de estado y los eventos comerciales `manual_checkout_created` y `order_payment_status_changed` de `audit_logs`; conservó Auth, perfiles, administradores y conexiones OAuth de Mercado Pago.
+
+Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan existido operaciones reales anteriores. Las transacciones previas al reinicio no pueden auditarse de punta a punta usando la base actual; deben contrastarse con comprobantes o reportes externos de Mercado Pago. Esto no debe interpretarse como una pérdida reciente ni como prueba de que el checkout nunca se ejecutó.
 
 ### Implementado
 
@@ -40,10 +46,11 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 ### Limitaciones conocidas
 
 - Cada checkout admite productos de un solo vendedor. Un carrito multiproveedor debe separarse antes de pagar o convertirse en varios checkouts.
-- El usuario reportó la ejecución del endurecimiento de OAuth y comercio en Supabase. Falta validar el circuito completo en producción; consultar el documento de continuidad para distinguir evidencias y pendientes.
+- El usuario reportó la ejecución del endurecimiento de OAuth y comercio en Supabase. Falta verificar ese estado remoto junto con una nueva compra controlada y un reembolso; consultar el documento de continuidad para distinguir evidencias y pendientes.
+- Existe evidencia concordante de una operación real anterior al reinicio comercial: el registro histórico conservado por el usuario indica orden y pago aprobados, preferencia creada con OAuth del vendedor, `marketplace_fee:1` y `mp_status_detail:accredited`; la captura de Mercado Pago muestra una venta de ARS 1.000, ARS 999 destinados al vendedor y ARS 1 como total de la operación para AnuBorns. Esto valida el pago, el split y la comisión para esa operación concreta. Como la orden y su auditoría local fueron eliminadas por el reinicio, ya no se puede reconstruir desde Supabase si primero impactó el webhook o la sincronización de retorno.
 - Perfiles de profesionales, servicios y algunas rutas de proveedores todavía utilizan datos de demostración.
 - Los flujos de oferta y contratación de servicios continúan como MVP/placeholder.
-- Falta completar una prueba integral con cuentas de prueba o producción de Mercado Pago.
+- Falta repetir el circuito de pago de forma controlada y completar una prueba real de reembolso total o parcial con Mercado Pago.
 
 ## Stack
 
@@ -175,7 +182,7 @@ Para mejorar consultas frecuentes sin cambiar datos ni policies:
 1. Ejecutar y verificar en Supabase los SQL de performance y la RPC de ventas.
 2. Mantener el build limpio con variables reales.
 3. Verificar en el ambiente de destino el endurecimiento de OAuth y comercio ya reportado.
-4. Validar el flujo completo de Mercado Pago, comisiones y reembolsos.
+4. Repetir de forma controlada el flujo de Mercado Pago ya validado en una operación real y comprobar un reembolso total o parcial de punta a punta.
 5. Definir la experiencia para carritos multiproveedor.
 6. Migrar los datos mock restantes a Supabase.
 7. Completar pruebas de regresión de productos; mantener servicios/ofertas retirados hasta una decisión explícita de retomarlos.

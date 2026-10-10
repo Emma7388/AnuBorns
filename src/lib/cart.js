@@ -149,7 +149,7 @@ const loadLocalCart = () => {
       return [];
     }
 
-    return items
+    const normalizedItems = items
       .map((item) => ({
         product_id: String(item?.product_id ?? ""),
         quantity: SINGLE_ITEM_QTY,
@@ -157,6 +157,9 @@ const loadLocalCart = () => {
         product_snapshot: normalizeProductSnapshot(item?.product_snapshot),
       }))
       .filter((item) => item.product_id && item.quantity > 0);
+
+    /* Sanea carritos legacy o dañados: un producto sólo puede aparecer una vez. */
+    return [...new Map(normalizedItems.map((item) => [item.product_id, item])).values()];
   } catch {
     return [];
   }
@@ -340,7 +343,6 @@ export const syncCartOnLogin = async (userId) => {
     await mergeLocalIntoDb(cartId, allowedItems);
     saveLocalCart([]);
     emitOwnCartItemsRemoved(removedCount);
-    emitCartUpdate();
   } catch {
     // Conserva el carrito local si falla la sincronización.
   }
@@ -417,12 +419,10 @@ export const updateQuantity = async (productId, quantity) => {
     if (!item) return;
     if (shouldRemove) {
       saveLocalCart(items.filter((entry) => entry.product_id !== productId));
-      emitCartUpdate();
       return;
     }
     item.quantity = SINGLE_ITEM_QTY;
     saveLocalCart(items);
-    emitCartUpdate();
     return;
   }
 
@@ -509,12 +509,17 @@ export const getCart = async () => {
         "product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)",
       )
       .eq("cart_id", cartId);
-    const normalized = (data ?? []).map((item) => ({
-      product_id: item.product_id,
-      quantity: SINGLE_ITEM_QTY,
-      price_snapshot: normalizePrice(item.price_snapshot),
-      product: item.products ?? null,
-    }));
+    const normalized = [...new Map(
+      (data ?? [])
+        .map((item) => ({
+          product_id: String(item?.product_id ?? "").trim(),
+          quantity: SINGLE_ITEM_QTY,
+          price_snapshot: normalizePrice(item.price_snapshot),
+          product: item.products ?? null,
+        }))
+        .filter((item) => item.product_id)
+        .map((item) => [item.product_id, item]),
+    ).values()];
     const { availableItems, removedCount } = await splitSoldProductsFromItems(normalized);
     if (removedCount > 0) {
       const soldIds = normalized

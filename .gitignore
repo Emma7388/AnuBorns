@@ -36,3 +36,4 @@ garbage/
 
 .vercel
 .env*
+tmp/

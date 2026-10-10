@@ -149,15 +149,15 @@ const isSell = mode === "sell";
 
   .ab-buy-switch__menu {
     position: static;
-    width: min(760px, calc(100vw - 24px));
+    width: min(900px, calc(100vw - 24px));
     min-width: 0;
     max-height: 0;
     margin: 0 auto;
     overflow: hidden;
     overscroll-behavior: contain;
     display: grid;
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
     padding: 0 12px;
     border-radius: 16px;
     border: 1px solid transparent;
@@ -226,19 +226,18 @@ const isSell = mode === "sell";
 
   .ab-buy-switch__menu-item {
     position: relative;
-    min-height: 68px;
-    aspect-ratio: 1 / 1;
+    min-height: 104px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2.5px;
+    gap: 4px;
     text-decoration: none;
     color: #ffffff;
     font-weight: 800;
     text-align: center;
     line-height: 1.08;
-    padding: 7px 6px;
+    padding: 8px 7px;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow:
@@ -266,16 +265,16 @@ const isSell = mode === "sell";
   }
 
   .ab-buy-switch__menu-icon {
-    width: 47px;
-    height: 47px;
-    flex: 0 0 47px;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
     object-fit: contain;
     filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.22));
   }
 
   .ab-buy-switch__menu-label {
     min-width: 0;
-    font-size: 1.38rem;
+    font-size: 1rem;
     font-weight: 850;
     max-width: 100%;
     line-height: 1.05;
@@ -349,32 +348,36 @@ const isSell = mode === "sell";
     }
 
     .ab-buy-switch__menu-item {
-      min-height: 68px;
+      min-height: 96px;
       padding: 7px 6px;
     }
 
     .ab-buy-switch__menu-icon {
-      width: 47px;
-      height: 47px;
-      flex-basis: 47px;
+      width: 40px;
+      height: 40px;
+      flex-basis: 40px;
     }
 
     .ab-buy-switch__menu-label {
-      font-size: 1.18rem;
+      font-size: 1rem;
     }
   }
 
   @media (max-width: 560px) {
     .ab-buy-switch__menu-item {
-      min-height: 117px;
-      gap: 5px;
-      padding: 14px 10px;
+      min-height: 96px;
+      gap: 4px;
+      padding: 8px 6px;
     }
 
     .ab-buy-switch__menu-icon {
-      width: 78px;
-      height: 78px;
-      flex-basis: 78px;
+      width: 44px;
+      height: 44px;
+      flex-basis: 44px;
+    }
+
+    .ab-buy-switch__menu-label {
+      font-size: 0.9rem;
     }
   }
 

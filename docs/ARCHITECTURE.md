@@ -39,7 +39,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 ### Datos y lógica
 
 - `src/data/categories.js`: catálogo canónico de categorías.
-- `docs/supabase-product-catalog-reset.sql`: reinicio manual de datos comerciales y carga del catálogo vigente; preserva cuentas y perfiles.
+- `docs/supabase-product-catalog-reset.sql`: reinicio manual de datos comerciales y carga del catálogo vigente. El usuario confirmó el 10 de octubre de 2026 que este procedimiento ya se había ejecutado, aunque no quedó registrada la fecha exacta de ejecución. Elimina productos, carritos, órdenes, ítems, despachos, lecturas de estado y auditoría comercial; preserva Auth, perfiles, administradores y conexiones OAuth de Mercado Pago. Por eso la base actual no conserva trazabilidad local de pagos anteriores al reinicio.
 - `src/lib/supabaseClient.js`: cliente Supabase de navegador con validación de variables públicas.
 - `src/lib/supabaseServer.js`: cliente admin de servidor.
 - `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; en cliente deduplica creación de carrito, altas de producto, conteo y lectura completa con cachés cortas para absorber ráfagas del header/router. Las altas usan `upsert` sobre el índice único `(cart_id, product_id)`.

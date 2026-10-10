@@ -1,9 +1,20 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 14 de septiembre de 2026.
+Documento de traspaso del chat, actualizado el 10 de octubre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
+
+### Evidencia histórica de pago, split y comisión — 10 de octubre
+
+- El usuario conservó un correo con los datos de una compra real anterior al reinicio comercial y una captura del detalle de esa misma operación en Mercado Pago. En el repositorio sólo se registra la referencia interna corta `3478D967`; los identificadores completos y los datos personales quedan fuera de la documentación pública.
+- El registro histórico indica importe de ARS 1.000, `status=approved`, `payment_status=approved` y la traza `mp_preference|marketplace_fee:1|marketplace:omitted|oauth_seller:...|mp_status_detail:accredited`.
+- También indica que la entrega coordinada/retiro finalizó: `shipping_requested=false`, `shipping_status=completed` y `fulfillment_status=completed`.
+- La captura de Mercado Pago coincide en importe y operación: muestra “Venta de Producto” por ARS 1.000, “Pago a [vendedor]” por ARS 999, “Total de la operación” por ARS 1 y estado “Aprobado”.
+- La combinación de ambas evidencias valida, para esa operación concreta, que la preferencia se creó con OAuth del vendedor, el pago fue aprobado y acreditado, y el split aplicó la comisión de ARS 1 a AnuBorns. Es evidencia más fuerte que el mero estado “Mercado Pago conectado”.
+- El correo conservado no es una confirmación de soporte de Mercado Pago: su texto termina solicitando esa confirmación. La acreditación se concluye por los datos históricos de AnuBorns y, principalmente, por el desglose visible en la captura de Mercado Pago.
+- El reinicio controlado ejecutado con posterioridad eliminó `orders`, `order_items` y la auditoría comercial relacionada. Por eso hoy no se puede determinar desde Supabase si la aprobación entró primero por webhook o por sincronización de retorno, ni reconstruir el evento local completo.
+- Estado correcto del pendiente: pago, split y comisión real validados una vez; repetibilidad recomendada en una segunda compra controlada; reembolso total/parcial todavía no validado de punta a punta.
 
 ### Optimización Supabase y regla de stack — 14 de septiembre
 
@@ -39,11 +50,11 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - El mantenimiento posterior centraliza el documento en `src/lib/purchaseDetail.js`, compartido por `orders.js` y `confirmation.js`; estilos en `purchaseDetailStyles.js`. La venta reutiliza los estilos y conserva su propio contenido.
 - Se añadieron pruebas de documento con `node --test tests/purchaseDetail.test.mjs`. No equivalen a una prueba de pago ni de producción.
 - El usuario ejecuta los builds. El log compartido mostró compilación Astro exitosa seguida de `EPERM` al crear un symlink de una dependencia durante el empaquetado Vercel en Windows; después apareció un cierre de Node. No atribuirlo al SDK de MP ni dar el build completo por aprobado.
-- En ese mantenimiento de interfaz no se habían modificado APIs de pago, OAuth, split, webhooks, credenciales ni migraciones. La actualización posterior de pagos/reembolsos y seguridad está resumida arriba. La investigación del split de MP indicada a continuación sigue pendiente.
+- En ese mantenimiento de interfaz no se habían modificado APIs de pago, OAuth, split, webhooks, credenciales ni migraciones. La actualización posterior de pagos/reembolsos y seguridad está resumida arriba. El estado actual del split está documentado en la sección de evidencia histórica del 10 de octubre.
 
-Mercado Pago respondió al usuario con pruebas y, según su resumen, dice que no observa inconvenientes. El mensaje completo y las pruebas TODAVÍA NO se compartieron en este chat. El usuario sospecha que falta configuración fuera de Vercel, porque el problema aparece al configurar el split. NO conocemos el error exacto ni la etapa en que ocurre.
+El contexto anterior indicaba que Mercado Pago no observaba inconvenientes, pero la respuesta íntegra de soporte no quedó incorporada. Posteriormente el usuario compartió el correo enviado para solicitar confirmación y la captura del detalle de la operación. No confundir ese correo saliente con una respuesta oficial de soporte.
 
-La próxima tarea es leer esa respuesta y contrastar su aplicación, cuentas, ambiente y solicitud de pago con nuestra integración. No dar por hecho que MP está mal, que falta habilitación ni que la integración está completamente validada.
+No dar por hecho que toda la integración quedó validada por una única operación. La próxima prueba de Mercado Pago debe enfocarse en repetibilidad y en un reembolso controlado, conservando la traza local antes de cualquier nuevo reinicio de datos.
 
 ## Proyecto y forma de trabajo
 
@@ -126,14 +137,14 @@ Documentación oficial consultada el 9 de septiembre:
 
 La documentación indica token OAuth del vendedor y `marketplace_fee` para Checkout Pro. La configuración incluye aplicación, Redirect URL y autorización del vendedor; no basta con nombrar variables en Vercel.
 
-## Próximo diagnóstico de MP
+## Próxima validación de MP
 
-1. Obtener respuesta íntegra y pruebas de soporte, sin secretos.
-2. Identificar etapa y error real: guardar variable, iniciar OAuth, crear preferencia, abrir checkout, pagar o acreditar comisión.
-3. Comparar aplicación y cuentas usadas por soporte contra las de producción, incluyendo ambiente de prueba/real. La cuenta conectada no confirma por sí sola la aplicación de origen del token.
-4. Revisar nombres, presencia y entorno de variables en Vercel y el despliegue que las usa. No asumir que `.env.local` refleja Vercel.
-5. Comparar solicitud y respuesta de creación de preferencia, comisión calculada, campo marketplace y token OAuth utilizado, manteniendo secretos fuera de logs/chat.
-6. Reproducir de manera controlada sólo cuando esté definido qué se prueba. No realizar cobros reales sin autorización.
+1. Repetir una compra controlada con cuenta propia o de prueba y conservar la orden, `order_items`, traza de preferencia y eventos de `audit_logs`.
+2. Confirmar nuevamente que el vendedor recibe el neto esperado y que AnuBorns recibe el `marketplace_fee` configurado.
+3. Identificar si la aprobación se aplicó primero mediante webhook o sincronización de retorno.
+4. Ejecutar un reembolso total o parcial controlado y verificar sus transiciones, auditoría, bloqueo del producto e interfaz.
+5. Si se recibe respuesta de soporte, archivarla separada del correo saliente y contrastarla con la operación, sin secretos ni datos personales.
+6. No realizar cobros ni reembolsos reales sin autorización explícita.
 7. No crear preferencias de diagnóstico usando una cuenta real de vendedor tomada automáticamente de `seller_mercadopago_accounts`. Para cualquier prueba que cree recursos en Mercado Pago, usar una cuenta propia/de test explícitamente permitida por `MERCADOPAGO_DIAGNOSTIC_MODE` y la allowlist documentada en `docs/mercadopago-wcs-48349-prueba-propuesta.md`.
 
 ## Supabase: auditorías y cambios anteriores

@@ -1,6 +1,6 @@
 # Pagos, reembolsos y seguridad
 
-Actualizado el 12 de septiembre de 2026.
+Actualizado el 10 de octubre de 2026.
 
 Este documento describe el comportamiento vigente del checkout de productos, la sincronización con Mercado Pago, los estados internos de pago, el bloqueo de productos, la visibilidad en compras/ventas y las defensas agregadas en las APIs. No contiene credenciales.
 
@@ -218,17 +218,29 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 
 También se ejecutó chequeo de sintaxis sobre los archivos JavaScript modificados y `git diff --check`. No se ejecutó build.
 
+## Evidencia real conservada
+
+Existe evidencia concordante de una compra real anterior al reinicio comercial, identificada públicamente sólo por la referencia interna corta `3478D967`:
+
+- El registro histórico conservado por el usuario indica ARS 1.000, orden y pago aprobados, `marketplace_fee:1`, campo `marketplace` omitido, OAuth del vendedor y `mp_status_detail:accredited`.
+- La captura de Mercado Pago muestra la venta por ARS 1.000, un pago de ARS 999 al vendedor, ARS 1 como total de la operación para AnuBorns y estado aprobado.
+- La operación también quedó registrada como entrega coordinada/retiro completado.
+
+Estas evidencias validan el pago, el split y la comisión de ARS 1 para esa operación concreta. No dependen únicamente de que OAuth figure conectado. El correo aportado contiene la consulta enviada a Mercado Pago, no una respuesta oficial de soporte.
+
+La base actual no permite reconstruir el orden exacto de los eventos porque después se ejecutó el reinicio controlado que eliminó las órdenes y su auditoría comercial. Tampoco existe todavía evidencia de un reembolso real total o parcial procesado de punta a punta.
+
 ## Validación pendiente antes de producción
 
-Falta comprobar el circuito completo con Mercado Pago en el ambiente real o de prueba elegido:
+La compra histórica ya valida una ejecución real del pago, split y comisión. Falta comprobar la repetibilidad y el circuito de reembolso en el ambiente real o de prueba elegido:
 
-1. Crear preferencia con vendedor conectado.
-2. Aprobar pago y confirmar que el producto sale del catálogo.
-3. Confirmar que Mis compras y Mis ventas reciben la venta aprobada.
-4. Simular o ejecutar reembolso/cancelación controlada.
-5. Confirmar transición a `refund_pending`, `partially_refunded` o `refunded` según lo que Mercado Pago informe.
-6. Revisar `audit_logs` para confirmar el evento `order_payment_status_changed`.
+1. Repetir una compra controlada con vendedor conectado.
+2. Aprobar el pago y confirmar nuevamente el neto del vendedor y la comisión de AnuBorns.
+3. Confirmar que el producto sale del catálogo y que Mis compras y Mis ventas reciben la venta aprobada.
+4. Conservar la orden y revisar `audit_logs` para identificar si impactó primero el webhook o la sincronización de retorno.
+5. Simular o ejecutar un reembolso/cancelación controlada.
+6. Confirmar transición a `refund_pending`, `partially_refunded` o `refunded` según lo que Mercado Pago informe.
 7. Confirmar que el vendedor no ve indicador verde ni acciones de despacho para ventas no aprobadas.
 8. Confirmar que el producto se libera sólo cuando el estado final lo permite.
 
-No dar por validado el split ni el flujo de reembolso real sólo por pruebas unitarias locales.
+No generalizar el funcionamiento de toda la integración a partir de una única compra. El split quedó validado para esa operación; el flujo de reembolso real continúa pendiente.
