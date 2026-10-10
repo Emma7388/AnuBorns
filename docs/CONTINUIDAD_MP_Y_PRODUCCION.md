@@ -5,6 +5,19 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 
 ## Retomar por aquí
 
+### Reserva atómica de productos — 10 de octubre
+
+- Se agregó `docs/supabase-atomic-product-reservations.sql`. La migración crea `product_checkout_reservations`, con una clave primaria por `product_id`, y triggers que mantienen la reserva mientras la orden está `pending`, `approved`, `partially_refunded` o `refund_pending`.
+- La RPC `create_checkout_order_atomic(...)` toma advisory locks en orden estable, bloquea las filas actuales de `products`, revalida precio, moneda, vendedor, comprador y total, y crea `orders` + `order_items` dentro de una sola transacción.
+- Checkout Pro y checkout manual dejaron de insertar orden e ítems en llamadas separadas y ahora usan esa RPC mediante `src/lib/atomicOrders.js`.
+- Webhook y sincronización consideran también las órdenes pendientes al buscar conflictos. La restricción de reservas actúa como defensa final si una aprobación tardía compite con otra reserva.
+- La migración aborta sin cambios si encuentra productos asociados a más de una orden activa. No borra datos.
+- Estado remoto: aplicado y verificado por el usuario en Supabase el 10 de octubre de 2026. La auditoría devolvió `conflicts=0`, `active_products=0`, `reservations=0`, ejecución habilitada para `service_role=true` y denegada para `anon=false` y `authenticated=false`. Los conteos en cero son coherentes con el reinicio previo del historial comercial.
+- La auditoría estructural posterior confirmó que `products`, `orders`, `order_items`, `product_checkout_reservations`, `sale_dispatches` y `purchase_status_reads` existen y tienen RLS habilitado. También confirmó `order_items.product_uuid` con FK e índices, la clave primaria única de la reserva por producto, su FK con `orders` y el índice por `order_id`.
+- En `orders` y `order_items` sólo aparecen políticas de lectura del propietario; en `product_checkout_reservations` no aparece ninguna política de navegador. Las políticas de escritura directa retiradas no reaparecieron. `rls_forced=false` es el estado esperado para permitir la operación controlada del backend con `service_role` y no se considera un fallo.
+- Los índices de performance documentados para productos, órdenes, ítems y despachos aparecen en el ambiente remoto. La existencia y permisos de `get_seller_sales_page(...)` continúan siendo una verificación separada.
+- Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
+
 ### Evidencia histórica de pago, split y comisión — 10 de octubre
 
 - El usuario conservó un correo con los datos de una compra real anterior al reinicio comercial y una captura del detalle de esa misma operación en Mercado Pago. En el repositorio sólo se registra la referencia interna corta `3478D967`; los identificadores completos y los datos personales quedan fuera de la documentación pública.
@@ -15,6 +28,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - El correo conservado no es una confirmación de soporte de Mercado Pago: su texto termina solicitando esa confirmación. La acreditación se concluye por los datos históricos de AnuBorns y, principalmente, por el desglose visible en la captura de Mercado Pago.
 - El reinicio controlado ejecutado con posterioridad eliminó `orders`, `order_items` y la auditoría comercial relacionada. Por eso hoy no se puede determinar desde Supabase si la aprobación entró primero por webhook o por sincronización de retorno, ni reconstruir el evento local completo.
 - Estado correcto del pendiente: pago, split y comisión real validados una vez; repetibilidad recomendada en una segunda compra controlada; reembolso total/parcial todavía no validado de punta a punta.
+- La comisión de ARS 1 pertenece únicamente a esa prueba histórica. La configuración comercial objetivo indicada por el usuario es 1,5%: `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=0` y `MERCADOPAGO_MARKETPLACE_FEE_PERCENT=1.5`.
 
 ### Optimización Supabase y regla de stack — 14 de septiembre
 
@@ -127,7 +141,7 @@ Archivo principal: `src/pages/api/checkout.js`.
 - `payment_detail` guarda una traza con comisión, marketplace omitido/enviado e identificador OAuth del vendedor.
 - Webhook: `src/pages/api/mercadopago-webhook.js`; sincronización: `src/pages/api/mercadopago-payment-sync.js`. Esos archivos también usan variables globales de MP; revisar su correspondencia con pagos del vendedor si el fallo fuera posterior al pago.
 
-Valores encontrados en `.env.example`: marketplace ID `MP`, flag `false`, importe fijo `1`, porcentaje `0`. Son ejemplos del repositorio, NO confirmación de lo que está en Vercel ni recomendación de un ID para esta cuenta.
+Valores objetivo documentados en `.env.example`: marketplace ID `MP`, flag `false`, importe fijo `0` y porcentaje `1.5`. El importe fijo debe quedar en cero para que el código aplique el porcentaje. Son ejemplos del repositorio y no confirman por sí solos qué valores están desplegados en Vercel.
 
 Documentación oficial consultada el 9 de septiembre:
 
@@ -179,7 +193,7 @@ Resultado compartido de `docs/supabase-order-items-product-audit.sql`:
 
 La ausencia de ese producto no prueba que haya sido eliminado: ésa fue una hipótesis. La auditoría compara texto y formato canónico; no es una validación universal de todos los formatos UUID aceptados por PostgreSQL.
 
-Se creó `docs/supabase-order-items-product-link.sql`: agrega product_uuid nullable con FK a products y ON DELETE SET NULL, completa coincidencias actuales y crea índice parcial. Conserva product_id de texto y snapshots. `src/lib/checkoutServer.js` / buildOrderItems guarda ambos campos en nuevas compras, compartido por checkout manual y MP.
+Se creó `docs/supabase-order-items-product-link.sql`: agrega product_uuid nullable con FK a products y ON DELETE SET NULL, completa coincidencias actuales y crea índice parcial. Conserva product_id de texto y snapshots. Actualmente `create_checkout_order_atomic(...)` guarda ambos campos dentro de la misma transacción para checkout manual y Mercado Pago.
 
 El usuario respondió «listo» a las instrucciones de migrar y publicar. El commit existe localmente (`2a576a2`), pero no se pegó el resultado final del SELECT de la migración. Si hace falta confirmar producción, verificar columna/FK/conteos antes de afirmarlo como comprobado. El código requiere aplicar la columna antes del despliegue.
 

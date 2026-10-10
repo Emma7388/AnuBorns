@@ -46,6 +46,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
+- `src/lib/atomicOrders.js`: invoca la RPC transaccional que vuelve a validar snapshots del servidor y crea la orden con sus ítems bajo una reserva única por producto.
 - `src/lib/paymentStatus.js`: normaliza estados de Mercado Pago y define qué estados bloquean producto, cuáles son visibles en ventas y cuáles permiten despacho.
 - `src/lib/paymentMovement.js`: registra cambios reales de estado de pago en `audit_logs`.
 - `src/lib/serverRequest.js`: lectura JSON server-side con límite de bytes y errores controlados.

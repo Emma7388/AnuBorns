@@ -33,6 +33,8 @@ La normalización vive en `src/lib/paymentStatus.js`. El sistema traduce la resp
 
 La regla intencional es reservar el producto mientras el pago está pendiente para reducir carreras entre dos checkouts simultáneos. También se conserva bloqueado cuando el dinero todavía está en un estado intermedio de devolución (`refund_pending`) o cuando el reembolso fue parcial (`partially_refunded`). Cuando el pago queda finalmente cancelado, rechazado o reembolsado completo, el producto deja de estar bloqueado por esa orden.
 
+La garantía final vive en PostgreSQL. `product_checkout_reservations.product_id` es único y sus triggers crean o liberan la reserva al cambiar órdenes o ítems. `create_checkout_order_atomic(...)` bloquea los productos, revalida sus datos y persiste orden + ítems en una misma transacción. La validación previa de JavaScript mejora el mensaje al usuario, pero no es la autoridad de concurrencia.
+
 Antes de validar disponibilidad, el checkout cancela reservas `pending` antiguas sin `payment_id` para que un intento abandonado no bloquee indefinidamente una nueva compra.
 
 ## Reembolsos y botón de arrepentimiento

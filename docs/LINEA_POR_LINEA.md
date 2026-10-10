@@ -41,6 +41,7 @@ Actualizado al 27 de septiembre de 2026 para la rama `V0.8`.
 - `src/lib/sessionToken.js`: helper de cliente para no consultar endpoints privados con sesiones sin token o próximas a vencer.
 - `src/lib/userProfile.js`: perfil privado del usuario, perfil pendiente de registro y caché corta de lecturas a `profiles`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
+- `src/lib/atomicOrders.js`: crea órdenes mediante la RPC de reserva atómica y traduce conflictos de PostgreSQL a respuestas controladas.
 - `src/lib/checkoutPendingOrders.js`: cancela checkouts pendientes abandonados y contempla aprobaciones tardías.
 - `src/lib/mercadopagoOAuthState.js`: firma y valida el estado temporal de la conexión OAuth de Mercado Pago.
 - `src/lib/paymentStatus.js`: normaliza estados de Mercado Pago y define bloqueo de producto, visibilidad de ventas y permiso de despacho.

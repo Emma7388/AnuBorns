@@ -152,5 +152,5 @@ El panel muestra el entorno donde corre. Para produccion hay que revisar en Verc
 - Que `SITE_URL` sea HTTPS y corresponda al dominio real.
 - Que el webhook configurado en Mercado Pago apunte al dominio real.
 - Que `MERCADOPAGO_SEND_MARKETPLACE_FIELD=false`, salvo confirmacion formal de Mercado Pago.
-- Que `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=1` si la comision fija de ARS 1 sigue siendo la configuracion buscada.
+- Que `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=0` y `MERCADOPAGO_MARKETPLACE_FEE_PERCENT=1.5` para aplicar la comision objetivo del 1,5%. Un importe fijo mayor que cero anula el porcentaje.
 - Que `MERCADOPAGO_DIAGNOSTIC_MODE=false`, salvo una prueba coordinada con cuenta propia o de test.

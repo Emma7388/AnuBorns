@@ -5,7 +5,8 @@ import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { getClientIp } from "../../lib/requestMeta.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
-import { buildCheckoutContext, buildOrderItems, sanitizeBuyerNote } from "../../lib/checkoutServer.js";
+import { buildCheckoutContext, sanitizeBuyerNote } from "../../lib/checkoutServer.js";
+import { createAtomicCheckoutOrder } from "../../lib/atomicOrders.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 
 /** @type {import("astro").APIRoute} */
@@ -52,37 +53,25 @@ export const POST = async ({ request }) => {
       );
     }
 
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .insert({
-        user_id: admin.user.id,
-        status: "approved",
-        total_amount: checkout.totalAmount,
-        currency: checkout.orderCurrency,
-        shipping_full_name: String(shipping?.fullName ?? "").trim() || null,
-        shipping_address: String(shipping?.address ?? "").trim() || null,
-        shipping_city: String(shipping?.city ?? "").trim() || null,
-        shipping_phone: String(shipping?.phone ?? "").trim() || null,
-        shipping_requested: checkout.shippingRequested,
-        shipping_cost: checkout.shippingCost,
-        shipping_status: checkout.shippingRequested ? "requested" : "pickup_pending",
-        payment_status: "manual",
-        payment_detail: buyerNote ? `manual_checkout|note:${buyerNote}` : "manual_checkout",
-      })
-      .select("id")
-      .single();
-
-    if (orderError || !order) {
-      return jsonResponse({ error: "No se pudo crear la orden." }, 500);
+    const atomicOrder = await createAtomicCheckoutOrder(supabaseAdmin, {
+      userId: admin.user.id,
+      status: "approved",
+      checkout,
+      shipping,
+      shippingStatus: checkout.shippingRequested ? "requested" : "pickup_pending",
+      paymentStatus: "manual",
+      paymentDetail: buyerNote ? `manual_checkout|note:${buyerNote}` : "manual_checkout",
+    });
+    if (!atomicOrder.ok) {
+      return jsonResponse(
+        {
+          error: atomicOrder.error,
+          sold_product_ids: atomicOrder.soldProductIds ?? [],
+        },
+        atomicOrder.status,
+      );
     }
-
-    const orderItems = buildOrderItems(order.id, checkout.serverItems);
-
-    const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);
-    if (itemsError) {
-      await supabaseAdmin.from("orders").delete().eq("id", order.id);
-      return jsonResponse({ error: "No se pudieron guardar los items." }, 500);
-    }
+    const order = atomicOrder.order;
 
     const dispatchResult = await createInitialSaleDispatches(supabaseAdmin, {
       orderId: order.id,
@@ -100,7 +89,7 @@ export const POST = async ({ request }) => {
       event: "manual_checkout_created",
       metadata: {
         order_id: order.id,
-        items_count: orderItems.length,
+        items_count: checkout.serverItems.length,
         total_amount: checkout.totalAmount,
         currency: checkout.orderCurrency,
         shipping_requested: checkout.shippingRequested,

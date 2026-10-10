@@ -6,6 +6,7 @@ with target_tables as (
     'products',
     'orders',
     'order_items',
+    'product_checkout_reservations',
     'sale_dispatches',
     'purchase_status_reads'
   ]) as table_name

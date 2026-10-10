@@ -3,10 +3,11 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 import {
-  PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES,
+  PRODUCT_LOCKING_ORDER_STATUSES,
   getInternalPaymentStatusFromMercadoPago,
   mergeMercadoPagoPaymentDetail,
 } from "../../lib/paymentStatus.js";
+import { isProductReservationConflictError } from "../../lib/atomicOrders.js";
 import { recordOrderPaymentMovement } from "../../lib/paymentMovement.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 
@@ -121,8 +122,8 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
   return String(account?.access_token ?? "").trim();
 };
 
-/* Busca si otro pago aprobado ya vendió alguno de los productos de la orden. */
-const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
+/* Pre-chequeo legible; el trigger de reservas sigue siendo la autoridad final. */
+const findProductReservationConflicts = async (supabaseAdmin, orderId) => {
   const { data: orderItems, error: itemsError } = await supabaseAdmin
     .from("order_items")
     .select("product_id")
@@ -139,18 +140,18 @@ const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
     return { ok: true, conflicts: [] };
   }
 
-  const { data: approvedRows, error: approvedError } = await supabaseAdmin
+  const { data: lockedRows, error: lockedError } = await supabaseAdmin
     .from("order_items")
     .select("product_id, order_id, orders!inner(status)")
     .in("product_id", productIds)
-    .in("orders.status", [...PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES])
+    .in("orders.status", [...PRODUCT_LOCKING_ORDER_STATUSES])
     .neq("order_id", orderId);
 
-  if (approvedError) {
-    return { ok: false, error: approvedError.message };
+  if (lockedError) {
+    return { ok: false, error: lockedError.message };
   }
 
-  return { ok: true, conflicts: approvedRows ?? [] };
+  return { ok: true, conflicts: lockedRows ?? [] };
 };
 
 /* Parsea el header x-signature en { ts, v1 }. */
@@ -355,9 +356,11 @@ export const POST = async ({ request }) => {
       return new Response("Idempotent", { status: 200 });
     }
 
+    let hasProductConflict = false;
+    let productConflictCount = 0;
     if (mappedStatus === "approved") {
-      /* Última defensa: si otro webhook aprobó antes, no se duplica la venta. */
-      const availability = await findApprovedProductConflicts(supabaseAdmin, order.id);
+      /* Mensaje anticipado; el trigger cierra cualquier carrera posterior. */
+      const availability = await findProductReservationConflicts(supabaseAdmin, order.id);
       if (!availability.ok) {
         console.error("[mp-webhook] Product availability check failed", {
           orderId: order.id,
@@ -365,61 +368,69 @@ export const POST = async ({ request }) => {
         });
         return new Response("Product availability check failed", { status: 500 });
       }
-      if (availability.conflicts.length > 0) {
-        const { error: conflictUpdateError } = await supabaseAdmin
-          .from("orders")
-          .update({
-            status: "rejected",
-            payment_status: paymentStatus,
-            payment_id: paymentId,
-            payment_detail: "product_already_sold",
-          })
-          .eq("id", order.id);
-        if (conflictUpdateError) {
-          console.error("[mp-webhook] Product conflict update failed", {
-            orderId: order.id,
-            error: conflictUpdateError.message,
-          });
-          return new Response("Order update failed", { status: 500 });
-        }
-        await recordOrderPaymentMovement(supabaseAdmin, {
-          order,
-          orderId: order.id,
-          source: "mercadopago-webhook",
-          nextStatus: "rejected",
-          paymentStatus,
-          paymentId,
-          paymentDetail: "product_already_sold",
-          paymentData,
-        });
-
-        console.warn("[mp-webhook] Approved payment rejected because product was already sold", {
-          orderId: order.id,
-          conflicts: availability.conflicts.length,
-        });
-        return new Response("Product already sold", { status: 200 });
-      }
+      hasProductConflict = availability.conflicts.length > 0;
+      productConflictCount = availability.conflicts.length;
     }
 
     const paymentDetail = mergeMercadoPagoPaymentDetail(order.payment_detail, paymentData?.status_detail);
-    /* Actualiza la orden con el estado más reciente. */
-    const { error: updateError } = await supabaseAdmin
-      .from("orders")
-      .update({
-        status: mappedStatus,
-        payment_status: paymentStatus,
-        payment_id: paymentId,
-        payment_detail: paymentDetail,
-      })
-      .eq("id", order.id);
+    if (!hasProductConflict) {
+      /* El trigger de Postgres rechaza atómicamente una reserva competidora. */
+      const { error: updateError } = await supabaseAdmin
+        .from("orders")
+        .update({
+          status: mappedStatus,
+          payment_status: paymentStatus,
+          payment_id: paymentId,
+          payment_detail: paymentDetail,
+        })
+        .eq("id", order.id);
 
-    if (updateError) {
-      console.error("[mp-webhook] Order update failed", {
+      if (updateError && mappedStatus === "approved" && isProductReservationConflictError(updateError)) {
+        hasProductConflict = true;
+        productConflictCount = Math.max(productConflictCount, 1);
+      } else if (updateError) {
+        console.error("[mp-webhook] Order update failed", {
+          orderId: order.id,
+          status: mappedStatus,
+          error: updateError.message,
+        });
+        return new Response("Order update failed", { status: 500 });
+      }
+    }
+
+    if (hasProductConflict) {
+      const { error: conflictUpdateError } = await supabaseAdmin
+        .from("orders")
+        .update({
+          status: "rejected",
+          payment_status: paymentStatus,
+          payment_id: paymentId,
+          payment_detail: "product_already_sold",
+        })
+        .eq("id", order.id);
+      if (conflictUpdateError) {
+        console.error("[mp-webhook] Product conflict update failed", {
+          orderId: order.id,
+          error: conflictUpdateError.message,
+        });
+        return new Response("Order update failed", { status: 500 });
+      }
+      await recordOrderPaymentMovement(supabaseAdmin, {
+        order,
         orderId: order.id,
-        status: mappedStatus,
-        error: updateError.message,
+        source: "mercadopago-webhook",
+        nextStatus: "rejected",
+        paymentStatus,
+        paymentId,
+        paymentDetail: "product_already_sold",
+        paymentData,
       });
-      return new Response("Order update failed", { status: 500 });
+
+      console.warn("[mp-webhook] Approved payment rejected because product was already reserved", {
+        orderId: order.id,
+        conflicts: productConflictCount,
+      });
+      return new Response("Product already sold", { status: 200 });
     }
 
     await recordOrderPaymentMovement(supabaseAdmin, {

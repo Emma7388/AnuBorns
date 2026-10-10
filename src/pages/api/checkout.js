@@ -1,10 +1,8 @@
 /* API: crea orden y preferencia de pago en Mercado Pago. */
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { cancelAbandonedCheckoutOrders } from "../../lib/checkoutPendingOrders.js";
-import {
-  buildCheckoutContext,
-  buildOrderItems,
-} from "../../lib/checkoutServer.js";
+import { buildCheckoutContext } from "../../lib/checkoutServer.js";
+import { createAtomicCheckoutOrder } from "../../lib/atomicOrders.js";
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
@@ -393,40 +391,24 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: oauthIdentity.error }, 409);
     }
 
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        status: "pending",
-        total_amount: checkout.totalAmount,
-        currency: checkout.orderCurrency,
-        shipping_full_name: String(shipping.fullName ?? "").trim(),
-        shipping_address: String(shipping.address ?? "").trim(),
-        shipping_city: String(shipping.city ?? "").trim(),
-        shipping_phone: String(shipping.phone ?? "").trim(),
-        shipping_requested: checkout.shippingRequested,
-        shipping_cost: checkout.shippingCost,
-        shipping_status: checkout.shippingRequested
-          ? "requested"
-          : "pickup_pending",
-      })
-      .select()
-      .single();
-
-    if (orderError || !order) {
-      return jsonResponse({ error: "No se pudo crear la orden." }, 500);
+    /* La RPC bloquea, revalida y reserva todos los productos en una transacción. */
+    const atomicOrder = await createAtomicCheckoutOrder(supabaseAdmin, {
+      userId: user.id,
+      status: "pending",
+      checkout,
+      shipping,
+      shippingStatus: checkout.shippingRequested ? "requested" : "pickup_pending",
+    });
+    if (!atomicOrder.ok) {
+      return jsonResponse(
+        {
+          error: atomicOrder.error,
+          sold_product_ids: atomicOrder.soldProductIds ?? [],
+        },
+        atomicOrder.status,
+      );
     }
-
-    /* Inserta los items de la orden. */
-    const orderItems = buildOrderItems(order.id, checkout.serverItems);
-
-    const { error: itemsError } = await supabaseAdmin
-      .from("order_items")
-      .insert(orderItems);
-    if (itemsError) {
-      await discardIncompleteOrder(supabaseAdmin, order.id, "order_items_insert_failed");
-      return jsonResponse({ error: "No se pudieron guardar los items." }, 500);
-    }
+    const order = atomicOrder.order;
 
     /* Las URLs se validaron antes de persistir la orden. */
     const siteUrl = siteUrlResult.value;

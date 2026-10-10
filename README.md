@@ -23,6 +23,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Catálogo por categoría, búsqueda, filtros y detalle de producto.
 - Carrito híbrido: `localStorage` para visitantes, Supabase para usuarios autenticados y sincronización al iniciar sesión.
 - Checkout autenticado con precios y disponibilidad validados en el servidor.
+- Reserva atómica en PostgreSQL: una RPC bloquea y revalida productos, crea orden e ítems en una transacción y una restricción de reservas impide dos órdenes activas para el mismo producto.
 - Órdenes, items, historial de compras y panel de ventas persistidos en Supabase.
 - Envío o retiro, estados de preparación, despacho, entrega y retiro confirmado.
 - Prevención de compra de productos propios y de productos ya vendidos.
@@ -108,11 +109,11 @@ MERCADOPAGO_CLIENT_SECRET=
 MERCADOPAGO_OAUTH_REDIRECT_URI=
 MERCADOPAGO_MARKETPLACE_ID=MP
 MERCADOPAGO_SEND_MARKETPLACE_FIELD=false
-MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=1
-MERCADOPAGO_MARKETPLACE_FEE_PERCENT=0
+MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=0
+MERCADOPAGO_MARKETPLACE_FEE_PERCENT=1.5
 ```
 
-Si el importe fijo es mayor que cero, tiene prioridad sobre el porcentaje. `MERCADOPAGO_SEND_MARKETPLACE_FIELD` se mantiene en `false` salvo que Mercado Pago indique expresamente que la operación debe enviar el campo `marketplace`; la comisión se envía mediante `marketplace_fee` cuando corresponde. Los valores definitivos deben acordarse y probarse con la cuenta marketplace habilitada por Mercado Pago.
+La comisión objetivo vigente es el 1,5% del total. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe permanecer en `0`, porque cualquier importe fijo mayor que cero tiene prioridad y anula el porcentaje. El cálculo actual redondea la comisión al peso entero más cercano y verifica que no supere el total. `MERCADOPAGO_SEND_MARKETPLACE_FIELD` se mantiene en `false` salvo que Mercado Pago indique expresamente que la operación debe enviar el campo `marketplace`; la comisión se envía mediante `marketplace_fee`.
 
 ## Arquitectura funcional
 
@@ -156,6 +157,7 @@ Archivos principales:
 - Los scripts SQL de `docs/` documentan el esquema y sus ampliaciones incrementales.
 - `docs/supabase-performance-indexes.sql` agrega índices alineados a las consultas reales del marketplace.
 - `docs/supabase-seller-sales-rpc.sql` crea `get_seller_sales_page(...)` para que `Mis ventas` filtre, cuente y pagine en Postgres.
+- `docs/supabase-atomic-product-reservations.sql` crea la reserva única por producto, sus triggers y la RPC transaccional requerida por ambos checkouts.
 
 ## Documentación
 
@@ -171,15 +173,16 @@ Archivos principales:
 
 Para mejorar consultas frecuentes sin cambiar datos ni policies:
 
-1. Ejecutar `docs/supabase-performance-indexes.sql`.
-2. Ejecutar `docs/supabase-seller-sales-rpc.sql`.
-3. Si PostgREST no ve la función inmediatamente, ejecutar `select pg_notify('pgrst', 'reload schema');`.
+1. La migración `docs/supabase-atomic-product-reservations.sql` fue aplicada y verificada en Supabase el 10 de octubre de 2026: cero conflictos, estructura correcta y RPC accesible sólo para `service_role`. Repetir su auditoría después de cambios remotos relevantes.
+2. Los índices de `docs/supabase-performance-indexes.sql` aparecen en la auditoría remota del 10 de octubre de 2026.
+3. Confirmar por separado la existencia y permisos de `get_seller_sales_page(...)`, creada por `docs/supabase-seller-sales-rpc.sql`.
+4. Si PostgREST no ve una función inmediatamente, ejecutar `select pg_notify('pgrst', 'reload schema');`.
 
 `/api/my-sales-list` intenta usar la RPC `get_seller_sales_page(...)`. Si la función todavía no existe en Supabase, el endpoint conserva el camino anterior como fallback para no romper la pantalla.
 
 ## Pendientes prioritarios
 
-1. Ejecutar y verificar en Supabase los SQL de performance y la RPC de ventas.
+1. Confirmar la RPC de ventas `get_seller_sales_page(...)`; los índices y la reserva atómica quedaron auditados remotamente el 10 de octubre de 2026.
 2. Mantener el build limpio con variables reales.
 3. Verificar en el ambiente de destino el endurecimiento de OAuth y comercio ya reportado.
 4. Repetir de forma controlada el flujo de Mercado Pago ya validado en una operación real y comprobar un reembolso total o parcial de punta a punta.

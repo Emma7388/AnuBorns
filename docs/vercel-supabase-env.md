@@ -32,14 +32,16 @@ MERCADOPAGO_CLIENT_SECRET=<client-secret-app>
 MERCADOPAGO_OAUTH_REDIRECT_URI=https://<dominio-publico-de-produccion>/api/mp-oauth
 MERCADOPAGO_MARKETPLACE_ID=<marketplace-id-si-corresponde>
 MERCADOPAGO_SEND_MARKETPLACE_FIELD=false
-MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=1
-MERCADOPAGO_MARKETPLACE_FEE_PERCENT=0
+MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=0
+MERCADOPAGO_MARKETPLACE_FEE_PERCENT=1.5
 MERCADOPAGO_DIAGNOSTIC_MODE=false
 MERCADOPAGO_DIAGNOSTIC_ALLOWED_SELLER_USER_IDS=
 MERCADOPAGO_DIAGNOSTIC_ALLOWED_MP_USER_IDS=
 ```
 
 `SITE_URL` debe ser HTTPS y apuntar al dominio publico real. No dejarlo vacio: el checkout lo usa para `back_urls` y `notification_url`.
+
+La comision comercial objetivo es el 1,5%. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe quedar en `0`: si contiene un numero positivo, el checkout aplica ese importe fijo y no utiliza `MERCADOPAGO_MARKETPLACE_FEE_PERCENT`. Después de actualizar estas variables en Vercel se necesita un redeploy.
 
 Despues de guardar las variables, hacer un redeploy. Las variables `PUBLIC_*` se incrustan durante `astro build`, asi que un despliegue anterior seguira fallando aunque las variables se agreguen despues.
 

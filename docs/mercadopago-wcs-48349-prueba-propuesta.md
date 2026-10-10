@@ -2,6 +2,8 @@
 
 Documento para enviar a Mercado Pago sobre el ticket `WCS-48349`.
 
+> Nota histórica: esta propuesta utilizaba una comisión fija de ARS 1 exclusivamente para diagnosticar el ticket. La configuración comercial objetivo posterior es 1,5%, con importe fijo `0` y porcentaje `1.5`.
+
 ## Contexto
 
 Mercado Pago informó que corrigió el error reportado para Checkout Pro Split 1:1, donde no se creaba el pago al incluir `marketplace_fee`.

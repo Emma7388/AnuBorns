@@ -3,10 +3,11 @@ import { jsonResponse } from "../../lib/apiResponse.js";
 import { getUniqueStringIds } from "../../lib/orderInput.js";
 import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 import {
-  PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES,
+  PRODUCT_LOCKING_ORDER_STATUSES,
   getInternalPaymentStatusFromMercadoPago,
   mergeMercadoPagoPaymentDetail,
 } from "../../lib/paymentStatus.js";
+import { isProductReservationConflictError } from "../../lib/atomicOrders.js";
 import { recordOrderPaymentMovement } from "../../lib/paymentMovement.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
@@ -57,7 +58,7 @@ const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {
   return dispatchResult.ok;
 };
 
-const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
+const findProductReservationConflicts = async (supabaseAdmin, orderId) => {
   const { data: orderItems, error: itemsError } = await supabaseAdmin
     .from("order_items")
     .select("product_id")
@@ -70,15 +71,15 @@ const findApprovedProductConflicts = async (supabaseAdmin, orderId) => {
   ];
   if (productIds.length === 0) return { ok: true, conflicts: [] };
 
-  const { data: approvedRows, error: approvedError } = await supabaseAdmin
+  const { data: lockedRows, error: lockedError } = await supabaseAdmin
     .from("order_items")
     .select("product_id, order_id, orders!inner(status)")
     .in("product_id", productIds)
-    .in("orders.status", [...PRODUCT_CONFIRMED_LOCKING_ORDER_STATUSES])
+    .in("orders.status", [...PRODUCT_LOCKING_ORDER_STATUSES])
     .neq("order_id", orderId);
 
-  if (approvedError) return { ok: false, error: approvedError.message };
-  return { ok: true, conflicts: approvedRows ?? [] };
+  if (lockedError) return { ok: false, error: lockedError.message };
+  return { ok: true, conflicts: lockedRows ?? [] };
 };
 
 const getPaymentIdFromPayload = (payload = {}) => {
@@ -242,51 +243,58 @@ export const POST = async ({ request }) => {
       return jsonResponse({ ok: true, status: "rejected" });
     }
 
+    let hasProductConflict = false;
     if (mappedStatus === "approved") {
-      const availability = await findApprovedProductConflicts(supabaseAdmin, order.id);
+      const availability = await findProductReservationConflicts(supabaseAdmin, order.id);
       if (!availability.ok) {
         return jsonResponse({ error: "No se pudo validar disponibilidad." }, 500);
       }
-      if (availability.conflicts.length > 0) {
-        const { error: conflictUpdateError } = await supabaseAdmin
-          .from("orders")
-          .update({
-            status: "rejected",
-            payment_status: paymentStatus,
-            payment_id: resolvedPaymentId,
-            payment_detail: "product_already_sold",
-          })
-          .eq("id", order.id);
-        if (conflictUpdateError) {
-          return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
-        }
-        await recordOrderPaymentMovement(supabaseAdmin, {
-          order,
-          orderId: order.id,
-          source: "mercadopago-payment-sync",
-          nextStatus: "rejected",
-          paymentStatus,
-          paymentId: resolvedPaymentId,
-          paymentDetail: "product_already_sold",
-          paymentData,
-        });
-        return jsonResponse({ ok: true, status: "rejected" });
-      }
+      hasProductConflict = availability.conflicts.length > 0;
     }
 
     const paymentDetail = mergeMercadoPagoPaymentDetail(order.payment_detail, paymentData?.status_detail);
-    const { error: updateError } = await supabaseAdmin
-      .from("orders")
-      .update({
-        status: mappedStatus,
-        payment_status: paymentStatus,
-        payment_id: resolvedPaymentId,
-        payment_detail: paymentDetail,
-      })
-      .eq("id", order.id);
+    if (!hasProductConflict) {
+      const { error: updateError } = await supabaseAdmin
+        .from("orders")
+        .update({
+          status: mappedStatus,
+          payment_status: paymentStatus,
+          payment_id: resolvedPaymentId,
+          payment_detail: paymentDetail,
+        })
+        .eq("id", order.id);
 
-    if (updateError) {
-      return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
+      if (updateError && mappedStatus === "approved" && isProductReservationConflictError(updateError)) {
+        hasProductConflict = true;
+      } else if (updateError) {
+        return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
+      }
+    }
+
+    if (hasProductConflict) {
+      const { error: conflictUpdateError } = await supabaseAdmin
+        .from("orders")
+        .update({
+          status: "rejected",
+          payment_status: paymentStatus,
+          payment_id: resolvedPaymentId,
+          payment_detail: "product_already_sold",
+        })
+        .eq("id", order.id);
+      if (conflictUpdateError) {
+        return jsonResponse({ error: "No se pudo actualizar la orden." }, 500);
+      }
+      await recordOrderPaymentMovement(supabaseAdmin, {
+        order,
+        orderId: order.id,
+        source: "mercadopago-payment-sync",
+        nextStatus: "rejected",
+        paymentStatus,
+        paymentId: resolvedPaymentId,
+        paymentDetail: "product_already_sold",
+        paymentData,
+      });
+      return jsonResponse({ ok: true, status: "rejected" });
     }
 
     await recordOrderPaymentMovement(supabaseAdmin, {
