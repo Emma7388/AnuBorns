@@ -2203,6 +2203,15 @@ input[type="submit"] {
   overflow-wrap: anywhere;
 }
 
+.ab-provider-product-card__details strong.ab-payment-pending-highlight {
+  padding-inline: 3px;
+  margin-inline: -3px;
+  border-radius: 2px;
+  background: var(--chip-warning-bg);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .ab-provider-product-card__add {
   align-self: stretch;
   margin-top: auto;

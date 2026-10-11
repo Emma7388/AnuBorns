@@ -1006,7 +1006,7 @@ const renderMyProducts = (products) => {
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
         <li>Stock: <strong>${Math.max(0, Number(product.stock ?? 0))}</strong></li>
         <li>Publicación: <strong>${monthly ? `Mensual${expiryLabel ? ` · vence ${expiryLabel}` : ""}` : "Permanente"}</strong></li>
-        ${pendingMonthly ? `<li>Estado: <strong>Pago pendiente</strong></li>` : ""}
+        ${pendingMonthly ? `<li>Estado: <strong class="ab-payment-pending-highlight">Pago pendiente</strong></li>` : ""}
       </ul>
       <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
         <a
