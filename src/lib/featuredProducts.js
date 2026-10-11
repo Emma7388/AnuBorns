@@ -57,13 +57,16 @@ const toFeaturedItem = (product) => ({
   deliveryMethods: Array.isArray(product?.delivery_methods)
     ? product.delivery_methods.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean)
     : [],
+  stock: Math.max(0, Number(product?.stock ?? 0)),
+  publicationType: String(product?.publication_type ?? "permanent"),
+  publicationExpiresAt: product?.publication_expires_at ?? null,
 });
 
 const buildSellerRanking = async (supabaseAdmin) => {
   const { data: salesRows, error: salesError } = await runWithTimeout(
     supabaseAdmin
       .from("order_items")
-      .select("product_id, unit_price, orders!inner(status)")
+      .select("product_id, seller_user_id, provider, qty, unit_price, orders!inner(status)")
       .in("orders.status", [...ALLOWED_ORDER_STATUSES]),
   );
 
@@ -72,45 +75,15 @@ const buildSellerRanking = async (supabaseAdmin) => {
     return { sellers: [], error: "No se pudieron cargar destacados." };
   }
 
-  const soldProductIds = [
-    ...new Set(
-      (salesRows ?? [])
-        .map((row) => String(row?.product_id ?? "").trim())
-        .filter(Boolean),
-    ),
-  ];
-  if (soldProductIds.length === 0) return { sellers: [], error: "" };
-
-  const { data: soldProducts, error: productsError } = await runWithTimeout(
-    supabaseAdmin
-      .from("products")
-      .select("id, user_id, seller_name")
-      .in("id", soldProductIds),
-  );
-
-  if (productsError) {
-    logSupabaseError("Sold products query failed", productsError);
-    return { sellers: [], error: "No se pudieron cargar destacados." };
-  }
-
-  const productSellerMap = new Map(
-    (soldProducts ?? [])
-      .map((product) => [
-        String(product?.id ?? "").trim(),
-        {
-          sellerUserId: String(product?.user_id ?? "").trim(),
-          sellerName: String(product?.seller_name ?? "").trim(),
-        },
-      ])
-      .filter(([productId, seller]) => productId && seller.sellerUserId),
-  );
   const sellerMap = new Map();
 
   (salesRows ?? []).forEach((row) => {
-    const productId = String(row?.product_id ?? "").trim();
     const orderStatus = String(row?.orders?.status ?? "").trim().toLowerCase();
-    const seller = productSellerMap.get(productId);
-    if (!seller || !ALLOWED_ORDER_STATUSES.has(orderStatus)) return;
+    const seller = {
+      sellerUserId: String(row?.seller_user_id ?? "").trim(),
+      sellerName: String(row?.provider ?? "").trim(),
+    };
+    if (!seller.sellerUserId || !ALLOWED_ORDER_STATUSES.has(orderStatus)) return;
 
     const current = sellerMap.get(seller.sellerUserId) ?? {
       sellerUserId: seller.sellerUserId,
@@ -118,8 +91,9 @@ const buildSellerRanking = async (supabaseAdmin) => {
       soldQty: 0,
       revenue: 0,
     };
-    current.soldQty += 1;
-    current.revenue += Math.max(0, toSafeNumber(row?.unit_price, 0));
+    const qty = Math.max(1, toSafeNumber(row?.qty, 1));
+    current.soldQty += qty;
+    current.revenue += Math.max(0, toSafeNumber(row?.unit_price, 0)) * qty;
     sellerMap.set(seller.sellerUserId, current);
   });
 
@@ -138,7 +112,7 @@ const getRecentAvailableProducts = async (supabaseAdmin) => {
   const { data: products, error } = await runWithTimeout(
     supabaseAdmin
       .from("products")
-      .select("id, title, description, price, currency, image_url, location, pickup_address, seller_name, user_id, delivery_methods, created_at")
+      .select("id, title, description, price, currency, image_url, location, pickup_address, seller_name, user_id, delivery_methods, stock, publication_type, publication_status, publication_expires_at, created_at")
       .order("created_at", { ascending: false })
       .limit(PRODUCTS_QUERY_LIMIT),
   );
@@ -159,7 +133,7 @@ const getAvailableProductsForSellers = async (supabaseAdmin, sellers) => {
   const { data: products, error } = await runWithTimeout(
     supabaseAdmin
       .from("products")
-      .select("id, title, description, price, currency, image_url, location, pickup_address, seller_name, user_id, delivery_methods, created_at")
+      .select("id, title, description, price, currency, image_url, location, pickup_address, seller_name, user_id, delivery_methods, stock, publication_type, publication_status, publication_expires_at, created_at")
       .in("user_id", sellerIds)
       .order("created_at", { ascending: false })
       .limit(PRODUCTS_QUERY_LIMIT),

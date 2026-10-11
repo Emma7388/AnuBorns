@@ -230,6 +230,43 @@
   accent-color: var(--color-accent);
 }
 
+.ab-location-choice {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ab-location-choice legend {
+  margin-bottom: 10px;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.ab-location-option-group {
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 6px;
+  padding: 8px;
+}
+
+.ab-location-option {
+  min-height: 36px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: color 0.18s ease, opacity 0.18s ease, background-color 0.18s ease;
+}
+
+.ab-location-option--all {
+  font-weight: 700;
+}
+
+.ab-location-option.is-included {
+  color: var(--color-text-muted);
+  opacity: 0.58;
+  background: var(--color-panel-tint);
+  cursor: not-allowed;
+}
+
 #profile-form {
   display: none;
 }

@@ -3,6 +3,7 @@ import { jsonResponse } from "../../../../lib/apiResponse.js";
 import { getAuthenticatedUser } from "../../../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../../../lib/serverRateLimit.js";
+import { compareMercadoPagoIdentity } from "../../../../lib/mercadopagoIdentity.js";
 
 const buildAccountLabel = (account, fallbackMpUserId) => {
   const firstName = String(account?.first_name ?? "").trim();
@@ -66,8 +67,21 @@ export const GET = async ({ request }) => {
     const mpUserId = String(mpAccount?.id ?? data?.mp_user_id ?? "").trim();
     const accountLabel = buildAccountLabel(mpAccount, mpUserId);
 
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("first_name,last_name,dni")
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+    const identity = mpAccount
+      ? compareMercadoPagoIdentity({ mpAccount, profile, authUser: auth.user })
+      : { matches: false, exception: false, mismatches: [] };
+
     return jsonResponse({
         connected: Boolean(data?.mp_user_id),
+        can_sell: Boolean(data?.mp_user_id) && identity.matches,
+        identity_match: identity.matches,
+        identity_exception: identity.exception,
+        identity_mismatches: identity.mismatches,
         account_label: accountLabel || null,
         mp_user_id: mpUserId || data?.mp_user_id || null,
         connected_at: data?.connected_at ?? null,

@@ -1,3 +1,6 @@
+import { formatProductLocation } from "../lib/productLocation.js";
+import { supabase } from "../lib/supabaseClient.js";
+
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
   return safe.toLocaleString("es-AR");
@@ -43,12 +46,10 @@ const formatDate = (value) => {
 
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
-  const labels = value.map((item) => {
-    if (item === "retiro") return "Retiro";
-    if (item === "envio") return "Envío";
-    return String(item ?? "").trim();
-  });
-  return labels.filter(Boolean).join(" + ") || "No especificada";
+  const methods = value.map((item) => String(item ?? "").trim().toLowerCase());
+  if (methods.includes("envio")) return "Envío";
+  if (methods.includes("retiro")) return "Retiro";
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).join(" + ") || "No especificada";
 };
 
 
@@ -244,6 +245,7 @@ const renderFeaturedSection = (section, items) => {
     card.dataset.provider = String(item?.sellerName ?? "Proveedor");
     card.dataset.currency = String(item?.currency ?? "ARS");
     card.dataset.delivery = serializeDelivery(item?.deliveryMethods);
+    card.dataset.stock = String(item?.stock ?? 1);
     card.innerHTML = `
       <a
         class="ab-featured-seller-link"
@@ -274,7 +276,7 @@ const renderFeaturedSection = (section, items) => {
       </p>
       <ul class="ab-provider-product-card__details">
         <li>Fecha: <strong>${escapeHtml(formatDate(item?.createdAt))}</strong></li>
-        <li>Ubicación: <strong>${escapeHtml(item?.location || "Sin especificar")}</strong></li>
+        <li>Ubicación: <strong>${escapeHtml(formatProductLocation(item?.location))}</strong></li>
         ${pickupAddress ? `<li>Dirección: <strong>${escapeHtml(pickupAddress)}</strong></li>` : ""}
         <li>Entrega: <strong>${escapeHtml(formatDelivery(item?.deliveryMethods))}</strong></li>
       </ul>
@@ -297,6 +299,7 @@ const renderFeaturedSection = (section, items) => {
           <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
           <span>Enviar al carrito</span>
         </button>
+        <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost ab-is-hidden" data-featured-owner-delete>Borrar</button>
       </div>
       </div>
     `;
@@ -361,6 +364,38 @@ const initFeaturedProducts = () => {
   document.querySelectorAll("[data-featured-products]").forEach((section) => {
     loadFeaturedSection(section);
     initFeaturedCarousel(section);
+    if (section.dataset.ownerActionsBound !== "true") {
+      section.dataset.ownerActionsBound = "true";
+      section.addEventListener("click", async (event) => {
+        const button = event.target instanceof Element ? event.target.closest("[data-featured-owner-delete]") : null;
+        if (!(button instanceof HTMLButtonElement)) return;
+        const card = button.closest(".ab-provider-product-card");
+        const productId = card?.dataset.cartId ?? "";
+        if (!productId || !window.confirm("¿Seguro que querés borrar esta publicación?")) return;
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token ?? "";
+        button.disabled = true;
+        const response = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          card.remove();
+          setFeaturedCarouselControls(section);
+        } else {
+          const payload = await response.json().catch(() => ({}));
+          window.alert(payload?.error ?? "No se pudo borrar la publicación.");
+          button.disabled = false;
+        }
+      });
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      const userId = data?.session?.user?.id ?? "";
+      section.querySelectorAll(".ab-provider-product-card").forEach((card) => {
+        const deleteButton = card.querySelector("[data-featured-owner-delete]");
+        deleteButton?.classList.toggle("ab-is-hidden", !userId || card.dataset.userId !== userId);
+      });
+    });
   });
 };
 

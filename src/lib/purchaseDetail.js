@@ -80,6 +80,7 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
   const shippingRequested = Boolean(order?.shipping_requested);
   const shippingCost = Number(order?.shipping_cost ?? 0) || 0;
   const showShippingCost = shippingRequested && shippingCost > 0;
+  const sellerCoversShipping = shippingRequested && !showShippingCost && !isCancelled;
   const shippingAddress = [
     String(order?.shipping_address ?? "").trim(),
     String(order?.shipping_city ?? "").trim(),
@@ -140,6 +141,7 @@ export const buildPurchaseDetailHtml = (order, { buyerNote = "" } = {}) => {
 
     <section class="totals ${isCancelled ? "totals--cancelled" : ""}" aria-label="Totales">
       ${showShippingCost ? `<div class="total-row"><span>Envío</span><strong>$${formatPrice(shippingCost)}</strong></div>` : ""}
+      ${sellerCoversShipping ? `<div class="total-row"><span>Envío</span><strong>A cargo del vendedor</strong></div>` : ""}
       <div class="total-row"><span>${isCancelled ? "Importe de la compra cancelada" : "Total"}</span><strong>$${formatPrice(order?.total_amount ?? 0)} ${escapeHtml(currency)}</strong></div>
     </section>
 

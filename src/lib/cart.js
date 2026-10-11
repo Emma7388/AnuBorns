@@ -50,8 +50,11 @@ const emitOwnCartItemsRemoved = (count) => {
   window.dispatchEvent(new CustomEvent("ab-cart-own-items-removed", { detail }));
 };
 
-/* El marketplace usa publicaciones de producto unico: la cantidad siempre es 1. */
-const SINGLE_ITEM_QTY = 1;
+const normalizeQuantity = (value, max = 100) => {
+  const quantity = Math.floor(Number(value ?? 1));
+  const safeMax = Math.max(1, Math.min(100, Math.floor(Number(max ?? 100)) || 100));
+  return Math.max(1, Math.min(safeMax, Number.isFinite(quantity) ? quantity : 1));
+};
 
 /* Normaliza precios a números positivos. */
 const normalizePrice = (value) => {
@@ -80,6 +83,7 @@ const normalizeProductSnapshot = (value) => {
     seller_name: sellerName || "N/A",
     currency,
     delivery_methods: deliveryMethods,
+    stock: normalizeQuantity(value.stock ?? 1, 100),
   };
 };
 
@@ -152,7 +156,7 @@ const loadLocalCart = () => {
     const normalizedItems = items
       .map((item) => ({
         product_id: String(item?.product_id ?? ""),
-        quantity: SINGLE_ITEM_QTY,
+        quantity: normalizeQuantity(item?.quantity, item?.product_snapshot?.stock ?? 100),
         price_snapshot: normalizePrice(item?.price_snapshot),
         product_snapshot: normalizeProductSnapshot(item?.product_snapshot),
       }))
@@ -167,7 +171,7 @@ const loadLocalCart = () => {
 
 export const getCartCount = async (knownUserId = null) => {
   const userId = typeof knownUserId === "string" ? knownUserId : await getSessionUserId();
-  if (!userId) return loadLocalCart().length;
+  if (!userId) return loadLocalCart().reduce((sum, item) => sum + normalizeQuantity(item.quantity), 0);
 
   try {
     const cacheKey = getUserCacheKey(userId);
@@ -185,11 +189,11 @@ export const getCartCount = async (knownUserId = null) => {
 
       const { data: items, error } = await supabase
         .from("cart_items")
-        .select("id")
+        .select("quantity")
         .eq("cart_id", cartId);
       if (error) return 0;
 
-      const count = Array.isArray(items) ? items.length : 0;
+      const count = (items ?? []).reduce((sum, item) => sum + normalizeQuantity(item?.quantity), 0);
       cartCountCache.set(cacheKey, { fetchedAt: Date.now(), count });
       return count;
     })().finally(() => {
@@ -272,6 +276,12 @@ const getOrCreateCart = async (userId) => {
     .single()
     .then(({ data: created, error }) => {
       if (error || !created?.id) {
+        if (error?.code === "23505") {
+          return getExistingCartId(userId).then((cartId) => {
+            if (!cartId) throw error;
+            return cartId;
+          });
+        }
         throw error ?? new Error("No se pudo crear el carrito.");
       }
       cartIdCache.set(cacheKey, created.id);
@@ -320,7 +330,7 @@ const mergeLocalIntoDb = async (cartId, localItems) => {
       {
         cart_id: cartId,
         product_id: item.product_id,
-        quantity: SINGLE_ITEM_QTY,
+        quantity: normalizeQuantity(item.quantity, item.product_snapshot?.stock ?? 100),
         price_snapshot: item.price_snapshot,
       },
     ]),
@@ -358,14 +368,14 @@ const addProductToCart = async ({ product, productId, userId }) => {
     const items = loadLocalCart();
     const existing = items.find((item) => item.product_id === productId);
     if (existing) {
-      existing.quantity = SINGLE_ITEM_QTY;
+      existing.quantity = normalizeQuantity(existing.quantity, productSnapshot?.stock ?? 100);
       if (!existing.product_snapshot && productSnapshot) {
         existing.product_snapshot = productSnapshot;
       }
     } else {
       items.push({
         product_id: productId,
-        quantity: SINGLE_ITEM_QTY,
+        quantity: 1,
         price_snapshot: priceSnapshot,
         product_snapshot: productSnapshot,
       });
@@ -381,7 +391,7 @@ const addProductToCart = async ({ product, productId, userId }) => {
     .upsert({
       cart_id: cartId,
       product_id: productId,
-      quantity: SINGLE_ITEM_QTY,
+      quantity: 1,
       price_snapshot: priceSnapshot,
     }, { onConflict: "cart_id,product_id" });
   if (error) throw error;
@@ -407,7 +417,6 @@ export const addToCart = async (product) => {
   return request;
 };
 
-/* Mantiene compatibilidad: solo permite conservar una unidad o eliminar. */
 export const updateQuantity = async (productId, quantity) => {
   const shouldRemove = Number(quantity ?? 0) <= 0;
   const userId = await getSessionUserId();
@@ -421,7 +430,7 @@ export const updateQuantity = async (productId, quantity) => {
       saveLocalCart(items.filter((entry) => entry.product_id !== productId));
       return;
     }
-    item.quantity = SINGLE_ITEM_QTY;
+    item.quantity = normalizeQuantity(quantity, item.product_snapshot?.stock ?? 100);
     saveLocalCart(items);
     return;
   }
@@ -437,9 +446,11 @@ export const updateQuantity = async (productId, quantity) => {
     emitCartUpdate();
     return;
   }
+  const { data: product } = await supabase.from("products").select("stock").eq("id", productId).maybeSingle();
+  const safeQuantity = normalizeQuantity(quantity, product?.stock ?? 100);
   await supabase
     .from("cart_items")
-    .update({ quantity: SINGLE_ITEM_QTY })
+    .update({ quantity: safeQuantity })
     .eq("cart_id", cartId)
     .eq("product_id", productId);
   emitCartUpdate();
@@ -457,14 +468,18 @@ const enrichWithProducts = async (items) => {
   const { data: products } = await supabase
     .from("products")
     .select(
-      "id,title,image_url,currency,seller_name,contact,user_id,delivery_methods",
+      "id,title,image_url,currency,seller_name,contact,user_id,delivery_methods,stock,publication_type,publication_status,publication_expires_at",
     )
     .in("id", ids);
   const map = new Map((products ?? []).map((product) => [product.id, product]));
-  return items.map((item) => ({
-    ...item,
-    product: map.get(item.product_id) ?? item.product_snapshot ?? null,
-  }));
+  return items.map((item) => {
+    const product = map.get(item.product_id) ?? item.product_snapshot ?? null;
+    return {
+      ...item,
+      quantity: normalizeQuantity(item.quantity, product?.stock ?? 100),
+      product,
+    };
+  });
 };
 
 /* Devuelve el carrito normalizado según estado de sesión. */
@@ -506,14 +521,14 @@ export const getCart = async () => {
     const { data } = await supabase
       .from("cart_items")
       .select(
-        "product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods)",
+        "product_id, quantity, price_snapshot, products (id,title,image_url,currency,seller_name,contact,user_id,delivery_methods,stock,publication_type,publication_status,publication_expires_at)",
       )
       .eq("cart_id", cartId);
     const normalized = [...new Map(
       (data ?? [])
         .map((item) => ({
           product_id: String(item?.product_id ?? "").trim(),
-          quantity: SINGLE_ITEM_QTY,
+          quantity: normalizeQuantity(item.quantity, item?.products?.stock ?? 100),
           price_snapshot: normalizePrice(item.price_snapshot),
           product: item.products ?? null,
         }))
@@ -533,7 +548,7 @@ export const getCart = async () => {
       emitCartUpdate();
     }
     cartDataCache.set(cacheKey, { fetchedAt: Date.now(), items: availableItems });
-    cartCountCache.set(cacheKey, { fetchedAt: Date.now(), count: availableItems.length });
+    cartCountCache.set(cacheKey, { fetchedAt: Date.now(), count: availableItems.reduce((sum, item) => sum + item.quantity, 0) });
     return availableItems;
   })().finally(() => {
     cartDataRequests.delete(cacheKey);

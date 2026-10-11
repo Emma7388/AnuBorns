@@ -2,6 +2,7 @@
 import { getFeaturedProducts } from "../lib/featuredProducts.js";
 import TitleBadge from "./TitleBadge.astro";
 import { getCurrentInternalPath, withReturnPath } from "../lib/internalNavigation.js";
+import { formatProductLocation } from "../lib/productLocation.js";
 
 const { title = "Productos destacados", featured } = Astro.props;
 const result = featured ?? await getFeaturedProducts();
@@ -23,12 +24,10 @@ const formatDate = (value) => {
 };
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
-  const labels = value.map((item) => {
-    if (item === "retiro") return "Retiro";
-    if (item === "envio") return "Envío";
-    return item;
-  });
-  return labels.join(" + ");
+  const methods = value.map((item) => String(item ?? "").trim().toLowerCase());
+  if (methods.includes("envio")) return "Envío";
+  if (methods.includes("retiro")) return "Retiro";
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).join(" + ") || "No especificada";
 };
 
 const getProductHref = (item) => {
@@ -76,6 +75,7 @@ const serializeDelivery = (value) =>
           data-provider={item.sellerName}
           data-currency={item.currency}
           data-delivery={serializeDelivery(item.deliveryMethods)}
+          data-stock={item.stock}
         >
           <a
             class="ab-featured-seller-link"
@@ -106,7 +106,7 @@ const serializeDelivery = (value) =>
           </p>
           <ul class="ab-provider-product-card__details">
             <li>Fecha: <strong>{formatDate(item.createdAt)}</strong></li>
-            <li>Ubicación: <strong>{item.location || "Sin especificar"}</strong></li>
+            <li>Ubicación: <strong>{formatProductLocation(item.location)}</strong></li>
             {item.pickupAddress ? (
               <li>Dirección: <strong>{item.pickupAddress}</strong></li>
             ) : null}
@@ -131,6 +131,7 @@ const serializeDelivery = (value) =>
               <img src="/icons/carrito.svg" alt="" aria-hidden="true" />
               <span>Enviar al carrito</span>
             </button>
+            <button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--ghost ab-is-hidden" data-featured-owner-delete>Borrar</button>
           </div>
           </div>
         </article>

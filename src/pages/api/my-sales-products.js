@@ -4,10 +4,14 @@ import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
 import { PRODUCT_LOCKING_ORDER_STATUSES, normalizePaymentStatus } from "../../lib/paymentStatus.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
+import {
+  getSellerRecordedShippingCost,
+  getSellerShippingDestination,
+  isSellerShippingRequested,
+} from "../../lib/sellerShipping.js";
 
 /* Estados de orden que cuentan como venta operativa para el vendedor. */
 const allowedOrderStatuses = PRODUCT_LOCKING_ORDER_STATUSES;
-const SHIPPING_FEE = 5000;
 
 /* Parsea cantidad y precio a números seguros. */
 const toPositiveNumber = (value, fallback = 0) => {
@@ -28,65 +32,6 @@ const normalizeFulfillmentStatus = (value, shippingRequested) => {
   const raw = String(value ?? "").trim();
   if (raw) return raw;
   return shippingRequested ? "requested" : "pickup_pending";
-};
-
-const normalizeProviderName = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-const getShippingProviderNames = (shippingAddress) =>
-  String(shippingAddress ?? "")
-    .split("|")
-    .map((part) => part.split(":")[0])
-    .map(normalizeProviderName)
-    .filter(Boolean);
-
-const getShippingProviderEntries = (shippingAddress) =>
-  String(shippingAddress ?? "")
-    .split("|")
-    .map((part) => {
-      const [provider, ...addressParts] = part.split(":");
-      return {
-        provider: normalizeProviderName(provider),
-        address: addressParts.join(":").trim(),
-      };
-    })
-    .filter((entry) => entry.provider);
-
-const getSellerShippingDestination = ({ shippingAddress, shippingCity, providerName }) => {
-  const entries = getShippingProviderEntries(shippingAddress);
-  if (entries.length > 0) {
-    const normalizedProvider = normalizeProviderName(providerName);
-    const match = entries.find((entry) => entry.provider === normalizedProvider);
-    return {
-      address: match?.address ?? "",
-      city: "",
-    };
-  }
-
-  return {
-    address: String(shippingAddress ?? "").trim(),
-    city: String(shippingCity ?? "").trim(),
-  };
-};
-
-const getSellerShippingCost = ({ shippingRequested, orderShippingCost, shippingAddress, providerName }) => {
-  if (!shippingRequested) return 0;
-  const cost = toPositiveNumber(orderShippingCost, 0);
-  if (cost <= 0) return 0;
-
-  const requestedProviders = getShippingProviderNames(shippingAddress);
-  if (requestedProviders.length > 0) {
-    const normalizedProvider = normalizeProviderName(providerName);
-    return normalizedProvider && requestedProviders.includes(normalizedProvider)
-      ? Math.min(SHIPPING_FEE, cost)
-      : 0;
-  }
-
-  return cost > SHIPPING_FEE ? SHIPPING_FEE : cost;
 };
 
 /** @type {import("astro").APIRoute} */
@@ -124,21 +69,16 @@ export const GET = async ({ request }) => {
       return jsonResponse({ error: "No se pudieron cargar los productos." }, 500);
     }
 
-    if (!Array.isArray(ownProducts) || ownProducts.length === 0) {
-      return jsonResponse({ items: [] });
-    }
-
     const productMap = new Map(
-      ownProducts.map((product) => [String(product.id), product]),
+      (ownProducts ?? []).map((product) => [String(product.id), product]),
     );
-    const productIds = [...productMap.keys()];
 
     const { data: salesRows, error: salesError } = await supabaseAdmin
       .from("order_items")
       .select(
-        "product_id, name, qty, unit_price, provider, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost, shipping_status)",
+        "product_id, name, qty, unit_price, provider, image, orders!inner(id, user_id, created_at, status, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost, shipping_status)",
       )
-      .in("product_id", productIds);
+      .eq("seller_user_id", sellerId);
 
     if (salesError) {
       console.error("[my-sales-products] sales query failed", salesError.message);
@@ -151,13 +91,12 @@ export const GET = async ({ request }) => {
       const productId = String(row?.product_id ?? "").trim();
       if (!productId) return;
       const product = productMap.get(productId);
-      if (!product) return;
 
       const order = row?.orders ?? null;
       const orderStatus = normalizePaymentStatus(order?.status);
       if (!allowedOrderStatuses.has(orderStatus)) return;
 
-      const qty = 1;
+      const qty = Math.max(1, Math.floor(toPositiveNumber(row?.qty, 1)));
       const unitPrice = toPositiveNumber(row?.unit_price, 0);
       const orderCreatedAt = order?.created_at ?? null;
       const buyerNote = extractBuyerNote(order?.payment_detail);
@@ -168,13 +107,19 @@ export const GET = async ({ request }) => {
       const shippingPhone = String(order?.shipping_phone ?? "").trim();
       const providerName = String(row?.provider ?? product?.seller_name ?? "").trim();
       const orderShippingRequested = Boolean(order?.shipping_requested);
-      const shippingCost = getSellerShippingCost({
+      const shippingCost = getSellerRecordedShippingCost({
         shippingRequested: orderShippingRequested,
         orderShippingCost: order?.shipping_cost,
         shippingAddress: orderShippingAddress,
+        shippingCity: orderShippingCity,
         providerName,
       });
-      const shippingRequested = orderShippingRequested && shippingCost > 0;
+      const shippingRequested = isSellerShippingRequested({
+        shippingRequested: orderShippingRequested,
+        shippingAddress: orderShippingAddress,
+        shippingCity: orderShippingCity,
+        providerName,
+      });
       const sellerShippingDestination = getSellerShippingDestination({
         shippingAddress: orderShippingAddress,
         shippingCity: orderShippingCity,
@@ -184,9 +129,9 @@ export const GET = async ({ request }) => {
 
       const entry = soldMap.get(productId) ?? {
         productId,
-        title: String(product.title ?? row?.name ?? "Producto"),
-        currency: String(product.currency ?? "ARS"),
-        image: String(product.image_url ?? "").trim() || "/logo2.svg",
+        title: String(product?.title ?? row?.name ?? "Producto"),
+        currency: String(product?.currency ?? "ARS"),
+        image: String(product?.image_url ?? row?.image ?? "").trim() || "/logo2.svg",
         quantity: 0,
         revenue: 0,
         ordersSet: new Set(),

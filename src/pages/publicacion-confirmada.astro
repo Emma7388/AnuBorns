@@ -1,3 +1,20 @@
 ---
-return Astro.redirect("/comprar", 302);
+import MainLayout from "../layouts/MainLayout.astro";
 ---
+
+<MainLayout title="Estado de publicación">
+  <section class="ab-dark-panel ab-product-publisher">
+    <div class="ab-cart-empty">
+      <h1>Confirmando tu publicación</h1>
+      <p id="publication-payment-status" aria-live="polite">Estamos consultando el pago en Mercado Pago.</p>
+      <div class="ab-product-success__actions">
+        <a href="/mis-ventas" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-astro-reload>Ver mis publicaciones</a>
+        <a href="/vender/productos" class="ab-provider-product-card__button ab-provider-product-card__button--ghost" data-astro-reload>Volver</a>
+      </div>
+    </div>
+  </section>
+</MainLayout>
+
+<script>
+  import "../scripts/publication-confirmation.js";
+</script>

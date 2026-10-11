@@ -8,6 +8,15 @@ import DeferredListControls from "../components/DeferredListControls.astro";
 <MainLayout title="Mis ventas" backHref="/mis-datos">
   <!-- Panel principal -->
   <section class="ab-dark-panel ab-orders-panel ab-sales-preview">
+    <div class="ab-sales-section-heading">
+      <h2>Pagos pendientes en Mercado Pago</h2>
+    </div>
+    <p id="my-pending-payments-status" class="ab-muted-text" aria-live="polite"></p>
+    <div id="my-pending-payments-list" class="ab-orders-list ab-transaction-list"></div>
+    <div id="my-pending-payments-empty" class="ab-cart-empty ab-is-hidden">
+      <p>No hay pagos pendientes.</p>
+    </div>
+
     <!-- Productos vendidos -->
     <DeferredListControls idPrefix="my-sold-products" title="Ventas" icon="/icons/carrito.svg" tone="success" />
     <label class="ab-sales-dispatch-filter">

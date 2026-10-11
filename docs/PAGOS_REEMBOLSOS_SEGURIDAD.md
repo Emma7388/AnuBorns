@@ -1,12 +1,14 @@
 # Pagos, reembolsos y seguridad
 
-Actualizado el 10 de octubre de 2026.
+Actualizado el 11 de octubre de 2026.
 
 Este documento describe el comportamiento vigente del checkout de productos, la sincronización con Mercado Pago, los estados internos de pago, el bloqueo de productos, la visibilidad en compras/ventas y las defensas agregadas en las APIs. No contiene credenciales.
 
 ## Alcance
 
-El flujo sigue siendo de producto único por compra y de un solo vendedor por checkout. La preferencia de Mercado Pago se crea con el token OAuth del vendedor conectado y la comisión de AnuBorns se informa como `marketplace_fee` cuando corresponde.
+El checkout admite varios productos y cantidades del mismo vendedor; cada orden continúa perteneciendo a un único vendedor. La preferencia de Mercado Pago se crea con el token OAuth del vendedor conectado y la comisión de AnuBorns se informa como `marketplace_fee` cuando corresponde. El 1,5% se calcula sólo sobre publicaciones permanentes; una publicación mensual ya abonó ARS 2.000 por sus 30 días y no integra esa base. El soporte de cantidades requiere aplicar la migración de stock en coordinación con el despliegue.
+
+El cobro mensual usa una preferencia separada de la plataforma, una única preferencia pendiente por producto y una referencia interna `publication:<uuid>`. La activación se ancla al instante aprobado y una repetición del webhook repara estados incompletos sin extender los 30 días. Mientras ese cobro está pendiente no se permite borrar el producto. Después, el producto puede eliminarse sin borrar el registro del pago: la relación usa `ON DELETE SET NULL` para conservar importe, estado y trazabilidad.
 
 Los cambios documentados acá cubren:
 
@@ -31,11 +33,11 @@ La normalización vive en `src/lib/paymentStatus.js`. El sistema traduce la resp
 | `status_detail=refund_in_progress` o refund `processing/pending/in_process` | `refund_pending` | Sí | Sí | No | Reembolso pendiente |
 | `status_detail=partially_refunded` | `partially_refunded` | Sí | Sí | No | Reembolso parcial |
 
-La regla intencional es reservar el producto mientras el pago está pendiente para reducir carreras entre dos checkouts simultáneos. También se conserva bloqueado cuando el dinero todavía está en un estado intermedio de devolución (`refund_pending`) o cuando el reembolso fue parcial (`partially_refunded`). Cuando el pago queda finalmente cancelado, rechazado o reembolsado completo, el producto deja de estar bloqueado por esa orden.
+La regla intencional es descontar y reservar la cantidad solicitada mientras el pago está pendiente. La ampliación local admite stock 1–100 y row locks de PostgreSQL; repone la cantidad al cancelar, rechazar o reembolsar completamente. `refund_pending` y `partially_refunded` mantienen la reserva. Esta ampliación requiere ejecutar `docs/supabase-product-stock-publications.sql` remotamente.
 
-La garantía final vive en PostgreSQL. `product_checkout_reservations.product_id` es único y sus triggers crean o liberan la reserva al cambiar órdenes o ítems. `create_checkout_order_atomic(...)` bloquea los productos, revalida sus datos y persiste orden + ítems en una misma transacción. La validación previa de JavaScript mejora el mensaje al usuario, pero no es la autoridad de concurrencia.
+La garantía final vive en PostgreSQL. La reserva usa la clave compuesta `(product_id, order_id)` y guarda `qty`; los triggers descuentan o reponen unidades al cambiar órdenes o ítems. `create_checkout_order_atomic(...)` bloquea las filas de producto, revalida stock, vigencia, vendedor, moneda y precio, y persiste orden + ítems en una misma transacción. La validación previa de JavaScript mejora el mensaje al usuario, pero no es la autoridad de concurrencia.
 
-Antes de validar disponibilidad, el checkout cancela reservas `pending` antiguas sin `payment_id` para que un intento abandonado no bloquee indefinidamente una nueva compra.
+Antes de validar disponibilidad, el checkout cancela reservas `pending` antiguas sin `payment_id` para que un intento abandonado no bloquee indefinidamente una nueva compra. El TTL predeterminado es de 24 horas. La limpieza se dispara desde el checkout o el historial del comprador; no existe todavía una tarea programada permanente.
 
 ## Reembolsos y botón de arrepentimiento
 
@@ -97,6 +99,18 @@ Los módulos que usan esta regla son:
 Esto evita que un producto vuelva al catálogo mientras hay una operación aprobada, en reembolso pendiente o con reembolso parcial. Si la operación termina como rechazada, cancelada o reembolsada completa, deja de bloquear disponibilidad.
 
 ## Mis ventas
+
+### Envío a cargo del vendedor
+
+Para las órdenes nuevas, solicitar envío no agrega un cargo al comprador. La orden conserva
+`shipping_requested=true`, los datos de entrega y el circuito de preparación/despacho, pero guarda
+`shipping_cost=0`. La preferencia de Mercado Pago contiene únicamente productos y la comisión del
+marketplace se calcula sobre ese subtotal. Los importes de envío de órdenes históricas se conservan
+y continúan mostrándose como fueron registrados.
+
+Al publicar un producto, el retiro en el domicilio del vendedor se incorpora automáticamente y no
+se presenta como una casilla opcional. El único checkbox de entrega permite reemplazar el retiro por
+envío; las modalidades no se acumulan.
 
 Mis ventas conserva los datos propios de la operación: cliente, fecha, orden, entrega, costo de envío, estado y detalle de pago.
 
@@ -187,6 +201,8 @@ Se reforzaron límites por endpoint sensible:
 
 Los límites existentes en otros endpoints se mantienen.
 
+La implementación actual guarda los contadores en memoria. Reduce ráfagas dentro de una instancia, pero no constituye un límite global entre múltiples instancias serverless de Vercel. Sigue pendiente migrarla a almacenamiento distribuido.
+
 ### OAuth Mercado Pago
 
 `src/lib/mercadopagoOAuthState.js` ya no usa un estado fijo de desarrollo. El estado OAuth se firma con secreto derivado de variables privadas disponibles en backend.
@@ -218,7 +234,7 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 22 tests passed
 ```
 
-También se ejecutó chequeo de sintaxis sobre los archivos JavaScript modificados y `git diff --check`. No se ejecutó build.
+La ejecución completa más reciente del 11 de octubre de 2026 terminó con 94 pruebas aprobadas y 0 fallos. El usuario ejecutó las migraciones remotas y el asistente revisó sus auditorías sin anomalías pendientes; el build, despliegue y pruebas visuales todavía no fueron ejecutados.
 
 ## Evidencia real conservada
 
@@ -230,19 +246,27 @@ Existe evidencia concordante de una compra real anterior al reinicio comercial, 
 
 Estas evidencias validan el pago, el split y la comisión de ARS 1 para esa operación concreta. No dependen únicamente de que OAuth figure conectado. El correo aportado contiene la consulta enviada a Mercado Pago, no una respuesta oficial de soporte.
 
-La base actual no permite reconstruir el orden exacto de los eventos porque después se ejecutó el reinicio controlado que eliminó las órdenes y su auditoría comercial. Tampoco existe todavía evidencia de un reembolso real total o parcial procesado de punta a punta.
+Además existe evidencia concordante de una compra real posterior al reinicio, documentada sólo con la referencia corta `C3ADE956`:
+
+- Supabase conserva una orden de ARS 500 con `status=approved`, `payment_status=approved`, `mp_status_detail:accredited` y traza de preferencia OAuth con `marketplace_fee:8`.
+- La cuenta de AnuBorns muestra la venta por ARS 500, ARS 492 transferidos al vendedor, ARS 8 para la plataforma y estado aprobado.
+- La cuenta del vendedor muestra la misma referencia y operación, ARS 500 brutos, estado aprobado y ARS 470,49 programados para acreditación.
+- Los ARS 21,51 entre el importe posterior al split y el neto programado corresponden a un costo adicional de Mercado Pago cuyo concepto exacto requiere abrir el desglose del vendedor; no son comisión de AnuBorns.
+- El cálculo configurado al 1,5% produce ARS 7,50 sobre ARS 500, pero el código redondea y envía ARS 8. La evidencia confirma el comportamiento actual, no un porcentaje efectivo exacto para importes pequeños.
+
+La base actual no permite reconstruir el orden exacto de los eventos de la compra histórica porque después se ejecutó el reinicio controlado. La operación nueva sí conserva la fila local, pero todavía falta revisar su `audit_logs` para saber si la aprobación entró primero por webhook o sincronización de retorno. Tampoco existe evidencia de un reembolso real total o parcial procesado de punta a punta.
 
 ## Validación pendiente antes de producción
 
-La compra histórica ya valida una ejecución real del pago, split y comisión. Falta comprobar la repetibilidad y el circuito de reembolso en el ambiente real o de prueba elegido:
+La compra posterior al reinicio confirma la repetibilidad del pago, split y comisión. Queda pendiente cerrar el circuito de reembolso y las variantes no aprobadas:
 
-1. Repetir una compra controlada con vendedor conectado.
-2. Aprobar el pago y confirmar nuevamente el neto del vendedor y la comisión de AnuBorns.
-3. Confirmar que el producto sale del catálogo y que Mis compras y Mis ventas reciben la venta aprobada.
-4. Conservar la orden y revisar `audit_logs` para identificar si impactó primero el webhook o la sincronización de retorno.
-5. Simular o ejecutar un reembolso/cancelación controlada.
-6. Confirmar transición a `refund_pending`, `partially_refunded` o `refunded` según lo que Mercado Pago informe.
-7. Confirmar que el vendedor no ve indicador verde ni acciones de despacho para ventas no aprobadas.
-8. Confirmar que el producto se libera sólo cuando el estado final lo permite.
+1. Conservar la vista del comprador y confirmar Mis compras/Detalle de compra para la operación aprobada.
+2. Revisar `audit_logs` para identificar si impactó primero el webhook o la sincronización de retorno.
+3. Simular o ejecutar, sólo con autorización explícita, un reembolso/cancelación controlada.
+4. Confirmar transición a `refund_pending`, `partially_refunded` o `refunded` según lo que Mercado Pago informe.
+5. Confirmar que el vendedor no ve indicador verde ni acciones de despacho para ventas no aprobadas.
+6. Confirmar que el producto se libera sólo cuando el estado final lo permite.
+7. Probar un pago realmente pendiente y uno rechazado en un escenario controlado. Una orden local sin `payment_id` no alcanza para esa validación.
+8. Decidir si la comisión debe conservar el redondeo a pesos enteros o representar exactamente el 1,5% con centavos.
 
-No generalizar el funcionamiento de toda la integración a partir de una única compra. El split quedó validado para esa operación; el flujo de reembolso real continúa pendiente.
+No generalizar el funcionamiento de reembolsos, rechazos o contracargos a partir de las compras aprobadas. Pago, split y comisión ya están validados; el flujo de reembolso real continúa pendiente.

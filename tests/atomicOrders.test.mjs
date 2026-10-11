@@ -6,7 +6,7 @@ import {
 } from "../src/lib/atomicOrders.js";
 
 const checkout = {
-  totalAmount: 115,
+  totalAmount: 915,
   orderCurrency: "ARS",
   shippingRequested: true,
   shippingCost: 15,
@@ -41,9 +41,9 @@ test("crea la orden por la RPC atomica con snapshots confiables", async () => {
   assert.equal(result.ok, true);
   assert.equal(result.order.id, "order-id");
   assert.equal(call.name, "create_checkout_order_atomic");
-  assert.equal(call.params.p_items[0].qty, 1);
+  assert.equal(call.params.p_items[0].qty, 9);
   assert.equal(call.params.p_items[0].currency, "ARS");
-  assert.equal(call.params.p_total_amount, 115);
+  assert.equal(call.params.p_total_amount, 915);
 });
 
 test("traduce una reserva ocupada a conflicto HTTP", async () => {

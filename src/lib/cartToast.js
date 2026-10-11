@@ -19,9 +19,13 @@ const ensureToast = () => {
       </svg>
     </span>
     <span class="ab-cart-toast__message">Producto agregado al carrito</span>
-    <a class="ab-cart-toast__link" href="/carrito">Ver carrito</a>
+    <a class="ab-cart-toast__link" href="/carrito" data-astro-reload>Ver carrito</a>
   `;
   document.body.appendChild(toastRoot);
+  toastRoot.querySelector(".ab-cart-toast__link")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    window.location.assign("/carrito");
+  });
   toastMessage = toastRoot.querySelector(".ab-cart-toast__message");
 };
 

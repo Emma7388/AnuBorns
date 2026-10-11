@@ -54,7 +54,7 @@ export const createInitialSaleDispatches = async (
 
   const { data: orderItems, error: orderItemsError } = await supabaseAdmin
     .from("order_items")
-    .select("product_id, provider")
+    .select("product_id, provider, seller_user_id")
     .eq("order_id", safeOrderId);
 
   if (orderItemsError) {
@@ -86,6 +86,11 @@ export const createInitialSaleDispatches = async (
       .map((item) => [String(item?.product_id ?? "").trim(), String(item?.provider ?? "").trim()])
       .filter(([productId]) => productId),
   );
+  const sellerByProduct = new Map(
+    (orderItems ?? [])
+      .map((item) => [String(item?.product_id ?? "").trim(), String(item?.seller_user_id ?? "").trim()])
+      .filter(([productId, sellerId]) => productId && sellerId),
+  );
 
   const hasShipping = typeof shippingRequested === "boolean"
     ? shippingRequested
@@ -116,7 +121,7 @@ export const createInitialSaleDispatches = async (
 
   const rows = productIds
     .map((productId) => ({
-      seller_id: String(productsById.get(productId)?.user_id ?? "").trim(),
+      seller_id: sellerByProduct.get(productId) || String(productsById.get(productId)?.user_id ?? "").trim(),
       order_id: safeOrderId,
       product_id: productId,
       fulfillment_status: getProductFulfillmentStatus(productId),

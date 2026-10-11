@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { categories as localCategories } from "../data/categories";
 import { PRODUCT_IMAGE_MAX_BYTES, resizeProductImage } from "../lib/imageResize";
+import { ALL_PRODUCT_LOCATIONS, formatProductLocation } from "../lib/productLocation";
 import { fetchUserProfile } from "../lib/userProfile";
 
 /* Referencias DOM principales. */
@@ -16,7 +17,11 @@ let categoryPickerIcon = document.getElementById("category-picker-icon");
 let categoryPickerMenu = document.getElementById("category-picker-menu");
 let descriptionInput = document.getElementById("description");
 let priceInput = document.getElementById("price");
+let stockInput = document.getElementById("stock");
+let publicationTypeInput = document.getElementById("publication-type");
+let publicationTypeHelp = document.getElementById("publication-type-help");
 let locationInput = document.getElementById("location");
+let locationOptionInputs = Array.from(document.querySelectorAll('input[name="location-option"]'));
 let publicPhoneInput = document.getElementById("public-phone");
 let publicEmailInput = document.getElementById("public-email");
 let deliveryInputs = Array.from(document.querySelectorAll('input[name="delivery"]'));
@@ -38,7 +43,11 @@ let nextButtons = Array.from(document.querySelectorAll("[data-product-next]"));
 let prevButtons = Array.from(document.querySelectorAll("[data-product-prev]"));
 let successPanel = document.getElementById("product-success");
 let newProductButton = document.getElementById("product-new");
+let successTitle = document.getElementById("product-success-title");
+let successCopy = document.getElementById("product-success-copy");
 let categoryDocumentClickBound = false;
+let editingProductId = "";
+let existingImageUrl = "";
 
 /* Límites y configuración de imágenes. */
 const MAX_FILES = 1;
@@ -101,7 +110,11 @@ const bindFormElements = () => {
   categoryPickerMenu = document.getElementById("category-picker-menu");
   descriptionInput = document.getElementById("description");
   priceInput = document.getElementById("price");
+  stockInput = document.getElementById("stock");
+  publicationTypeInput = document.getElementById("publication-type");
+  publicationTypeHelp = document.getElementById("publication-type-help");
   locationInput = document.getElementById("location");
+  locationOptionInputs = Array.from(document.querySelectorAll('input[name="location-option"]'));
   publicPhoneInput = document.getElementById("public-phone");
   publicEmailInput = document.getElementById("public-email");
   deliveryInputs = Array.from(document.querySelectorAll('input[name="delivery"]'));
@@ -123,6 +136,8 @@ const bindFormElements = () => {
   prevButtons = Array.from(document.querySelectorAll("[data-product-prev]"));
   successPanel = document.getElementById("product-success");
   newProductButton = document.getElementById("product-new");
+  successTitle = document.getElementById("product-success-title");
+  successCopy = document.getElementById("product-success-copy");
 };
 
 /* Carga categorías desde Supabase. */
@@ -288,15 +303,76 @@ const parsePrice = (value) => {
   return parsed;
 };
 
+const parseStock = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 100 ? parsed : null;
+};
+
+const getAccessToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return String(data?.session?.access_token ?? "").trim();
+};
+
+const requestProductApi = async (path, options = {}) => {
+  const token = await getAccessToken();
+  const response = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(options.headers ?? {}) },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(payload?.error ?? "No se pudo guardar la publicación."));
+  return payload;
+};
+
+const hydrateEditProduct = async () => {
+  const productId = new URLSearchParams(window.location.search).get("edit")?.trim() ?? "";
+  if (!productId) {
+    editingProductId = "";
+    existingImageUrl = "";
+    return;
+  }
+  try {
+    const payload = await requestProductApi(`/api/products/${encodeURIComponent(productId)}`);
+    const product = payload?.product;
+    if (!product) throw new Error("Publicación no encontrada.");
+    editingProductId = productId;
+    existingImageUrl = String(product.image_url ?? "").trim();
+    if (titleInput) titleInput.value = product.title ?? "";
+    if (descriptionInput) descriptionInput.value = product.description ?? "";
+    if (priceInput) priceInput.value = String(product.price ?? "");
+    if (stockInput) stockInput.value = String(product.stock ?? 1);
+    if (publicationTypeInput) {
+      publicationTypeInput.value = product.publication_type ?? "permanent";
+      publicationTypeInput.disabled = true;
+    }
+    if (imagesInput) imagesInput.required = false;
+    if (locationInput) locationInput.value = product.location ?? "";
+    locationOptionInputs.forEach((input) => { input.checked = input.value === product.location; });
+    if (product.location === ALL_PRODUCT_LOCATIONS) syncLocationSelection(locationOptionInputs.find((input) => input.value === ALL_PRODUCT_LOCATIONS));
+    deliveryInputs.forEach((input) => { input.checked = Array.isArray(product.delivery_methods) && product.delivery_methods.includes("envio"); });
+    selectCategory(product.category_id);
+    if (previewImage && existingImageUrl) previewImage.src = existingImageUrl;
+    if (submitButton) submitButton.textContent = "Guardar cambios";
+    updatePickupAddressVisibility();
+    updatePublisherUi();
+  } catch (error) {
+    setFeedback(error instanceof Error ? error.message : "No se pudo cargar la publicación.");
+    setFormDisabled(true);
+  }
+};
+
 const formatPrice = (value) => {
   const price = parsePrice(value);
   if (!price) return "$0 ARS";
   return `$${price.toLocaleString("es-AR")} ARS`;
 };
 
-/* Recolecta métodos de entrega seleccionados. */
+/* La publicación ofrece una sola modalidad: retiro por defecto o envío. */
+const hasShippingSelected = () =>
+  deliveryInputs.some((input) => input.checked && input.value === "envio");
+
 const collectDeliveryMethods = () =>
-  deliveryInputs.filter((input) => input.checked).map((input) => input.value);
+  [hasShippingSelected() ? "envio" : "retiro"];
 
 const getCategoryName = () => {
   const selected = categorySelect?.selectedOptions?.[0];
@@ -304,21 +380,69 @@ const getCategoryName = () => {
 };
 
 const getDeliveryLabel = () => {
-  const labels = deliveryInputs
-    .filter((input) => input.checked)
-    .map((input) => input.closest("label")?.textContent?.trim() || input.value);
-  return labels.length > 0 ? labels.join(" + ") : "Sin elegir";
+  return hasShippingSelected() ? "Envío" : "Retiro en domicilio";
 };
 
-/* Detecta si se eligió retiro. */
-const hasPickupSelected = () =>
-  deliveryInputs.some((input) => input.checked && input.value === "retiro");
+/* Restablece la única elección opcional: ofrecer envío. */
+const resetDeliverySelection = () => {
+  deliveryInputs.forEach((input) => {
+    input.checked = false;
+  });
+};
 
-/* Muestra/oculta dirección de retiro según selección. */
+/* Mantiene una sola ubicación o la cobertura conjunta de las tres ciudades. */
+const syncLocationSelection = (changedInput = null) => {
+  const allInput = locationOptionInputs.find((input) => input.value === ALL_PRODUCT_LOCATIONS);
+  const cityInputs = locationOptionInputs.filter((input) => input.value !== ALL_PRODUCT_LOCATIONS);
+  const allWasUnchecked = changedInput === allInput && !allInput?.checked;
+
+  if (allInput?.checked) {
+    cityInputs.forEach((input) => {
+      input.checked = true;
+      input.disabled = true;
+      input.closest(".ab-location-option")?.classList.add("is-included");
+    });
+    if (locationInput) locationInput.value = ALL_PRODUCT_LOCATIONS;
+  } else {
+    cityInputs.forEach((input) => {
+      input.disabled = false;
+      input.closest(".ab-location-option")?.classList.remove("is-included");
+    });
+    if (allWasUnchecked) {
+      cityInputs.forEach((input) => {
+        input.checked = false;
+      });
+    } else if (changedInput && cityInputs.includes(changedInput) && changedInput.checked) {
+      cityInputs.forEach((input) => {
+        if (input !== changedInput) input.checked = false;
+      });
+    }
+    const selectedCity = cityInputs.find((input) => input.checked);
+    if (locationInput) locationInput.value = selectedCity?.value ?? "";
+  }
+
+  updatePublisherUi();
+};
+
+const resetLocationSelection = () => {
+  locationOptionInputs.forEach((input) => {
+    input.checked = false;
+    input.disabled = false;
+    input.closest(".ab-location-option")?.classList.remove("is-included");
+  });
+  if (locationInput) locationInput.value = "";
+};
+
+const onLocationChange = (event) => {
+  syncLocationSelection(event.currentTarget);
+};
+
+/* La dirección de retiro sólo corresponde a la modalidad de retiro. */
 const updatePickupAddressVisibility = () => {
   if (!pickupAddressWrap || !pickupAddressInput) return;
-  pickupAddressWrap.classList.remove("ab-is-hidden");
-  pickupAddressInput.required = true;
+  const isPickup = !hasShippingSelected();
+  pickupAddressWrap.classList.toggle("ab-is-hidden", !isPickup);
+  pickupAddressInput.required = isPickup;
 };
 
 /* Evita listeners duplicados. */
@@ -356,6 +480,11 @@ const onFieldInput = () => {
     categoryPickerLabel.textContent = getCategoryName() || "Elegí una categoría";
   }
   updatePublisherUi();
+  if (publicationTypeHelp && publicationTypeInput) {
+    publicationTypeHelp.textContent = publicationTypeInput.value === "monthly"
+      ? "Se habilita durante 30 días después de abonar ARS 2.000."
+      : "La publicación permanente no vence y aplica la comisión por venta.";
+  }
 };
 
 const onNextStep = () => {
@@ -369,11 +498,16 @@ const onPreviousStep = () => {
 
 const onNewProduct = () => {
   if (!form) return;
+  editingProductId = "";
+  existingImageUrl = "";
+  window.history.replaceState({}, "", "/vender/productos");
   form.reset();
+  if (publicationTypeInput) publicationTypeInput.disabled = false;
+  if (imagesInput) imagesInput.required = true;
+  if (submitButton) submitButton.textContent = "Publicar producto";
   clearPreviews();
-  deliveryInputs.forEach((input) => {
-    input.checked = false;
-  });
+  resetDeliverySelection();
+  resetLocationSelection();
   if (activeSession) hydrateContactFields(activeSession);
   if (successPanel) successPanel.classList.add("ab-is-hidden");
   form.classList.remove("ab-is-hidden");
@@ -405,6 +539,7 @@ const initProductForm = () => {
     if (!session) return;
     hydrateContactFields(session);
     setFormDisabled(false);
+    syncLocationSelection();
     const hasPhone = String(publicPhoneInput?.value ?? "").trim().length > 0;
     const hasEmail = String(publicEmailInput?.value ?? "").trim().length > 0;
     const hasAddress = String(pickupAddressInput?.value ?? "").trim().length > 0;
@@ -419,16 +554,17 @@ const initProductForm = () => {
     if (submitButton instanceof HTMLButtonElement) {
       submitButton.disabled = false;
     }
-    loadCategories();
+    loadCategories().then(hydrateEditProduct);
     updatePickupAddressVisibility();
     updatePublisherUi();
     bindOnce(imagesInput, "ImagesChange", "change", onImagesChange);
-    [titleInput, categorySelect, descriptionInput, priceInput, locationInput, pickupAddressInput]
+    [titleInput, categorySelect, descriptionInput, priceInput, stockInput, publicationTypeInput, pickupAddressInput]
       .forEach((element) => {
         bindOnce(element, "PublisherInput", "input", onFieldInput);
         bindOnce(element, "PublisherChange", "change", onFieldInput);
       });
     deliveryInputs.forEach((input) => bindOnce(input, "DeliveryChange", "change", onDeliveryChange));
+    locationOptionInputs.forEach((input) => bindOnce(input, "LocationChange", "change", onLocationChange));
     bindOnce(categoryPickerToggle, "CategoryToggle", "click", toggleCategoryPicker);
     if (!categoryDocumentClickBound) {
       document.addEventListener("click", onDocumentClick);
@@ -517,19 +653,19 @@ const getStepStates = () => {
   const title = String(titleInput?.value ?? "").trim();
   const description = String(descriptionInput?.value ?? "").trim();
   const price = parsePrice(priceInput?.value);
+  const stock = parseStock(stockInput?.value);
   const location = String(locationInput?.value ?? "").trim();
   const publicPhone = String(publicPhoneInput?.value ?? "").trim();
   const publicEmail = String(publicEmailInput?.value ?? "").trim();
   const pickupAddress = String(pickupAddressInput?.value ?? "").trim();
-  const deliveryMethods = collectDeliveryMethods();
   const imageError = validateImages(collectImages());
 
   return [
     Boolean(title && String(categorySelect?.value ?? "").trim()),
     Boolean(description),
-    Boolean(price && collectImages().length > 0 && !imageError),
+    Boolean(price && stock && (editingProductId || collectImages().length > 0) && !imageError),
     Boolean(location && publicPhone && publicEmail),
-    Boolean(deliveryMethods.length > 0 && pickupAddress),
+    Boolean(hasShippingSelected() || pickupAddress),
   ];
 };
 
@@ -538,16 +674,16 @@ const validateStep = (stepIndex) => {
   const categoryId = String(categorySelect?.value ?? "").trim();
   const description = String(descriptionInput?.value ?? "").trim();
   const price = parsePrice(priceInput?.value);
+  const stock = parseStock(stockInput?.value);
   const location = String(locationInput?.value ?? "").trim();
   const publicPhone = String(publicPhoneInput?.value ?? "").trim();
   const publicEmail = String(publicEmailInput?.value ?? "").trim();
   const pickupAddress = String(pickupAddressInput?.value ?? "").trim();
-  const deliveryMethods = collectDeliveryMethods();
   const images = collectImages();
   const imageError = validateImages(images);
 
   if (stepIndex === 0 && !title) {
-    setFeedback("El título es obligatorio.");
+    setFeedback("El nombre del producto es obligatorio.");
     return false;
   }
   if (stepIndex === 0 && !categoryId) {
@@ -562,7 +698,11 @@ const validateStep = (stepIndex) => {
     setFeedback("Ingresá un precio válido.");
     return false;
   }
-  if (stepIndex === 2 && images.length === 0) {
+  if (stepIndex === 2 && !stock) {
+    setFeedback("El stock debe estar entre 1 y 100.");
+    return false;
+  }
+  if (stepIndex === 2 && images.length === 0 && !editingProductId) {
     setFeedback("Subí una imagen del producto.");
     return false;
   }
@@ -582,11 +722,7 @@ const validateStep = (stepIndex) => {
     setFeedback("Ingresá un email público.");
     return false;
   }
-  if (stepIndex === 4 && deliveryMethods.length === 0) {
-    setFeedback("Seleccioná al menos una opción de entrega.");
-    return false;
-  }
-  if (stepIndex === 4 && !pickupAddress) {
+  if (stepIndex === 4 && !hasShippingSelected() && !pickupAddress) {
     setFeedback("Ingresá la dirección.");
     return false;
   }
@@ -609,15 +745,15 @@ const updatePublisherUi = () => {
   });
   if (progressCount) progressCount.setAttribute("aria-label", `Paso ${visibleStep} de ${total}`);
 
-  if (previewTitle) previewTitle.textContent = String(titleInput?.value ?? "").trim() || "Título del producto";
+  if (previewTitle) previewTitle.textContent = String(titleInput?.value ?? "").trim() || "Nombre del producto";
   if (previewCategory) previewCategory.textContent = category || "Sin categoría";
   if (previewPrice) previewPrice.textContent = formatPrice(priceInput?.value);
   if (previewDescription) {
     previewDescription.textContent = description || "La descripción va apareciendo mientras cargás.";
   }
-  if (previewLocation) previewLocation.textContent = location || "Sin elegir";
+  if (previewLocation) previewLocation.textContent = formatProductLocation(location, "Sin elegir");
   if (previewDelivery) previewDelivery.textContent = getDeliveryLabel();
-  if (previewImage && !hasImage) previewImage.src = "/logo2.svg";
+  if (previewImage && !hasImage) previewImage.src = existingImageUrl || "/logo2.svg";
 };
 
 const showSuccessState = () => {
@@ -666,6 +802,8 @@ const submitProduct = async () => {
   const categoryId = String(categorySelect.value ?? "").trim();
   const description = String(descriptionInput?.value ?? "").trim();
   const price = parsePrice(priceInput.value);
+  const stock = parseStock(stockInput?.value);
+  const publicationType = String(publicationTypeInput?.value ?? "permanent").trim();
   const location = String(locationInput?.value ?? "").trim();
   const publicPhone = String(publicPhoneInput?.value ?? "").trim();
   const publicEmail = String(publicEmailInput?.value ?? "").trim();
@@ -675,7 +813,7 @@ const submitProduct = async () => {
   const imageError = validateImages(images);
 
   if (!title) {
-    setFeedback("El título es obligatorio.");
+    setFeedback("El nombre del producto es obligatorio.");
     return;
   }
   if (!categoryId) {
@@ -690,6 +828,10 @@ const submitProduct = async () => {
     setFeedback("Ingresá un precio válido.");
     return;
   }
+  if (!stock) {
+    setFeedback("El stock debe estar entre 1 y 100.");
+    return;
+  }
   if (!location) {
     setFeedback("Seleccioná una ubicación.");
     return;
@@ -702,15 +844,11 @@ const submitProduct = async () => {
     setFeedback("Ingresá un email público.");
     return;
   }
-  if (deliveryMethods.length === 0) {
-    setFeedback("Seleccioná al menos una opción de entrega.");
-    return;
-  }
-  if (!pickupAddress) {
+  if (!hasShippingSelected() && !pickupAddress) {
     setFeedback("Ingresá la dirección.");
     return;
   }
-  if (images.length === 0) {
+  if (images.length === 0 && !editingProductId) {
     setFeedback("Subí una imagen del producto.");
     return;
   }
@@ -729,61 +867,62 @@ const submitProduct = async () => {
   try {
     /* Optimiza imágenes antes de subir. */
     const optimizedImages = await optimizeImages(images);
-    const { data, error } = await supabase.from("products").insert({
-      user_id: session.user.id,
+    const productPayload = {
       category_id: categoryId,
       title,
-      description: description || null,
+      description,
       price,
-      currency: "ARS",
+      stock,
+      publication_type: publicationType,
       location,
       delivery_methods: deliveryMethods,
-      pickup_address: pickupAddress || null,
-      contact: `${publicPhone} | ${publicEmail}`,
-      seller_name: resolveSellerName(session),
-      image_url: null,
-    }).select("id").single();
-
-    if (error) {
-      const message = String(error.message || "");
-      if (message.includes("column") || message.includes("schema")) {
-        setFeedback("No se pudo publicar. Ejecutá el SQL incremental en Supabase.");
-      } else {
-        setFeedback("No se pudo publicar el producto.");
-      }
-      return;
-    }
-
-    const productId = data?.id;
+      pickup_address: deliveryMethods.includes("retiro") ? pickupAddress || null : null,
+    };
+    const response = editingProductId
+      ? await requestProductApi(`/api/products/${encodeURIComponent(editingProductId)}`, { method: "PATCH", body: JSON.stringify(productPayload) })
+      : await requestProductApi("/api/products", { method: "POST", body: JSON.stringify(productPayload) });
+    const productId = String(response?.product?.id ?? editingProductId).trim();
     const imageUrls = productId
       ? await uploadImages(session.user.id, productId, optimizedImages)
       : [];
     if (images.length > 0 && imageUrls.length === 0) {
-      setFeedback("El producto se publicó, pero no se pudieron subir las imágenes.");
+      throw new Error("No se pudo subir la imagen. La publicación quedó oculta para que puedas reintentar sin perder seguridad.");
     }
     if (productId && imageUrls.length > 0) {
-      await supabase
-        .from("products")
-        .update({
+      await requestProductApi(`/api/products/${encodeURIComponent(productId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
           image_url: imageUrls[0],
           image_urls: imageUrls,
-        })
-        .eq("id", productId);
+        }),
+      });
+    }
+
+    if (!editingProductId && response?.requires_payment) {
+      setFeedback("Abriendo el pago de la publicación mensual...");
+      const checkout = await requestProductApi("/api/publication-checkout", {
+        method: "POST",
+        body: JSON.stringify({ product_id: productId }),
+      });
+      if (!checkout?.init_point) throw new Error("No se pudo iniciar el pago mensual.");
+      window.location.href = checkout.init_point;
+      return;
     }
 
     /* Reinicio de interfaz luego de publicar. */
     form.reset();
     clearPreviews();
-    deliveryInputs.forEach((input) => {
-      input.checked = false;
-    });
+    resetDeliverySelection();
+    resetLocationSelection();
     updatePickupAddressVisibility();
     updatePublisherUi();
     setFeedback("");
+    if (successTitle) successTitle.textContent = editingProductId ? "Cambios guardados." : "Felicitaciones, tu producto se ha publicado.";
+    if (successCopy) successCopy.textContent = editingProductId ? "La publicación quedó actualizada." : "La publicación ya está disponible para compradores.";
     showSuccessState();
     window.scrollTo({ top: 0, behavior: "smooth" });
-  } catch {
-    setFeedback("No se pudo publicar el producto.");
+  } catch (error) {
+    setFeedback(error instanceof Error ? error.message : "No se pudo publicar el producto.");
   } finally {
     if (submitButton) submitButton.disabled = false;
   }

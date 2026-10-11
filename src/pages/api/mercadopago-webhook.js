@@ -10,6 +10,7 @@ import {
 import { isProductReservationConflictError } from "../../lib/atomicOrders.js";
 import { recordOrderPaymentMovement } from "../../lib/paymentMovement.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
+import { applyPublicationPayment } from "../../lib/publicationPayments.js";
 
 /* Tokens requeridos para consultar la API y validar firma. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -77,12 +78,18 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
 
   const { data: orderItems, error: itemsError } = await supabaseAdmin
     .from("order_items")
-    .select("product_id")
+    .select("product_id,seller_user_id")
     .eq("order_id", safeOrderId);
 
   if (itemsError) {
     console.error("[mp-webhook] Order items lookup failed", { orderId: safeOrderId, error: itemsError.message });
     return "";
+  }
+
+  const snapshotSellerIds = [...new Set((orderItems ?? []).map((item) => String(item?.seller_user_id ?? "").trim()).filter(Boolean))];
+  if (snapshotSellerIds.length === 1) {
+    const { data: account } = await supabaseAdmin.from("seller_mercadopago_accounts").select("access_token").eq("user_id", snapshotSellerIds[0]).maybeSingle();
+    return String(account?.access_token ?? "").trim();
   }
 
   const productIds = [
@@ -261,6 +268,15 @@ export const POST = async ({ request }) => {
     const paidAmount = Number(paymentData?.transaction_amount ?? 0);
     const currencyId = String(paymentData?.currency_id ?? "").toUpperCase();
 
+    const publicationPayment = await applyPublicationPayment(supabaseAdmin, paymentData);
+    if (publicationPayment.handled) {
+      if (!publicationPayment.ok) {
+        console.error("[mp-webhook] Publication payment update failed", { error: publicationPayment.error });
+        return new Response("Publication update failed", { status: publicationPayment.status ?? 500 });
+      }
+      return new Response("OK", { status: 200 });
+    }
+
     /* Referencia externa debe mapear a una orden local. */
     if (!externalReference) {
       console.error("[mp-webhook] Missing external_reference");
@@ -358,19 +374,8 @@ export const POST = async ({ request }) => {
 
     let hasProductConflict = false;
     let productConflictCount = 0;
-    if (mappedStatus === "approved") {
-      /* Mensaje anticipado; el trigger cierra cualquier carrera posterior. */
-      const availability = await findProductReservationConflicts(supabaseAdmin, order.id);
-      if (!availability.ok) {
-        console.error("[mp-webhook] Product availability check failed", {
-          orderId: order.id,
-          error: availability.error,
-        });
-        return new Response("Product availability check failed", { status: 500 });
-      }
-      hasProductConflict = availability.conflicts.length > 0;
-      productConflictCount = availability.conflicts.length;
-    }
+    // La reserva ya se hizo al crear la orden. Si una aprobación llega tarde,
+    // el trigger transaccional intenta reservar nuevamente y decide con row lock.
 
     const paymentDetail = mergeMercadoPagoPaymentDetail(order.payment_detail, paymentData?.status_detail);
     if (!hasProductConflict) {

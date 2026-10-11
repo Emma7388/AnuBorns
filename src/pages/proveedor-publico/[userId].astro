@@ -8,6 +8,7 @@ import TitleBadge from "../../components/TitleBadge.astro";
 import { categories as categoryCatalog } from "../../data/categories.js";
 import { filterAvailableProducts } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { formatProductLocation } from "../../lib/productLocation.js";
 
 const { userId } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -30,7 +31,7 @@ const fetchJson = async (url) => {
 
 const products = supabaseUrl && supabaseAnonKey && safeUserId
   ? await fetchJson(
-      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,contact,seller_name,user_id,created_at,categories(slug,name)&user_id=eq.${safeUserId}&order=created_at.desc`
+      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,contact,seller_name,user_id,stock,publication_type,publication_status,publication_expires_at,created_at,categories(slug,name)&user_id=eq.${safeUserId}&order=created_at.desc`
     )
   : [];
 
@@ -58,7 +59,7 @@ const publicEmail = emailMatch?.[0] ?? "";
 const publicPhone = String(publicProfile?.phone ?? "").trim();
 const phoneDigits = publicPhone.replace(/\D+/g, "");
 const publicAddress = String(first?.pickup_address ?? "").trim();
-const publicLocation = String(first?.location ?? "").trim();
+const publicLocation = formatProductLocation(first?.location, "");
 
 const formatPrice = (value) => {
   const safe = Number(value ?? 0);
@@ -72,12 +73,10 @@ const formatDate = (value) => {
 };
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
-  const labels = value.map((item) => {
-    if (item === "retiro") return "Retiro";
-    if (item === "envio") return "Envío";
-    return item;
-  });
-  return labels.join(" + ");
+  const methods = value.map((item) => String(item ?? "").trim().toLowerCase());
+  if (methods.includes("envio")) return "Envío";
+  if (methods.includes("retiro")) return "Retiro";
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).join(" + ") || "No especificada";
 };
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
@@ -220,6 +219,7 @@ const providerCategoryFilters = [...categoryFilterMap.values()]
               data-delivery={serializeDelivery(product.delivery_methods)}
               data-category-slug={resolveProductCategory(product)?.slug || ""}
               data-cart-id={product.id || ""}
+              data-stock={product.stock ?? 1}
             >
               <img
                 class="ab-provider-product-card__image"
@@ -238,11 +238,12 @@ const providerCategoryFilters = [...categoryFilterMap.values()]
               <p class="ab-provider-product-card__description"><strong>Detalle:</strong> {product.description || "Sin descripción"}</p>
               <ul class="ab-provider-product-card__details">
                 <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
-                <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
+                <li>Ubicación: <strong>{formatProductLocation(product.location)}</strong></li>
                 {product.pickup_address ? (
                   <li>Dirección: <strong>{product.pickup_address}</strong></li>
                 ) : null}
                 <li>Entrega: <strong>{formatDelivery(product.delivery_methods)}</strong></li>
+                <li>Stock: <strong>{product.stock ?? 0}</strong></li>
               </ul>
               <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
                 <a

@@ -10,7 +10,7 @@ export const isProductReservationConflictError = (error) => {
 const getAtomicItems = (serverItems = []) =>
   (Array.isArray(serverItems) ? serverItems : []).map((item) => ({
     product_id: toSafeText(item?.product_id),
-    qty: 1,
+    qty: Math.max(1, Math.min(100, Math.floor(Number(item?.qty ?? 1)) || 1)),
     unit_price: Number(item?.unit_price ?? 0),
     currency: toSafeText(item?.currency).toUpperCase(),
     provider_user_id: toSafeText(item?.provider_user_id),
@@ -23,7 +23,7 @@ const getRpcFailure = (payload = {}) => {
       ok: false,
       status: 409,
       code,
-      error: "Uno o mas productos ya fueron vendidos.",
+      error: "Uno o más productos no tienen stock suficiente.",
       soldProductIds: Array.isArray(payload?.sold_product_ids)
         ? payload.sold_product_ids.map(toSafeText).filter(Boolean)
         : [],

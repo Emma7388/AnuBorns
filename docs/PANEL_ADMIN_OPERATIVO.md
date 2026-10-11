@@ -69,6 +69,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - Checkout Pro con piezas minimas: `SITE_URL`, Mercado Pago, `orders`, `order_items`, `products`, `seller_mercadopago_accounts`.
 - Carrito multiproveedor: finalizar un vendedor por vez y validar en servidor.
 - El panel de administracion suma el `marketplace_fee` guardado en `orders.payment_detail`; no confirma por si solo la acreditacion real en Mercado Pago.
+- La compra real posterior al reinicio confirmó externamente una comisión de ARS 8 para una venta de ARS 500. Esa evidencia proviene del desglose de Mercado Pago; no cambia la regla de que el panel local por sí solo sólo muestra trazas registradas.
 
 ### Mercado Pago
 
@@ -123,6 +124,8 @@ Estas son las funciones posibles para sumar al panel, en orden prudente:
    - Detectar tokens OAuth vencidos o por vencer.
    - Ver compras con `payment_detail` incompleto.
    - Ver pagos aprobados sin movimiento en `audit_logs`.
+   - La vista del propio vendedor ya consulta sus pagos pendientes con OAuth y diferencia preferencias sin intento. Sigue pendiente una vista central equivalente para administradores.
+   - La publicación y el checkout ya bloquean discrepancias de nombre/apellido, email y DNI, con excepción para MP User ID `1157622469`. Sigue pendiente exponer ese diagnóstico en el panel admin.
 
 4. Seguridad
    - Ver admins activos.

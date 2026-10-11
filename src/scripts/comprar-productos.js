@@ -14,6 +14,7 @@ const addCardToCart = async (card) => {
     seller_name: card.dataset.provider,
     currency: card.dataset.currency,
     delivery_methods: card.dataset.delivery,
+    stock: Math.max(1, Number(card.dataset.stock ?? 1)),
   });
 };
 

@@ -39,6 +39,17 @@ test("omite envío sin costo y muestra campos legibles", () => {
   assert.doesNotMatch(html, /<span>Envío<\/span>|mp_preference|marketplace_fee|oauth_seller/);
 });
 
+test("distingue un envío a cargo del vendedor de un retiro", () => {
+  const html = buildPurchaseDetailHtml({
+    ...order,
+    shipping_requested: true,
+    shipping_cost: 0,
+  });
+  assert.match(html, /Envío a domicilio/);
+  assert.match(html, /<span>Envío<\/span><strong>A cargo del vendedor<\/strong>/);
+  assert.doesNotMatch(html, /Retiro coordinado|>\$0</);
+});
+
 test("ambas variantes de cancelación omiten una entrega activa", () => {
   for (const status of ["cancelled", "canceled"]) {
     const html = buildPurchaseDetailHtml({ ...order, status, shipping_requested: true });

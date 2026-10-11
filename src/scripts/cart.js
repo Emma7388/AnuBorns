@@ -1,13 +1,13 @@
 /* Interfaz del carrito: render, acciones y navegación. */
 import { supabase } from "../lib/supabaseClient";
-import { getCart, removeFromCart } from "../lib/cart";
+import { getCart, removeFromCart, updateQuantity } from "../lib/cart";
 import { getCurrentInternalPath, withReturnPath } from "../lib/internalNavigation.js";
 import { fetchUserProfile } from "../lib/userProfile";
 import {
-  SHIPPING_FEE,
   clearUnavailableProviderShippingPreferences,
   clearShippingPreference,
   getProviderShippingPreference,
+  itemRequiresShipping,
   itemSupportsShipping,
   setProviderShippingPreference,
 } from "../lib/shippingPreference";
@@ -77,7 +77,7 @@ const groupItemsByProvider = (items) => {
     }
     const group = groups.get(key);
     const price = Number(item.price_snapshot ?? 0);
-    group.subtotal += price;
+    group.subtotal += price * Math.max(1, Number(item.quantity ?? 1));
     group.items.push(item);
   });
   return [...groups.values()];
@@ -197,12 +197,39 @@ const renderCart = async () => {
     total += group.subtotal;
     const safeGroupProvider = escapeHtml(group.provider);
     const canRequestProviderShipping = group.items.every(itemSupportsShipping);
+    const requiresProviderShipping = group.items.some(itemRequiresShipping);
+    const hasDeliveryConflict = requiresProviderShipping && !canRequestProviderShipping;
     const shippingPreference = getDisplayShippingPreference(group.key);
     const profileShippingReady = Boolean(profileShippingAddress && profileShippingCity);
-    const hasProviderShipping = canRequestProviderShipping && shippingPreference.requested;
-    const selectedDeliveryLabel = hasProviderShipping ? "Envío" : "A retirar";
-    const shippingPrefix = hasProviderShipping ? "Envío + " : "";
-    const displayedSubtotal = group.subtotal + (hasProviderShipping ? SHIPPING_FEE : 0);
+    const hasProviderShipping = canRequestProviderShipping && (requiresProviderShipping || shippingPreference.requested);
+    const shippingPrefix = hasProviderShipping ? "Envío · " : "";
+    const displayedSubtotal = group.subtotal;
+    const checkoutActionHtml = hasDeliveryConflict
+      ? `<button class="ab-provider-product-card__button ab-provider-product-card__button--buy" type="button" disabled>Modalidades incompatibles</button>`
+      : isProviderCheckoutKey(group.key)
+        ? `<a class="ab-provider-product-card__button ab-provider-product-card__button--buy" href="${escapeHtml(getProviderCheckoutHref(group.key))}">
+            <img src="/icons/comprar.svg" alt="" aria-hidden="true" />
+            <span>Comprar este producto</span>
+          </a>`
+        : "";
+    let shippingControlsHtml = `<p class="ab-muted-text">Modalidad: retiro en el domicilio del vendedor.</p>`;
+    if (hasDeliveryConflict) {
+      shippingControlsHtml = `<p class="ab-muted-text">Este grupo combina productos exclusivos de envío con productos exclusivos de retiro. Compralos por separado.</p>`;
+    } else if (requiresProviderShipping) {
+      shippingControlsHtml = `
+        <p class="ab-muted-text">Modalidad: envío a domicilio a cargo del vendedor. Usa la dirección guardada en tu perfil.</p>
+        ${profileShippingReady ? "" : `<p class="ab-muted-text">Completá dirección y ciudad en Mis datos para continuar.</p>`}
+      `;
+    } else if (canRequestProviderShipping) {
+      shippingControlsHtml = `
+        <label class="ab-option ab-checkout-shipping__toggle">
+          <input data-shipping-requested type="checkbox" ${shippingPreference.requested ? "checked" : ""} />
+          Solicitar envío a domicilio para ${safeGroupProvider}
+        </label>
+        <p class="ab-muted-text">El envío está a cargo del vendedor y usa la dirección guardada en tu perfil.</p>
+        ${profileShippingReady ? "" : `<p class="ab-muted-text">Completá dirección y ciudad en Mis datos para solicitar envío.</p>`}
+      `;
+    }
     const section = document.createElement("section");
     section.className = "ab-cart-provider-group";
     section.dataset.providerKey = group.key;
@@ -213,41 +240,19 @@ const renderCart = async () => {
           <h2>${safeGroupProvider}</h2>
           <p>${shippingPrefix}${group.items.length} ${group.items.length === 1 ? "producto" : "productos"} · <span class="ab-cart-provider-group__total">TOTAL: <strong>$${formatPrice(displayedSubtotal)}</strong></span></p>
         </div>
-        ${
-          isProviderCheckoutKey(group.key)
-            ? `<a class="ab-provider-product-card__button ab-provider-product-card__button--buy" href="${escapeHtml(getProviderCheckoutHref(group.key))}">
-                <img src="/icons/comprar.svg" alt="" aria-hidden="true" />
-                <span>Comprar este producto</span>
-              </a>`
-            : ""
-        }
+        ${checkoutActionHtml}
       </div>
       <div class="ab-cart-provider-group__items"></div>
       <div class="ab-checkout-shipping ab-cart-provider-shipping">
-        ${
-          canRequestProviderShipping
-            ? `
-              <label class="ab-option ab-checkout-shipping__toggle">
-                <input data-shipping-requested type="checkbox" ${shippingPreference.requested ? "checked" : ""} />
-                Solicitar envío a domicilio para ${safeGroupProvider} (+$${formatPrice(SHIPPING_FEE)})
-              </label>
-              <p class="ab-muted-text">
-                El envío se aplica solo a los productos de este proveedor y usa la dirección guardada en tu perfil.
-              </p>
-              ${
-                profileShippingReady
-                  ? ""
-                  : `<p class="ab-muted-text">Completá dirección y ciudad en Mis datos para solicitar envío.</p>`
-              }
-            `
-            : `<p class="ab-muted-text">Este proveedor tiene productos que no aceptan envío.</p>`
-        }
+        ${shippingControlsHtml}
       </div>
     `;
 
     const groupItemsWrap = section.querySelector(".ab-cart-provider-group__items");
     group.items.forEach((item) => {
       const price = Number(item.price_snapshot ?? 0);
+      const quantity = Math.max(1, Number(item.quantity ?? 1));
+      const stock = Math.max(1, Number(item.product?.stock ?? 1));
       const product = item.product ?? null;
       const title = product?.title ?? item.product_id ?? "Producto";
       const image = product?.image_url ?? "/logo2.svg";
@@ -255,7 +260,12 @@ const renderCart = async () => {
       const safeTitle = escapeHtml(title);
       const safeImage = escapeHtml(image);
       const safeCurrency = escapeHtml(currency);
-      const safeSelectedDelivery = escapeHtml(selectedDeliveryLabel);
+      const selectedDelivery = itemRequiresShipping(item)
+        ? "Envío"
+        : hasProviderShipping && itemSupportsShipping(item)
+          ? "Envío"
+          : "A retirar";
+      const safeSelectedDelivery = escapeHtml(selectedDelivery);
       const productId = String(item.product_id ?? "").trim();
       const productHref = productId
         ? withReturnPath(`/producto/${encodeURIComponent(productId)}`, getCurrentInternalPath(window.location))
@@ -271,7 +281,14 @@ const renderCart = async () => {
           <ul class="ab-cart-item__details">
             <li>Entrega: <strong>${safeSelectedDelivery}</strong></li>
             <li>Precio: <strong>$${formatPrice(price)} ${safeCurrency}</strong></li>
+            <li>Subtotal: <strong>$${formatPrice(price * quantity)} ${safeCurrency}</strong></li>
           </ul>
+          <div class="ab-cart-quantity" aria-label="Cantidad">
+            <button type="button" data-action="decrease" ${quantity <= 1 ? "disabled" : ""}>−</button>
+            <span>${quantity}</span>
+            <button type="button" data-action="increase" ${quantity >= stock ? "disabled" : ""}>+</button>
+            <small>Stock: ${stock}</small>
+          </div>
         </div>
         <div class="ab-cart-item__actions">
           ${productHref ? `<a class="ab-provider-product-card__button ab-provider-product-card__button--ghost" href="${escapeHtml(productHref)}">
@@ -287,7 +304,6 @@ const renderCart = async () => {
     });
 
     itemsWrap.appendChild(section);
-    if (canRequestProviderShipping && shippingPreference.requested) total += SHIPPING_FEE;
   });
 
   totalLabel.textContent = `$${formatPrice(total)}`;
@@ -327,6 +343,13 @@ const initCartPage = () => {
       openRemoveModal(id);
       return;
     }
+    const item = (await getCart()).find((entry) => entry.product_id === id);
+    if (!item) return;
+    const delta = action === "increase" ? 1 : action === "decrease" ? -1 : 0;
+    if (!delta) return;
+    button.disabled = true;
+    await updateQuantity(id, Number(item.quantity ?? 1) + delta);
+    await renderCart();
   });
 
   /* Vaciar carrito completo. */
@@ -357,8 +380,14 @@ const initCartPage = () => {
       return;
     }
     for (const group of groups) {
-      const preference = getProviderShippingPreference(group.key);
-      if (!preference.requested) continue;
+      const requiresShipping = group.items.some(itemRequiresShipping);
+      const preference = getDisplayShippingPreference(group.key);
+      if (requiresShipping && !group.items.every(itemSupportsShipping)) {
+        feedback.textContent = `Los productos de ${group.provider} tienen modalidades de entrega incompatibles. Compralos por separado.`;
+        return;
+      }
+      if (!requiresShipping && !group.items.every(itemSupportsShipping)) continue;
+      if (!requiresShipping && !preference.requested) continue;
       if (!group.items.every(itemSupportsShipping)) {
         feedback.textContent = `Hay productos de ${group.provider} que no aceptan envío.`;
         return;

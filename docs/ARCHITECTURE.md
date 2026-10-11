@@ -1,6 +1,6 @@
 # Guía de arquitectura
 
-Actualizado el 3 de octubre de 2026.
+Actualizado el 11 de octubre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
@@ -42,11 +42,19 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `docs/supabase-product-catalog-reset.sql`: reinicio manual de datos comerciales y carga del catálogo vigente. El usuario confirmó el 10 de octubre de 2026 que este procedimiento ya se había ejecutado, aunque no quedó registrada la fecha exacta de ejecución. Elimina productos, carritos, órdenes, ítems, despachos, lecturas de estado y auditoría comercial; preserva Auth, perfiles, administradores y conexiones OAuth de Mercado Pago. Por eso la base actual no conserva trazabilidad local de pagos anteriores al reinicio.
 - `src/lib/supabaseClient.js`: cliente Supabase de navegador con validación de variables públicas.
 - `src/lib/supabaseServer.js`: cliente admin de servidor.
-- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; en cliente deduplica creación de carrito, altas de producto, conteo y lectura completa con cachés cortas para absorber ráfagas del header/router. Las altas usan `upsert` sobre el índice único `(cart_id, product_id)`.
+- `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; deduplica altas, conserva una fila por producto, suma cantidades reales y limita cada cantidad al stock. La migración nueva consolida además un único carrito por usuario.
+- `src/pages/api/products.js` y `src/pages/api/products/[id].js`: altas, edición y borrado de publicaciones con autenticación, autorización por propietario y validación server-side.
+- `src/lib/mercadopagoIdentity.js`: compara nombre/apellido, email y DNI normalizados contra `/users/me`; mantiene la excepción explícita para MP User ID `1157622469`.
+- `src/lib/publicationPayments.js`, `/api/publication-checkout` y `/api/publication-payment-sync`: cobro directo a plataforma, idempotencia y activación por 30 días de publicaciones mensuales.
+- `docs/supabase-product-stock-publications.sql`: stock 1–100, reservas atómicas por cantidad, reposición, contratos de publicación, snapshots de vendedor, RLS y carrito único.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
 - `src/lib/atomicOrders.js`: invoca la RPC transaccional que vuelve a validar snapshots del servidor y crea la orden con sus ítems bajo una reserva única por producto.
+- `src/lib/marketplaceFee.js`: calcula la comisión sobre la base recibida; checkout le pasa únicamente el subtotal de publicaciones permanentes. Prioriza importe fijo cuando es positivo y, en caso contrario, aplica el porcentaje con redondeo al peso entero.
+- `src/lib/productLocation.js`: normaliza Campana, Zárate, Lima y la cobertura conjunta de las tres ciudades.
+- `src/lib/shippingPreference.js`: interpreta retiro o envío como modalidades excluyentes. El retiro es el valor seguro por defecto y una publicación con envío requiere esa modalidad.
+- `src/lib/sellerShipping.js`: conserva la lectura correcta de envíos nuevos con costo cero y de importes históricos ya registrados.
 - `src/lib/paymentStatus.js`: normaliza estados de Mercado Pago y define qué estados bloquean producto, cuáles son visibles en ventas y cuáles permiten despacho.
 - `src/lib/paymentMovement.js`: registra cambios reales de estado de pago en `audit_logs`.
 - `src/lib/serverRequest.js`: lectura JSON server-side con límite de bytes y errores controlados.
@@ -59,12 +67,12 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ### Verificación
 
-`node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs` valida estados de pago, bloqueo de despacho, detalle de compra, lectura JSON limitada y OAuth state. La integración con MP, el build y la revisión visual requieren verificaciones adicionales; consultar el README y la continuidad de producción.
+`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 11 de octubre de 2026 aprobó 94 pruebas sin fallos. La migración y los permisos remotos fueron auditados ese día; el pago mensual, la integración de reembolso con MP, el build y la revisión visual requieren verificaciones adicionales.
 
 ### Flujos visibles
 
 1. `comprar` muestra categorías y catálogo de productos.
-2. El usuario agrega productos al carrito y completa una orden para un único vendedor.
+2. El usuario puede conservar productos de varios vendedores en el carrito, pero completa un checkout independiente por vendedor. Las modalidades incompatibles se separan antes de pagar.
 3. Mercado Pago confirma el pago y la orden pasa al historial de compras y ventas; si luego informa reembolso o cancelación, la orden conserva historial pero pausa despacho/entrega según estado.
 4. `mis-ventas` permite administrar productos publicados y despachos.
 5. El perfil público de vendedor se genera desde productos y perfiles reales de Supabase.
@@ -81,5 +89,6 @@ Las pantallas de detalle preservan la ruta de origen mediante el parámetro inte
 - Las APIs que reciben JSON usan límite de cuerpo y errores controlados para evitar cargas excesivas.
 - Las respuestas JSON comunes salen con `Cache-Control: no-store` y `X-Content-Type-Options: nosniff`.
 - El estado OAuth de Mercado Pago se firma con secreto privado y no tiene fallback fijo de desarrollo.
+- El rate limit actual es en memoria y sólo mitiga ráfagas por instancia; su reemplazo distribuido sigue pendiente para una garantía global en Vercel.
 - Las configuraciones y políticas de Supabase se documentan en los scripts de seguridad bajo `docs/`.
 - El detalle operativo de pagos y reembolsos está en `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`.

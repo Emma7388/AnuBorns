@@ -14,10 +14,9 @@ export const getSoldProductIds = async (supabaseAdmin, productIds = []) => {
   if (!supabaseAdmin || ids.length === 0) return new Set();
 
   const { data, error } = await supabaseAdmin
-    .from("order_items")
-    .select("product_id, orders!inner(status)")
-    .in("product_id", ids)
-    .in("orders.status", SOLD_ORDER_STATUSES);
+    .from("products")
+    .select("id,stock,publication_status,publication_type,publication_expires_at")
+    .in("id", ids);
 
   if (error) {
     throw error;
@@ -25,7 +24,12 @@ export const getSoldProductIds = async (supabaseAdmin, productIds = []) => {
 
   return new Set(
     (data ?? [])
-      .map((row) => String(row?.product_id ?? "").trim())
+      .filter((row) => {
+        if (Number(row?.stock ?? 0) < 1 || row?.publication_status !== "active") return true;
+        return row?.publication_type === "monthly"
+          && (!row?.publication_expires_at || Date.parse(row.publication_expires_at) <= Date.now());
+      })
+      .map((row) => String(row?.id ?? "").trim())
       .filter(Boolean),
   );
 };
@@ -34,10 +38,18 @@ export const filterAvailableProducts = async (supabaseAdmin, products = []) => {
   const safeProducts = Array.isArray(products) ? products : [];
   if (safeProducts.length === 0) return safeProducts;
 
-  const soldProductIds = await getSoldProductIds(
-    supabaseAdmin,
-    safeProducts.map((product) => product?.id),
-  );
+  const soldProductIds = new Set(safeProducts.filter((product) => {
+    if ("stock" in product) {
+      if (Number(product?.stock ?? 0) < 1 || product?.publication_status !== "active") return true;
+      return product?.publication_type === "monthly"
+        && (!product?.publication_expires_at || Date.parse(product.publication_expires_at) <= Date.now());
+    }
+    return false;
+  }).map((product) => String(product?.id ?? "").trim()));
+  if (safeProducts.some((product) => !("stock" in product))) {
+    const legacy = await getSoldProductIds(supabaseAdmin, safeProducts.map((product) => product?.id));
+    legacy.forEach((id) => soldProductIds.add(id));
+  }
   if (soldProductIds.size === 0) return safeProducts;
 
   return safeProducts.filter((product) => !soldProductIds.has(String(product?.id ?? "").trim()));

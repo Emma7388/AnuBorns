@@ -6,6 +6,7 @@ import TitleBadge from "../../components/TitleBadge.astro";
 import { getSoldProductIds } from "../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { getCurrentInternalPath, withReturnPath } from "../../lib/internalNavigation.js";
+import { formatProductLocation } from "../../lib/productLocation.js";
 
 const { id } = Astro.params;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -28,7 +29,7 @@ const fetchJson = async (url) => {
 
 const product = supabaseUrl && supabaseAnonKey && safeId
   ? await fetchJson(
-      `${supabaseUrl}/rest/v1/products?select=id,user_id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,seller_name,created_at&id=eq.${safeId}&limit=1`
+      `${supabaseUrl}/rest/v1/products?select=id,user_id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,seller_name,stock,publication_type,publication_status,publication_expires_at,created_at&id=eq.${safeId}&limit=1`
     )
   : null;
 
@@ -56,12 +57,10 @@ const formatDate = (value) => {
 };
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
-  const labels = value.map((item) => {
-    if (item === "retiro") return "Retiro";
-    if (item === "envio") return "Envío";
-    return item;
-  });
-  return labels.join(" + ");
+  const methods = value.map((item) => String(item ?? "").trim().toLowerCase());
+  if (methods.includes("envio")) return "Envío";
+  if (methods.includes("retiro")) return "Retiro";
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).join(" + ") || "No especificada";
 };
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
@@ -84,6 +83,7 @@ const shortId = (value) => {
         data-currency={current.currency || "ARS"}
         data-delivery={serializeDelivery(current.delivery_methods)}
         data-cart-id={current.id || ""}
+        data-stock={current.stock ?? 1}
       >
         <img
           class="ab-provider-product-card__image"
@@ -108,9 +108,10 @@ const shortId = (value) => {
         <p class="ab-provider-product-card__description">{current.description || "Sin descripción."}</p>
         <ul class="ab-provider-product-card__details">
           <li>Fecha: <strong>{formatDate(current.created_at)}</strong></li>
-          <li>Ubicación: <strong>{current.location || "Sin especificar"}</strong></li>
+          <li>Ubicación: <strong>{formatProductLocation(current.location)}</strong></li>
           {current.pickup_address ? <li>Dirección: <strong>{current.pickup_address}</strong></li> : null}
           <li>Entrega: <strong>{formatDelivery(current.delivery_methods)}</strong></li>
+          <li>Stock: <strong>{current.stock ?? 0}</strong></li>
         </ul>
         <div class="ab-provider-product-card__actions">
           <button

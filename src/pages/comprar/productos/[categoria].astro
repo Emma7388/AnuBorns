@@ -8,6 +8,7 @@ import TitleBadge from "../../../components/TitleBadge.astro";
 import { categories } from "../../../data/categories.js";
 import { filterAvailableProducts } from "../../../lib/soldProducts.js";
 import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
+import { formatProductLocation } from "../../../lib/productLocation.js";
 
 // Evita cache para reflejar cambios en tiempo real.
 Astro.response.headers.set("Cache-Control", "no-store");
@@ -51,7 +52,7 @@ const categoryTone = categoryToneNames[((Math.max(currentCategoryTone, 0)) % 4)]
 
 const products = supabaseUrl && supabaseAnonKey
   ? await fetchJson(
-      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,created_at,seller_name,user_id,categories!inner(slug,name)&categories.slug=eq.${safeCategoria}&order=created_at.desc`
+      `${supabaseUrl}/rest/v1/products?select=id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,stock,publication_type,publication_status,publication_expires_at,created_at,seller_name,user_id,categories!inner(slug,name)&categories.slug=eq.${safeCategoria}&order=created_at.desc`
     )
   : [];
 
@@ -79,12 +80,10 @@ const formatDate = (value) => {
 };
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
-  const labels = value.map((item) => {
-    if (item === "retiro") return "Retiro";
-    if (item === "envio") return "Envío";
-    return item;
-  });
-  return labels.join(" + ");
+  const methods = value.map((item) => String(item ?? "").trim().toLowerCase());
+  if (methods.includes("envio")) return "Envío";
+  if (methods.includes("retiro")) return "Retiro";
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).join(" + ") || "No especificada";
 };
 const serializeDelivery = (value) =>
   Array.isArray(value) ? value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean).join(",") : "";
@@ -186,6 +185,7 @@ const resolveCategoryName = (product) => {
                   data-currency={product.currency || "ARS"}
                   data-delivery={serializeDelivery(product.delivery_methods)}
                   data-cart-id={product.id || ""}
+                  data-stock={product.stock ?? 1}
                 >
                   <img
                     class="ab-provider-product-card__image"
@@ -206,11 +206,12 @@ const resolveCategoryName = (product) => {
                   </p>
                   <ul class="ab-provider-product-card__details">
                     <li>Fecha: <strong>{formatDate(product.created_at)}</strong></li>
-                    <li>Ubicación: <strong>{product.location || "Sin especificar"}</strong></li>
+                    <li>Ubicación: <strong>{formatProductLocation(product.location)}</strong></li>
                     {product.pickup_address ? (
                       <li>Dirección: <strong>{product.pickup_address}</strong></li>
                     ) : null}
                     <li>Entrega: <strong>{formatDelivery(product.delivery_methods)}</strong></li>
+                    <li>Stock: <strong>{product.stock ?? 0}</strong></li>
                   </ul>
                   <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
                     <a
@@ -294,6 +295,8 @@ const resolveCategoryName = (product) => {
 </script>
 
 <script>
+  import { productMatchesLocation } from "../../../lib/productLocation.js";
+
   const initProductSearch = () => {
     const input = document.getElementById("product-search");
     const providerInput = document.getElementById("provider-search");
@@ -332,7 +335,7 @@ const resolveCategoryName = (product) => {
         const cards = Array.from(row.querySelectorAll(".ab-provider-product-card"));
         cards.forEach((card) => {
           const cardLocation = (card.dataset.location || "").trim();
-          const locationMatch = !activeLocation || cardLocation === activeLocation;
+          const locationMatch = productMatchesLocation(cardLocation, activeLocation);
           card.style.display = locationMatch ? "" : "none";
         });
         const visibleCards = cards.filter((card) => card.style.display !== "none");

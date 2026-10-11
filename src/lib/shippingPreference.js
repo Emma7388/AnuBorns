@@ -1,5 +1,4 @@
 /* Preferencias locales de envío por proveedor para carrito y checkout. */
-export const SHIPPING_FEE = 5000;
 
 const SHIPPING_KEY = "ab_shipping_preference_v1";
 
@@ -122,3 +121,12 @@ export const normalizeDeliveryMethods = (value) => {
 /* Determina si un item permite envío a domicilio. */
 export const itemSupportsShipping = (item) =>
   normalizeDeliveryMethods(item?.product?.delivery_methods).includes("envio");
+
+/* Si figura envío, esa modalidad reemplaza al retiro incluso en datos históricos. */
+export const itemRequiresShipping = (item) => itemSupportsShipping(item);
+
+/* Sin modalidad explícita se conserva el retiro como compatibilidad histórica. */
+export const itemSupportsPickup = (item) => {
+  const methods = normalizeDeliveryMethods(item?.product?.delivery_methods);
+  return !methods.includes("envio") && (methods.length === 0 || methods.includes("retiro"));
+};

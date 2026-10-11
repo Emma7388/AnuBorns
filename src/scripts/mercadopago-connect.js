@@ -68,7 +68,12 @@ const initMercadoPagoConnect = () => {
       : `Cuenta conectada: Usuario MP ${mpUserId}`;
     account.classList.remove("ab-is-hidden");
     setDisconnectVisible(true);
-    setPublisherVisible(true);
+    const canSell = payload?.can_sell !== false;
+    setPublisherVisible(canSell);
+    if (!canSell && status) {
+      const fields = Array.isArray(payload?.identity_mismatches) ? payload.identity_mismatches.join(", ") : "datos personales";
+      status.textContent = `La cuenta no coincide en ${fields}. Actualizá Mis datos para que coincidan con Mercado Pago.`;
+    }
   };
 
   const params = new URLSearchParams(window.location.search);

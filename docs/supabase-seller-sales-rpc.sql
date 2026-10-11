@@ -4,6 +4,8 @@
 -- Mueve filtro, conteo y paginacion a Postgres para evitar traer todas las
 -- ventas del vendedor y paginar en JS.
 
+drop function if exists public.get_seller_sales_page(uuid, text[], timestamptz, timestamptz, boolean, integer, integer);
+
 create or replace function public.get_seller_sales_page(
   p_seller_id uuid,
   p_statuses text[],
@@ -17,6 +19,8 @@ returns table (
   product_id text,
   item_name text,
   unit_price numeric,
+  qty integer,
+  item_image text,
   provider text,
   product_title text,
   product_currency text,
@@ -49,6 +53,8 @@ as $$
       order_items.product_id,
       order_items.name as item_name,
       order_items.unit_price,
+      order_items.qty,
+      order_items.image as item_image,
       order_items.provider,
       products.title as product_title,
       products.currency as product_currency,
@@ -70,16 +76,16 @@ as $$
       sale_dispatches.fulfillment_status,
       sale_dispatches.dispatched_at
     from public.order_items
-    inner join public.products
+    left join public.products
       on products.id::text = nullif(btrim(order_items.product_id), '')
-     and products.user_id = p_seller_id
     inner join public.orders
       on orders.id = order_items.order_id
     left join public.sale_dispatches
       on sale_dispatches.seller_id = p_seller_id
      and sale_dispatches.order_id = orders.id
      and sale_dispatches.product_id = order_items.product_id
-    where orders.status = any(p_statuses)
+    where order_items.seller_user_id = p_seller_id
+      and orders.status = any(p_statuses)
       and (p_from is null or orders.created_at >= p_from)
       and (p_to is null or orders.created_at <= p_to)
       and (
@@ -97,6 +103,8 @@ as $$
     base.product_id,
     base.item_name,
     base.unit_price,
+    base.qty,
+    base.item_image,
     base.provider,
     base.product_title,
     base.product_currency,
@@ -125,7 +133,7 @@ as $$
 $$;
 
 revoke all on function public.get_seller_sales_page(uuid, text[], timestamptz, timestamptz, boolean, integer, integer)
-  from public;
+  from public, anon, authenticated;
 
 grant execute on function public.get_seller_sales_page(uuid, text[], timestamptz, timestamptz, boolean, integer, integer)
   to service_role;

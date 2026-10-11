@@ -37,11 +37,16 @@ MERCADOPAGO_MARKETPLACE_FEE_PERCENT=1.5
 MERCADOPAGO_DIAGNOSTIC_MODE=false
 MERCADOPAGO_DIAGNOSTIC_ALLOWED_SELLER_USER_IDS=
 MERCADOPAGO_DIAGNOSTIC_ALLOWED_MP_USER_IDS=
+CHECKOUT_PENDING_ORDER_TTL_MINUTES=1440
 ```
 
 `SITE_URL` debe ser HTTPS y apuntar al dominio publico real. No dejarlo vacio: el checkout lo usa para `back_urls` y `notification_url`.
 
-La comision comercial objetivo es el 1,5%. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe quedar en `0`: si contiene un numero positivo, el checkout aplica ese importe fijo y no utiliza `MERCADOPAGO_MARKETPLACE_FEE_PERCENT`. Después de actualizar estas variables en Vercel se necesita un redeploy.
+La comision comercial objetivo es el 1,5% sobre las publicaciones permanentes. Las publicaciones mensuales pagan ARS 2.000 por 30 días y quedan fuera de la base porcentual al vender. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe quedar en `0`: si contiene un numero positivo, el checkout aplica ese importe fijo y no utiliza `MERCADOPAGO_MARKETPLACE_FEE_PERCENT`. Después de actualizar estas variables en Vercel se necesita un redeploy. Una compra real del 10 de octubre de 2026 confirmó que el despliegue aplicó el porcentaje: ARS 500 produjeron ARS 8 para AnuBorns.
+
+El cálculo vigente redondea al peso entero más cercano. Por eso ARS 7,50 se convierten en ARS 8. Mantener ese redondeo o admitir centavos es una decisión pendiente; no cambiarla sin volver a validar el desglose en Mercado Pago.
+
+`CHECKOUT_PENDING_ORDER_TTL_MINUTES` es opcional y vale 1440 minutos por defecto. Una orden local `pending` sin `payment_id` puede cancelarse después de ese plazo cuando el checkout o el historial disparan la limpieza; no es un cron ni demuestra que exista un pago pendiente en Mercado Pago.
 
 Despues de guardar las variables, hacer un redeploy. Las variables `PUBLIC_*` se incrustan durante `astro build`, asi que un despliegue anterior seguira fallando aunque las variables se agreguen despues.
 

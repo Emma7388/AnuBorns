@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
 import { fetchSalesList } from "../lib/salesListClient";
 import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
+import { formatProductLocation } from "../lib/productLocation.js";
 
 /* Referencias DOM. */
 let soldProductsList = document.getElementById("my-sold-products-list");
@@ -19,6 +20,9 @@ let soldProductsDateClear = document.getElementById("my-sold-products-date-clear
 let soldProductsShowAll = document.getElementById("my-sold-products-show-all");
 let productsGrid = document.getElementById("my-products-grid");
 let productsEmpty = document.getElementById("my-products-empty");
+let pendingPaymentsList = document.getElementById("my-pending-payments-list");
+let pendingPaymentsEmpty = document.getElementById("my-pending-payments-empty");
+let pendingPaymentsStatus = document.getElementById("my-pending-payments-status");
 let publishedProductsStatus = document.getElementById("my-published-products-status");
 let publishedProductsDateFilter = document.getElementById("my-published-products-date-filter");
 let publishedProductsFrom = document.getElementById("my-published-products-from");
@@ -45,6 +49,9 @@ const refreshMySalesNodes = () => {
   soldProductsShowAll = document.getElementById("my-sold-products-show-all");
   productsGrid = document.getElementById("my-products-grid");
   productsEmpty = document.getElementById("my-products-empty");
+  pendingPaymentsList = document.getElementById("my-pending-payments-list");
+  pendingPaymentsEmpty = document.getElementById("my-pending-payments-empty");
+  pendingPaymentsStatus = document.getElementById("my-pending-payments-status");
   publishedProductsStatus = document.getElementById("my-published-products-status");
   publishedProductsDateFilter = document.getElementById("my-published-products-date-filter");
   publishedProductsFrom = document.getElementById("my-published-products-from");
@@ -60,9 +67,24 @@ const refreshMySalesNodes = () => {
 const bindMySalesEvents = () => {
   refreshMySalesNodes();
   if (productsGrid && productsGrid.dataset.abMySalesProductsBound !== "true") {
-    productsGrid.addEventListener("click", (event) => {
+    productsGrid.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const payButton = target.closest("[data-pay-publication]");
+      if (payButton instanceof HTMLButtonElement) {
+        payButton.disabled = true;
+        try {
+          const payload = await authorizedJson("/api/publication-checkout", {
+            method: "POST",
+            body: JSON.stringify({ product_id: payButton.dataset.payPublication }),
+          });
+          window.location.href = payload.init_point;
+        } catch (error) {
+          if (publishedProductsStatus) publishedProductsStatus.textContent = error instanceof Error ? error.message : "No se pudo iniciar el pago.";
+          payButton.disabled = false;
+        }
+        return;
+      }
       const button = target.closest("[data-delete-product]");
       if (!(button instanceof HTMLButtonElement)) return;
       const productId = button.dataset.deleteProduct ?? "";
@@ -236,6 +258,18 @@ const bindMySalesEvents = () => {
     modalKeyDownBound = true;
   }
 };
+
+const authorizedJson = async (url, options = {}) => {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token ?? "";
+  const response = await fetch(url, {
+    ...options,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(options.headers ?? {}) },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(payload?.error ?? "No se pudo completar la acción."));
+  return payload;
+};
 let pendingDeleteProductId = "";
 let pendingDeleteTrigger = null;
 let salesLoadInFlight = false;
@@ -277,12 +311,10 @@ const formatDate = (value) => {
 /* Formateo de métodos de entrega. */
 const formatDelivery = (value) => {
   if (!Array.isArray(value) || value.length === 0) return "No especificada";
-  const labels = value.map((item) => {
-    if (item === "retiro") return "Retiro";
-    if (item === "envio") return "Envío";
-    return item;
-  });
-  return labels.join(" + ");
+  const methods = value.map((item) => String(item ?? "").trim().toLowerCase());
+  if (methods.includes("envio")) return "Envío";
+  if (methods.includes("retiro")) return "Retiro";
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).join(" + ") || "No especificada";
 };
 
 const formatFulfillmentStatus = (status, shippingRequested) => {
@@ -650,7 +682,7 @@ const renderSoldProducts = (products) => {
         soldAt: product.lastSoldAt,
         orderId: product.lastOrderId || "",
         productId: product.productId || "",
-        qty: 1,
+        qty: Math.max(1, Number(product.quantity ?? 1)),
         subtotal: product.revenue ?? 0,
         buyerName: product.lastBuyerName || "",
         buyerUserId: product.lastBuyerUserId || "",
@@ -678,7 +710,7 @@ const renderSoldProducts = (products) => {
         soldAt: sale?.soldAt ?? null,
         orderId: sale?.orderId ?? "",
         productId: sale?.productId ?? product.productId ?? "",
-        qty: 1,
+        qty: Math.max(1, Number(sale?.qty ?? 1)),
         subtotal: sale?.subtotal ?? 0,
         buyerName: sale?.buyerName ?? "",
         buyerUserId: sale?.buyerUserId ?? "",
@@ -723,6 +755,10 @@ const renderSoldProducts = (products) => {
       const saleOrderId = String(sale.orderId || "").trim();
       const saleProductId = String(sale.productId || "").trim();
       const shippingRequested = Boolean(sale.shippingRequested);
+      const shippingCost = Number(sale.shippingCost ?? 0);
+      const shippingCostLabel = shippingCost > 0
+        ? `$${formatPrice(shippingCost)}`
+        : "A cargo del vendedor";
       const orderGroup = salesByOrder.get(getSaleOrderGroupKey(sale)) ?? [sale];
       const sharedOrderItemCount = orderGroup.length;
       const hasSharedSellerShipping = shippingRequested && sharedOrderItemCount > 1;
@@ -798,8 +834,8 @@ const renderSoldProducts = (products) => {
               ? `<li>Entrega: <strong>${escapeHtml(deliveryStatusLabel)}</strong></li>
                  ${
                    hasSharedSellerShipping
-                     ? `<li>Envío: <strong>Único de la venta</strong></li>`
-                     : `<li>Costo envío: <strong>$${formatPrice(sale.shippingCost ?? 0)}</strong></li>`
+                     ? `<li>Envío: <strong>${shippingCostLabel} · único de la venta</strong></li>`
+                     : `<li>Envío: <strong>${shippingCostLabel}</strong></li>`
                  }
                  <li>Dirección: <strong>${safeShippingAddress || "Sin dirección"}</strong></li>
                  ${safeShippingPhone ? `<li>Teléfono: <strong>${safeShippingPhone}</strong></li>` : ""}`
@@ -856,7 +892,7 @@ const renderSoldProducts = (products) => {
             <thead><tr><th>Producto</th><th class="number">Cantidad</th><th class="number">Importe</th></tr></thead>
             <tbody><tr><td>${sale.title}</td><td class="number">${escapeHtml(sale.qty)}</td><td class="number">$${formatPrice(sale.subtotal)} ${sale.currency}</td></tr></tbody>
           </table></div>
-          ${shippingRequested ? `<p class="muted">Envío de la venta: $${formatPrice(sale.shippingCost ?? 0)}. El costo se comparte si la venta incluye otros productos.</p>` : ""}
+          ${shippingRequested ? `<p class="muted">Envío de la venta: ${shippingCostLabel}.</p>` : ""}
           <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
           </main></body></html>`;
         detailWindow.document.open();
@@ -888,13 +924,17 @@ const renderSoldProducts = (products) => {
     group.className = "ab-sale-order-group";
     group.dataset.salePendingDispatch = orderCards.some((item) => item.dataset.salePendingDispatch === "true") ? "true" : "false";
     const groupHasShipping = groupSales.some((item) => item.shippingRequested);
+    const groupShippingCost = Number(firstSale.shippingCost ?? 0);
+    const groupShippingLabel = groupShippingCost > 0
+      ? `$${formatPrice(groupShippingCost)}`
+      : "A cargo del vendedor";
     group.innerHTML = `
       <div class="ab-sale-order-group__header">
         <span>Orden ${escapeHtml(String(firstSale.orderId || "").slice(0, 8) || "N/A")}</span>
         ${
           groupHasShipping
-            ? `<strong>Envío único: $${formatPrice(firstSale.shippingCost ?? 0)}</strong>
-               <small>${groupSales.length} productos de esta venta comparten el mismo costo de envío.</small>`
+            ? `<strong>Envío: ${groupShippingLabel}</strong>
+               <small>${groupSales.length} productos de esta venta comparten la misma entrega.</small>`
             : `<strong>${groupSales.length} productos en esta venta</strong>`
         }
       </div>
@@ -930,9 +970,16 @@ const renderMyProducts = (products) => {
     const safeTitle = escapeHtml(product.title || "Sin título");
     const safeDescription = escapeHtml(product.description || "Sin descripción");
     const safeCurrency = escapeHtml(product.currency || "ARS");
-    const safeLocation = escapeHtml(product.location || "Sin especificar");
+    const safeLocation = escapeHtml(formatProductLocation(product.location));
     const safePickupAddress = escapeHtml(product.pickup_address || "");
     const safeProductId = String(product.id || "").trim();
+    const monthly = product.publication_type === "monthly";
+    const pendingMonthly = monthly && (
+      product.publication_status !== "active"
+      || !product.publication_expires_at
+      || Date.parse(product.publication_expires_at) <= Date.now()
+    );
+    const expiryLabel = product.publication_expires_at ? formatDate(product.publication_expires_at) : "";
     card.innerHTML = `
       <img
         class="ab-provider-product-card__image"
@@ -957,6 +1004,9 @@ const renderMyProducts = (products) => {
         <li>Ubicación: <strong>${safeLocation}</strong></li>
         ${safePickupAddress ? `<li>Dirección: <strong>${safePickupAddress}</strong></li>` : ""}
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
+        <li>Stock: <strong>${Math.max(0, Number(product.stock ?? 0))}</strong></li>
+        <li>Publicación: <strong>${monthly ? `Mensual${expiryLabel ? ` · vence ${expiryLabel}` : ""}` : "Permanente"}</strong></li>
+        ${pendingMonthly ? `<li>Estado: <strong>Pago pendiente</strong></li>` : ""}
       </ul>
       <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
         <a
@@ -967,6 +1017,8 @@ const renderMyProducts = (products) => {
           <img src="/icons/detalle.svg" alt="" aria-hidden="true" />
           <span>Detalle</span>
         </a>
+        <a class="ab-provider-product-card__button ab-provider-product-card__button--ghost" href="/vender/productos?edit=${encodeURIComponent(safeProductId)}">Editar</a>
+        ${pendingMonthly ? `<button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-pay-publication="${escapeHtml(safeProductId)}">Pagar ARS 2.000</button>` : ""}
         <button
           type="button"
           class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
@@ -988,17 +1040,11 @@ const deletePublishedProduct = async (productId, triggerButton) => {
   }
 
   try {
-    const { error } = await supabase
-      .from("products")
-      .delete()
-      .eq("id", productId)
-      .eq("user_id", currentUserId);
-
-    if (error) {
-      return;
-    }
+    await authorizedJson(`/api/products/${encodeURIComponent(productId)}`, { method: "DELETE" });
 
     await loadPublishedProducts({ force: true });
+  } catch (error) {
+    if (publishedProductsStatus) publishedProductsStatus.textContent = error instanceof Error ? error.message : "No se pudo borrar la publicación.";
   } finally {
     if (triggerButton instanceof HTMLButtonElement) {
       triggerButton.disabled = false;
@@ -1188,7 +1234,7 @@ const loadPublishedProducts = async ({ force = false } = {}) => {
     const to = publishedProductsTo instanceof HTMLInputElement ? publishedProductsTo.value : "";
     let productsQuery = supabase
       .from("products")
-      .select("id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,created_at")
+      .select("id,title,description,price,currency,image_url,location,delivery_methods,pickup_address,stock,publication_type,publication_status,publication_expires_at,created_at")
       .eq("user_id", currentUserId)
       .order("created_at", { ascending: false });
     if (from) productsQuery = productsQuery.gte("created_at", `${from}T00:00:00.000Z`);
@@ -1199,15 +1245,7 @@ const loadPublishedProducts = async ({ force = false } = {}) => {
       if (publishedProductsStatus) publishedProductsStatus.textContent = "No se pudieron cargar los productos publicados.";
       return;
     }
-    const soldSummary = await fetchSoldProductsSummary();
-    const soldProductIds = new Set(
-      (Array.isArray(soldSummary.items) ? soldSummary.items : [])
-        .map((item) => String(item?.productId ?? "").trim())
-        .filter(Boolean),
-    );
-    const safeProducts = (data ?? []).filter(
-      (product) => !soldProductIds.has(String(product?.id ?? "").trim()),
-    );
+    const safeProducts = data ?? [];
     const nextPublishedSignature = buildPublishedProductsSignature(safeProducts);
     if (nextPublishedSignature !== lastPublishedProductsSignature) {
       renderMyProducts(safeProducts);
@@ -1223,6 +1261,42 @@ const loadPublishedProducts = async ({ force = false } = {}) => {
   }
 };
 
+const loadPendingPayments = async () => {
+  if (!pendingPaymentsList || !pendingPaymentsEmpty) return;
+  if (pendingPaymentsStatus) pendingPaymentsStatus.textContent = "Consultando Mercado Pago...";
+  try {
+    const payload = await authorizedJson("/api/mercadopago/pending-payments");
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    pendingPaymentsList.replaceChildren();
+    pendingPaymentsEmpty.classList.toggle("ab-is-hidden", items.length > 0);
+    items.forEach((item) => {
+      const card = document.createElement("article");
+      card.className = "ab-provider-product-card ab-sales-product-card ab-payment-pending-card";
+      const productNames = (item.products ?? []).map((product) => `${product.name} × ${product.qty ?? 1}`).join(", ");
+      const kindLabel = item.kind === "mercadopago_pending"
+        ? "Pago pendiente en Mercado Pago"
+        : item.kind === "preference_only"
+          ? "Preferencia creada, sin intento de pago"
+          : item.kind === "mercadopago_resolved"
+            ? `Estado Mercado Pago: ${item.payment_status || "resuelto"}`
+            : "No se pudo verificar ahora";
+      card.innerHTML = `
+        <h2>${escapeHtml(productNames || "Compra")}</h2>
+        <p class="ab-provider-product-card__price">$${formatPrice(item.total_amount)} <span>${escapeHtml(item.currency || "ARS")}</span></p>
+        <ul class="ab-provider-product-card__details">
+          <li>${escapeHtml(kindLabel)}</li>
+          <li>Orden: <strong>${escapeHtml(item.order_id)}</strong></li>
+          ${item.payment_id ? `<li>Payment ID: <strong>${escapeHtml(item.payment_id)}</strong></li>` : ""}
+          ${item.preference_id ? `<li>Preference ID: <strong>${escapeHtml(item.preference_id)}</strong></li>` : ""}
+        </ul>`;
+      pendingPaymentsList.appendChild(card);
+    });
+    if (pendingPaymentsStatus) pendingPaymentsStatus.textContent = payload?.connected === false ? "Conectá Mercado Pago para consultar estados reales." : "";
+  } catch (error) {
+    if (pendingPaymentsStatus) pendingPaymentsStatus.textContent = error instanceof Error ? error.message : "No se pudieron cargar los pagos pendientes.";
+  }
+};
+
 /* Inicialización y hooks de navegación. */
 const initMySalesProducts = () => {
   refreshMySalesNodes();
@@ -1232,6 +1306,8 @@ const initMySalesProducts = () => {
     void teardownSalesRealtime();
     return;
   }
+
+  void loadPendingPayments();
 
   /* Las listas se cargan sólo ante una acción explícita del vendedor. */
 };

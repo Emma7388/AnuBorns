@@ -4,9 +4,13 @@ import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../lib/supabaseServer.js";
 import { SALES_HISTORY_ORDER_STATUSES, isSaleDispatchable, normalizePaymentStatus } from "../../lib/paymentStatus.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
+import {
+  getSellerRecordedShippingCost,
+  getSellerShippingDestination,
+  isSellerShippingRequested,
+} from "../../lib/sellerShipping.js";
 
 const PAGE_SIZE = 3;
-const SHIPPING_FEE = 5000;
 const completedStatuses = new Set(["completed", "shipped", "ready_for_pickup"]);
 
 const toNonNegativeNumber = (value) => {
@@ -15,27 +19,6 @@ const toNonNegativeNumber = (value) => {
 };
 
 const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? ""));
-
-const normalizeProviderName = (value) =>
-  String(value ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-const getSellerDestination = (shippingAddress, shippingCity, providerName) => {
-  const parts = String(shippingAddress ?? "").split("|").map((part) => {
-    const [provider, ...address] = part.split(":");
-    return { provider: normalizeProviderName(provider), address: address.join(":").trim() };
-  }).filter((entry) => entry.provider);
-  if (parts.length === 0) return { address: String(shippingAddress ?? "").trim(), city: String(shippingCity ?? "").trim() };
-  const match = parts.find((entry) => entry.provider === normalizeProviderName(providerName));
-  return { address: match?.address ?? "", city: "" };
-};
-
-const getSellerShippingCost = (shippingRequested, orderCost, shippingAddress, providerName) => {
-  if (!shippingRequested) return 0;
-  const cost = toNonNegativeNumber(orderCost);
-  const providers = String(shippingAddress ?? "").split("|").map((part) => normalizeProviderName(part.split(":")[0])).filter(Boolean);
-  if (providers.length > 0 && !providers.includes(normalizeProviderName(providerName))) return 0;
-  return Math.min(cost, SHIPPING_FEE);
-};
 
 const getBuyerNote = (value) => {
   const detail = String(value ?? "");
@@ -72,17 +55,28 @@ const toSaleItem = ({ productId, product, order, row, dispatch }) => {
   if (!productId || !order?.id) return null;
 
   const providerName = String(row?.provider ?? product?.seller_name ?? "").trim();
+  const qty = Math.max(1, Math.floor(toNonNegativeNumber(row?.qty) || 1));
   const orderStatus = normalizePaymentStatus(order.status);
   const dispatchable = isSaleDispatchable(orderStatus);
   const orderShippingRequested = Boolean(order.shipping_requested);
-  const shippingCost = getSellerShippingCost(
-    orderShippingRequested,
-    order.shipping_cost,
-    order.shipping_address,
+  const shippingCost = getSellerRecordedShippingCost({
+    shippingRequested: orderShippingRequested,
+    orderShippingCost: order.shipping_cost,
+    shippingAddress: order.shipping_address,
+    shippingCity: order.shipping_city,
     providerName,
-  );
-  const shippingRequested = orderShippingRequested && shippingCost > 0;
-  const destination = getSellerDestination(order.shipping_address, order.shipping_city, providerName);
+  });
+  const shippingRequested = isSellerShippingRequested({
+    shippingRequested: orderShippingRequested,
+    shippingAddress: order.shipping_address,
+    shippingCity: order.shipping_city,
+    providerName,
+  });
+  const destination = getSellerShippingDestination({
+    shippingAddress: order.shipping_address,
+    shippingCity: order.shipping_city,
+    providerName,
+  });
   const fulfillmentStatus = String(
     dispatch?.fulfillment_status ?? (shippingRequested ? "requested" : "pickup_pending"),
   ).trim();
@@ -91,13 +85,13 @@ const toSaleItem = ({ productId, product, order, row, dispatch }) => {
     productId,
     title: String(product?.title ?? row?.name ?? "Producto"),
     currency: String(product?.currency ?? "ARS"),
-    image: String(product?.image_url ?? "").trim() || "/logo2.svg",
+    image: String(product?.image_url ?? row?.image ?? "").trim() || "/logo2.svg",
     salesHistory: [{
       orderId: String(order.id),
       productId,
       soldAt: order.created_at,
-      qty: 1,
-      subtotal: toNonNegativeNumber(row?.unit_price),
+      qty,
+      subtotal: toNonNegativeNumber(row?.unit_price) * qty,
       buyerName: String(order.shipping_full_name ?? "").trim(),
       buyerUserId: String(order.user_id ?? "").trim(),
       buyerNote: getBuyerNote(order.payment_detail),
@@ -166,6 +160,8 @@ const getSellerSalesViaRpc = async (supabaseAdmin, { sellerId, from, to, pending
         row: {
           name: row?.item_name,
           unit_price: row?.unit_price,
+          qty: row?.qty,
+          image: row?.item_image,
           provider: row?.provider,
         },
         product: {
@@ -209,15 +205,11 @@ const getSellerSalesViaQueries = async (supabaseAdmin, { sellerId, from, to, pen
     .select("id, title, currency, image_url, seller_name")
     .eq("user_id", sellerId);
   if (productsError) throw productsError;
-  if (!Array.isArray(ownProducts) || ownProducts.length === 0) {
-    return { items: [], pagination: buildPagination({ requestedPage: 1, total: 0 }) };
-  }
-
-  const products = new Map(ownProducts.map((product) => [String(product.id), product]));
+  const products = new Map((ownProducts ?? []).map((product) => [String(product.id), product]));
   let salesQuery = supabaseAdmin
     .from("order_items")
-    .select("product_id, name, unit_price, provider, orders!inner(id, user_id, created_at, status, payment_status, payment_id, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost)")
-    .in("product_id", [...products.keys()])
+    .select("product_id, name, qty, unit_price, provider, image, orders!inner(id, user_id, created_at, status, payment_status, payment_id, payment_detail, shipping_full_name, shipping_address, shipping_city, shipping_phone, shipping_requested, shipping_cost)")
+    .eq("seller_user_id", sellerId)
     .in("orders.status", getVisibleOrderStatuses())
     .order("created_at", { referencedTable: "orders", ascending: false });
   if (from) salesQuery = salesQuery.gte("orders.created_at", `${from}T00:00:00.000Z`);
@@ -246,7 +238,6 @@ const getSellerSalesViaQueries = async (supabaseAdmin, { sellerId, from, to, pen
     .map((row) => {
       const productId = String(row?.product_id ?? "").trim();
       const product = products.get(productId);
-      if (!product) return null;
       return toSaleItem({
         productId,
         product,

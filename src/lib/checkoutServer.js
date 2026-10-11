@@ -1,18 +1,12 @@
-import { PRODUCT_LOCKING_ORDER_STATUSES } from "./paymentStatus.js";
 import { cancelAbandonedCheckoutOrdersForProducts } from "./checkoutPendingOrders.js";
 
-/* Validaciones compartidas por checkout manual y Mercado Pago. */
-export const SHIPPING_FEE = 5000;
-const SOLD_ORDER_STATUSES = [...PRODUCT_LOCKING_ORDER_STATUSES];
-
-/* El carrito puede mandar datos legacy, pero cantidad siempre queda fija en 1. */
 export const sanitizeCheckoutItems = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
       product_id: String(item?.product_id ?? item?.id ?? "").trim(),
-      qty: 1,
+      qty: Math.floor(Number(item?.qty ?? item?.quantity ?? 1)),
     }))
-    .filter((item) => item.product_id);
+    .filter((item) => item.product_id && item.qty >= 1 && item.qty <= 100);
 
 /* Nota del comprador acotada para guardarla segura en payment_detail. */
 export const sanitizeBuyerNote = (value) => {
@@ -73,32 +67,10 @@ export const buildCheckoutContext = async (
     return { ok: false, status: 500, error: "No se pudo validar la disponibilidad de los productos." };
   }
 
-  /* Producto unico: una orden pendiente o confirmada bloquea nuevas compras del mismo producto. */
-  const { data: soldRows, error: soldError } = await supabaseAdmin
-    .from("order_items")
-    .select("product_id, orders!inner(status)")
-    .in("product_id", productIds)
-    .in("orders.status", SOLD_ORDER_STATUSES);
-
-  if (soldError) {
-    return { ok: false, status: 500, error: "No se pudo validar la disponibilidad de los productos." };
-  }
-  const soldProductIds = new Set(
-    (soldRows ?? []).map((row) => String(row?.product_id ?? "").trim()).filter(Boolean),
-  );
-  if (productIds.some((productId) => soldProductIds.has(productId))) {
-    return {
-      ok: false,
-      status: 409,
-      error: "Uno o mas productos ya fueron vendidos.",
-      soldProductIds: productIds.filter((productId) => soldProductIds.has(productId)),
-    };
-  }
-
   /* Se vuelven a leer productos para ignorar precios/nombres enviados por el cliente. */
   const { data: products, error: productsError } = await supabaseAdmin
     .from("products")
-    .select("id, title, description, price, currency, seller_name, contact, user_id, image_url, delivery_methods")
+    .select("id, title, description, price, currency, seller_name, contact, user_id, image_url, delivery_methods, stock, publication_type, publication_status, publication_expires_at")
     .in("id", productIds);
 
   if (productsError) {
@@ -108,6 +80,15 @@ export const buildCheckoutContext = async (
   const productsMap = new Map((products ?? []).map((product) => [String(product.id), product]));
   if (productsMap.size !== productIds.length) {
     return { ok: false, status: 400, error: "Hay productos invalidos o no disponibles." };
+  }
+  const unavailableIds = items.filter((item) => {
+    const product = productsMap.get(item.product_id);
+    if (!product || Number(product.stock ?? 0) < item.qty || product.publication_status !== "active") return true;
+    return product.publication_type === "monthly"
+      && (!product.publication_expires_at || Date.parse(product.publication_expires_at) <= Date.now());
+  }).map((item) => item.product_id);
+  if (unavailableIds.length > 0) {
+    return { ok: false, status: 409, error: "No hay stock suficiente para completar la compra.", soldProductIds: unavailableIds };
   }
 
   /* Snapshot de items que se guardará en order_items y se enviará a MercadoPago. */
@@ -127,6 +108,7 @@ export const buildCheckoutContext = async (
       currency: String(product?.currency ?? "ARS").toUpperCase(),
       image: String(product?.image_url ?? "").trim(),
       delivery_methods: normalizeDeliveryMethods(product?.delivery_methods),
+      publication_type: product?.publication_type === "monthly" ? "monthly" : "permanent",
     };
   });
 
@@ -155,6 +137,22 @@ export const buildCheckoutContext = async (
     }
   }
 
+  const shippingOnlyItems = serverItems.filter(
+    (item) => item.delivery_methods.includes("envio"),
+  );
+  if (shippingOnlyItems.length > 0 && !shippingRequested) {
+    return { ok: false, status: 400, error: "Hay productos que requieren envio." };
+  }
+  if (
+    shippingOnlyItems.length > 0 &&
+    requestedShippingGroups.length > 0 &&
+    shippingOnlyItems.some(
+      (item) => !requestedShippingGroups.some((group) => getProviderGroupItems([item], group.providerKey).length > 0),
+    )
+  ) {
+    return { ok: false, status: 400, error: "Falta solicitar el envio obligatorio de un producto." };
+  }
+
   if (shippingRequested) {
     /* Compatibilidad con checkout viejo: envío único sin grupos por proveedor. */
     if (requestedShippingGroups.length === 0) {
@@ -181,11 +179,7 @@ export const buildCheckoutContext = async (
 
   /* Totales finales derivados del servidor. */
   const orderCurrency = serverItems[0]?.currency || "ARS";
-  const shippingCost = requestedShippingGroups.length
-    ? requestedShippingGroups.length * SHIPPING_FEE
-    : shippingRequested
-      ? SHIPPING_FEE
-      : 0;
+  const shippingCost = 0;
   const shippingProductIds = shippingRequested
     ? requestedShippingGroups.length > 0
       ? serverItems
@@ -193,7 +187,11 @@ export const buildCheckoutContext = async (
           .map((item) => item.product_id)
       : serverItems.map((item) => item.product_id)
     : [];
-  const totalAmount = serverItems.reduce((sum, item) => sum + item.unit_price * item.qty, 0) + shippingCost;
+  const productSubtotal = serverItems.reduce((sum, item) => sum + item.unit_price * item.qty, 0);
+  const commissionableSubtotal = serverItems
+    .filter((item) => item.publication_type === "permanent")
+    .reduce((sum, item) => sum + item.unit_price * item.qty, 0);
+  const totalAmount = productSubtotal;
 
   return {
     ok: true,
@@ -203,6 +201,8 @@ export const buildCheckoutContext = async (
     shippingRequested,
     shippingCost,
     shippingProductIds,
+    productSubtotal,
+    commissionableSubtotal,
     totalAmount,
     orderCurrency,
   };

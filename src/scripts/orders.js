@@ -519,7 +519,7 @@ const normalizeOrderItemsForManualCheckout = (items) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
       product_id: String(item?.product_id ?? "").trim() || null,
-      qty: 1,
+      qty: Math.max(1, Math.min(100, Math.floor(Number(item?.qty ?? item?.quantity ?? 1)) || 1)),
     }))
     .filter((item) => item.product_id);
 
@@ -794,7 +794,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
               ? `<li>Entrega: <strong>${escapeHtml(pausedDeliveryLabel)}</strong></li>`
               : providerShippingRequested
               ? `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>
-                 <li>Costo envío: <strong>$${formatPrice(shippingCost)}</strong></li>`
+                 <li>Envío: <strong>${shippingCost > 0 ? `$${formatPrice(shippingCost)}` : "A cargo del vendedor"}</strong></li>`
               : `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>`
           }
           </ul>

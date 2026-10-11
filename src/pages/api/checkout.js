@@ -4,10 +4,12 @@ import { cancelAbandonedCheckoutOrders } from "../../lib/checkoutPendingOrders.j
 import { buildCheckoutContext } from "../../lib/checkoutServer.js";
 import { createAtomicCheckoutOrder } from "../../lib/atomicOrders.js";
 import { jsonResponse } from "../../lib/apiResponse.js";
+import { calculateMarketplaceFee } from "../../lib/marketplaceFee.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { compareMercadoPagoIdentity } from "../../lib/mercadopagoIdentity.js";
 
 /* Comisión marketplace configurable desde variables de entorno. */
 const marketplaceFeeAmount = Number(
@@ -22,17 +24,11 @@ const sendMarketplaceField =
 const OAUTH_REQUEST_TIMEOUT_MS = 8_000;
 const OAUTH_REFRESH_GRACE_MS = 5 * 60 * 1_000;
 
-const getMarketplaceFee = (totalAmount) => {
-  if (Number.isFinite(marketplaceFeeAmount) && marketplaceFeeAmount > 0) {
-    return Math.min(Math.round(marketplaceFeeAmount), totalAmount);
-  }
-  if (Number.isFinite(marketplaceFeePercent) && marketplaceFeePercent > 0) {
-    return Math.min(
-      totalAmount,
-      Math.round(totalAmount * (marketplaceFeePercent / 100)),
-    );
-  }
-  return 0;
+const getMarketplaceFee = (productSubtotal) => {
+  return calculateMarketplaceFee(productSubtotal, {
+    fixedAmount: marketplaceFeeAmount,
+    percent: marketplaceFeePercent,
+  });
 };
 
 /* Evita crear una orden si las URLs de retorno no son utilizables por Checkout Pro. */
@@ -219,7 +215,7 @@ const refreshSellerOAuthTokenIfNeeded = async (supabaseAdmin, account) => {
 };
 
 /* Comprueba que el token OAuth usado para cobrar pertenece al seller conectado. */
-const validateSellerOAuthIdentity = async (account) => {
+const validateSellerOAuthIdentity = async (supabaseAdmin, account) => {
   let response;
   let payload;
   try {
@@ -254,6 +250,19 @@ const validateSellerOAuthIdentity = async (account) => {
     };
   }
 
+  const [{ data: profile }, { data: sellerAuth }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("first_name,last_name,dni").eq("user_id", account.user_id).maybeSingle(),
+    supabaseAdmin.auth.admin.getUserById(account.user_id),
+  ]);
+  const identity = compareMercadoPagoIdentity({ mpAccount: payload, profile, authUser: sellerAuth?.user });
+  if (!identity.matches) {
+    return {
+      ok: false,
+      error: `El vendedor debe actualizar sus datos para que coincidan con Mercado Pago (${identity.mismatches.join(", ")}).`,
+      detail: `oauth_identity_mismatch:${identity.mismatches.join(",")}`,
+    };
+  }
+
   return { ok: true, sellerId: authorizedSellerId };
 };
 
@@ -266,29 +275,14 @@ const buildPreferenceBody = ({
   marketplaceFee = 0,
   marketplace = "",
 }) => ({
-  items: [
-    ...checkout.serverItems.map((item) => ({
-      id: item.product_id,
-      title: item.name,
-      description: buildItemDescription(item),
-      quantity: item.qty,
-      unit_price: item.unit_price,
-      currency_id: checkout.orderCurrency,
-    })),
-    ...(checkout.shippingCost
-      ? [
-          {
-            id: "shipping",
-            title: "Envío a domicilio",
-            description:
-              "Servicio de envío a domicilio coordinado desde AnuBorns",
-            quantity: 1,
-            unit_price: checkout.shippingCost,
-            currency_id: checkout.orderCurrency,
-          },
-        ]
-      : []),
-  ],
+  items: checkout.serverItems.map((item) => ({
+    id: item.product_id,
+    title: item.name,
+    description: buildItemDescription(item),
+    quantity: item.qty,
+    unit_price: item.unit_price,
+    currency_id: checkout.orderCurrency,
+  })),
   external_reference: orderId,
   back_urls: {
     success: `${siteUrl}/compra-confirmada?status=approved&orderId=${orderId}`,
@@ -358,7 +352,8 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: siteUrlResult.error }, 500);
     }
 
-    const marketplaceFee = getMarketplaceFee(checkout.totalAmount);
+    /* El contrato permanente paga 1,5% por venta; el mensual ya pagó ARS 2.000. */
+    const marketplaceFee = getMarketplaceFee(checkout.commissionableSubtotal);
     if (marketplaceFee >= checkout.totalAmount && marketplaceFee > 0) {
       return jsonResponse(
         { error: "La comisión Marketplace debe ser menor al total de la compra." },
@@ -383,7 +378,7 @@ export const POST = async ({ request }) => {
       });
       return jsonResponse({ error: refreshedSellerAccount.error }, 409);
     }
-    const oauthIdentity = await validateSellerOAuthIdentity(refreshedSellerAccount.account);
+    const oauthIdentity = await validateSellerOAuthIdentity(supabaseAdmin, refreshedSellerAccount.account);
     if (!oauthIdentity.ok) {
       console.warn("[checkout] Seller OAuth validation failed", {
         detail: oauthIdentity.detail,

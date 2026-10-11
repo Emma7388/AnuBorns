@@ -4,9 +4,9 @@ import { getCart } from "../lib/cart";
 import { removeFromCart } from "../lib/cart";
 import { fetchUserProfile } from "../lib/userProfile";
 import {
-  SHIPPING_FEE,
   clearShippingPreference,
   getProviderShippingPreference,
+  itemRequiresShipping,
   itemSupportsShipping,
 } from "../lib/shippingPreference";
 
@@ -15,6 +15,8 @@ let currentSubtotal = 0;
 let currentShippingGroups = [];
 let checkoutKeydownBound = false;
 let lastCheckoutModalTrigger = null;
+let checkoutShippingAddress = "";
+let checkoutShippingCity = "";
 
 const getCheckoutDom = () => ({
   emptyState: document.getElementById("checkout-empty"),
@@ -95,16 +97,25 @@ const groupItemsByProvider = (items) => {
 const getRequestedShippingGroups = (items) => {
   const groups = groupItemsByProvider(items);
   return groups
-    .map((group) => ({
-      ...group,
-      preference: getProviderShippingPreference(group.key),
-    }))
+    .map((group) => {
+      const storedPreference = getProviderShippingPreference(group.key);
+      const required = group.items.some(itemRequiresShipping);
+      const supportsGroupShipping = group.items.every(itemSupportsShipping);
+      return {
+        ...group,
+        preference: {
+          ...storedPreference,
+          requested: required || (supportsGroupShipping && storedPreference.requested),
+          address: storedPreference.address || checkoutShippingAddress,
+          city: storedPreference.city || checkoutShippingCity,
+        },
+      };
+    })
     .filter((group) => group.preference.requested);
 };
 
 const refreshTotals = () => {
   const { itemsWrap, shippingTotalRow, subtotalLabel, shippingTotalLabel, totalLabel } = getCheckoutDom();
-  const shippingCost = currentShippingGroups.length * SHIPPING_FEE;
   document.querySelectorAll("[data-checkout-shipping-item]").forEach((row) => row.remove());
   currentShippingGroups.forEach((group) => {
     if (!itemsWrap) return;
@@ -113,14 +124,16 @@ const refreshTotals = () => {
     row.dataset.checkoutShippingItem = "true";
     row.innerHTML = `
       <span>Envío a domicilio<small>${escapeHtml(group.provider)}</small></span>
-      <strong>$${formatPrice(SHIPPING_FEE)}</strong>
+      <strong>A cargo del vendedor</strong>
     `;
     itemsWrap.appendChild(row);
   });
   shippingTotalRow?.classList.toggle("ab-is-hidden", currentShippingGroups.length === 0);
   if (subtotalLabel) subtotalLabel.textContent = `$${formatPrice(currentSubtotal)}`;
-  if (shippingTotalLabel) shippingTotalLabel.textContent = shippingCost ? `$${formatPrice(shippingCost)}` : "$0";
-  if (totalLabel) totalLabel.textContent = `$${formatPrice(currentSubtotal + shippingCost)}`;
+  if (shippingTotalLabel) shippingTotalLabel.textContent = currentShippingGroups.length > 0
+    ? "A cargo del vendedor"
+    : "$0";
+  if (totalLabel) totalLabel.textContent = `$${formatPrice(currentSubtotal)}`;
 };
 
 /* Renderiza el resumen del pedido. */
@@ -157,11 +170,7 @@ const renderSummary = async () => {
     total += price;
     const title = item.product?.title ?? item.product_id ?? "Producto";
     const deliveryMethods = item.product?.delivery_methods ?? [];
-    const deliveryLabel = deliveryMethods.includes("envio")
-      ? deliveryMethods.includes("retiro")
-        ? "Retiro o envío"
-        : "Envío"
-      : "Retiro";
+    const deliveryLabel = deliveryMethods.includes("envio") ? "Envío" : "Retiro";
     const safeTitle = escapeHtml(title);
     const safeDeliveryLabel = escapeHtml(deliveryLabel);
 
@@ -230,7 +239,7 @@ const initCheckoutPage = () => {
     const orderItems = items.map((item) => ({
       product_id: item.product_id ?? "",
       name: item.product?.title ?? "Producto",
-      qty: 1,
+      qty: Math.max(1, Math.min(100, Math.floor(Number(item.quantity ?? 1)) || 1)),
       unit_price: item.price_snapshot ?? 0,
       provider: item.product?.seller_name ?? "N/A",
       provider_whatsapp: item.product?.contact ?? "",
@@ -239,13 +248,12 @@ const initCheckoutPage = () => {
 
     const requestedShippingGroups = getRequestedShippingGroups(items);
     const shippingRequested = requestedShippingGroups.length > 0;
-    const shippingCost = requestedShippingGroups.length * SHIPPING_FEE;
     const shippingAddressSummary = requestedShippingGroups
       .map((group) => `${group.provider}: ${[group.preference.address, group.preference.city].filter(Boolean).join(", ")}`)
       .join(" | ");
     const shipping = {
       requested: shippingRequested,
-      cost: shippingCost,
+      cost: 0,
       fullName: String(document.getElementById("full-name")?.value ?? "").trim(),
       address: shippingRequested ? shippingAddressSummary : "",
       city: shippingRequested ? "Por proveedor" : "",
@@ -254,7 +262,7 @@ const initCheckoutPage = () => {
         provider_key: group.key,
         provider: group.provider,
         requested: true,
-        cost: SHIPPING_FEE,
+        cost: 0,
         address: group.preference.address,
         city: group.preference.city,
       })),
@@ -394,6 +402,8 @@ const preloadUser = async () => {
     return;
   }
   const profile = await fetchUserProfile(user);
+  checkoutShippingAddress = String(profile.address ?? "").trim();
+  checkoutShippingCity = String(profile.city ?? "").trim();
   const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
   const fullNameInput = document.getElementById("full-name");
   const emailInput = document.getElementById("email");
@@ -402,6 +412,7 @@ const preloadUser = async () => {
   if (fullName && fullNameInput) fullNameInput.value = fullName;
   if (user.email && emailInput) emailInput.value = user.email;
   if (profile.phone && phoneInput) phoneInput.value = profile.phone;
+  await renderSummary();
 };
 
 /* Inicialización. */

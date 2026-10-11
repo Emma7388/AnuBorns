@@ -1,22 +1,35 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 10 de octubre de 2026.
+Documento de traspaso del chat, actualizado el 11 de octubre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
 
 ### Reserva atómica de productos — 10 de octubre
 
-- Se agregó `docs/supabase-atomic-product-reservations.sql`. La migración crea `product_checkout_reservations`, con una clave primaria por `product_id`, y triggers que mantienen la reserva mientras la orden está `pending`, `approved`, `partially_refunded` o `refund_pending`.
+- Se agregó y aplicó `docs/supabase-atomic-product-reservations.sql` como base inicial. El 11 de octubre también se aplicó `docs/supabase-product-stock-publications.sql`, que amplió la reserva a clave `(product_id, order_id)` con `qty`, descuento y reposición de unidades.
 - La RPC `create_checkout_order_atomic(...)` toma advisory locks en orden estable, bloquea las filas actuales de `products`, revalida precio, moneda, vendedor, comprador y total, y crea `orders` + `order_items` dentro de una sola transacción.
 - Checkout Pro y checkout manual dejaron de insertar orden e ítems en llamadas separadas y ahora usan esa RPC mediante `src/lib/atomicOrders.js`.
 - Webhook y sincronización consideran también las órdenes pendientes al buscar conflictos. La restricción de reservas actúa como defensa final si una aprobación tardía compite con otra reserva.
 - La migración aborta sin cambios si encuentra productos asociados a más de una orden activa. No borra datos.
 - Estado remoto: aplicado y verificado por el usuario en Supabase el 10 de octubre de 2026. La auditoría devolvió `conflicts=0`, `active_products=0`, `reservations=0`, ejecución habilitada para `service_role=true` y denegada para `anon=false` y `authenticated=false`. Los conteos en cero son coherentes con el reinicio previo del historial comercial.
-- La auditoría estructural posterior confirmó que `products`, `orders`, `order_items`, `product_checkout_reservations`, `sale_dispatches` y `purchase_status_reads` existen y tienen RLS habilitado. También confirmó `order_items.product_uuid` con FK e índices, la clave primaria única de la reserva por producto, su FK con `orders` y el índice por `order_id`.
+- La auditoría estructural repetida el 11 de octubre confirmó las siete tablas objetivo con RLS, la nueva clave compuesta de reservas, `qty`, pagos de publicación, constraints e índices. Los conteos de stock, cantidades, carritos duplicados, vencimientos y pagos pendientes duplicados devolvieron cero anomalías.
 - En `orders` y `order_items` sólo aparecen políticas de lectura del propietario; en `product_checkout_reservations` no aparece ninguna política de navegador. Las políticas de escritura directa retiradas no reaparecieron. `rls_forced=false` es el estado esperado para permitir la operación controlada del backend con `service_role` y no se considera un fallo.
-- Los índices de performance documentados para productos, órdenes, ítems y despachos aparecen en el ambiente remoto. La existencia y permisos de `get_seller_sales_page(...)` continúan siendo una verificación separada.
+- Los índices de performance documentados aparecen en el ambiente remoto. `get_seller_sales_page(...)` y `create_checkout_order_atomic(...)` existen y permiten ejecución a `service_role`; `anon` y `authenticated` quedaron sin permiso. Los tres triggers de reserva aparecen habilitados con estado `O`.
 - Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
+- Verificación completa más reciente del árbol de trabajo, después de implementar los diez pendientes funcionales: 94 pruebas aprobadas, 0 fallos y `git diff --check` limpio. El usuario ejecutó el SQL remoto y sus resultados fueron revisados; no se ejecutaron build ni despliegue del código compatible.
+
+### Evidencia real posterior al reinicio — 10 de octubre
+
+- Se conservó en Supabase una compra real posterior al reinicio, identificada en esta documentación sólo por la referencia corta `C3ADE956`. El importe fue ARS 500 y la orden quedó con `status=approved`, `payment_status=approved` y `mp_status_detail:accredited`.
+- La traza local conserva `marketplace_fee:8`, `marketplace:omitted` y el identificador OAuth del vendedor. Esto prueba que la preferencia se creó con la cuenta OAuth esperada y que el sistema configurado al 1,5% calculó y envió ARS 8.
+- El redondeo vigente explica el importe: ARS 500 × 1,5% = ARS 7,50 y `calculateMarketplaceFee(...)` redondea al peso entero más cercano. Para esta venta el porcentaje efectivo fue 1,6%. Conservar ese redondeo o admitir centavos queda como decisión comercial/técnica.
+- La captura de la cuenta de AnuBorns muestra la venta por ARS 500, el pago de ARS 492 al vendedor, ARS 8 como total de la operación para la plataforma y estado aprobado.
+- La captura de la cuenta del vendedor muestra la misma operación y referencia, ARS 500 brutos, estado aprobado y ARS 470,49 programados para acreditación. La diferencia entre ARS 492 y ARS 470,49 es un costo adicional de Mercado Pago de ARS 21,51; el concepto exacto debe verificarse en el desglose de esa cuenta y no atribuirse a la comisión de AnuBorns.
+- Las capturas de Mercado Pago y la fila de Supabase concuerdan en importe, fecha aproximada, referencia y estado. En conjunto confirman pago, OAuth, persistencia, split y acreditación de la comisión en una operación posterior al reinicio.
+- Falta conservar la vista del comprador. Esa captura completaría el expediente de las tres partes y la experiencia postpago, pero no es necesaria para demostrar que AnuBorns recibió ARS 8.
+- También aparecen dos órdenes locales `pending` sin `payment_id`. Son preferencias/checkouts no completados, no pagos pendientes confirmados por Mercado Pago. El código puede cancelarlos después de 24 horas cuando se dispara la limpieza por actividad; no existe todavía un cron permanente.
+- El pendiente principal de Mercado Pago pasa a ser el reembolso total o parcial de punta a punta. También quedan como pruebas complementarias un pago realmente pendiente/rechazado y determinar por `audit_logs` si la aprobación entró primero por webhook o sincronización de retorno.
 
 ### Evidencia histórica de pago, split y comisión — 10 de octubre
 
@@ -27,7 +40,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - La combinación de ambas evidencias valida, para esa operación concreta, que la preferencia se creó con OAuth del vendedor, el pago fue aprobado y acreditado, y el split aplicó la comisión de ARS 1 a AnuBorns. Es evidencia más fuerte que el mero estado “Mercado Pago conectado”.
 - El correo conservado no es una confirmación de soporte de Mercado Pago: su texto termina solicitando esa confirmación. La acreditación se concluye por los datos históricos de AnuBorns y, principalmente, por el desglose visible en la captura de Mercado Pago.
 - El reinicio controlado ejecutado con posterioridad eliminó `orders`, `order_items` y la auditoría comercial relacionada. Por eso hoy no se puede determinar desde Supabase si la aprobación entró primero por webhook o por sincronización de retorno, ni reconstruir el evento local completo.
-- Estado correcto del pendiente: pago, split y comisión real validados una vez; repetibilidad recomendada en una segunda compra controlada; reembolso total/parcial todavía no validado de punta a punta.
+- Estado correcto del pendiente: esta operación histórica y la compra posterior al reinicio validan la repetibilidad del pago, split y comisión. El reembolso total/parcial todavía no fue validado de punta a punta.
 - La comisión de ARS 1 pertenece únicamente a esa prueba histórica. La configuración comercial objetivo indicada por el usuario es 1,5%: `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT=0` y `MERCADOPAGO_MARKETPLACE_FEE_PERCENT=1.5`.
 
 ### Optimización Supabase y regla de stack — 14 de septiembre
@@ -60,7 +73,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - Los indicadores de categorías excluyen productos vendidos. Las consultas simultáneas de navegación comparten la solicitud en curso; sigue existiendo un límite de 300 productos recientes.
 - El usuario confirmó que el producto debe ocultarse al aprobarse el pago. El botón de una venta ahora abre el detalle de la operación, no la publicación pública oculta.
 - El documento se presenta como Detalle de compra, con vendedor y referencia corta derivada del UUID; no es una numeración correlativa o fiscal. Se ocultó el identificador de preferencia en el documento.
-- En ese mantenimiento, una cancelación mostraba el importe como referencia de la compra cancelada y no presentaba retiro/entrega pendientes. Después se agregó normalización de reembolsos y estados de devolución, documentada en `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`; todavía falta comprobar un reembolso real de punta a punta con Mercado Pago.
+- En ese mantenimiento, una cancelación mostraba el importe como referencia de la compra cancelada y no presentaba retiro/entrega pendientes. Después se agregó normalización de reembolsos y estados de devolución, documentada en `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`; la compra y comisión ya fueron revalidadas después del reinicio, pero todavía falta comprobar un reembolso real de punta a punta con Mercado Pago.
 - El mantenimiento posterior centraliza el documento en `src/lib/purchaseDetail.js`, compartido por `orders.js` y `confirmation.js`; estilos en `purchaseDetailStyles.js`. La venta reutiliza los estilos y conserva su propio contenido.
 - Se añadieron pruebas de documento con `node --test tests/purchaseDetail.test.mjs`. No equivalen a una prueba de pago ni de producción.
 - El usuario ejecuta los builds. El log compartido mostró compilación Astro exitosa seguida de `EPERM` al crear un symlink de una dependencia durante el empaquetado Vercel en Windows; después apareció un cierre de Node. No atribuirlo al SDK de MP ni dar el build completo por aprobado.
@@ -68,18 +81,18 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 
 El contexto anterior indicaba que Mercado Pago no observaba inconvenientes, pero la respuesta íntegra de soporte no quedó incorporada. Posteriormente el usuario compartió el correo enviado para solicitar confirmación y la captura del detalle de la operación. No confundir ese correo saliente con una respuesta oficial de soporte.
 
-No dar por hecho que toda la integración quedó validada por una única operación. La próxima prueba de Mercado Pago debe enfocarse en repetibilidad y en un reembolso controlado, conservando la traza local antes de cualquier nuevo reinicio de datos.
+No dar por hecho que toda la integración quedó validada por las compras observadas. La próxima prueba de Mercado Pago debe enfocarse en un reembolso controlado, estados no aprobados y la evidencia del comprador, conservando la traza local antes de cualquier nuevo reinicio de datos.
 
 ## Proyecto y forma de trabajo
 
 - Carpeta: `C:\Users\Molinas\Documents\Proyectos\AnuBorns`.
 - Astro, Supabase, Mercado Pago y Vercel.
-- Repositorio: `Emma7388/AnuBorns`; rama actual comprobada: `V0.7` (respetar mayúscula y punto).
+- Repositorio: `Emma7388/AnuBorns`; rama actual comprobada: `V0.8` (respetar mayúscula y punto).
 - Producción utilizada: `https://anuborns.vercel.app`.
 - El usuario maneja commit, push, despliegues y ejecución de SQL en Supabase. Preparar archivos e instrucciones; no ejecutar esas acciones externas por cuenta propia.
 - Mensajes de commit e instrucciones en español. Explicaciones concretas, paso a paso.
 - No imprimir `.env.local`, tokens ni secretos. `.env.example` sirve para consultar nombres, no para confirmar valores desplegados.
-- Al iniciar este traspaso, el árbol Git estaba limpio. Último commit local: `2a576a2 base: vincular ventas con productos vigentes`. No se verificó remotamente el último deploy.
+- Último commit local comprobado al actualizar este documento: `c886154 fix: hacer atomica la reserva de productos y ajustar comision`. El árbol contiene cambios posteriores todavía sin confirmar; no se verificó remotamente el último deploy.
 
 ## Qué pasó con Secret y Config
 
@@ -153,13 +166,14 @@ La documentación indica token OAuth del vendedor y `marketplace_fee` para Check
 
 ## Próxima validación de MP
 
-1. Repetir una compra controlada con cuenta propia o de prueba y conservar la orden, `order_items`, traza de preferencia y eventos de `audit_logs`.
-2. Confirmar nuevamente que el vendedor recibe el neto esperado y que AnuBorns recibe el `marketplace_fee` configurado.
-3. Identificar si la aprobación se aplicó primero mediante webhook o sincronización de retorno.
-4. Ejecutar un reembolso total o parcial controlado y verificar sus transiciones, auditoría, bloqueo del producto e interfaz.
-5. Si se recibe respuesta de soporte, archivarla separada del correo saliente y contrastarla con la operación, sin secretos ni datos personales.
-6. No realizar cobros ni reembolsos reales sin autorización explícita.
-7. No crear preferencias de diagnóstico usando una cuenta real de vendedor tomada automáticamente de `seller_mercadopago_accounts`. Para cualquier prueba que cree recursos en Mercado Pago, usar una cuenta propia/de test explícitamente permitida por `MERCADOPAGO_DIAGNOSTIC_MODE` y la allowlist documentada en `docs/mercadopago-wcs-48349-prueba-propuesta.md`.
+1. Conservar una captura de la vista del comprador de la compra posterior al reinicio y comprobar el estado visible en Mis compras/Detalle de compra.
+2. Revisar `audit_logs` de esa orden para identificar si la aprobación se aplicó primero mediante webhook o sincronización de retorno.
+3. Ejecutar un reembolso total o parcial controlado y verificar sus transiciones, auditoría, bloqueo/liberación del producto e interfaces de comprador y vendedor.
+4. Cuando exista un escenario seguro, validar un pago realmente pendiente y uno rechazado. No confundirlos con órdenes locales sin `payment_id`.
+5. Decidir si el redondeo de ARS 7,50 a ARS 8 es el comportamiento comercial deseado para la comisión del 1,5%.
+6. Si se recibe respuesta de soporte, archivarla separada del correo saliente y contrastarla con la operación, sin secretos ni datos personales.
+7. No realizar cobros ni reembolsos reales sin autorización explícita.
+8. No crear preferencias de diagnóstico usando una cuenta real de vendedor tomada automáticamente de `seller_mercadopago_accounts`. Para cualquier prueba que cree recursos en Mercado Pago, usar una cuenta propia/de test explícitamente permitida por `MERCADOPAGO_DIAGNOSTIC_MODE` y la allowlist documentada en `docs/mercadopago-wcs-48349-prueba-propuesta.md`.
 
 ## Supabase: auditorías y cambios anteriores
 
@@ -180,7 +194,7 @@ El usuario ejecutó `docs/supabase-commerce-rls-lockdown.sql` y recibió «Succe
 
 También se actualizaron `docs/supabase-sales-dispatch.sql` y `docs/supabase-shipping-fulfillment.sql` para no recrear políticas retiradas. Auditoría estructural: `docs/supabase-commerce-schema-audit.sql`.
 
-No confundir ejecución SQL exitosa con verificación exhaustiva de toda la seguridad. No se completó en este chat una prueba de compra/pago/despacho de punta a punta después de todos los cambios. Publicar y visualizar un producto sí fue confirmado por el usuario.
+No confundir ejecución SQL exitosa con verificación exhaustiva de toda la seguridad. Después de los cambios sí se completó una compra y se verificaron pago, split, comisión y persistencia; todavía no se completaron un reembolso real ni todo el circuito de despacho/recepción con evidencia de ambas partes.
 
 ### Relación de productos históricos
 
@@ -195,7 +209,7 @@ La ausencia de ese producto no prueba que haya sido eliminado: ésa fue una hip�
 
 Se creó `docs/supabase-order-items-product-link.sql`: agrega product_uuid nullable con FK a products y ON DELETE SET NULL, completa coincidencias actuales y crea índice parcial. Conserva product_id de texto y snapshots. Actualmente `create_checkout_order_atomic(...)` guarda ambos campos dentro de la misma transacción para checkout manual y Mercado Pago.
 
-El usuario respondió «listo» a las instrucciones de migrar y publicar. El commit existe localmente (`2a576a2`), pero no se pegó el resultado final del SELECT de la migración. Si hace falta confirmar producción, verificar columna/FK/conteos antes de afirmarlo como comprobado. El código requiere aplicar la columna antes del despliegue.
+El usuario respondió «listo» a las instrucciones de migrar y publicar y el cambio quedó registrado originalmente en `2a576a2`. La auditoría estructural posterior del 10 de octubre confirmó remotamente `order_items.product_uuid`, su FK, los índices asociados y la relación usada por la reserva atómica.
 
 ## Interfaz y alcance previo
 
@@ -212,6 +226,17 @@ El usuario respondió «listo» a las instrucciones de migrar y publicar. El com
 
 El usuario quiere retirar «MVP» y «Anubis-Reborn» cuando se resuelva MP. No se identificó de manera definitiva qué recurso de cada plataforma corresponde a esos nombres. Antes de eliminar, inventariar Vercel, Supabase, aplicación MP, URLs, webhooks y credenciales vinculadas. Un nombre viejo puede seguir siendo una dependencia de producción.
 
+## Backlog funcional que no debe perderse
+
+El 11 de octubre quedaron resueltos en código local los diez puntos funcionales: edición por propietario vía API; stock/cantidades 1–100; reserva y reposición atómicas; publicación mensual ARS 2.000/30 días; borrado propio desde Destacados; pendientes MP por vendedor; validación de identidad con excepción `1157622469`; navegación del aviso al carrito; consolidación/deduplicación del carrito; y compactación/regresión de cards, ubicación y entrega.
+
+No declararlos cerrados en producción hasta desplegar el código compatible, probar un pago mensual, dos compras simultáneas por cantidad y revisar el circuito visual en mobile/escritorio. Las migraciones y sus permisos ya fueron ejecutados y auditados. El vencimiento mensual retira la publicación de consultas públicas sin borrar físicamente su trazabilidad.
+
+- Repetir la auditoría remota sólo si se modifican nuevamente esquema, RLS, triggers o permisos de RPC.
+- Realizar la validación en navegador y producción de los diez puntos locales.
+- Aclarar qué “Word de la página principal” debe localizarse; no hay un archivo Word identificado en el inventario actual.
+- Embudo de conversión, reclamos/contracargos/fraude, políticas públicas, evidencia logística, cuotas, recuperación consentida de carrito, reseñas y promociones, detallados en `docs/BUENAS_PRACTICAS_VENTAS_MERCADO_PAGO.md`.
+
 ## Precisión para el próximo chat
 
 - No atribuir el fallo a Secret/Config sin evidencia.
@@ -223,4 +248,4 @@ El usuario quiere retirar «MVP» y «Anubis-Reborn» cuando se resuelva MP. No 
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md y retomemos el diagnóstico del split de Mercado Pago. Soporte respondió que sus pruebas funcionan. Voy a compartir la respuesta. Revisá qué diferencia hay con nuestra configuración antes de cambiar variables o código. Yo manejo los despliegues y todavía no hay que borrar MVP ni Anubis-Reborn.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La compra posterior al reinicio confirmó pago, split y comisión. Los diez pendientes funcionales están implementados localmente, pero faltan SQL/deploy/auditoría y pruebas reales. Retomemos desde esa validación, el reembolso controlado y la RPC remota. Yo manejo los despliegues y todavía no hay que borrar MVP ni Anubis-Reborn.»

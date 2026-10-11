@@ -25,11 +25,16 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
 
   const { data: orderItems, error: itemsError } = await supabaseAdmin
     .from("order_items")
-    .select("product_id")
+    .select("product_id,seller_user_id")
     .eq("order_id", safeOrderId);
 
   if (itemsError) return "";
 
+  const snapshotSellerIds = getUniqueStringIds((orderItems ?? []).map((item) => item?.seller_user_id));
+  if (snapshotSellerIds.length === 1) {
+    const { data: account } = await supabaseAdmin.from("seller_mercadopago_accounts").select("access_token").eq("user_id", snapshotSellerIds[0]).maybeSingle();
+    return String(account?.access_token ?? "").trim();
+  }
   const productIds = getUniqueStringIds((orderItems ?? []).map((item) => item?.product_id));
   if (productIds.length === 0) return "";
 
@@ -244,13 +249,8 @@ export const POST = async ({ request }) => {
     }
 
     let hasProductConflict = false;
-    if (mappedStatus === "approved") {
-      const availability = await findProductReservationConflicts(supabaseAdmin, order.id);
-      if (!availability.ok) {
-        return jsonResponse({ error: "No se pudo validar disponibilidad." }, 500);
-      }
-      hasProductConflict = availability.conflicts.length > 0;
-    }
+    // La reserva se hizo al crear la orden. Una aprobación tardía intenta
+    // reservar nuevamente dentro del trigger transaccional de PostgreSQL.
 
     const paymentDetail = mergeMercadoPagoPaymentDetail(order.payment_detail, paymentData?.status_detail);
     if (!hasProductConflict) {
