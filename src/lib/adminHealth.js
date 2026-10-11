@@ -85,6 +85,13 @@ export const ADMIN_HEALTH_TABLE_CHECKS = [
     detail: "Habilita acceso al panel interno sin exponer service role.",
   },
   {
+    table: "admin_user_controls",
+    area: "Admin",
+    label: "Control de cuentas",
+    select: "user_id",
+    detail: "Permite suspender y restaurar usuarios sin eliminar su cuenta.",
+  },
+  {
     table: "profiles",
     area: "Usuarios",
     label: "Perfiles privados",
@@ -148,6 +155,12 @@ export const ADMIN_HEALTH_OPERATION_CHECKS = [
     area: "Admin",
     label: "Acceso admin",
     detail: "La sesion actual paso la validacion server-side de administrador.",
+  },
+  {
+    id: "admin-control",
+    area: "Admin",
+    label: "Control administrativo 2A",
+    detail: "Roles, suspension y auditoria administrativa disponibles.",
   },
   {
     id: "supabase-server-client",

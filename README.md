@@ -8,6 +8,12 @@ Actualizado al 11 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
+### Registro de etapas de actualización
+
+- **Etapa 1 — implementación funcional: cerrada en código el 11 de octubre de 2026.** Incluyó los diez pendientes funcionales, reserva y stock atómicos, publicaciones permanentes y mensuales, renovación anticipada, estados resaltados, carrito deduplicado, identidad Mercado Pago y sincronización visual de nombres con Auth. El cierre está respaldado por el commit `e7b9f66`, rama `V0.8` sincronizada con `origin/V0.8`, 101 pruebas aprobadas y las migraciones principales ejecutadas y auditadas. Este cierre no equivale a afirmar que todos los casos ya fueron probados en producción.
+- **Etapa 2 — base de datos, panel administrativo, seguridad operativa y validación: en curso desde el 11 de octubre de 2026.** La subetapa 2A de control administrativo base está implementada y su migración fue aplicada y auditada remotamente: roles administrables, suspensión sin borrado, administradores activos, auditoría reciente y acciones con motivo obligatorio. Falta desplegar y validar el panel con cuentas de prueba antes de considerarla activa en producción. Después continúan las vistas operativas de órdenes/OAuth y las pruebas controladas de producción.
+- **Etapa 3 — madurez comercial: no iniciada.** Comprende embudo de conversión, políticas públicas, reclamos y contracargos, evidencia logística, cuotas, recuperación consentida de carrito, reseñas y promociones. No debe adelantarse a la estabilización de la etapa 2.
+
 ### Estado del historial comercial
 
 El 10 de octubre de 2026 el usuario confirmó que anteriormente se ejecutó el reinicio controlado definido en `docs/supabase-product-catalog-reset.sql`. La fecha exacta de esa ejecución no quedó registrada. Ese procedimiento eliminó intencionalmente productos, carritos, órdenes, ítems de órdenes, despachos, lecturas de estado y los eventos comerciales `manual_checkout_created` y `order_payment_status_changed` de `audit_logs`; conservó Auth, perfiles, administradores y conexiones OAuth de Mercado Pago.
@@ -36,7 +42,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
-- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase y consulta manual de Vercel Analytics cuando las APIs estan configuradas.
+- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase, Vercel Analytics y control de usuarios. La Etapa 2A agrega alta/baja de roles persistidos en base, suspensión/restauración sin borrar cuentas, administradores activos y auditoría reciente; cada mutación exige motivo y se ejecuta sólo desde APIs server-side.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, temas claro y oscuro, y navegación responsive.
 - En mobile, las cards de productos usan imágenes de tamaño uniforme y el carrusel de destacados oculta las flechas laterales para conservar espacio.
@@ -171,10 +177,12 @@ Archivos principales:
 - `docs/supabase-seller-sales-rpc.sql` crea `get_seller_sales_page(...)` para que `Mis ventas` filtre, cuente y pagine en Postgres.
 - `docs/supabase-atomic-product-reservations.sql` crea la reserva única por producto, sus triggers y la RPC transaccional requerida por ambos checkouts.
 - `docs/supabase-product-stock-publications.sql` migra esa reserva a cantidades, agrega stock, contratos permanentes/mensuales, snapshots de vendedor, carrito único por usuario y endurece las escrituras de productos para que pasen por APIs autenticadas.
+- `docs/supabase-admin-control.sql` agrega suspensión sin borrado, endurece los permisos de roles administrativos y devuelve su propia auditoría de instalación para la Etapa 2A.
 
 ## Documentación
 
 - `docs/ARCHITECTURE.md`: responsabilidades generales por capa.
+- `docs/PANEL_ADMIN_OPERATIVO.md`: alcance, seguridad, activación y pendientes del panel administrativo.
 - `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`: estados de Mercado Pago, reembolsos, auditoría y defensas de API.
 - `docs/supabase-auth-display-name-backfill.sql`: sincronización puntual de nombres históricos desde perfiles hacia la metadata visual de Auth, sin alterar el teléfono de autenticación.
 - `docs/BUENAS_PRACTICAS_VENTAS_MERCADO_PAGO.md`: resumen del material comercial aportado, estado actual y brechas para conversión, cuotas, reclamos y crecimiento.
@@ -199,17 +207,17 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 
 ## Pendientes prioritarios
 
-### Pagos, producción y seguridad
+### Etapa 2 actual — Administración, base de datos y validación
 
-1. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
-2. Conservar una captura de la vista del comprador para completar la evidencia de las tres partes. No es necesaria para probar la comisión, pero sí para cerrar la experiencia posterior al pago.
-3. Confirmar en `audit_logs` si la compra real posterior al reinicio impactó primero por webhook o por sincronización de retorno; probar además estados reales pendiente y rechazado cuando exista un escenario controlado.
-4. Sustituir el rate limit en memoria por uno distribuido compatible con múltiples instancias de Vercel.
-5. Decidir si la comisión conserva redondeo a pesos enteros o pasa a centavos para representar exactamente el 1,5%.
-6. Automatizar la limpieza de órdenes pendientes abandonadas o monitorear su disparo actual después de 24 horas. Una preferencia sin `payment_id` no equivale a un pago pendiente en Mercado Pago.
-7. Ejecutar el build y la revisión de producción con las variables reales del despliegue; el usuario gestiona build, commit, push, SQL y deploy.
+1. Desplegar y validar `/admin/usuarios`: otorgar y quitar un rol de base, suspender/restaurar una cuenta de prueba, confirmar bloqueo server-side y revisar los eventos en `audit_logs`. No probar sobre el último administrador ni sobre una cuenta real sin respaldo. La migración requerida ya fue aplicada y auditada.
+2. Completar las vistas administrativas de compras, ventas y publicaciones por usuario; centralizar estados de órdenes; detectar abandonos, despachos faltantes y productos incorrectamente visibles.
+3. Incorporar diagnóstico OAuth, pagos incompletos/sin auditoría y estado de validación de identidad Mercado Pago con su excepción documentada.
+4. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
+5. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
+6. Sustituir el rate limit en memoria por uno distribuido, decidir el redondeo del 1,5% y automatizar o monitorear la limpieza de órdenes abandonadas.
+7. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
 
-### Producto y operación comercial
+### Registro de la etapa 1 — Producto y operación funcional
 
 Los diez pendientes funcionales quedaron implementados localmente el 11 de octubre: edición segura de publicaciones; stock 1–100 y carrito con cantidades; reserva/decremento/reposición atómicos; contrato Mensual de ARS 2.000 por 30 días; borrado propio desde Destacados; consulta por vendedor de pagos MP pendientes frente a preferencias sin pago; validación de nombre, email y DNI contra Mercado Pago con excepción para `1157622469`; enlace confiable del aviso a `/carrito`; carrito único/deduplicado sin F5; y compactación/regresión del circuito de cards, ubicación, retiro y envío.
 
@@ -246,8 +254,9 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 ## Verificación y despliegue
 
 - `node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs`: regresiones de estados de pago, indicador de ventas, detalle de compra, lectura JSON limitada y OAuth state.
+- `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 11 de octubre de 2026: 101 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 11 de octubre de 2026: 115 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.

@@ -4,6 +4,10 @@ Actualizado el 11 de octubre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
+## Estado de evolución
+
+La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66` y 101 pruebas aprobadas. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A de control administrativo base está implementada localmente, llevó la suite a 115 pruebas y su migración fue aplicada y auditada remotamente. Falta desplegar y validar las acciones con cuentas de prueba. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción. Esta clasificación registra el avance del proyecto y no reemplaza las verificaciones técnicas detalladas de cada subsistema.
+
 ## Stack acordado
 
 - HTML, CSS, JavaScript y Astro.
@@ -16,6 +20,8 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - Supabase Database guarda categorías, productos, carritos, órdenes, ventas y despachos.
 - Supabase Storage almacena imágenes de productos y avatares.
 - Las rutas de `src/pages/api/` autentican al usuario y usan el cliente admin sólo en el servidor.
+- `src/lib/serverAuth.js` consulta `public.admin_user_controls` después de validar el Bearer token y rechaza cuentas suspendidas antes de ejecutar la operación solicitada. La ausencia temporal de la tabla se tolera sólo para permitir el despliegue gradual; los botones administrativos permanecen bloqueados hasta aplicar la migración.
+- `src/lib/adminAuth.js`, `src/lib/adminAccess.js` y `src/lib/adminAudit.js` separan autenticación, reglas de rol/suspensión y escritura auditada. Los permisos pueden venir de `admin_users` o Vercel, pero sólo los roles persistidos en base son removibles desde el panel.
 - El checkout permite un vendedor por orden y la preferencia se crea con su conexión Mercado Pago.
 - `src/pages/api/my-sales-list.js` usa la RPC `get_seller_sales_page(...)` si existe en Supabase para paginar ventas desde Postgres, con fallback al camino anterior.
 - El webhook firmado y la sincronización de retorno actualizan el pago de forma idempotente, incluyendo reembolsos y cancelaciones informados por Mercado Pago.
@@ -47,6 +53,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/lib/mercadopagoIdentity.js`: compara nombre/apellido, email y DNI normalizados contra `/users/me`; mantiene la excepción explícita para MP User ID `1157622469`.
 - `src/lib/publicationPayments.js`, `src/lib/publicationTiming.js`, `/api/publication-checkout` y `/api/publication-payment-sync`: cobro directo a plataforma, contador, renovación sólo en los últimos 7 días, idempotencia y extensión por 30 días después del vencimiento vigente.
 - `docs/supabase-product-stock-publications.sql`: stock 1–100, reservas atómicas por cantidad, reposición, contratos de publicación, snapshots de vendedor, RLS y carrito único.
+- `docs/supabase-admin-control.sql`: tabla server-only de suspensiones, endurecimiento de permisos de `admin_users`, trigger de actualización, RPC serializadas para coordinar roles/suspensiones y no eliminar concurrentemente al último admin, más la auditoría final de la Etapa 2A.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
@@ -67,7 +74,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ### Verificación
 
-`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 11 de octubre de 2026 aprobó 101 pruebas sin fallos. La migración y los permisos remotos fueron auditados ese día; el pago mensual, la integración de reembolso con MP, el build y la revisión visual requieren verificaciones adicionales.
+`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 11 de octubre de 2026 aprobó 115 pruebas sin fallos. La migración administrativa 2A quedó auditada con RLS activo, datos consistentes y RPC exclusivas de `service_role`; el build, el despliegue, la revisión visual, el pago mensual y el reembolso con MP requieren verificaciones adicionales.
 
 ### Flujos visibles
 

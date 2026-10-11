@@ -67,6 +67,19 @@ const buildOperationChecks = ({ envChecks, tableChecks, supabaseConfigured, supa
     detail: "La sesion actual paso la validacion server-side de administrador.",
   }));
 
+  const adminControlReady =
+    tableOk(tableChecks, "admin_users") &&
+    tableOk(tableChecks, "admin_user_controls") &&
+    tableOk(tableChecks, "audit_logs");
+  operationChecks.push(buildHealthCheck({
+    ...ADMIN_HEALTH_OPERATION_CHECKS.find((check) => check.id === "admin-control"),
+    status: adminControlReady ? "ok" : "error",
+    detail: adminControlReady
+      ? "Roles, suspension y auditoria administrativa tienen sus tablas disponibles."
+      : "La Etapa 2A no tiene todas sus tablas disponibles.",
+    action: adminControlReady ? "" : "Ejecutar/revisar docs/supabase-admin-control.sql y docs/audit-log.sql.",
+  }));
+
   operationChecks.push(buildHealthCheck({
     ...ADMIN_HEALTH_OPERATION_CHECKS.find((check) => check.id === "supabase-server-client"),
     status: supabaseConfigured && Boolean(supabaseAdmin) ? "ok" : "error",

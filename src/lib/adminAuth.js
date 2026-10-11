@@ -8,7 +8,7 @@ const splitEnvList = (value) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-const getAdminEnvLists = () => {
+export const getAdminEnvLists = () => {
   const env = import.meta.env ?? {};
   return {
     userIds: new Set(splitEnvList(process.env.ADMIN_USER_IDS ?? env.ADMIN_USER_IDS)),
@@ -16,11 +16,19 @@ const getAdminEnvLists = () => {
   };
 };
 
-const isConfiguredAdmin = (user) => {
+export const getConfiguredAdminSource = (user) => {
   const userId = String(user?.id ?? "").trim();
   const email = String(user?.email ?? "").trim().toLowerCase();
   const { userIds, emails } = getAdminEnvLists();
-  return Boolean((userId && userIds.has(userId)) || (email && emails.has(email)));
+  return {
+    byUserId: Boolean(userId && userIds.has(userId)),
+    byEmail: Boolean(email && emails.has(email)),
+  };
+};
+
+export const isConfiguredAdmin = (user) => {
+  const source = getConfiguredAdminSource(user);
+  return source.byUserId || source.byEmail;
 };
 
 const isMissingAdminTableError = (error) => {

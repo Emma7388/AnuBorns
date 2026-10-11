@@ -1,17 +1,32 @@
 # Panel admin operativo
 
-El panel interno arranca con dos superficies:
+El panel interno tiene tres superficies:
 
 - `/admin`: tablero operativo read-only con estados OK, Revisar y Error.
 - `/admin/administracion`: resumen administrativo del `marketplace_fee` registrado localmente.
-- `/admin/usuarios`: administracion de usuarios, perfiles y estado Mercado Pago.
+- `/admin/usuarios`: administración de usuarios, perfiles, roles, suspensiones, administradores activos, auditoría reciente y estado Mercado Pago.
+
+## Etapa 2A — Control administrativo base
+
+Implementada localmente el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día; para activarla en producción todavía hay que desplegar el código y validar las acciones con cuentas de prueba.
+
+Incluye:
+
+- otorgar o quitar roles almacenados en `public.admin_users` sin ejecutar SQL manual por cada cambio;
+- suspender y restaurar cuentas sin eliminarlas mediante `public.admin_user_controls` y el bloqueo de Supabase Auth;
+- listar administradores activos e indicar si el permiso proviene de base, Vercel o ambas fuentes;
+- mostrar los eventos administrativos recientes de `audit_logs` sin enviar IP, user agent, secretos ni diffs completos al navegador;
+- exigir un motivo de al menos seis caracteres para roles, suspensión, restauración, edición de perfil y restablecimiento de contraseña;
+- registrar solicitud y resultado de cada acción antes y después de la mutación.
 
 ## Seguridad base
 
 - El acceso se valida en APIs server-side con `requireAdmin`.
 - El navegador nunca recibe `SUPABASE_SERVICE_ROLE_KEY`, tokens OAuth ni secretos de Mercado Pago.
 - El rol admin sale de `public.admin_users` o, como respaldo operativo, de `ADMIN_USER_IDS` / `ADMIN_EMAILS`.
-- Las acciones peligrosas quedan fuera del MVP: no borrar usuarios, no reembolsar, no tocar pagos, no editar tokens.
+- No se permite auto-suspensión ni auto-remoción de rol, suspender administradores, quitar el último administrador persistido ni retirar desde el panel un rol que proviene de Vercel. Las RPC `set_admin_user_role_controlled(...)` y `set_admin_user_suspension_controlled(...)` comparten un bloqueo transaccional: dos remociones simultáneas no pueden dejar la tabla sin administradores y tampoco se puede otorgar un rol mientras otra operación suspende la misma cuenta.
+- Una suspensión se comprueba en las APIs antes de autorizar cualquier operación. También aplica un `ban_duration` en Supabase Auth para impedir nuevos ingresos o renovaciones; un access token ya emitido sólo queda inmediatamente bloqueado en las rutas de la aplicación que usan la guarda server-side.
+- Las acciones peligrosas quedan fuera del alcance: no borrar usuarios, no reembolsar, no tocar pagos, no editar tokens.
 
 ## Estados
 
@@ -28,6 +43,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 
 - Acceso admin actual.
 - Tabla `admin_users`.
+- Tabla `admin_user_controls` y chequeo conjunto de roles, suspensión y auditoría 2A.
 
 ### Supabase
 
@@ -55,6 +71,9 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - Tabla `profiles`.
 - Lectura de perfiles profundos para administracion interna.
 - La edicion admin escribe primero en `public.profiles` y sincroniza los mismos campos editables en `auth.users.user_metadata` para visibilidad operativa en Supabase Auth.
+- `public.admin_user_controls` conserva el estado activo/suspendido, motivo, operador y fechas sin contaminar `profiles`.
+- Los roles se administran mediante `/api/admin/users/access`; el `service_role` permanece sólo en el servidor.
+- El restablecimiento de contraseña envía el correo de recuperación de Supabase sólo después de registrar la solicitud auditada.
 
 ### Catalogo
 
@@ -103,15 +122,15 @@ Regla de diagnostico: no se deben crear preferencias de prueba usando cuentas re
 - Tabla `audit_logs`.
 - Trazabilidad de eventos criticos.
 
-## Posibilidades futuras documentadas
+## Estado del plan administrativo
 
-Estas son las funciones posibles para sumar al panel, en orden prudente:
+Estas son las funciones del panel en orden prudente. Las marcadas como implementadas todavía requieren despliegue y validación cuando así se indique:
 
 1. Usuarios
-   - Buscar por email, nombre, DNI, telefono.
+   - Implementado: buscar por email, nombre, DNI, teléfono.
    - Ver compras, ventas, productos publicados y estado MP.
-   - Editar datos profundos con auditoria.
-   - Bloquear acciones de usuario sin borrar cuenta.
+   - Implementado: editar datos profundos con auditoría solicitada/completada/fallida.
+   - Implementado localmente en 2A: bloquear acciones de usuario sin borrar cuenta.
 
 2. Operacion
    - Ver ordenes pendientes, aprobadas, rechazadas y reembolsadas.
@@ -128,10 +147,10 @@ Estas son las funciones posibles para sumar al panel, en orden prudente:
    - La publicación y el checkout ya bloquean discrepancias de nombre/apellido, email y DNI, con excepción para MP User ID `1157622469`. Sigue pendiente exponer ese diagnóstico en el panel admin.
 
 4. Seguridad
-   - Ver admins activos.
-   - Ver eventos recientes de `audit_logs`.
+   - Implementado localmente en 2A: ver y administrar admins activos.
+   - Implementado localmente en 2A: ver eventos administrativos recientes de `audit_logs`.
    - Ver intentos rechazados por permisos.
-   - Registrar cada accion admin con motivo.
+   - Implementado localmente en 2A: registrar cada acción mutante del panel con motivo.
 
 5. Configuracion
    - Mostrar variables presentes/ausentes sin revelar valores.
@@ -143,8 +162,18 @@ Estas son las funciones posibles para sumar al panel, en orden prudente:
 6. Acciones controladas
    - Reprocesar sincronizacion de una orden puntual.
    - Marcar seguimiento de entrega.
-   - Editar perfil de usuario con diff y auditoria.
+   - Implementado: editar perfil de usuario con diff y auditoría.
    - Nunca ejecutar cobros, reembolsos o despliegues sin confirmacion explicita.
+
+## Activación de la Etapa 2A
+
+1. Completado: ejecutar `docs/supabase-admin-control.sql` en Supabase SQL Editor.
+2. Completado: la auditoría devolvió dos administradores, RLS activo, cero suspensiones inválidas, privilegios vacíos para `authenticated` y ambas RPC con `service_role=true` / `authenticated=false`.
+3. Pendiente: desplegar el código y entrar a `/admin/usuarios` con un administrador que no sea la cuenta elegida para la prueba.
+4. Pendiente: otorgar y retirar un rol de base usando un motivo verificable.
+5. Pendiente: suspender y restaurar una cuenta de prueba; confirmar que una API autenticada responde 403 durante la suspensión.
+6. Pendiente: revisar que `audit_logs` contenga eventos `requested` y `completed` o `failed` para cada acción.
+7. Regla permanente: no ejecutar estas pruebas sobre el último administrador persistido ni sobre permisos de Vercel.
 
 ## Revisión de produccion
 

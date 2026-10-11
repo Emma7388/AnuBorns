@@ -4,6 +4,8 @@ Actualizado el 11 de octubre de 2026.
 
 Este documento resume el material aportado sobre promoción, conversión, abandono de carrito, cuotas, aprobación de pagos, reclamos, contracargos y envíos. Lo contrasta con el código actual de AnuBorns para convertir consejos generales en un plan concreto. No reproduce los artículos completos ni reemplaza las condiciones comerciales, legales o técnicas vigentes de Mercado Pago.
 
+El proyecto está actualmente en la **etapa macro 2 — base de datos, panel administrativo, seguridad operativa y validación**. El plan comercial de este documento pertenece a la etapa macro 3 y no se considera iniciado. Para evitar confundir ambas numeraciones, sus divisiones internas se denominan “fases comerciales”.
+
 ## Objetivo
 
 El objetivo aplicable a AnuBorns es aumentar la conversión sin debilitar la seguridad ni trasladar costos o responsabilidades de forma silenciosa a los vendedores. Para medirlo no alcanza con sumar funciones: hay que poder observar el recorrido completo desde la visita al producto hasta el pago aprobado, la entrega y los reclamos posteriores.
@@ -147,28 +149,28 @@ No hay cupones, descuentos, 2×1, enlaces compartibles con seguimiento, favorito
 
 ## Plan recomendado
 
-### Etapa 1 — confiabilidad y medición
+### Fase comercial 1 — confiabilidad y medición
 
 1. Completar el reembolso controlado pendiente y conservar la vista del comprador; la compra, el split y la comisión ya fueron revalidados.
 2. Instrumentar el embudo de conversión sin información personal.
 3. Crear un tablero con tasa de agregado, inicio de checkout, aprobación, rechazo y abandono.
 4. Configurar y procesar reclamos, contracargos y alertas de fraude.
 
-### Etapa 2 — claridad comercial
+### Fase comercial 2 — claridad comercial
 
 1. Publicar políticas de devolución, privacidad y términos de compra.
 2. Mostrar modalidad, plazo y condiciones de entrega antes del checkout.
 3. Incorporar seguimiento y evidencia de entrega.
 4. Verificar cómo aparece `ANUBORNS` en el resumen real de tarjeta.
 
-### Etapa 3 — cuotas
+### Fase comercial 3 — cuotas
 
 1. Confirmar con Mercado Pago el modelo de costos para vendedores OAuth.
 2. Probar un vendedor habilitado y otro no habilitado.
 3. Definir si el máximo de cuotas será global, por vendedor o por publicación.
 4. Recién entonces agregar configuración, interfaz y textos comerciales.
 
-### Etapa 4 — crecimiento
+### Fase comercial 4 — crecimiento
 
 1. Enlaces para compartir productos y atribución de campaña.
 2. Favoritos y alertas de disponibilidad.

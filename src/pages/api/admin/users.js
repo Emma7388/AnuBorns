@@ -1,5 +1,5 @@
 import { jsonResponse } from "../../../lib/apiResponse.js";
-import { requireAdmin } from "../../../lib/adminAuth.js";
+import { getConfiguredAdminSource, requireAdmin } from "../../../lib/adminAuth.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 
@@ -9,6 +9,8 @@ const MP_SELECT = "user_id, mp_user_id, updated_at";
 const MAX_PER_PAGE = 50;
 const AUTH_LIST_PAGE_SIZE = 1000;
 const AUTH_LIST_MAX_PAGES = 100;
+const CONTROL_TABLE = "admin_user_controls";
+const RECENT_AUDIT_LIMIT = 40;
 
 const cleanSearch = (value) => String(value ?? "").trim().slice(0, 80);
 
@@ -48,12 +50,17 @@ const listAllAuthUsers = async (supabaseAdmin) => {
 
 const fetchProfiles = async (supabaseAdmin, userIds) => {
   if (!userIds.length) return new Map();
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select(PROFILE_SELECT)
-    .in("user_id", userIds);
-  if (error) throw error;
-  return new Map((data ?? []).map((profile) => [String(profile.user_id), profile]));
+  const rows = [];
+  const ids = unique(userIds);
+  for (let index = 0; index < ids.length; index += 500) {
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select(PROFILE_SELECT)
+      .in("user_id", ids.slice(index, index + 500));
+    if (error) throw error;
+    rows.push(...(data ?? []));
+  }
+  return new Map(rows.map((profile) => [String(profile.user_id), profile]));
 };
 
 const fetchMatchingProfiles = async (supabaseAdmin, query) => {
@@ -153,7 +160,7 @@ const getUserMetadata = (user) => {
   };
 };
 
-const formatUser = ({ user, profile, mpAccount, passwordReset }) => {
+const formatUser = ({ user, profile, mpAccount, passwordReset, access }) => {
   const metadata = getUserMetadata(user);
   const safeProfile = { ...metadata, ...(profile ?? {}) };
   return {
@@ -181,18 +188,30 @@ const formatUser = ({ user, profile, mpAccount, passwordReset }) => {
     password_reset: {
       last_sent_at: passwordReset?.last_sent_at ?? "",
     },
+    access: access ?? {
+      is_admin: false,
+      admin_source: "",
+      is_current_admin: false,
+      status: "active",
+      is_suspended: false,
+      reason: "",
+      suspended_at: "",
+      updated_at: "",
+    },
   };
 };
 
-const buildUsersResult = (users) => ({
+const buildUsersResult = (users, directoryUsers = users) => ({
   users,
-  allUserIds: users.map((user) => String(user.id ?? "")).filter(Boolean),
+  directoryUsers,
+  allUserIds: directoryUsers.map((user) => String(user.id ?? "")).filter(Boolean),
   total: users.length,
 });
 
 const findUsers = async (supabaseAdmin, { query }) => {
   if (!query) {
-    return buildUsersResult(await listAllAuthUsers(supabaseAdmin));
+    const directoryUsers = await listAllAuthUsers(supabaseAdmin);
+    return buildUsersResult(directoryUsers, directoryUsers);
   }
 
   const [authUsers, matchingProfiles] = await Promise.all([
@@ -212,8 +231,105 @@ const findUsers = async (supabaseAdmin, { query }) => {
     if (profile && profileMatches(profile, query)) usersById.set(String(user.id), user);
   }
 
-  return buildUsersResult(Array.from(usersById.values()));
+  return buildUsersResult(Array.from(usersById.values()), authUsers);
 };
+
+const isMissingControlTable = (error) => {
+  const code = String(error?.code ?? "");
+  const message = String(error?.message ?? "").toLowerCase();
+  return code === "42P01" || code === "PGRST205" || message.includes(CONTROL_TABLE);
+};
+
+const fetchAdminRows = async (supabaseAdmin) => {
+  const { data, error } = await supabaseAdmin.from("admin_users").select("user_id");
+  if (error) throw error;
+  return data ?? [];
+};
+
+const fetchAccountControls = async (supabaseAdmin, userIds) => {
+  const ids = unique(userIds);
+  if (!ids.length) return { ready: true, byId: new Map() };
+  const rows = [];
+  for (let index = 0; index < ids.length; index += 500) {
+    const { data, error } = await supabaseAdmin
+      .from(CONTROL_TABLE)
+      .select("user_id,status,reason,suspended_at,updated_at,updated_by")
+      .in("user_id", ids.slice(index, index + 500));
+    if (error && isMissingControlTable(error)) return { ready: false, byId: new Map() };
+    if (error) throw error;
+    rows.push(...(data ?? []));
+  }
+  return {
+    ready: true,
+    byId: new Map(rows.map((row) => [String(row.user_id), row])),
+  };
+};
+
+const fetchRecentAdminAudit = async (supabaseAdmin) => {
+  const { data, error } = await supabaseAdmin
+    .from("audit_logs")
+    .select("user_id,event,metadata,created_at")
+    .ilike("event", "admin_%")
+    .order("created_at", { ascending: false })
+    .limit(RECENT_AUDIT_LIMIT);
+  if (error) return { ready: false, rows: [] };
+  return { ready: true, rows: data ?? [] };
+};
+
+const getUserLabel = (user, profile) => {
+  if (!user) return "";
+  const metadata = getUserMetadata(user);
+  const firstName = String(profile?.first_name ?? metadata.first_name ?? "").trim();
+  const lastName = String(profile?.last_name ?? metadata.last_name ?? "").trim();
+  return [firstName, lastName].filter(Boolean).join(" ") || String(user?.email ?? "Usuario sin nombre");
+};
+
+const getAdminSource = (user, tableAdminIds) => {
+  const configured = getConfiguredAdminSource(user);
+  const fromEnv = configured.byUserId || configured.byEmail;
+  const fromTable = tableAdminIds.has(String(user?.id ?? ""));
+  if (fromEnv && fromTable) return "both";
+  if (fromEnv) return "env";
+  if (fromTable) return "table";
+  return "";
+};
+
+const formatAccess = ({ user, tableAdminIds, control, currentAdminId }) => {
+  const adminSource = getAdminSource(user, tableAdminIds);
+  const bannedUntil = new Date(user?.banned_until ?? 0);
+  const authIsBanned = !Number.isNaN(bannedUntil.getTime()) && bannedUntil.getTime() > Date.now();
+  const status = control?.status === "suspended" || authIsBanned ? "suspended" : "active";
+  return {
+    is_admin: Boolean(adminSource),
+    admin_source: adminSource,
+    is_current_admin: String(user?.id ?? "") === String(currentAdminId ?? ""),
+    status,
+    is_suspended: status === "suspended",
+    reason: status === "suspended" ? (control?.reason ?? "") : "",
+    suspended_at: control?.suspended_at ?? "",
+    updated_at: control?.updated_at ?? "",
+    auth_banned_until: authIsBanned ? user.banned_until : "",
+  };
+};
+
+const formatAuditRows = ({ rows, usersById, profilesById }) => rows.map((row) => {
+  const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  const actorId = String(row?.user_id ?? "");
+  const targetId = String(metadata.target_user_id ?? "");
+  const actor = usersById.get(actorId);
+  const target = usersById.get(targetId);
+  return {
+    event: String(row?.event ?? ""),
+    created_at: row?.created_at ?? "",
+    actor_user_id: actorId,
+    actor_label: getUserLabel(actor, profilesById.get(actorId)),
+    target_user_id: targetId,
+    target_label: targetId ? getUserLabel(target, profilesById.get(targetId)) : "",
+    action: String(metadata.action ?? ""),
+    reason: String(metadata.reason ?? ""),
+    status: String(metadata.status ?? ""),
+  };
+});
 
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request, url }) => {
@@ -236,14 +352,34 @@ export const GET = async ({ request, url }) => {
 
     const query = cleanSearch(url.searchParams.get("q"));
 
-    const { users, allUserIds, total } = await findUsers(supabaseAdmin, { query });
+    const { users, directoryUsers, allUserIds, total } = await findUsers(supabaseAdmin, { query });
     const userIds = users.map((user) => String(user.id)).filter(Boolean);
-    const [profilesById, mpAccountsById, passwordResetsById, allMpAccountsById] = await Promise.all([
+    const usersById = new Map(directoryUsers.map((user) => [String(user.id), user]));
+    const [adminRows, recentAudit] = await Promise.all([
+      fetchAdminRows(supabaseAdmin),
+      fetchRecentAdminAudit(supabaseAdmin),
+    ]);
+    const recentAuditRows = recentAudit.rows;
+    const tableAdminIds = new Set(adminRows.map((row) => String(row.user_id ?? "")).filter(Boolean));
+    const auditUserIds = recentAuditRows.flatMap((row) => [
+      String(row?.user_id ?? ""),
+      String(row?.metadata?.target_user_id ?? ""),
+    ]).filter(Boolean);
+    const relevantIds = unique([...userIds, ...allUserIds, ...tableAdminIds, ...auditUserIds]);
+    const [profilesById, mpAccountsById, passwordResetsById, allMpAccountsById, controls] = await Promise.all([
       fetchProfiles(supabaseAdmin, userIds),
       fetchMercadoPagoAccounts(supabaseAdmin, userIds),
       fetchPasswordResetRequests(supabaseAdmin, userIds),
       fetchMercadoPagoAccounts(supabaseAdmin, allUserIds ?? []),
+      fetchAccountControls(supabaseAdmin, relevantIds),
     ]);
+
+    const missingProfileIds = relevantIds.filter((id) => !profilesById.has(id));
+    const directoryProfilesById = new Map(profilesById);
+    if (missingProfileIds.length) {
+      const extraProfiles = await fetchProfiles(supabaseAdmin, missingProfileIds);
+      for (const [id, profile] of extraProfiles) directoryProfilesById.set(id, profile);
+    }
 
     const records = users.map((user) =>
       formatUser({
@@ -251,19 +387,56 @@ export const GET = async ({ request, url }) => {
         profile: profilesById.get(String(user.id)),
         mpAccount: mpAccountsById.get(String(user.id)),
         passwordReset: passwordResetsById.get(String(user.id)),
+        access: formatAccess({
+          user,
+          tableAdminIds,
+          control: controls.byId.get(String(user.id)),
+          currentAdminId: admin.user.id,
+        }),
       }),
     );
     const connectedMercadoPago = countConnectedMercadoPagoAccounts(allMpAccountsById);
+    const admins = directoryUsers
+      .map((user) => {
+        const source = getAdminSource(user, tableAdminIds);
+        const access = formatAccess({
+          user,
+          tableAdminIds,
+          control: controls.byId.get(String(user.id)),
+          currentAdminId: admin.user.id,
+        });
+        return {
+          id: String(user.id),
+          email: user.email ?? "",
+          label: getUserLabel(user, directoryProfilesById.get(String(user.id))),
+          source,
+          status: access.status,
+        };
+      })
+      .filter((item) => item.source && item.status === "active")
+      .sort((left, right) => left.label.localeCompare(right.label, "es"));
 
     return jsonResponse({
       ok: true,
       users: records,
       total,
+      current_admin: {
+        id: admin.user.id,
+        source: admin.source,
+      },
+      controls_ready: controls.ready,
+      audit_ready: recentAudit.ready,
+      admins,
+      recent_audit: formatAuditRows({
+        rows: recentAuditRows,
+        usersById,
+        profilesById: directoryProfilesById,
+      }),
       mercado_pago_summary: {
-        total,
+        total: allUserIds.length,
         connected: connectedMercadoPago,
-        disconnected: Math.max(0, total - connectedMercadoPago),
-        filtered: Boolean(query),
+        disconnected: Math.max(0, allUserIds.length - connectedMercadoPago),
+        filtered: false,
       },
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { jsonResponse } from "../../../../lib/apiResponse.js";
 import { requireAdmin } from "../../../../lib/adminAuth.js";
+import { writeAdminAudit } from "../../../../lib/adminAudit.js";
 import {
   ADMIN_PROFILE_FIELDS,
   buildProfileDiff,
@@ -92,25 +93,49 @@ export const PATCH = async ({ request }) => {
 
     const before = existingProfile ?? { user_id: targetUserId };
     const diff = buildProfileDiff(before, validation.profile);
+    const auditBase = {
+      actorUserId: admin.user.id,
+      targetUserId,
+      action: "update_profile",
+      reason,
+      request,
+      metadata: {
+        actor_source: admin.source,
+        diff,
+      },
+    };
+    const requestedAudit = await writeAdminAudit(supabaseAdmin, {
+      ...auditBase,
+      event: "admin_profile_update_requested",
+      status: "requested",
+    });
+    if (!requestedAudit.ok) {
+      return jsonResponse({ error: "No se modificó el perfil porque no pudo iniciarse su auditoría." }, 500);
+    }
+
     if (Object.keys(diff).length === 0) {
       const metadataSync = await syncAuthUserMetadata(supabaseAdmin, targetUserId, validation.profile);
       if (!metadataSync.ok) {
+        await writeAdminAudit(supabaseAdmin, {
+          ...auditBase,
+          event: "admin_profile_update_failed",
+          status: "failed",
+          metadata: { ...auditBase.metadata, failure: "auth_metadata_sync" },
+        });
         return jsonResponse({ error: metadataSync.error }, 500);
       }
-      if (metadataSync.changed) {
-        await supabaseAdmin.from("audit_logs").insert({
-          user_id: admin.user.id,
-          event: "admin_profile_update",
-          metadata: {
-            target_user_id: targetUserId,
-            reason,
-            diff: {},
-            auth_metadata_synced: true,
-            profile_changed: false,
-          },
-          ip_address: request.headers.get("x-forwarded-for") ?? null,
-          user_agent: request.headers.get("user-agent") ?? null,
-        });
+      const completedAudit = await writeAdminAudit(supabaseAdmin, {
+        ...auditBase,
+        event: "admin_profile_update",
+        status: "completed",
+        metadata: {
+          ...auditBase.metadata,
+          auth_metadata_synced: metadataSync.changed,
+          profile_changed: false,
+        },
+      });
+      if (!completedAudit.ok) {
+        return jsonResponse({ error: "El perfil no cambió, pero falló la confirmación de auditoría." }, 500);
       }
       return jsonResponse({ ok: true, changed: false, profile: { ...before, ...validation.profile } });
     }
@@ -128,26 +153,39 @@ export const PATCH = async ({ request }) => {
       .single();
 
     if (updateError || !updatedProfile) {
+      await writeAdminAudit(supabaseAdmin, {
+        ...auditBase,
+        event: "admin_profile_update_failed",
+        status: "failed",
+        metadata: { ...auditBase.metadata, failure: "profile_upsert" },
+      });
       return jsonResponse({ error: "No se pudo actualizar el perfil." }, 500);
     }
 
     const metadataSync = await syncAuthUserMetadata(supabaseAdmin, targetUserId, validation.profile);
     if (!metadataSync.ok) {
+      await writeAdminAudit(supabaseAdmin, {
+        ...auditBase,
+        event: "admin_profile_update_failed",
+        status: "failed",
+        metadata: { ...auditBase.metadata, failure: "auth_metadata_sync", profile_changed: true },
+      });
       return jsonResponse({ error: `Perfil actualizado, pero ${metadataSync.error}` }, 500);
     }
 
-    await supabaseAdmin.from("audit_logs").insert({
-      user_id: admin.user.id,
+    const completedAudit = await writeAdminAudit(supabaseAdmin, {
+      ...auditBase,
       event: "admin_profile_update",
       metadata: {
-        target_user_id: targetUserId,
-        reason,
-        diff,
+        ...auditBase.metadata,
         auth_metadata_synced: metadataSync.changed,
+        profile_changed: true,
       },
-      ip_address: request.headers.get("x-forwarded-for") ?? null,
-      user_agent: request.headers.get("user-agent") ?? null,
+      status: "completed",
     });
+    if (!completedAudit.ok) {
+      return jsonResponse({ error: "El perfil se actualizó, pero falló su confirmación de auditoría. Revisá audit_logs." }, 500);
+    }
 
     return jsonResponse({ ok: true, changed: true, profile: updatedProfile });
   } catch (error) {

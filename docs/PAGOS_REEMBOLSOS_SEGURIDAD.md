@@ -236,7 +236,7 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 22 tests passed
 ```
 
-La ejecución completa más reciente del 11 de octubre de 2026 terminó con 101 pruebas aprobadas y 0 fallos. El usuario ejecutó las migraciones remotas y el asistente revisó sus auditorías sin anomalías pendientes; el build, despliegue y pruebas visuales todavía no fueron ejecutados.
+La ejecución completa más reciente del 11 de octubre de 2026 terminó con 115 pruebas aprobadas y 0 fallos; las pruebas nuevas de control administrativo no sustituyen pruebas reales de pagos. El usuario ejecutó las migraciones comerciales y la migración administrativa 2A; sus auditorías no mostraron anomalías. El build, el despliegue y las pruebas visuales todavía no fueron ejecutados.
 
 ## Evidencia real conservada
 

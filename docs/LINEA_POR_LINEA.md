@@ -37,6 +37,10 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
 - `src/lib/vercelAnalytics.js`: lectura server-side de Vercel Web Analytics para visitas, page views y rankings del panel admin.
+- `src/lib/adminAuth.js`: valida administradores persistidos en `admin_users` o configurados por Vercel.
+- `src/lib/adminAccess.js`: normaliza y valida cambios de rol, suspensión y restauración; protege la propia cuenta, administradores de Vercel y el último admin persistido.
+- `src/lib/adminAudit.js`: escritura server-side común de solicitudes y resultados administrativos en `audit_logs`.
+- `src/lib/serverAuth.js`: autenticación Bearer compartida y bloqueo inmediato de rutas de aplicación para cuentas suspendidas.
 - `src/lib/cart.js`: carrito híbrido, sincronización al login, deduplicación, cantidades 1–100 limitadas por stock, conteo por unidades y un único registro por producto.
 - `src/lib/productInput.js`: normalización server-side de producto, stock, ubicación, entrega y contrato.
 - `src/lib/mercadopagoIdentity.js`: verificación de identidad vendedor/perfil con excepción controlada.
@@ -77,6 +81,7 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/scripts/mercadopago-connect.js`: consulta, conecta, reconecta y desconecta la cuenta Mercado Pago del vendedor.
 - `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador, usando lectura por POST y antirráfaga para navegación/realtime.
 - `src/scripts/audit.js`: cliente liviano para enviar eventos a `/api/audit` con token de sesión.
+- `src/scripts/admin-users.js`: búsqueda, perfil, roles, suspensión/restauración, restablecimiento auditado, administradores activos y eventos recientes de `/admin/usuarios`.
 
 ## API routes
 
@@ -101,6 +106,10 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/api/admin/health.js`: estado operativo admin, tablas requeridas y variables sin disparar la lectura pesada de Metrics API.
 - `src/pages/api/admin/supabase-metrics.js`: endpoint admin de consulta manual para mediciones Supabase y uso del plan.
 - `src/pages/api/admin/vercel-analytics.js`: endpoint admin de consulta manual para Vercel Web Analytics.
+- `src/pages/api/admin/users.js`: directorio administrativo con perfil, Mercado Pago, rol, suspensión, administradores activos y auditoría reciente sanitizada.
+- `src/pages/api/admin/users/access.js`: acciones auditadas para otorgar/quitar roles y suspender/restaurar cuentas sin borrarlas.
+- `src/pages/api/admin/users/profile.js`: edición profunda de perfil y metadata Auth con motivo y auditoría de solicitud/resultado.
+- `src/pages/api/admin/users/password-reset.js`: recuperación de contraseña con motivo obligatorio y auditoría antes/después del envío.
 
 ## Páginas
 
@@ -127,6 +136,12 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/oferta.astro`: entrada de segundo nivel para ofertar.
 - `src/pages/oferta/productos.astro`: placeholder de flujo de oferta de productos.
 - `src/pages/admin/index.astro`: tablero operativo interno con chequeos por proceso, mediciones read-only de Supabase y analitica manual de Vercel.
+- `src/pages/admin/usuarios.astro`: control administrativo de usuarios, roles, estado de cuenta, administradores activos y auditoría reciente.
+
+## SQL administrativo
+
+- `docs/supabase-admin-users.sql`: creación inicial de `public.admin_users`.
+- `docs/supabase-admin-control.sql`: Etapa 2A; suspensiones server-only, permisos endurecidos, RPC serializadas para coordinar rol/estado y auditoría de instalación. Fue ejecutado y auditado remotamente el 11 de octubre de 2026; falta desplegar y validar los botones nuevos.
 
 
 ## Estilos

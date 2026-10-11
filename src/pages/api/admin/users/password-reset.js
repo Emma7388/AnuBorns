@@ -1,5 +1,7 @@
 import { jsonResponse } from "../../../../lib/apiResponse.js";
+import { normalizeAdminActionReason } from "../../../../lib/adminAccess.js";
 import { requireAdmin } from "../../../../lib/adminAuth.js";
+import { writeAdminAudit } from "../../../../lib/adminAudit.js";
 import { checkRateLimit } from "../../../../lib/serverRateLimit.js";
 import { readJsonBody } from "../../../../lib/serverRequest.js";
 import { getSupabaseAdmin } from "../../../../lib/supabaseServer.js";
@@ -55,6 +57,10 @@ export const POST = async ({ request }) => {
     if (!isUuid(targetUserId)) {
       return jsonResponse({ error: "Usuario inválido." }, 400);
     }
+    const reason = normalizeAdminActionReason(body.data?.reason);
+    if (reason.length < 6) {
+      return jsonResponse({ error: "Ingresá un motivo de al menos 6 caracteres." }, 422);
+    }
 
     const { data: userResult, error: userError } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
     const email = String(userResult?.user?.email ?? "").trim();
@@ -67,23 +73,46 @@ export const POST = async ({ request }) => {
       return jsonResponse({ error: "SITE_URL debe estar configurado con HTTPS para enviar restablecimientos." }, 503);
     }
 
+    const auditBase = {
+      actorUserId: admin.user.id,
+      targetUserId,
+      action: "password_reset",
+      reason,
+      request,
+      metadata: {
+        actor_source: admin.source,
+        target_email: email,
+      },
+    };
+    const requestedAudit = await writeAdminAudit(supabaseAdmin, {
+      ...auditBase,
+      event: "admin_password_reset_action_requested",
+      status: "requested",
+    });
+    if (!requestedAudit.ok) {
+      return jsonResponse({ error: "No se envió el email porque no pudo iniciarse su auditoría." }, 500);
+    }
+
     const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
     if (resetError) {
+      await writeAdminAudit(supabaseAdmin, {
+        ...auditBase,
+        event: "admin_password_reset_action_failed",
+        status: "failed",
+      });
       return jsonResponse({ error: "No se pudo enviar el email de restablecimiento." }, 502);
     }
 
     const sentAt = new Date().toISOString();
-    await supabaseAdmin.from("audit_logs").insert({
-      user_id: admin.user.id,
+    const completedAudit = await writeAdminAudit(supabaseAdmin, {
+      ...auditBase,
       event: "admin_password_reset_requested",
-      metadata: {
-        target_user_id: targetUserId,
-        target_email: email,
-      },
-      ip_address: request.headers.get("x-forwarded-for") ?? null,
-      user_agent: request.headers.get("user-agent") ?? null,
+      status: "completed",
       created_at: sentAt,
     });
+    if (!completedAudit.ok) {
+      return jsonResponse({ error: "El email se envió, pero falló su confirmación de auditoría. Revisá audit_logs." }, 500);
+    }
 
     return jsonResponse({ ok: true, sent_at: sentAt });
   } catch (error) {

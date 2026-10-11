@@ -10,12 +10,20 @@ const mpChartElement = document.getElementById("admin-users-mp-chart");
 const mpConnectedElement = document.getElementById("admin-users-mp-connected");
 const mpDisconnectedElement = document.getElementById("admin-users-mp-disconnected");
 const mpTotalElement = document.getElementById("admin-users-mp-total");
+const adminListElement = document.getElementById("admin-users-admin-list");
+const adminCountElement = document.getElementById("admin-users-admin-count");
+const auditListElement = document.getElementById("admin-users-audit-list");
+const auditCountElement = document.getElementById("admin-users-audit-count");
 
 const state = {
   query: "",
   users: [],
   selectedId: "",
   total: 0,
+  admins: [],
+  recentAudit: [],
+  controlsReady: false,
+  auditReady: false,
   mercadoPagoSummary: {
     total: 0,
     connected: 0,
@@ -25,6 +33,7 @@ const state = {
   isEditing: false,
   isSaving: false,
   isResettingPassword: false,
+  isUpdatingAccess: false,
 };
 
 const setStatus = (message) => {
@@ -86,6 +95,33 @@ const renderMercadoPagoDetailRow = (connected) => `
   </div>
 `;
 
+const adminSourceLabel = (source) => ({
+  table: "Base de datos",
+  env: "Vercel",
+  both: "Base y Vercel",
+}[String(source ?? "")] ?? "Sin rol");
+
+const auditEventLabel = (event) => ({
+  admin_access_action_requested: "Acción de acceso solicitada",
+  admin_access_action_completed: "Acción de acceso completada",
+  admin_access_action_failed: "Acción de acceso fallida",
+  admin_password_reset_action_requested: "Restablecimiento solicitado",
+  admin_password_reset_requested: "Restablecimiento enviado",
+  admin_password_reset_action_failed: "Restablecimiento fallido",
+  admin_profile_update_requested: "Edición de perfil solicitada",
+  admin_profile_update: "Perfil actualizado",
+  admin_profile_update_failed: "Edición de perfil fallida",
+}[String(event ?? "")] ?? String(event ?? "Evento administrativo"));
+
+const accessActionLabel = (action) => ({
+  grant_admin: "Otorgar rol admin",
+  revoke_admin: "Quitar rol admin",
+  suspend_user: "Suspender cuenta",
+  restore_user: "Restaurar cuenta",
+  password_reset: "Restablecer cuenta",
+  update_profile: "Editar perfil",
+}[String(action ?? "")] ?? String(action ?? ""));
+
 const renderEditField = ([field, label, type], profile = {}) => `
   <label class="ab-admin-users__edit-field">
     <span>${escapeHtml(label)}</span>
@@ -128,6 +164,7 @@ let passwordResetModal = null;
 let passwordResetModalUser = null;
 let passwordResetModalLast = null;
 let passwordResetModalAccept = null;
+let passwordResetModalReason = null;
 let passwordResetResolver = null;
 
 const getLastPasswordResetText = (user) => {
@@ -138,11 +175,17 @@ const getLastPasswordResetText = (user) => {
 
 const closePasswordResetModal = (accepted) => {
   if (!passwordResetModal) return;
+  const reason = String(passwordResetModalReason?.value ?? "").trim();
+  if (accepted && reason.length < 6) {
+    setStatus("Ingresá un motivo de al menos 6 caracteres para auditar el restablecimiento.");
+    passwordResetModalReason?.focus();
+    return;
+  }
   passwordResetModal.classList.add("ab-is-hidden");
   passwordResetModal.setAttribute("aria-hidden", "true");
   const resolve = passwordResetResolver;
   passwordResetResolver = null;
-  if (resolve) resolve(Boolean(accepted));
+  if (resolve) resolve({ accepted: Boolean(accepted), reason: accepted ? reason : "" });
 };
 
 const ensurePasswordResetModal = () => {
@@ -160,6 +203,10 @@ const ensurePasswordResetModal = () => {
       <p class="ab-admin-reset-modal__last" id="admin-password-reset-last"></p>
       <h2 id="admin-password-reset-title">Restablecer cuenta</h2>
       <p id="admin-password-reset-user"></p>
+      <label class="ab-admin-users__edit-field">
+        <span>Motivo obligatorio</span>
+        <textarea id="admin-password-reset-reason" rows="2" maxlength="240" placeholder="Ej: solicitud verificada del titular" required></textarea>
+      </label>
       <div class="ab-orders-modal__actions">
         <button type="button" class="ab-orders-delete-btn ab-orders-delete-btn--ghost" data-admin-password-reset-cancel>
           Cancelar
@@ -175,6 +222,7 @@ const ensurePasswordResetModal = () => {
   passwordResetModalUser = passwordResetModal.querySelector("#admin-password-reset-user");
   passwordResetModalLast = passwordResetModal.querySelector("#admin-password-reset-last");
   passwordResetModalAccept = passwordResetModal.querySelector("[data-admin-password-reset-accept]");
+  passwordResetModalReason = passwordResetModal.querySelector("#admin-password-reset-reason");
   passwordResetModal.querySelector("[data-admin-password-reset-close]")?.addEventListener("click", () => closePasswordResetModal(false));
   passwordResetModal.querySelector("[data-admin-password-reset-cancel]")?.addEventListener("click", () => closePasswordResetModal(false));
   passwordResetModalAccept?.addEventListener("click", () => closePasswordResetModal(true));
@@ -182,7 +230,8 @@ const ensurePasswordResetModal = () => {
 
 const confirmPasswordReset = (user) => {
   ensurePasswordResetModal();
-  if (!passwordResetModal) return Promise.resolve(false);
+  if (!passwordResetModal) return Promise.resolve({ accepted: false, reason: "" });
+  if (passwordResetModalReason) passwordResetModalReason.value = "";
   if (passwordResetModalLast) passwordResetModalLast.textContent = getLastPasswordResetText(user);
   if (passwordResetModalUser) {
     const email = String(user?.email ?? "").trim();
@@ -190,10 +239,62 @@ const confirmPasswordReset = (user) => {
   }
   passwordResetModal.classList.remove("ab-is-hidden");
   passwordResetModal.setAttribute("aria-hidden", "false");
-  window.setTimeout(() => passwordResetModalAccept?.focus(), 0);
+  window.setTimeout(() => passwordResetModalReason?.focus(), 0);
   return new Promise((resolve) => {
     passwordResetResolver = resolve;
   });
+};
+
+const renderAccessControl = (user) => {
+  const access = user?.access ?? {};
+  const isAdmin = Boolean(access.is_admin);
+  const isSuspended = Boolean(access.is_suspended);
+  const isSelf = Boolean(access.is_current_admin);
+  const envManaged = ["env", "both"].includes(String(access.admin_source ?? ""));
+  const busy = state.isUpdatingAccess;
+  const roleAction = isAdmin ? "revoke_admin" : "grant_admin";
+  const accountAction = isSuspended ? "restore_user" : "suspend_user";
+  const roleDisabled = busy || !state.controlsReady || (!isAdmin && isSuspended) || (isAdmin && (isSelf || envManaged));
+  const accountDisabled = busy || !state.controlsReady || (!isSuspended && isAdmin) || (!isSuspended && isSelf);
+  const notices = [];
+  if (!state.controlsReady) notices.push("Falta aplicar la migración administrativa en Supabase.");
+  if (isSelf) notices.push("Tu propia cuenta no puede perder permisos ni suspenderse desde este panel.");
+  if (isAdmin && envManaged) notices.push("Este rol también está configurado en Vercel y no se puede quitar desde aquí.");
+  if (isAdmin && !isSuspended) notices.push("Para suspender esta cuenta, primero hay que quitarle el rol administrativo.");
+  if (!isAdmin && isSuspended) notices.push("Restaurá la cuenta antes de otorgarle permisos administrativos.");
+
+  return `
+    <section class="ab-admin-users__access" aria-labelledby="admin-user-access-title">
+      <div class="ab-admin-users__access-head">
+        <div>
+          <p class="ab-admin-dashboard__eyebrow">Control de acceso</p>
+          <h3 id="admin-user-access-title">Rol y estado de cuenta</h3>
+        </div>
+        <div class="ab-admin-users__access-statuses">
+          <strong class="ab-card-status-highlight ab-admin-users__status-pill ${isAdmin ? "is-admin" : ""}">
+            ${isAdmin ? `Administrador · ${escapeHtml(adminSourceLabel(access.admin_source))}` : "Usuario"}
+          </strong>
+          <strong class="ab-card-status-highlight ab-admin-users__status-pill ${isSuspended ? "is-suspended" : "is-active"}">
+            ${isSuspended ? "Suspendido" : "Activo"}
+          </strong>
+        </div>
+      </div>
+      ${isSuspended && access.reason ? `<p class="ab-admin-users__suspension-reason"><strong>Motivo vigente:</strong> ${escapeHtml(access.reason)}</p>` : ""}
+      <label class="ab-admin-users__edit-field ab-admin-users__access-reason">
+        <span>Motivo obligatorio</span>
+        <textarea id="admin-user-access-reason" rows="2" maxlength="240" placeholder="Ej: revisión solicitada por administración" ${busy ? "disabled" : ""}></textarea>
+      </label>
+      <div class="ab-admin-users__access-actions">
+        <button type="button" class="ab-secondary-button" data-admin-access-action="${roleAction}" ${roleDisabled ? "disabled" : ""}>
+          <span>${busy ? "Procesando..." : (isAdmin ? "Quitar rol admin" : "Hacer administrador")}</span>
+        </button>
+        <button type="button" class="ab-secondary-button ${isSuspended ? "" : "ab-admin-users__danger-button"}" data-admin-access-action="${accountAction}" ${accountDisabled ? "disabled" : ""}>
+          <span>${busy ? "Procesando..." : (isSuspended ? "Restaurar cuenta" : "Suspender cuenta")}</span>
+        </button>
+      </div>
+      ${notices.length ? `<div class="ab-admin-users__access-notes">${notices.map((notice) => `<small>${escapeHtml(notice)}</small>`).join("")}</div>` : ""}
+    </section>
+  `;
 };
 
 const renderDetail = (user) => {
@@ -210,15 +311,16 @@ const renderDetail = (user) => {
       <h2>${escapeHtml(name)}</h2>
       <p>${escapeHtml(user.email || "Sin email")}</p>
       <div class="ab-admin-users__detail-actions">
-        <button type="button" class="ab-secondary-button" data-admin-edit-profile ${state.isResettingPassword ? "disabled" : ""}>
+        <button type="button" class="ab-secondary-button" data-admin-edit-profile ${state.isResettingPassword || state.isUpdatingAccess ? "disabled" : ""}>
           <span>${state.isEditing ? "Editando datos" : "Editar datos"}</span>
         </button>
-        <button type="button" class="ab-secondary-button" data-admin-password-reset ${state.isResettingPassword ? "disabled" : ""}>
+        <button type="button" class="ab-secondary-button" data-admin-password-reset ${state.isResettingPassword || state.isUpdatingAccess ? "disabled" : ""}>
           <span>${state.isResettingPassword ? "Enviando..." : "Restablecer cuenta"}</span>
         </button>
       </div>
     </div>
     ${state.isEditing ? renderEditForm(user) : ""}
+    ${renderAccessControl(user)}
     ${renderDetailRow("ID", user.id)}
     ${renderDetailRow("Teléfono", user.profile?.phone)}
     ${renderDetailRow("DNI", user.profile?.dni)}
@@ -250,14 +352,24 @@ const renderUsers = () => {
       const name = fullName(user) || "Usuario sin nombre";
       const selected = user.id === state.selectedId;
       const mpConnected = Boolean(user.mercado_pago?.connected);
+      const isSuspended = Boolean(user.access?.is_suspended);
+      const isAdmin = Boolean(user.access?.is_admin);
+      const cardStatus = isSuspended ? "Suspendido" : isAdmin ? "Admin" : mpConnected ? "Conectado" : "Sin MP";
+      const statusClass = isSuspended
+        ? "ab-admin-user-card__meta--suspended"
+        : isAdmin
+          ? "ab-admin-user-card__meta--admin"
+          : mpConnected
+            ? "ab-admin-user-card__meta--connected"
+            : "ab-admin-user-card__meta--disconnected";
       return `
         <button type="button" class="ab-admin-user-card${selected ? " is-selected" : ""}" data-user-id="${escapeHtml(user.id)}">
           <span>
             <strong>${escapeHtml(name)}</strong>
             <small>${escapeHtml(user.email || "Sin email")}</small>
           </span>
-          <span class="ab-admin-user-card__meta ${mpConnected ? "ab-admin-user-card__meta--connected" : "ab-admin-user-card__meta--disconnected"}">
-            ${mpConnected ? "Conectado" : "Sin MP"}
+          <span class="ab-admin-user-card__meta ab-card-status-highlight ${statusClass}">
+            ${cardStatus}
           </span>
         </button>
       `;
@@ -291,6 +403,53 @@ const renderMercadoPagoSummary = () => {
   }
 };
 
+const renderAdmins = () => {
+  if (adminCountElement) adminCountElement.textContent = String(state.admins.length);
+  if (!adminListElement) return;
+  if (!state.admins.length) {
+    adminListElement.innerHTML = `<p class="ab-muted-text">No hay administradores visibles.</p>`;
+    return;
+  }
+  adminListElement.innerHTML = state.admins.map((admin) => `
+    <article class="ab-admin-users__admin-item">
+      <div>
+        <strong>${escapeHtml(admin.label || "Usuario sin nombre")}</strong>
+        <small>${escapeHtml(admin.email || admin.id)}</small>
+      </div>
+      <span class="ab-card-status-highlight">${escapeHtml(adminSourceLabel(admin.source))}</span>
+    </article>
+  `).join("");
+};
+
+const renderAudit = () => {
+  if (auditCountElement) auditCountElement.textContent = String(state.recentAudit.length);
+  if (!auditListElement) return;
+  if (!state.auditReady) {
+    auditListElement.innerHTML = `<p class="ab-muted-text">No se pudo consultar la auditoría administrativa.</p>`;
+    return;
+  }
+  if (!state.recentAudit.length) {
+    auditListElement.innerHTML = `<p class="ab-muted-text">No hay eventos administrativos recientes.</p>`;
+    return;
+  }
+  auditListElement.innerHTML = state.recentAudit.map((row) => {
+    const statusClass = row.status === "failed" ? "is-failed" : row.status === "completed" ? "is-completed" : "is-requested";
+    const actor = row.actor_label || row.actor_user_id || "Administrador";
+    const target = row.target_label || row.target_user_id;
+    const detail = [row.action ? accessActionLabel(row.action) : "", target ? `sobre ${target}` : ""].filter(Boolean).join(" ");
+    return `
+      <article class="ab-admin-users__audit-item ${statusClass}">
+        <div class="ab-admin-users__audit-item-head">
+          <strong>${escapeHtml(auditEventLabel(row.event))}</strong>
+          <time datetime="${escapeHtml(row.created_at)}">${escapeHtml(formatDate(row.created_at))}</time>
+        </div>
+        <p>${escapeHtml(actor)}${detail ? ` · ${escapeHtml(detail)}` : ""}</p>
+        ${row.reason ? `<small>Motivo: ${escapeHtml(row.reason)}</small>` : ""}
+      </article>
+    `;
+  }).join("");
+};
+
 const fetchUsers = async () => {
   setStatus("Cargando usuarios...");
   const { data: sessionData } = await supabase.auth.getSession();
@@ -314,6 +473,10 @@ const fetchUsers = async () => {
     setStatus(payload?.error ?? "No se pudieron cargar los usuarios.");
     state.users = [];
     state.total = 0;
+    state.admins = [];
+    state.recentAudit = [];
+    state.controlsReady = false;
+    state.auditReady = false;
     state.mercadoPagoSummary = {
       total: 0,
       connected: 0,
@@ -322,11 +485,17 @@ const fetchUsers = async () => {
     };
     renderUsers();
     renderMercadoPagoSummary();
+    renderAdmins();
+    renderAudit();
     return;
   }
 
   state.users = Array.isArray(payload?.users) ? payload.users : [];
   state.total = Number(payload?.total) || state.users.length;
+  state.admins = Array.isArray(payload?.admins) ? payload.admins : [];
+  state.recentAudit = Array.isArray(payload?.recent_audit) ? payload.recent_audit : [];
+  state.controlsReady = payload?.controls_ready === true;
+  state.auditReady = payload?.audit_ready === true;
   state.mercadoPagoSummary = payload?.mercado_pago_summary ?? {
     total: state.total,
     connected: state.users.filter((user) => user.mercado_pago?.connected).length,
@@ -345,6 +514,8 @@ const fetchUsers = async () => {
   );
   renderUsers();
   renderMercadoPagoSummary();
+  renderAdmins();
+  renderAudit();
 };
 
 const getSelectedUser = () => state.users.find((user) => user.id === state.selectedId) ?? null;
@@ -434,8 +605,8 @@ const saveSelectedProfile = async (form) => {
 const sendPasswordReset = async () => {
   const selectedUser = getSelectedUser();
   if (!selectedUser || state.isResettingPassword) return;
-  const confirmed = await confirmPasswordReset(selectedUser);
-  if (!confirmed) return;
+  const confirmation = await confirmPasswordReset(selectedUser);
+  if (!confirmation.accepted) return;
 
   const token = await getAccessToken();
   if (!token) {
@@ -454,7 +625,7 @@ const sendPasswordReset = async () => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ user_id: selectedUser.id }),
+      body: JSON.stringify({ user_id: selectedUser.id, reason: confirmation.reason }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -465,6 +636,54 @@ const sendPasswordReset = async () => {
     setStatus("Solicitud enviada. El usuario recibira el email de restablecimiento.");
   } finally {
     state.isResettingPassword = false;
+    renderDetail(getSelectedUser());
+  }
+};
+
+const runAccessAction = async (action) => {
+  const selectedUser = getSelectedUser();
+  if (!selectedUser || state.isUpdatingAccess) return;
+  const reason = String(document.getElementById("admin-user-access-reason")?.value ?? "").trim();
+  if (reason.length < 6) {
+    setStatus("Ingresá un motivo de al menos 6 caracteres para auditar la acción.");
+    document.getElementById("admin-user-access-reason")?.focus();
+    return;
+  }
+
+  const token = await getAccessToken();
+  if (!token) {
+    setStatus("Tenés que iniciar sesión para administrar accesos.");
+    return;
+  }
+
+  state.isUpdatingAccess = true;
+  renderDetail(selectedUser);
+  setStatus(`${accessActionLabel(action)}: procesando...`);
+
+  try {
+    const response = await fetch("/api/admin/users/access", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action,
+        user_id: selectedUser.id,
+        reason,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setStatus(result?.error ?? "No se pudo completar la acción administrativa.");
+      return;
+    }
+
+    state.isEditing = false;
+    await fetchUsers();
+    setStatus(`${accessActionLabel(action)}: acción completada y auditada.`);
+  } finally {
+    state.isUpdatingAccess = false;
     renderDetail(getSelectedUser());
   }
 };
@@ -493,6 +712,17 @@ listElement?.addEventListener("click", (event) => {
   renderUsers();
 });
 detailElement?.addEventListener("click", (event) => {
+  const accessButton = event.target.closest("[data-admin-access-action]");
+  if (accessButton && !state.isUpdatingAccess) {
+    const action = accessButton.getAttribute("data-admin-access-action") ?? "";
+    runAccessAction(action).catch(() => {
+      state.isUpdatingAccess = false;
+      setStatus("No se pudo completar la acción administrativa.");
+      renderDetail(getSelectedUser());
+    });
+    return;
+  }
+
   const editButton = event.target.closest("[data-admin-edit-profile]");
   if (editButton && !state.isSaving) {
     state.isEditing = !state.isEditing;

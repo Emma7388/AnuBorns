@@ -64,6 +64,34 @@ import "../../styles/admin.css";
       </aside>
     </div>
 
+    <div class="ab-admin-users__oversight">
+      <section class="ab-admin-users__oversight-panel" aria-labelledby="admin-users-admins-title">
+        <div class="ab-admin-users__section-head">
+          <div>
+            <p class="ab-admin-dashboard__eyebrow">Accesos</p>
+            <h3 id="admin-users-admins-title">Administradores activos</h3>
+          </div>
+          <span id="admin-users-admin-count">0</span>
+        </div>
+        <div class="ab-admin-users__admin-list" id="admin-users-admin-list">
+          <p class="ab-muted-text">Cargando administradores...</p>
+        </div>
+      </section>
+
+      <section class="ab-admin-users__oversight-panel" aria-labelledby="admin-users-audit-title">
+        <div class="ab-admin-users__section-head">
+          <div>
+            <p class="ab-admin-dashboard__eyebrow">Trazabilidad</p>
+            <h3 id="admin-users-audit-title">Auditoría reciente</h3>
+          </div>
+          <span id="admin-users-audit-count">0</span>
+        </div>
+        <div class="ab-admin-users__audit-list" id="admin-users-audit-list">
+          <p class="ab-muted-text">Cargando eventos...</p>
+        </div>
+      </section>
+    </div>
+
   </section>
 </MainLayout>
 
