@@ -2203,7 +2203,7 @@ input[type="submit"] {
   overflow-wrap: anywhere;
 }
 
-.ab-provider-product-card__details strong.ab-payment-pending-highlight {
+.ab-card-status-highlight {
   padding-inline: 3px;
   margin-inline: -3px;
   border-radius: 2px;

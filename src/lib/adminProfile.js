@@ -1,3 +1,5 @@
+import { buildProfileAuthMetadata } from "./profileAuthMetadata.js";
+
 export const ADMIN_PROFILE_FIELDS = [
   "first_name",
   "last_name",
@@ -97,4 +99,5 @@ export const mergeAdminProfileMetadata = (metadata = {}, profile = {}) => ({
     merged[field] = String(profile?.[field] ?? "");
     return merged;
   }, {}),
+  ...buildProfileAuthMetadata(profile),
 });

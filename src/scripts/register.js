@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
 import { PENDING_AVATAR_KEY } from "../lib/pendingAvatar";
+import { buildProfileAuthMetadata } from "../lib/profileAuthMetadata.js";
 import {
   clearPendingRegistrationProfile,
   savePendingRegistrationProfile,
@@ -317,7 +318,10 @@ const handleRegisterSubmit = async (event) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo },
+      options: {
+        emailRedirectTo,
+        data: buildProfileAuthMetadata(validation.values),
+      },
     });
 
     if (error) {

@@ -19,7 +19,31 @@ const getPublicationPeriod = (value = new Date()) => {
 };
 
 const activatePaidPublication = async (supabaseAdmin, record, approvedAt) => {
-  const period = getPublicationPeriod(approvedAt);
+  const approvalPeriod = getPublicationPeriod(approvedAt);
+  const { data: currentProduct, error: readError } = await supabaseAdmin
+    .from("products")
+    .select("id,publication_started_at,publication_expires_at")
+    .eq("id", record.product_id)
+    .eq("user_id", record.user_id)
+    .eq("publication_type", "monthly")
+    .maybeSingle();
+  if (readError || !currentProduct?.id) {
+    return { ok: false, error: "El pago se aprobó, pero no se pudo activar la publicación." };
+  }
+  const isSamePaidPeriod = currentProduct.publication_started_at
+    && Math.abs(Date.parse(currentProduct.publication_started_at) - Date.parse(approvalPeriod.startedAt)) < 1000;
+  const currentExpiryMs = Date.parse(String(currentProduct.publication_expires_at ?? ""));
+  if (isSamePaidPeriod && Number.isFinite(currentExpiryMs)) {
+    return { ok: true, startedAt: approvalPeriod.startedAt, expiresAt: new Date(currentExpiryMs).toISOString() };
+  }
+  const approvalMs = Date.parse(approvalPeriod.startedAt);
+  const renewalBaseMs = Number.isFinite(currentExpiryMs)
+    ? Math.max(approvalMs, currentExpiryMs)
+    : approvalMs;
+  const period = {
+    startedAt: approvalPeriod.startedAt,
+    expiresAt: new Date(renewalBaseMs + MONTHLY_PUBLICATION_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+  };
   const { data: product, error } = await supabaseAdmin
     .from("products")
     .update({

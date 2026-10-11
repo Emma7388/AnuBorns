@@ -12,7 +12,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ## Backend
 
-- Supabase Auth administra registro, sesión y perfiles.
+- Supabase Auth administra registro y sesión. Los datos privados de perfil viven en `public.profiles`; sólo nombre y apellido se sincronizan a `user_metadata` para identificación visual en Auth. El teléfono de contacto no se asigna a `auth.users.phone`, porque la aplicación autentica por email.
 - Supabase Database guarda categorías, productos, carritos, órdenes, ventas y despachos.
 - Supabase Storage almacena imágenes de productos y avatares.
 - Las rutas de `src/pages/api/` autentican al usuario y usan el cliente admin sólo en el servidor.
@@ -45,7 +45,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 - `src/lib/cart.js`: carrito de usuario y sincronización al iniciar sesión; deduplica altas, conserva una fila por producto, suma cantidades reales y limita cada cantidad al stock. La migración nueva consolida además un único carrito por usuario.
 - `src/pages/api/products.js` y `src/pages/api/products/[id].js`: altas, edición y borrado de publicaciones con autenticación, autorización por propietario y validación server-side.
 - `src/lib/mercadopagoIdentity.js`: compara nombre/apellido, email y DNI normalizados contra `/users/me`; mantiene la excepción explícita para MP User ID `1157622469`.
-- `src/lib/publicationPayments.js`, `/api/publication-checkout` y `/api/publication-payment-sync`: cobro directo a plataforma, idempotencia y activación por 30 días de publicaciones mensuales.
+- `src/lib/publicationPayments.js`, `src/lib/publicationTiming.js`, `/api/publication-checkout` y `/api/publication-payment-sync`: cobro directo a plataforma, contador, renovación sólo en los últimos 7 días, idempotencia y extensión por 30 días después del vencimiento vigente.
 - `docs/supabase-product-stock-publications.sql`: stock 1–100, reservas atómicas por cantidad, reposición, contratos de publicación, snapshots de vendedor, RLS y carrito único.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
@@ -67,7 +67,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ### Verificación
 
-`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 11 de octubre de 2026 aprobó 94 pruebas sin fallos. La migración y los permisos remotos fueron auditados ese día; el pago mensual, la integración de reembolso con MP, el build y la revisión visual requieren verificaciones adicionales.
+`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 11 de octubre de 2026 aprobó 101 pruebas sin fallos. La migración y los permisos remotos fueron auditados ese día; el pago mensual, la integración de reembolso con MP, el build y la revisión visual requieren verificaciones adicionales.
 
 ### Flujos visibles
 

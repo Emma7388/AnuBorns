@@ -1,6 +1,7 @@
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { jsonResponse } from "../../lib/apiResponse.js";
 import { MONTHLY_PUBLICATION_PRICE, PUBLICATION_REFERENCE_PREFIX } from "../../lib/publicationPayments.js";
+import { getMonthlyPublicationTiming } from "../../lib/publicationTiming.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
@@ -30,10 +31,13 @@ export const POST = async ({ request }) => {
     .eq("id", productId).eq("user_id", auth.user.id).maybeSingle();
   if (!product || product.publication_type !== "monthly") return jsonResponse({ error: "Publicación mensual no encontrada." }, 404);
   if (!product.image_url) return jsonResponse({ error: "Subí una imagen antes de pagar la publicación." }, 409);
-  const activeUntilFuture = product.publication_status === "active"
-    && product.publication_expires_at
-    && Date.parse(product.publication_expires_at) > Date.now();
-  if (activeUntilFuture) return jsonResponse({ error: "La publicación ya está activa." }, 409);
+  const timing = getMonthlyPublicationTiming({
+    status: product.publication_status,
+    expiresAt: product.publication_expires_at,
+  });
+  if (timing.active && !timing.renewalAvailable) {
+    return jsonResponse({ error: "Podés renovar la publicación durante sus últimos 7 días." }, 409);
+  }
 
   const { data: pendingRecord } = await supabaseAdmin.from("product_publication_payments")
     .select("id,init_point,created_at")

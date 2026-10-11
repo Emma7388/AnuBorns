@@ -128,7 +128,7 @@ const renderChecks = (checks = []) => {
       <article class="ab-admin-health-card ab-admin-health-card--${escapeHtml(check.status)}">
         <div class="ab-admin-health-card__top">
           <span>Etapa ${index + 1}</span>
-          <strong>${escapeHtml(statusLabel(check.status))}</strong>
+          <strong class="ab-card-status-highlight">${escapeHtml(statusLabel(check.status))}</strong>
         </div>
         <h3>${escapeHtml(check.label)}</h3>
         <p>${escapeHtml(check.detail)}</p>
@@ -173,7 +173,7 @@ const renderMetrics = (metrics = {}) => {
     metricsListElement.innerHTML = `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
         <div class="ab-admin-metric-card__top">
-          <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
+          <span class="ab-card-status-highlight">${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
           <strong>${escapeHtml(check?.label ?? "API de metricas")}</strong>
         </div>
         <p>${escapeHtml(check?.detail ?? "No hay mediciones disponibles.")}</p>
@@ -187,7 +187,7 @@ const renderMetrics = (metrics = {}) => {
     .map((metric) => `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
         <div class="ab-admin-metric-card__top">
-          <span>${escapeHtml(statusLabel(metric.status))}</span>
+          <span class="ab-card-status-highlight">${escapeHtml(statusLabel(metric.status))}</span>
           <strong>${escapeHtml(metric.label)}</strong>
         </div>
         <div class="ab-admin-metric-card__value">${escapeHtml(metric.value_display)}</div>
@@ -214,7 +214,7 @@ const renderUsage = (usage = {}) => {
     usageListElement.innerHTML = `
       <article class="ab-admin-metric-card ab-admin-metric-card--warning">
         <div class="ab-admin-metric-card__top">
-          <span>Manual</span>
+          <span class="ab-card-status-highlight">Manual</span>
           <strong>Uso del plan</strong>
         </div>
         <p>Toca Consultar para leer los datos livianos disponibles.</p>
@@ -227,7 +227,7 @@ const renderUsage = (usage = {}) => {
     .map((metric) => `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
         <div class="ab-admin-metric-card__top">
-          <span>${escapeHtml(statusLabel(metric.status))}</span>
+          <span class="ab-card-status-highlight">${escapeHtml(statusLabel(metric.status))}</span>
           <strong>${escapeHtml(metric.label)}</strong>
         </div>
         <div class="ab-admin-metric-card__value">${escapeHtml(metric.value_display)}</div>
@@ -278,7 +278,7 @@ const renderAnalytics = (analytics = {}) => {
     analyticsListElement.innerHTML = `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(check?.status ?? "warning")}">
         <div class="ab-admin-metric-card__top">
-          <span>${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
+          <span class="ab-card-status-highlight">${escapeHtml(statusLabel(check?.status ?? "warning"))}</span>
           <strong>${escapeHtml(check?.label ?? "Analítica Vercel")}</strong>
         </div>
         <p>${escapeHtml(check?.detail ?? "Toca Consultar para leer la analitica web de Vercel.")}</p>
@@ -292,7 +292,7 @@ const renderAnalytics = (analytics = {}) => {
     .map((metric) => `
       <article class="ab-admin-metric-card ab-admin-metric-card--${escapeHtml(metric.status)}">
         <div class="ab-admin-metric-card__top">
-          <span>${escapeHtml(statusLabel(metric.status))}</span>
+          <span class="ab-card-status-highlight">${escapeHtml(statusLabel(metric.status))}</span>
           <strong>${escapeHtml(metric.label)}</strong>
         </div>
         <div class="ab-admin-metric-card__value">${escapeHtml(metric.value_display)}</div>

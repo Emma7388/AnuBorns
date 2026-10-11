@@ -17,7 +17,9 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - En `orders` y `order_items` sólo aparecen políticas de lectura del propietario; en `product_checkout_reservations` no aparece ninguna política de navegador. Las políticas de escritura directa retiradas no reaparecieron. `rls_forced=false` es el estado esperado para permitir la operación controlada del backend con `service_role` y no se considera un fallo.
 - Los índices de performance documentados aparecen en el ambiente remoto. `get_seller_sales_page(...)` y `create_checkout_order_atomic(...)` existen y permiten ejecución a `service_role`; `anon` y `authenticated` quedaron sin permiso. Los tres triggers de reserva aparecen habilitados con estado `O`.
 - Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
-- Verificación completa más reciente del árbol de trabajo, después de implementar los diez pendientes funcionales: 94 pruebas aprobadas, 0 fallos y `git diff --check` limpio. El usuario ejecutó el SQL remoto y sus resultados fueron revisados; no se ejecutaron build ni despliegue del código compatible.
+- Verificación completa más reciente del árbol de trabajo, después de implementar los diez pendientes funcionales, la renovación mensual anticipada y la sincronización visual de nombres con Auth: 101 pruebas aprobadas, 0 fallos y `git diff --check` limpio. El usuario ejecutó el SQL remoto y sus resultados fueron revisados; no se ejecutaron build ni despliegue del código compatible.
+
+- Los registros nuevos vuelven a enviar nombre y apellido como metadata de Auth, y guardar `Mis datos` vuelve a sincronizarlos sin borrar avatar ni otra metadata. El teléfono de contacto sigue en `public.profiles`: no debe copiarse a `auth.users.phone`, ya que esa columna corresponde a autenticación telefónica. Las cuentas históricas sin nombre visible requieren volver a guardar su perfil o sincronizarlas desde Administración después de desplegar este cambio.
 
 ### Evidencia real posterior al reinicio — 10 de octubre
 
@@ -229,6 +231,10 @@ El usuario quiere retirar «MVP» y «Anubis-Reborn» cuando se resuelva MP. No 
 ## Backlog funcional que no debe perderse
 
 El 11 de octubre quedaron resueltos en código local los diez puntos funcionales: edición por propietario vía API; stock/cantidades 1–100; reserva y reposición atómicas; publicación mensual ARS 2.000/30 días; borrado propio desde Destacados; pendientes MP por vendedor; validación de identidad con excepción `1157622469`; navegación del aviso al carrito; consolidación/deduplicación del carrito; y compactación/regresión de cards, ubicación y entrega.
+
+Los estados visibles dentro de las cards de publicaciones, ventas, compras, pagos pendientes y administración quedaron marcados con un fondo de resaltador. No cambia familia, tamaño, peso ni color tipográfico.
+
+Las publicaciones mensuales activas muestran días y horas restantes después de aprobarse el pago, calculados al ingresar o recargar `Mis ventas` sin un temporizador ni consultas periódicas. El botón de renovación permanece deshabilitado hasta los últimos 7 días; si el pago se aprueba antes de vencer, los 30 días nuevos se agregan después del vencimiento existente. Al vencer, la publicación no se borra: las lecturas públicas y el checkout la excluyen por fecha, mientras su propietario conserva la lectura y puede renovarla. La idempotencia del webhook evita sumar el período dos veces.
 
 No declararlos cerrados en producción hasta desplegar el código compatible, probar un pago mensual, dos compras simultáneas por cantidad y revisar el circuito visual en mobile/escritorio. Las migraciones y sus permisos ya fueron ejecutados y auditados. El vencimiento mensual retira la publicación de consultas públicas sin borrar físicamente su trazabilidad.
 

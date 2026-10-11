@@ -108,7 +108,7 @@ const renderOrders = (payload) => {
         </div>
         <div>
           <strong>${escapeHtml(formatMoney(order.marketplace_fee, currency))}</strong>
-          <span>${escapeHtml(statusLabel(order))}</span>
+          <span class="ab-card-status-highlight">${escapeHtml(statusLabel(order))}</span>
         </div>
       </article>
     `)

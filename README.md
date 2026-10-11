@@ -16,7 +16,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 
 ### Implementado
 
-- Registro, inicio de sesión, confirmación por correo y perfiles con Supabase Auth.
+- Registro, inicio de sesión, confirmación por correo y perfiles con Supabase Auth. El nombre se sincroniza como metadata de Auth para que también aparezca en el panel de usuarios; el teléfono de contacto permanece en `public.profiles` y no se convierte en credencial telefónica.
 - Edición de datos personales y avatar.
 - Categorías y productos dinámicos desde Supabase, con fallback local de categorías.
 - Publicación de productos con imagen, precio, categoría, contacto y métodos de entrega.
@@ -123,6 +123,8 @@ CHECKOUT_PENDING_ORDER_TTL_MINUTES=1440
 
 La comisión objetivo vigente es el 1,5% del subtotal de productos con publicación permanente. Las publicaciones mensuales abonan ARS 2.000 por 30 días y no vuelven a pagar el porcentaje al vender. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe permanecer en `0`, porque cualquier importe fijo mayor que cero tiene prioridad y anula el porcentaje. El cálculo actual redondea la comisión al peso entero más cercano y verifica que no supere el total. `MERCADOPAGO_SEND_MARKETPLACE_FIELD` se mantiene en `false` salvo que Mercado Pago indique expresamente que la operación debe enviar el campo `marketplace`; la comisión se envía mediante `marketplace_fee`.
 
+Las publicaciones mensuales muestran el tiempo restante en días y horas después de aprobarse el pago, calculado al ingresar o recargar `Mis ventas` sin consultas periódicas. La renovación se habilita únicamente durante los últimos 7 días. Si se paga antes del vencimiento, los nuevos 30 días comienzan después de la fecha vigente, de modo que el vendedor no pierde el tiempo restante. Al vencer, el producto no se elimina: deja de ser público y comprable, pero permanece en la base y en el panel de su vendedor para poder renovarlo.
+
 Ese redondeo debe considerarse una decisión comercial pendiente: ARS 500 × 1,5% produce ARS 7,50, pero el código envía ARS 8. La operación real confirmó que Mercado Pago aplicó ARS 8. Si se necesita un 1,5% exacto para importes pequeños, primero hay que confirmar que el flujo admite decimales y luego cambiar y volver a probar el cálculo.
 
 ## Arquitectura funcional
@@ -174,6 +176,7 @@ Archivos principales:
 
 - `docs/ARCHITECTURE.md`: responsabilidades generales por capa.
 - `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`: estados de Mercado Pago, reembolsos, auditoría y defensas de API.
+- `docs/supabase-auth-display-name-backfill.sql`: sincronización puntual de nombres históricos desde perfiles hacia la metadata visual de Auth, sin alterar el teléfono de autenticación.
 - `docs/BUENAS_PRACTICAS_VENTAS_MERCADO_PAGO.md`: resumen del material comercial aportado, estado actual y brechas para conversión, cuotas, reclamos y crecimiento.
 - `docs/LINEA_POR_LINEA.md`: inventario funcional de archivos.
 - `docs/vercel-supabase-env.md`: variables de despliegue.
@@ -235,6 +238,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - Un producto con pago aprobado deja de mostrarse en el catálogo. El detalle de venta usa los datos de la operación y no enlaza a la publicación oculta.
 - El documento imprimible se llama Detalle de compra: muestra al vendedor, una referencia corta, el estado del pago y el movimiento de reembolso/cancelación cuando Mercado Pago lo informa. No implementa numeración fiscal.
 - Un pago cancelado, rechazado o reembolsado no muestra entrega pendiente; un reembolso pendiente pausa la entrega y el despacho.
+- Los estados visibles dentro de las cards de publicaciones, ventas, compras, pagos pendientes y administración se distinguen con un fondo tipo resaltador, sin modificar su tipografía.
 - `src/lib/purchaseDetail.js` genera el documento compartido por Compras y Confirmación. `purchaseDetailStyles.js` también se reutiliza en el detalle de venta.
 - Los indicadores verdes de categorías excluyen productos vendidos y guardan las visitas por usuario en el navegador. Actualmente consultan hasta 300 productos recientes.
 - El header deduplica ráfagas de sesión, perfil, carrito, admin y notificaciones con cachés cortas del lado cliente; no reemplaza validaciones server-side.
@@ -243,7 +247,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 
 - `node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs`: regresiones de estados de pago, indicador de ventas, detalle de compra, lectura JSON limitada y OAuth state.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 11 de octubre de 2026: 94 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 11 de octubre de 2026: 101 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.

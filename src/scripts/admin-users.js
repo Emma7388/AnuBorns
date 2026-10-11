@@ -80,7 +80,7 @@ const renderDetailRow = (label, value) => `
 const renderMercadoPagoDetailRow = (connected) => `
   <div class="ab-admin-users__detail-row">
     <span>Mercado Pago</span>
-    <strong class="ab-admin-users__mp-status ${connected ? "ab-admin-users__mp-status--connected" : "ab-admin-users__mp-status--disconnected"}">
+    <strong class="ab-admin-users__mp-status ab-card-status-highlight ${connected ? "ab-admin-users__mp-status--connected" : "ab-admin-users__mp-status--disconnected"}">
       ${connected ? "Mercado Pago conectado" : "Sin Mercado Pago"}
     </strong>
   </div>

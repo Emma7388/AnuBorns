@@ -74,5 +74,7 @@ test("mergea perfil admin en metadata auth sin borrar otros campos", () => {
   assert.equal(metadata.avatar_url, "https://example.com/a.png");
   assert.equal(metadata.first_name, "Ana");
   assert.equal(metadata.last_name, "Molina");
+  assert.equal(metadata.full_name, "Ana Molina");
+  assert.equal(metadata.display_name, "Ana Molina");
   assert.equal(metadata.phone, "1112345678");
 });

@@ -773,7 +773,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
         <div class="ab-sale-summary-card__status">
           <p class="ab-provider-product-card__label">Compra #${escapeHtml(orderId.slice(0, 8).toUpperCase() || "N/A")}</p>
           <p class="ab-provider-product-card__code">Fecha: ${orderDate || "Sin fecha"}</p>
-          <p class="ab-provider-product-card__description">Pago: ${escapeHtml(orderPaymentStatus)}</p>
+          <p class="ab-provider-product-card__description">Pago: <span class="ab-card-status-highlight">${escapeHtml(orderPaymentStatus)}</span></p>
           <p class="ab-provider-product-card__description">${orderPaymentCancelled ? "Importe de la compra cancelada" : "Importe total de la orden"}</p>
           <ul class="ab-provider-product-card__details">
           ${providerItems
@@ -783,19 +783,19 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
               const itemShippingRequested =
                 isShippingFulfillmentStatus(itemStatus) ||
                 (shippingRequested && !isPickupFulfillmentStatus(itemStatus));
-              const itemStatusLabel = itemStatus && !orderPaymentPaused
-                ? ` · ${formatShippingStatus(itemStatus, itemShippingRequested)}`
+              const itemStatusMarkup = itemStatus && !orderPaymentPaused
+                ? ` · <span class="ab-card-status-highlight">${escapeHtml(formatShippingStatus(itemStatus, itemShippingRequested))}</span>`
                 : "";
-              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} · $${formatPrice(price)}${escapeHtml(itemStatusLabel)}</strong></li>`;
+              return `<li>Producto: <strong>${escapeHtml(item?.name ?? "Producto")} · $${formatPrice(price)}${itemStatusMarkup}</strong></li>`;
             })
             .join("")}
           ${
             orderPaymentPaused
-              ? `<li>Entrega: <strong>${escapeHtml(pausedDeliveryLabel)}</strong></li>`
+              ? `<li>Entrega: <strong class="ab-card-status-highlight">${escapeHtml(pausedDeliveryLabel)}</strong></li>`
               : providerShippingRequested
-              ? `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>
+              ? `<li>Entrega: <strong class="ab-card-status-highlight">${escapeHtml(providerStatus)}</strong></li>
                  <li>Envío: <strong>${shippingCost > 0 ? `$${formatPrice(shippingCost)}` : "A cargo del vendedor"}</strong></li>`
-              : `<li>Entrega: <strong>${escapeHtml(providerStatus)}</strong></li>`
+              : `<li>Entrega: <strong class="ab-card-status-highlight">${escapeHtml(providerStatus)}</strong></li>`
           }
           </ul>
         </div>

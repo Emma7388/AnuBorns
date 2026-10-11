@@ -101,3 +101,32 @@ test("un webhook repetido conserva el pago si el producto ya fue eliminado", asy
   assert.equal(result.publicationStatus, "deleted");
   assert.equal(supabase.updates.length, 0);
 });
+
+test("una renovación anticipada suma 30 días después del vencimiento vigente", async () => {
+  const currentExpiry = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+  const supabase = makeSupabase({
+    record: { ...baseRecord, status: "pending", payment_id: null, approved_at: null },
+    product: { publication_started_at: "2026-09-15T12:00:00.000Z", publication_expires_at: currentExpiry.toISOString() },
+  });
+  const result = await applyPublicationPayment(supabase, approvedPayment);
+  const productUpdate = supabase.updates.find((entry) => entry.table === "products");
+
+  assert.equal(result.ok, true);
+  assert.equal(
+    Date.parse(productUpdate.value.publication_expires_at),
+    currentExpiry.getTime() + 30 * 24 * 60 * 60 * 1000,
+  );
+});
+
+test("repetir el webhook de una renovación no suma otros 30 días", async () => {
+  const approvedAt = "2026-10-11T12:00:00.000Z";
+  const renewedExpiry = "2026-11-15T12:00:00.000Z";
+  const supabase = makeSupabase({
+    record: { ...baseRecord, status: "approved", approved_at: approvedAt },
+    product: { publication_started_at: approvedAt, publication_expires_at: renewedExpiry },
+  });
+  const result = await applyPublicationPayment(supabase, approvedPayment);
+
+  assert.equal(result.expiresAt, renewedExpiry);
+  assert.equal(supabase.updates.length, 0);
+});

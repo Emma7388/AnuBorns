@@ -10,6 +10,8 @@ El checkout admite varios productos y cantidades del mismo vendedor; cada orden 
 
 El cobro mensual usa una preferencia separada de la plataforma, una única preferencia pendiente por producto y una referencia interna `publication:<uuid>`. La activación se ancla al instante aprobado y una repetición del webhook repara estados incompletos sin extender los 30 días. Mientras ese cobro está pendiente no se permite borrar el producto. Después, el producto puede eliminarse sin borrar el registro del pago: la relación usa `ON DELETE SET NULL` para conservar importe, estado y trazabilidad.
 
+La renovación se habilita desde los últimos 7 días. Su vencimiento nuevo se calcula como `max(fecha de aprobación, vencimiento vigente) + 30 días`; así una renovación anticipada conserva los días restantes. `publication_started_at` identifica el pago que activó el período y permite que los reintentos del webhook devuelvan el mismo vencimiento sin volver a extenderlo.
+
 Los cambios documentados acá cubren:
 
 - Reembolsos, cancelaciones y pagos pendientes informados por Mercado Pago.
@@ -234,7 +236,7 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 22 tests passed
 ```
 
-La ejecución completa más reciente del 11 de octubre de 2026 terminó con 94 pruebas aprobadas y 0 fallos. El usuario ejecutó las migraciones remotas y el asistente revisó sus auditorías sin anomalías pendientes; el build, despliegue y pruebas visuales todavía no fueron ejecutados.
+La ejecución completa más reciente del 11 de octubre de 2026 terminó con 101 pruebas aprobadas y 0 fallos. El usuario ejecutó las migraciones remotas y el asistente revisó sus auditorías sin anomalías pendientes; el build, despliegue y pruebas visuales todavía no fueron ejecutados.
 
 ## Evidencia real conservada
 

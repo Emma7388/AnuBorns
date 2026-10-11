@@ -6,6 +6,7 @@ import { fetchSalesSummary } from "../lib/salesSummaryClient";
 import { shouldNotifyPurchaseStatus } from "../lib/purchaseStatusMessages";
 import { uploadPendingAvatar as uploadStoredPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
 import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
+import { mergeProfileAuthMetadata } from "../lib/profileAuthMetadata.js";
 import {
   fetchUserProfile,
   resolvePendingRegistrationProfile,
@@ -655,7 +656,15 @@ async function handleProfileFormSubmit(event) {
       return;
     }
 
-    if (profileFeedback) profileFeedback.textContent = "Datos actualizados.";
+    const { error: metadataError } = await supabase.auth.updateUser({
+      data: mergeProfileAuthMetadata(session.user.user_metadata, validation.values),
+    });
+    if (profileFeedback) {
+      profileFeedback.textContent = metadataError
+        ? "Datos guardados, pero no se pudo sincronizar el nombre con Auth."
+        : "Datos actualizados.";
+    }
+    if (!metadataError) window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
     postAudit("profile_update").catch(() => {});
     setFormVisible(false);
     loadProfile();

@@ -6,6 +6,7 @@ import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSumm
 import { fetchSalesList } from "../lib/salesListClient";
 import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
 import { formatProductLocation } from "../lib/productLocation.js";
+import { formatPublicationRemaining, getMonthlyPublicationTiming } from "../lib/publicationTiming.js";
 
 /* Referencias DOM. */
 let soldProductsList = document.getElementById("my-sold-products-list");
@@ -72,6 +73,7 @@ const bindMySalesEvents = () => {
       if (!(target instanceof HTMLElement)) return;
       const payButton = target.closest("[data-pay-publication]");
       if (payButton instanceof HTMLButtonElement) {
+        if (payButton.disabled) return;
         payButton.disabled = true;
         try {
           const payload = await authorizedJson("/api/publication-checkout", {
@@ -812,7 +814,7 @@ const renderSoldProducts = (products) => {
           </div>
         </div>
         <div class="ab-sale-summary-card__status">
-          <p class="ab-provider-product-card__label">${statusBadge}</p>
+          <p class="ab-provider-product-card__label"><span class="ab-card-status-highlight">${statusBadge}</span></p>
           <p class="ab-provider-product-card__code">Orden ${safeOrderId || "N/A"}</p>
           <p class="ab-provider-product-card__description">Fecha: ${formatDate(sale.soldAt)}</p>
           ${safePaymentDetail ? `<p class="ab-provider-product-card__description">Movimiento: ${safePaymentDetail}</p>` : ""}
@@ -831,7 +833,7 @@ const renderSoldProducts = (products) => {
           ${safePaymentId ? `<li>Pago: <strong>${safePaymentId}</strong></li>` : ""}
           ${
             shippingRequested
-              ? `<li>Entrega: <strong>${escapeHtml(deliveryStatusLabel)}</strong></li>
+              ? `<li>Entrega: <strong class="ab-card-status-highlight">${escapeHtml(deliveryStatusLabel)}</strong></li>
                  ${
                    hasSharedSellerShipping
                      ? `<li>Envío: <strong>${shippingCostLabel} · único de la venta</strong></li>`
@@ -839,7 +841,7 @@ const renderSoldProducts = (products) => {
                  }
                  <li>Dirección: <strong>${safeShippingAddress || "Sin dirección"}</strong></li>
                  ${safeShippingPhone ? `<li>Teléfono: <strong>${safeShippingPhone}</strong></li>` : ""}`
-              : `<li>Entrega: <strong>${escapeHtml(deliveryStatusLabel)}</strong></li>`
+              : `<li>Entrega: <strong class="ab-card-status-highlight">${escapeHtml(deliveryStatusLabel)}</strong></li>`
           }
         </ul>
         <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
@@ -974,12 +976,15 @@ const renderMyProducts = (products) => {
     const safePickupAddress = escapeHtml(product.pickup_address || "");
     const safeProductId = String(product.id || "").trim();
     const monthly = product.publication_type === "monthly";
-    const pendingMonthly = monthly && (
-      product.publication_status !== "active"
-      || !product.publication_expires_at
-      || Date.parse(product.publication_expires_at) <= Date.now()
-    );
+    const monthlyTiming = getMonthlyPublicationTiming({
+      status: product.publication_status,
+      expiresAt: product.publication_expires_at,
+    });
+    const pendingMonthly = monthly && !monthlyTiming.active;
+    const monthlyExpired = monthly && monthlyTiming.expired;
+    const canRenewMonthly = monthly && monthlyTiming.renewalAvailable;
     const expiryLabel = product.publication_expires_at ? formatDate(product.publication_expires_at) : "";
+    const remainingLabel = monthlyTiming.active ? formatPublicationRemaining(monthlyTiming.remainingMs) : "";
     card.innerHTML = `
       <img
         class="ab-provider-product-card__image"
@@ -1006,7 +1011,8 @@ const renderMyProducts = (products) => {
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
         <li>Stock: <strong>${Math.max(0, Number(product.stock ?? 0))}</strong></li>
         <li>Publicación: <strong>${monthly ? `Mensual${expiryLabel ? ` · vence ${expiryLabel}` : ""}` : "Permanente"}</strong></li>
-        ${pendingMonthly ? `<li>Estado: <strong class="ab-payment-pending-highlight">Pago pendiente</strong></li>` : ""}
+        ${monthlyTiming.active ? `<li>Tiempo restante: <strong>${remainingLabel}</strong></li>` : ""}
+        ${pendingMonthly ? `<li>Estado: <strong class="ab-card-status-highlight">${monthlyExpired ? "Publicación vencida" : "Pago pendiente"}</strong></li>` : ""}
       </ul>
       <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
         <a
@@ -1018,7 +1024,7 @@ const renderMyProducts = (products) => {
           <span>Detalle</span>
         </a>
         <a class="ab-provider-product-card__button ab-provider-product-card__button--ghost" href="/vender/productos?edit=${encodeURIComponent(safeProductId)}">Editar</a>
-        ${pendingMonthly ? `<button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-pay-publication="${escapeHtml(safeProductId)}">Pagar ARS 2.000</button>` : ""}
+        ${monthly ? `<button type="button" class="ab-provider-product-card__button ab-provider-product-card__button--buy" data-pay-publication="${escapeHtml(safeProductId)}" ${canRenewMonthly ? "" : "disabled"}>${monthlyTiming.active ? (canRenewMonthly ? "Renovar ARS 2.000" : "Renovable en los últimos 7 días") : "Pagar ARS 2.000"}</button>` : ""}
         <button
           type="button"
           class="ab-provider-product-card__button ab-provider-product-card__button--ghost"
@@ -1284,7 +1290,7 @@ const loadPendingPayments = async () => {
         <h2>${escapeHtml(productNames || "Compra")}</h2>
         <p class="ab-provider-product-card__price">$${formatPrice(item.total_amount)} <span>${escapeHtml(item.currency || "ARS")}</span></p>
         <ul class="ab-provider-product-card__details">
-          <li>${escapeHtml(kindLabel)}</li>
+          <li>Estado: <strong class="ab-card-status-highlight">${escapeHtml(kindLabel)}</strong></li>
           <li>Orden: <strong>${escapeHtml(item.order_id)}</strong></li>
           ${item.payment_id ? `<li>Payment ID: <strong>${escapeHtml(item.payment_id)}</strong></li>` : ""}
           ${item.preference_id ? `<li>Preference ID: <strong>${escapeHtml(item.preference_id)}</strong></li>` : ""}
@@ -1312,8 +1318,12 @@ const initMySalesProducts = () => {
   /* Las listas se cargan sólo ante una acción explícita del vendedor. */
 };
 
+const teardownMySalesProducts = () => {
+  void teardownSalesRealtime();
+};
+
 initMySalesProducts();
 document.addEventListener("astro:page-load", initMySalesProducts);
 document.addEventListener("astro:after-swap", initMySalesProducts);
 window.addEventListener("pageshow", initMySalesProducts);
-window.addEventListener("pagehide", teardownSalesRealtime);
+window.addEventListener("pagehide", teardownMySalesProducts);
