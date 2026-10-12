@@ -6,7 +6,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ## Estado de evolución
 
-La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66` y 101 pruebas aprobadas. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A de control administrativo base está implementada localmente, llevó la suite a 115 pruebas y su migración fue aplicada y auditada remotamente. Falta desplegar y validar las acciones con cuentas de prueba. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción. Esta clasificación registra el avance del proyecto y no reemplaza las verificaciones técnicas detalladas de cada subsistema.
+La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66` y 101 pruebas aprobadas. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A de control administrativo base está implementada localmente y su migración fue aplicada y auditada remotamente. La subetapa 2B de ficha 360 por usuario quedó implementada localmente el 12 de octubre y llevó la suite a 119 pruebas; no requiere una migración adicional. Falta desplegar y validar ambas superficies con cuentas de prueba. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción. Esta clasificación registra el avance del proyecto y no reemplaza las verificaciones técnicas detalladas de cada subsistema.
 
 ## Stack acordado
 
@@ -54,6 +54,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 - `src/lib/publicationPayments.js`, `src/lib/publicationTiming.js`, `/api/publication-checkout` y `/api/publication-payment-sync`: cobro directo a plataforma, contador, renovación sólo en los últimos 7 días, idempotencia y extensión por 30 días después del vencimiento vigente.
 - `docs/supabase-product-stock-publications.sql`: stock 1–100, reservas atómicas por cantidad, reposición, contratos de publicación, snapshots de vendedor, RLS y carrito único.
 - `docs/supabase-admin-control.sql`: tabla server-only de suspensiones, endurecimiento de permisos de `admin_users`, trigger de actualización, RPC serializadas para coordinar roles/suspensiones y no eliminar concurrentemente al último admin, más la auditoría final de la Etapa 2A.
+- `src/lib/adminUserOverview.js` y `/api/admin/users/[userId]/overview`: agregación read-only de publicaciones, pagos mensuales, compras, ventas, cumplimiento, actividad e identidad Mercado Pago para la Etapa 2B. La API se consulta sólo al seleccionar o actualizar una ficha y nunca devuelve tokens OAuth.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
@@ -74,7 +75,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 
 ### Verificación
 
-`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 11 de octubre de 2026 aprobó 115 pruebas sin fallos. La migración administrativa 2A quedó auditada con RLS activo, datos consistentes y RPC exclusivas de `service_role`; el build, el despliegue, la revisión visual, el pago mensual y el reembolso con MP requieren verificaciones adicionales.
+`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 12 de octubre de 2026 aprobó 119 pruebas sin fallos. La migración administrativa 2A quedó auditada con RLS activo, datos consistentes y RPC exclusivas de `service_role`; 2B reutiliza ese acceso server-side y no agrega SQL. El build, el despliegue, la revisión visual, el pago mensual y el reembolso con MP requieren verificaciones adicionales.
 
 ### Flujos visibles
 

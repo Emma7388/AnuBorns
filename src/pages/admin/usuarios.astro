@@ -14,6 +14,9 @@ import "../../styles/admin.css";
         <a class="ab-secondary-button" href="/admin/">
           <span>Operación</span>
         </a>
+        <button type="button" class="ab-secondary-button" id="admin-user-overview-refresh-button" disabled>
+          <span>Actualizar datos</span>
+        </button>
         <a class="ab-secondary-button" href="/admin/administracion">
           <span>Administración</span>
         </a>
@@ -43,35 +46,33 @@ import "../../styles/admin.css";
 
     <p class="ab-muted-text" id="admin-users-status" aria-live="polite">Cargando usuarios...</p>
 
-    <div class="ab-admin-users__layout">
-      <div class="ab-admin-users__side">
-        <section class="ab-admin-users__mp-summary" aria-labelledby="admin-users-mp-summary-title">
-          <div class="ab-admin-users__mp-chart" id="admin-users-mp-chart" aria-hidden="true"></div>
-          <div class="ab-admin-users__mp-copy">
-            <p class="ab-admin-dashboard__eyebrow">Mercado Pago</p>
-            <h3 id="admin-users-mp-summary-title">Conexión vendedores</h3>
-            <div class="ab-admin-users__mp-counts">
-              <span><strong id="admin-users-mp-connected">0</strong> conectados</span>
-              <span><strong id="admin-users-mp-disconnected">0</strong> sin MP</span>
-            </div>
-            <small id="admin-users-mp-total">0 usuarios</small>
-          </div>
-        </section>
-        <div class="ab-admin-users__list" id="admin-users-list"></div>
-      </div>
-      <aside class="ab-admin-users__detail" id="admin-user-detail" aria-live="polite">
-        <p class="ab-muted-text">Seleccioná un usuario para ver sus datos.</p>
-      </aside>
-    </div>
-
     <div class="ab-admin-users__oversight">
+      <section class="ab-admin-users__mp-summary" aria-labelledby="admin-users-mp-summary-title">
+        <button type="button" class="ab-admin-users__panel-open" data-admin-summary-modal="mercadopago" aria-label="Ver detalle de Mercado Pago">
+          Ver
+        </button>
+        <div class="ab-admin-users__mp-chart" id="admin-users-mp-chart" aria-hidden="true"></div>
+        <div class="ab-admin-users__mp-copy">
+          <p class="ab-admin-dashboard__eyebrow">Mercado Pago</p>
+          <h3 id="admin-users-mp-summary-title">Conexión vendedores</h3>
+          <div class="ab-admin-users__mp-counts">
+            <span><strong id="admin-users-mp-connected">0</strong> conectados</span>
+            <span><strong id="admin-users-mp-disconnected">0</strong> sin MP</span>
+          </div>
+          <small id="admin-users-mp-total">0 usuarios</small>
+        </div>
+      </section>
+
       <section class="ab-admin-users__oversight-panel" aria-labelledby="admin-users-admins-title">
         <div class="ab-admin-users__section-head">
           <div>
             <p class="ab-admin-dashboard__eyebrow">Accesos</p>
             <h3 id="admin-users-admins-title">Administradores activos</h3>
           </div>
-          <span id="admin-users-admin-count">0</span>
+          <div class="ab-admin-users__section-actions">
+            <span id="admin-users-admin-count">0</span>
+            <button type="button" class="ab-admin-users__panel-open" data-admin-summary-modal="access" aria-label="Ver detalle de accesos">Ver</button>
+          </div>
         </div>
         <div class="ab-admin-users__admin-list" id="admin-users-admin-list">
           <p class="ab-muted-text">Cargando administradores...</p>
@@ -84,12 +85,24 @@ import "../../styles/admin.css";
             <p class="ab-admin-dashboard__eyebrow">Trazabilidad</p>
             <h3 id="admin-users-audit-title">Auditoría reciente</h3>
           </div>
-          <span id="admin-users-audit-count">0</span>
+          <div class="ab-admin-users__section-actions">
+            <span id="admin-users-audit-count">0</span>
+            <button type="button" class="ab-admin-users__panel-open" data-admin-summary-modal="audit" aria-label="Ver detalle de trazabilidad">Ver</button>
+          </div>
         </div>
         <div class="ab-admin-users__audit-list" id="admin-users-audit-list">
           <p class="ab-muted-text">Cargando eventos...</p>
         </div>
       </section>
+    </div>
+
+    <div class="ab-admin-users__layout">
+      <div class="ab-admin-users__side">
+        <div class="ab-admin-users__list" id="admin-users-list"></div>
+      </div>
+      <aside class="ab-admin-users__detail" id="admin-user-detail" aria-live="polite">
+        <p class="ab-muted-text">Seleccioná un usuario para ver sus datos.</p>
+      </aside>
     </div>
 
   </section>

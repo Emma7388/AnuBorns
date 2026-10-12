@@ -1,6 +1,6 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 11 de octubre de 2026.
+Documento de traspaso del chat, actualizado el 12 de octubre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
@@ -10,15 +10,17 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - **Etapa 1, implementación funcional: cerrada en código.** Los diez puntos funcionales y sus ampliaciones posteriores quedaron en `V0.8`, commit `e7b9f66`, ya sincronizado con `origin/V0.8`. La suite completa observada aprobó 101 pruebas sin fallos. Las migraciones principales de stock, publicaciones, reservas, índices y permisos fueron ejecutadas y auditadas remotamente.
 - El usuario ejecutó la sincronización histórica de nombres de Auth y mostró nueve cuentas con `display_name` y teléfono de contacto recuperados desde `public.profiles`. `telefono_auth=null` es correcto para cuentas que autentican por email. La excepción de identidad continúa asociada al MP User ID `1157622469`, no al nombre visible.
 - **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: iniciada.** La subetapa 2A de control administrativo base quedó implementada localmente el 11 de octubre: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; falta desplegar y validar con cuentas de prueba. Hasta completar esas verificaciones, “implementado” no significa activo ni certificado en producción.
+- **Etapa 2B, ficha 360 por usuario: implementada localmente el 12 de octubre.** `/admin/usuarios` carga bajo demanda publicaciones, pagos mensuales, compras, ventas, cumplimiento, cronología y diagnóstico en vivo OAuth/identidad. La respuesta no contiene tokens, no ejecuta mutaciones y queda cacheada por usuario durante la visita. No requiere SQL nuevo. Falta desplegar y validar visualmente con datos reales.
 - **Etapa 3, madurez comercial: pendiente y todavía no iniciada.** El embudo, las políticas, reclamos, logística probatoria, cuotas y crecimiento se mantienen fuera del trabajo actual.
 
 #### Orden de trabajo de la etapa 2
 
 1. Desplegar y validar la Etapa 2A en `/admin/usuarios` con cuentas de prueba: roles, suspensión, restauración, bloqueo server-side y trazas `requested/completed/failed`. La migración ya fue aplicada y auditada.
-2. Construir las vistas administrativas restantes de actividad por usuario, órdenes, anomalías operativas, OAuth, identidad y pagos incompletos.
-3. Confirmar el build y revisar en navegador los flujos funcionales anteriores, permisos, vencimientos y responsive sin crear cobros.
-4. Ejecutar pruebas controladas de pago mensual, comisión aplicable, concurrencia de stock, pendiente/rechazado y reembolso.
-5. Conservar evidencia de comprador, vendedor, plataforma, base y `audit_logs`; documentar cada resultado antes de cerrar la etapa.
+2. Desplegar y validar la Etapa 2B con perfiles de comprador, vendedor, cuenta sin MP y cuenta exceptuada; contrastar contadores sin crear cobros.
+3. Construir la siguiente subetapa: vista global y paginada de órdenes, anomalías operativas, OAuth y pagos incompletos. La ficha individual no reemplaza esa centralización.
+4. Confirmar el build y revisar en navegador los flujos funcionales anteriores, permisos, vencimientos y responsive sin crear cobros.
+5. Ejecutar pruebas controladas de pago mensual, comisión aplicable, concurrencia de stock, pendiente/rechazado y reembolso.
+6. Conservar evidencia de comprador, vendedor, plataforma, base y `audit_logs`; documentar cada resultado antes de cerrar la etapa.
 
 ### Reserva atómica de productos — 10 de octubre
 
@@ -32,7 +34,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - En `orders` y `order_items` sólo aparecen políticas de lectura del propietario; en `product_checkout_reservations` no aparece ninguna política de navegador. Las políticas de escritura directa retiradas no reaparecieron. `rls_forced=false` es el estado esperado para permitir la operación controlada del backend con `service_role` y no se considera un fallo.
 - Los índices de performance documentados aparecen en el ambiente remoto. `get_seller_sales_page(...)` y `create_checkout_order_atomic(...)` existen y permiten ejecución a `service_role`; `anon` y `authenticated` quedaron sin permiso. Los tres triggers de reserva aparecen habilitados con estado `O`.
 - Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
-- Verificación completa más reciente del árbol de trabajo, después de implementar la Etapa 2A de control administrativo base: 115 pruebas aprobadas y 0 fallos. La migración administrativa fue ejecutada remotamente y devolvió dos administradores, cero suspensiones inválidas, RLS activo, ausencia de privilegios para `authenticated` y ambas RPC limitadas a `service_role`. El usuario conserva a su cargo build y despliegue.
+- Verificación completa más reciente del árbol de trabajo, después de implementar la ficha 360 de la Etapa 2B: 119 pruebas aprobadas y 0 fallos. La migración administrativa 2A fue ejecutada remotamente y devolvió dos administradores, cero suspensiones inválidas, RLS activo, ausencia de privilegios para `authenticated` y ambas RPC limitadas a `service_role`. La Etapa 2B no agrega SQL. El usuario conserva a su cargo build y despliegue.
 
 - Los registros nuevos vuelven a enviar nombre y apellido como metadata de Auth, y guardar `Mis datos` vuelve a sincronizarlos sin borrar avatar ni otra metadata. El teléfono de contacto sigue en `public.profiles`: no debe copiarse a `auth.users.phone`, ya que esa columna corresponde a autenticación telefónica. Las cuentas históricas sin nombre visible requieren volver a guardar su perfil o sincronizarlas desde Administración después de desplegar este cambio.
 
@@ -269,4 +271,4 @@ No declararlos cerrados en producción hasta desplegar el código compatible, pr
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada y la Etapa 2A de control administrativo base está implementada localmente con 115 pruebas aprobadas; su migración ya fue aplicada y auditada. Falta desplegar y validar roles, suspensión y auditoría con cuentas de prueba. Después seguimos con actividad por usuario, órdenes, anomalías, OAuth e identidad. Yo manejo los despliegues y todavía no hay que borrar MVP ni Anubis-Reborn.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada. Las Etapas 2A y 2B están implementadas localmente con 119 pruebas aprobadas: control administrativo base más ficha 360 por usuario; sólo 2A necesitó SQL y ya fue aplicado/auditado. Falta desplegar y validar ambas con cuentas de prueba. Después seguimos con la vista global de órdenes, anomalías y pagos incompletos. Yo manejo los despliegues y todavía no hay que borrar MVP ni Anubis-Reborn.»

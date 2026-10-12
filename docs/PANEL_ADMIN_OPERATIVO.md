@@ -4,7 +4,7 @@ El panel interno tiene tres superficies:
 
 - `/admin`: tablero operativo read-only con estados OK, Revisar y Error.
 - `/admin/administracion`: resumen administrativo del `marketplace_fee` registrado localmente.
-- `/admin/usuarios`: administración de usuarios, perfiles, roles, suspensiones, administradores activos, auditoría reciente y estado Mercado Pago.
+- `/admin/usuarios`: administración de usuarios, perfiles, roles, suspensiones, administradores activos, auditoría reciente y ficha 360 comercial con estado Mercado Pago.
 
 ## Etapa 2A — Control administrativo base
 
@@ -18,6 +18,26 @@ Incluye:
 - mostrar los eventos administrativos recientes de `audit_logs` sin enviar IP, user agent, secretos ni diffs completos al navegador;
 - exigir un motivo de al menos seis caracteres para roles, suspensión, restauración, edición de perfil y restablecimiento de contraseña;
 - registrar solicitud y resultado de cada acción antes y después de la mutación.
+
+## Etapa 2B — Ficha 360 por usuario
+
+Implementada localmente el 12 de octubre de 2026. No agrega tablas, políticas ni RPC: usa desde una API exclusivamente administrativa las estructuras comerciales ya aplicadas. Falta desplegarla y verificarla en navegador contra usuarios con y sin actividad.
+
+Al seleccionar un usuario, `/admin/usuarios` consulta una sola vez sus datos y los conserva en memoria durante esa visita. Sólo vuelve a consultarlos si se pulsa `Actualizar datos`, ubicado en la cabecera después de `Operación`; cambiar de solapa no genera requests adicionales.
+
+La cabecera operativa reúne Mercado Pago, Accesos y Trazabilidad en tres tarjetas horizontales de igual altura cuando el ancho lo permite. Las tarjetas muestran únicamente el resumen centrado, sin listas ni scrollbars internos; cada botón `Ver` abre un modal amplio con administradores o eventos completos. En mobile se apilan manteniendo la misma altura y el modal adapta su contenido a una columna.
+
+Incluye:
+
+- resumen de publicaciones, compras, ventas, entregas pendientes y alertas;
+- publicaciones permanentes y mensuales con stock, vigencia, estado y visibilidad calculada;
+- compras con estado de pago, entrega, importe, referencia y productos;
+- ventas reconstruidas mediante el snapshot `order_items.seller_user_id`, con pago y cumplimiento;
+- cronología conjunta de publicaciones, pagos mensuales, compras, ventas y eventos administrativos dirigidos al usuario;
+- diagnóstico en vivo de la conexión OAuth, vencimiento del token, coincidencia del MP User ID e identidad por nombre, email y DNI;
+- exposición explícita de la excepción autorizada para MP User ID `1157622469`, sin presentarla como una coincidencia ordinaria.
+
+La ficha es de sólo lectura. No sincroniza órdenes, no crea preferencias, no cobra, no reembolsa y no modifica conexiones OAuth. Los tokens se usan únicamente en el servidor para consultar `/users/me` y nunca se incluyen en la respuesta. Cada lista se limita a los 200 registros recientes para mantener acotada la consulta; la próxima etapa deberá resolver vistas globales y paginadas de anomalías.
 
 ## Seguridad base
 
@@ -128,7 +148,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 
 1. Usuarios
    - Implementado: buscar por email, nombre, DNI, teléfono.
-   - Ver compras, ventas, productos publicados y estado MP.
+   - Implementado localmente en 2B: ver compras, ventas, productos publicados, cumplimiento y estado MP en la ficha 360.
    - Implementado: editar datos profundos con auditoría solicitada/completada/fallida.
    - Implementado localmente en 2A: bloquear acciones de usuario sin borrar cuenta.
 
@@ -140,11 +160,11 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 
 3. Mercado Pago
    - Ver vendedores conectados/desconectados.
-   - Detectar tokens OAuth vencidos o por vencer.
+   - Implementado localmente en 2B por usuario: detectar token OAuth vencido y mostrar vencimiento.
    - Ver compras con `payment_detail` incompleto.
    - Ver pagos aprobados sin movimiento en `audit_logs`.
    - La vista del propio vendedor ya consulta sus pagos pendientes con OAuth y diferencia preferencias sin intento. Sigue pendiente una vista central equivalente para administradores.
-   - La publicación y el checkout ya bloquean discrepancias de nombre/apellido, email y DNI, con excepción para MP User ID `1157622469`. Sigue pendiente exponer ese diagnóstico en el panel admin.
+   - Implementado localmente en 2B: exponer la coincidencia de nombre/apellido, email y DNI, el MP User ID real y la excepción `1157622469`.
 
 4. Seguridad
    - Implementado localmente en 2A: ver y administrar admins activos.
@@ -174,6 +194,14 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 5. Pendiente: suspender y restaurar una cuenta de prueba; confirmar que una API autenticada responde 403 durante la suspensión.
 6. Pendiente: revisar que `audit_logs` contenga eventos `requested` y `completed` o `failed` para cada acción.
 7. Regla permanente: no ejecutar estas pruebas sobre el último administrador persistido ni sobre permisos de Vercel.
+
+## Validación de la Etapa 2B
+
+1. No hay SQL adicional para ejecutar.
+2. Pendiente: desplegar y abrir fichas de un comprador, un vendedor, una cuenta sin Mercado Pago y la cuenta exceptuada.
+3. Pendiente: contrastar contadores y estados contra Supabase sin realizar cobros ni sincronizaciones.
+4. Pendiente: revisar las cinco solapas y su adaptación mobile; confirmar que volver a una ficha ya cargada no repite la consulta.
+5. Pendiente: comprobar que `Actualizar ficha` renueva los datos y que una caída de Mercado Pago sólo marca el diagnóstico como no verificable, sin ocultar la actividad local.
 
 ## Revisión de produccion
 

@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
+Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -40,6 +40,8 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/adminAuth.js`: valida administradores persistidos en `admin_users` o configurados por Vercel.
 - `src/lib/adminAccess.js`: normaliza y valida cambios de rol, suspensión y restauración; protege la propia cuenta, administradores de Vercel y el último admin persistido.
 - `src/lib/adminAudit.js`: escritura server-side común de solicitudes y resultados administrativos en `audit_logs`.
+- `src/lib/adminUserOverview.js`: reglas puras para visibilidad, diagnóstico OAuth/identidad, contadores y cronología de la ficha 360 administrativa.
+- `tests/adminUserOverview.test.mjs`: regresiones de visibilidad, excepción de identidad, resumen de actividad y orden cronológico de la Etapa 2B.
 - `src/lib/serverAuth.js`: autenticación Bearer compartida y bloqueo inmediato de rutas de aplicación para cuentas suspendidas.
 - `src/lib/cart.js`: carrito híbrido, sincronización al login, deduplicación, cantidades 1–100 limitadas por stock, conteo por unidades y un único registro por producto.
 - `src/lib/productInput.js`: normalización server-side de producto, stock, ubicación, entrega y contrato.
@@ -81,7 +83,7 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/scripts/mercadopago-connect.js`: consulta, conecta, reconecta y desconecta la cuenta Mercado Pago del vendedor.
 - `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador, usando lectura por POST y antirráfaga para navegación/realtime.
 - `src/scripts/audit.js`: cliente liviano para enviar eventos a `/api/audit` con token de sesión.
-- `src/scripts/admin-users.js`: búsqueda, perfil, roles, suspensión/restauración, restablecimiento auditado, administradores activos y eventos recientes de `/admin/usuarios`.
+- `src/scripts/admin-users.js`: búsqueda, perfil, roles, suspensión/restauración, restablecimiento auditado, administradores activos, eventos recientes y ficha 360 bajo demanda con caché por usuario.
 
 ## API routes
 
@@ -110,6 +112,7 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/api/admin/users/access.js`: acciones auditadas para otorgar/quitar roles y suspender/restaurar cuentas sin borrarlas.
 - `src/pages/api/admin/users/profile.js`: edición profunda de perfil y metadata Auth con motivo y auditoría de solicitud/resultado.
 - `src/pages/api/admin/users/password-reset.js`: recuperación de contraseña con motivo obligatorio y auditoría antes/después del envío.
+- `src/pages/api/admin/users/[userId]/overview.js`: lectura admin de actividad comercial e identidad Mercado Pago de un usuario; limita resultados, oculta tokens y no ejecuta mutaciones.
 
 ## Páginas
 
@@ -136,7 +139,7 @@ Actualizado al 11 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/oferta.astro`: entrada de segundo nivel para ofertar.
 - `src/pages/oferta/productos.astro`: placeholder de flujo de oferta de productos.
 - `src/pages/admin/index.astro`: tablero operativo interno con chequeos por proceso, mediciones read-only de Supabase y analitica manual de Vercel.
-- `src/pages/admin/usuarios.astro`: control administrativo de usuarios, roles, estado de cuenta, administradores activos y auditoría reciente.
+- `src/pages/admin/usuarios.astro`: control administrativo de usuarios, roles, estado de cuenta y ficha 360 de la Etapa 2B; Mercado Pago, Accesos y Trazabilidad comparten una franja compacta de tres tarjetas con altura uniforme, modal de detalle y adaptación mobile.
 
 ## SQL administrativo
 

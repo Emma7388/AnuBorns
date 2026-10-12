@@ -14,6 +14,7 @@ const adminListElement = document.getElementById("admin-users-admin-list");
 const adminCountElement = document.getElementById("admin-users-admin-count");
 const auditListElement = document.getElementById("admin-users-audit-list");
 const auditCountElement = document.getElementById("admin-users-audit-count");
+const overviewRefreshButton = document.getElementById("admin-user-overview-refresh-button");
 
 const state = {
   query: "",
@@ -34,6 +35,10 @@ const state = {
   isSaving: false,
   isResettingPassword: false,
   isUpdatingAccess: false,
+  overviewByUserId: new Map(),
+  overviewErrors: new Map(),
+  overviewLoadingIds: new Set(),
+  overviewTab: "summary",
 };
 
 const setStatus = (message) => {
@@ -67,6 +72,57 @@ const valueOrDash = (value) => {
   const clean = String(value ?? "").trim();
   return clean || "-";
 };
+
+const formatMoney = (value, currency = "ARS") => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: String(currency || "ARS"),
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const statusLabel = (status) => ({
+  active: "Activa",
+  approved: "Aprobado",
+  pending: "Pendiente",
+  pending_payment: "Pago pendiente",
+  rejected: "Rechazado",
+  cancelled: "Cancelado",
+  canceled: "Cancelado",
+  expired: "Vencida",
+  refunded: "Reembolsado",
+  partially_refunded: "Reembolso parcial",
+  refund_pending: "Reembolso pendiente",
+  completed: "Completado",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  picked_up: "Retirado",
+  preparing: "En preparación",
+  not_requested: "Sin envío",
+  ready_for_pickup: "Listo para retirar",
+  requested: "Despacho pendiente",
+  pickup_pending: "Retiro pendiente",
+  visible: "Visible",
+  sin_stock: "Sin stock",
+  vencida: "Vencida",
+  not_connected: "Sin conexión",
+  unavailable: "No verificable ahora",
+  verified: "Verificado ahora",
+}[String(status ?? "").toLowerCase()] ?? valueOrDash(status));
+
+const statusTone = (status) => {
+  const normalized = String(status ?? "").toLowerCase();
+  if (["active", "approved", "completed", "shipped", "delivered", "picked_up", "ready_for_pickup", "visible", "verified"].includes(normalized)) return "is-ok";
+  if (["pending", "pending_payment", "refund_pending", "requested", "pickup_pending", "unavailable"].includes(normalized)) return "is-warning";
+  if (["rejected", "cancelled", "canceled", "expired", "refunded", "sin_stock", "vencida", "not_connected"].includes(normalized)) return "is-danger";
+  return "";
+};
+
+const renderStatus = (status, label = statusLabel(status)) => `
+  <strong class="ab-card-status-highlight ab-admin-overview__status ${statusTone(status)}">${escapeHtml(label)}</strong>
+`;
 
 const editableProfileFields = [
   ["first_name", "Nombre", "text"],
@@ -166,6 +222,11 @@ let passwordResetModalLast = null;
 let passwordResetModalAccept = null;
 let passwordResetModalReason = null;
 let passwordResetResolver = null;
+let summaryModal = null;
+let summaryModalTitle = null;
+let summaryModalDescription = null;
+let summaryModalBody = null;
+let summaryModalKind = "";
 
 const getLastPasswordResetText = (user) => {
   const lastSentAt = String(user?.password_reset?.last_sent_at ?? "").trim();
@@ -245,6 +306,92 @@ const confirmPasswordReset = (user) => {
   });
 };
 
+const closeSummaryModal = () => {
+  if (!summaryModal) return;
+  summaryModal.classList.add("ab-is-hidden");
+  summaryModal.setAttribute("aria-hidden", "true");
+  summaryModalKind = "";
+};
+
+const ensureSummaryModal = () => {
+  if (summaryModal) return;
+  summaryModal = document.createElement("div");
+  summaryModal.className = "ab-orders-modal ab-admin-summary-modal ab-is-hidden";
+  summaryModal.setAttribute("role", "dialog");
+  summaryModal.setAttribute("aria-modal", "true");
+  summaryModal.setAttribute("aria-hidden", "true");
+  summaryModal.setAttribute("aria-labelledby", "admin-summary-modal-title");
+  summaryModal.innerHTML = `
+    <div class="ab-orders-modal__backdrop" data-admin-summary-close></div>
+    <div class="ab-orders-modal__panel ab-admin-summary-modal__panel" role="document">
+      <div class="ab-admin-summary-modal__head">
+        <div>
+          <h2 id="admin-summary-modal-title"></h2>
+          <p id="admin-summary-modal-description"></p>
+        </div>
+        <button type="button" class="ab-secondary-button" data-admin-summary-close><span>Cerrar</span></button>
+      </div>
+      <div class="ab-admin-summary-modal__body" id="admin-summary-modal-body"></div>
+    </div>
+  `;
+  document.body.appendChild(summaryModal);
+  summaryModalTitle = summaryModal.querySelector("#admin-summary-modal-title");
+  summaryModalDescription = summaryModal.querySelector("#admin-summary-modal-description");
+  summaryModalBody = summaryModal.querySelector("#admin-summary-modal-body");
+  summaryModal.querySelectorAll("[data-admin-summary-close]").forEach((button) => {
+    button.addEventListener("click", closeSummaryModal);
+  });
+};
+
+const getSummaryModalContent = (kind) => {
+  if (kind === "mercadopago") {
+    const summary = state.mercadoPagoSummary ?? {};
+    const total = Number(summary.total) || 0;
+    const connected = Number(summary.connected) || 0;
+    const disconnected = Math.max(0, Number(summary.disconnected) || 0);
+    return {
+      title: "Mercado Pago",
+      description: "Estado general de conexión de las cuentas vendedoras.",
+      body: `
+        <div class="ab-admin-summary-modal__stats">
+          <article><strong>${connected}</strong><span>Conectados</span><small>Cuenta OAuth identificada</small></article>
+          <article><strong>${disconnected}</strong><span>Sin Mercado Pago</span><small>Requieren conexión para vender</small></article>
+          <article><strong>${total}</strong><span>Usuarios registrados</span><small>${summary.filtered ? "Resultado filtrado" : "Directorio completo"}</small></article>
+        </div>
+      `,
+    };
+  }
+  if (kind === "access") {
+    return {
+      title: "Accesos administrativos",
+      description: "Administradores activos y origen de cada permiso.",
+      body: `<div class="ab-admin-users__admin-list">${adminListElement?.innerHTML || '<p class="ab-muted-text">Sin datos disponibles.</p>'}</div>`,
+    };
+  }
+  return {
+    title: "Trazabilidad administrativa",
+    description: "Eventos recientes registrados para acciones del panel.",
+    body: `<div class="ab-admin-users__audit-list">${auditListElement?.innerHTML || '<p class="ab-muted-text">Sin datos disponibles.</p>'}</div>`,
+  };
+};
+
+const updateSummaryModal = (kind) => {
+  const content = getSummaryModalContent(kind);
+  if (summaryModalTitle) summaryModalTitle.textContent = content.title;
+  if (summaryModalDescription) summaryModalDescription.textContent = content.description;
+  if (summaryModalBody) summaryModalBody.innerHTML = content.body;
+};
+
+const openSummaryModal = (kind) => {
+  ensureSummaryModal();
+  if (!summaryModal) return;
+  summaryModalKind = kind;
+  updateSummaryModal(kind);
+  summaryModal.classList.remove("ab-is-hidden");
+  summaryModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => summaryModal.querySelector("[data-admin-summary-close]")?.focus(), 0);
+};
+
 const renderAccessControl = (user) => {
   const access = user?.access ?? {};
   const isAdmin = Boolean(access.is_admin);
@@ -297,8 +444,178 @@ const renderAccessControl = (user) => {
   `;
 };
 
+const renderOverviewEmpty = (message) => `<p class="ab-admin-overview__empty">${escapeHtml(message)}</p>`;
+
+const renderOverviewSummary = (overview) => {
+  const summary = overview?.summary ?? {};
+  const mp = overview?.mercado_pago ?? {};
+  const identityStatus = !mp.connected
+    ? "not_connected"
+    : mp.live_status !== "verified"
+      ? mp.live_status
+      : mp.identity_matches
+        ? "approved"
+        : "rejected";
+  const identityLabel = !mp.connected
+    ? "Sin Mercado Pago"
+    : mp.identity_exception
+      ? "Identidad exceptuada"
+      : mp.live_status !== "verified"
+        ? statusLabel(mp.live_status)
+        : mp.identity_matches
+          ? "Identidad coincidente"
+          : "Identidad no coincidente";
+  const warnings = [];
+  if (mp.token_expired) warnings.push("El token OAuth figura vencido.");
+  if (mp.connected && mp.live_status === "unavailable") warnings.push(mp.live_error || "No se pudo verificar Mercado Pago.");
+  if (mp.connected && mp.live_status === "verified" && !mp.stored_matches_live) warnings.push("El MP user ID consultado no coincide con el guardado.");
+  if (mp.connected && mp.live_status === "verified" && !mp.identity_matches && !mp.identity_exception) {
+    warnings.push(`No coinciden: ${(mp.mismatches ?? []).join(", ") || "identidad"}.`);
+  }
+
+  return `
+    <div class="ab-admin-overview__metrics">
+      <article><strong>${Number(summary.publications) || 0}</strong><span>publicaciones</span><small>${Number(summary.visible_publications) || 0} visibles</small></article>
+      <article><strong>${Number(summary.purchases) || 0}</strong><span>compras</span><small>${Number(summary.purchase_statuses?.pending) || 0} pendientes</small></article>
+      <article><strong>${Number(summary.sales) || 0}</strong><span>ventas</span><small>${Number(summary.pending_fulfillment) || 0} entregas pendientes</small></article>
+      <article class="${Number(summary.incidents) > 0 ? "has-alert" : ""}"><strong>${Number(summary.incidents) || 0}</strong><span>alertas</span><small>requieren revisión</small></article>
+    </div>
+    <section class="ab-admin-overview__mp">
+      <div class="ab-admin-overview__section-head">
+        <div><p class="ab-admin-dashboard__eyebrow">Diagnóstico en vivo</p><h4>Mercado Pago e identidad</h4></div>
+        ${renderStatus(identityStatus, identityLabel)}
+      </div>
+      <div class="ab-admin-overview__facts">
+        <span><small>MP user ID</small><strong>${escapeHtml(valueOrDash(mp.mp_user_id))}</strong></span>
+        <span><small>Conectado</small><strong>${escapeHtml(formatDate(mp.connected_at))}</strong></span>
+        <span><small>Token vence</small><strong>${escapeHtml(formatDate(mp.expires_at))}</strong></span>
+        <span><small>Cuenta MP</small><strong>${escapeHtml([mp.account?.first_name, mp.account?.last_name].filter(Boolean).join(" ") || "-")}</strong></span>
+      </div>
+      ${mp.identity_exception ? `<p class="ab-admin-overview__notice is-info">Excepción autorizada para MP User ID 1157622469. La excepción queda visible; no se presenta como coincidencia ordinaria.</p>` : ""}
+      ${warnings.map((warning) => `<p class="ab-admin-overview__notice">${escapeHtml(warning)}</p>`).join("")}
+    </section>
+  `;
+};
+
+const renderOverviewProducts = (overview) => {
+  const products = overview?.products ?? [];
+  if (!products.length) return renderOverviewEmpty("Este usuario no tiene publicaciones registradas.");
+  return `<div class="ab-admin-overview__records">${products.map((product) => `
+    <article class="ab-admin-overview__record">
+      <div class="ab-admin-overview__record-main">
+        <strong>${escapeHtml(product.title || "Producto")}</strong>
+        <small>${escapeHtml(product.publication_type === "monthly" ? "Mensual" : "Permanente")} · stock ${Number(product.stock) || 0} · ${escapeHtml(formatMoney(product.price, product.currency))}</small>
+      </div>
+      <div class="ab-admin-overview__record-statuses">
+        ${renderStatus(product.publication_status)}
+        ${renderStatus(product.reason, product.visible ? "Visible" : statusLabel(product.reason))}
+      </div>
+      <small>${product.publication_type === "monthly" ? `Vence: ${escapeHtml(formatDate(product.publication_expires_at))}` : `Publicada: ${escapeHtml(formatDate(product.publication_started_at || product.created_at))}`}</small>
+    </article>
+  `).join("")}</div>`;
+};
+
+const renderOverviewOrders = (rows, type) => {
+  if (!rows.length) return renderOverviewEmpty(type === "purchase" ? "Este usuario no tiene compras registradas." : "Este usuario no tiene ventas registradas.");
+  return `<div class="ab-admin-overview__records">${rows.map((row) => {
+    const status = row.payment_status || row.status;
+    const fulfillment = type === "sale" ? row.fulfillment_status : row.shipping_status;
+    const reference = type === "sale" ? row.order_id : row.id;
+    return `
+      <article class="ab-admin-overview__record">
+        <div class="ab-admin-overview__record-main">
+          <strong>${escapeHtml(row.display_name || "Orden")}</strong>
+          <small>${escapeHtml(formatMoney(row.amount, row.currency))} · ${escapeHtml(formatDate(row.created_at))}</small>
+        </div>
+        <div class="ab-admin-overview__record-statuses">
+          ${renderStatus(status)}
+          ${fulfillment ? renderStatus(fulfillment) : ""}
+        </div>
+        <small>Orden ${escapeHtml(reference || "-")}${row.payment_id ? ` · Pago ${escapeHtml(row.payment_id)}` : ""}</small>
+      </article>
+    `;
+  }).join("")}</div>`;
+};
+
+const renderOverviewTimeline = (overview) => {
+  const timeline = overview?.timeline ?? [];
+  if (!timeline.length) return renderOverviewEmpty("No hay actividad cronológica disponible.");
+  return `<div class="ab-admin-overview__timeline">${timeline.map((event) => `
+    <article>
+      <span class="ab-admin-overview__timeline-dot ${statusTone(event.status)}"></span>
+      <div>
+        <strong>${escapeHtml(event.title)}</strong>
+        <small>${escapeHtml(event.detail || "")} · ${escapeHtml(formatDate(event.at))}</small>
+      </div>
+    </article>
+  `).join("")}</div>`;
+};
+
+const overviewTabs = [
+  ["summary", "Resumen"],
+  ["products", "Publicaciones"],
+  ["purchases", "Compras"],
+  ["sales", "Ventas"],
+  ["timeline", "Actividad"],
+];
+
+const overviewSectionMeta = {
+  summary: ["Estado general", "Indicadores comerciales y validación de Mercado Pago."],
+  products: ["Publicaciones del usuario", "Estado, modalidad, stock y visibilidad de cada producto."],
+  purchases: ["Compras realizadas", "Pagos, importes y estado de entrega de sus órdenes."],
+  sales: ["Ventas realizadas", "Cobros y cumplimiento pendiente como vendedor."],
+  timeline: ["Actividad reciente", "Cronología conjunta de operaciones y acciones administrativas."],
+};
+
+const renderUserOverview = (user) => {
+  const overview = state.overviewByUserId.get(user.id);
+  const error = state.overviewErrors.get(user.id);
+  const loading = state.overviewLoadingIds.has(user.id);
+  if (loading && !overview) return `<section class="ab-admin-overview"><p class="ab-muted-text">Cargando datos del usuario...</p></section>`;
+  if (error && !overview) return `
+    <section class="ab-admin-overview">
+      ${renderOverviewEmpty(error)}
+      <button type="button" class="ab-secondary-button" data-admin-overview-refresh><span>Reintentar</span></button>
+    </section>`;
+  if (!overview) return `<section class="ab-admin-overview"><p class="ab-muted-text">Preparando datos del usuario...</p></section>`;
+
+  const content = {
+    summary: renderOverviewSummary(overview),
+    products: renderOverviewProducts(overview),
+    purchases: renderOverviewOrders(overview.purchases ?? [], "purchase"),
+    sales: renderOverviewOrders(overview.sales ?? [], "sale"),
+    timeline: renderOverviewTimeline(overview),
+  }[state.overviewTab] ?? renderOverviewSummary(overview);
+  const [sectionTitle, sectionDescription] = overviewSectionMeta[state.overviewTab] ?? overviewSectionMeta.summary;
+
+  return `
+    <section class="ab-admin-overview" aria-label="Actividad comercial del usuario">
+      <div class="ab-admin-overview__head">
+        <div><small>Actualizada ${escapeHtml(formatDate(overview.generated_at))} · hasta 200 registros recientes por sección</small></div>
+      </div>
+      <div class="ab-admin-overview__tabs" role="tablist" aria-label="Secciones de actividad del usuario">
+        ${overviewTabs.map(([tab, label]) => `<button type="button" role="tab" aria-selected="${state.overviewTab === tab}" class="${state.overviewTab === tab ? "is-active" : ""}" data-admin-overview-tab="${tab}">${label}</button>`).join("")}
+      </div>
+      <div class="ab-admin-overview__content">
+        <div class="ab-admin-overview__section-intro">
+          <h3>${escapeHtml(sectionTitle)}</h3>
+          <p>${escapeHtml(sectionDescription)}</p>
+        </div>
+        ${error ? `<p class="ab-admin-overview__notice">${escapeHtml(error)} Se conservan los últimos datos cargados.</p>` : ""}
+        ${content}
+      </div>
+    </section>
+  `;
+};
+
 const renderDetail = (user) => {
   if (!detailElement) return;
+  if (overviewRefreshButton) {
+    const loading = Boolean(user?.id && state.overviewLoadingIds.has(user.id));
+    overviewRefreshButton.disabled = !user?.id || loading;
+    const label = overviewRefreshButton.querySelector("span");
+    if (label) label.textContent = loading ? "Actualizando..." : "Actualizar datos";
+  }
   if (!user) {
     detailElement.innerHTML = `<p class="ab-muted-text">Seleccioná un usuario para ver sus datos.</p>`;
     return;
@@ -321,18 +638,22 @@ const renderDetail = (user) => {
     </div>
     ${state.isEditing ? renderEditForm(user) : ""}
     ${renderAccessControl(user)}
-    ${renderDetailRow("ID", user.id)}
-    ${renderDetailRow("Teléfono", user.profile?.phone)}
-    ${renderDetailRow("DNI", user.profile?.dni)}
-    ${renderDetailRow("Dirección", user.profile?.address)}
-    ${renderDetailRow("Ciudad", user.profile?.city)}
-    ${renderDetailRow("Provincia", user.profile?.province)}
-    ${renderDetailRow("Código postal", user.profile?.postal_code)}
-    ${renderDetailRow("Alta", formatDate(user.created_at))}
-    ${renderDetailRow("Último ingreso", formatDate(user.last_sign_in_at))}
-    ${renderDetailRow("Email confirmado", formatDate(user.email_confirmed_at))}
-    ${renderMercadoPagoDetailRow(mpConnected)}
-    ${renderDetailRow("MP user id", user.mercado_pago?.mp_user_id)}
+    <details class="ab-admin-users__identity">
+      <summary>Identidad y datos registrados</summary>
+      ${renderDetailRow("ID", user.id)}
+      ${renderDetailRow("Teléfono", user.profile?.phone)}
+      ${renderDetailRow("DNI", user.profile?.dni)}
+      ${renderDetailRow("Dirección", user.profile?.address)}
+      ${renderDetailRow("Ciudad", user.profile?.city)}
+      ${renderDetailRow("Provincia", user.profile?.province)}
+      ${renderDetailRow("Código postal", user.profile?.postal_code)}
+      ${renderDetailRow("Alta", formatDate(user.created_at))}
+      ${renderDetailRow("Último ingreso", formatDate(user.last_sign_in_at))}
+      ${renderDetailRow("Email confirmado", formatDate(user.email_confirmed_at))}
+      ${renderMercadoPagoDetailRow(mpConnected)}
+      ${renderDetailRow("MP user id", user.mercado_pago?.mp_user_id)}
+    </details>
+    ${renderUserOverview(user)}
   `;
 };
 
@@ -377,6 +698,13 @@ const renderUsers = () => {
     .join("");
 
   renderDetail(selectedUser);
+  if (selectedUser?.id) {
+    loadUserOverview(selectedUser.id).catch(() => {
+      state.overviewLoadingIds.delete(selectedUser.id);
+      state.overviewErrors.set(selectedUser.id, "No se pudieron cargar los datos del usuario.");
+      renderDetail(getSelectedUser());
+    });
+  }
 };
 
 const renderMercadoPagoSummary = () => {
@@ -401,6 +729,7 @@ const renderMercadoPagoSummary = () => {
       ? `${totalLabel} en la busqueda`
       : `${totalLabel} registrados`;
   }
+  if (summaryModalKind === "mercadopago") updateSummaryModal(summaryModalKind);
 };
 
 const renderAdmins = () => {
@@ -408,6 +737,7 @@ const renderAdmins = () => {
   if (!adminListElement) return;
   if (!state.admins.length) {
     adminListElement.innerHTML = `<p class="ab-muted-text">No hay administradores visibles.</p>`;
+    if (summaryModalKind === "access") updateSummaryModal(summaryModalKind);
     return;
   }
   adminListElement.innerHTML = state.admins.map((admin) => `
@@ -419,6 +749,7 @@ const renderAdmins = () => {
       <span class="ab-card-status-highlight">${escapeHtml(adminSourceLabel(admin.source))}</span>
     </article>
   `).join("");
+  if (summaryModalKind === "access") updateSummaryModal(summaryModalKind);
 };
 
 const renderAudit = () => {
@@ -426,10 +757,12 @@ const renderAudit = () => {
   if (!auditListElement) return;
   if (!state.auditReady) {
     auditListElement.innerHTML = `<p class="ab-muted-text">No se pudo consultar la auditoría administrativa.</p>`;
+    if (summaryModalKind === "audit") updateSummaryModal(summaryModalKind);
     return;
   }
   if (!state.recentAudit.length) {
     auditListElement.innerHTML = `<p class="ab-muted-text">No hay eventos administrativos recientes.</p>`;
+    if (summaryModalKind === "audit") updateSummaryModal(summaryModalKind);
     return;
   }
   auditListElement.innerHTML = state.recentAudit.map((row) => {
@@ -448,6 +781,7 @@ const renderAudit = () => {
       </article>
     `;
   }).join("");
+  if (summaryModalKind === "audit") updateSummaryModal(summaryModalKind);
 };
 
 const fetchUsers = async () => {
@@ -525,6 +859,47 @@ const getAccessToken = async () => {
   return sessionData?.session?.access_token ?? "";
 };
 
+const loadUserOverview = async (userId, { force = false } = {}) => {
+  const safeUserId = String(userId ?? "").trim();
+  if (!safeUserId || state.overviewLoadingIds.has(safeUserId)) return;
+  if (!force && state.overviewByUserId.has(safeUserId)) return;
+
+  const token = await getAccessToken();
+  if (!token) {
+    state.overviewErrors.set(safeUserId, "Tenés que iniciar sesión para cargar los datos del usuario.");
+    renderDetail(getSelectedUser());
+    return;
+  }
+
+  state.overviewLoadingIds.add(safeUserId);
+  state.overviewErrors.delete(safeUserId);
+  renderDetail(getSelectedUser());
+  try {
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(safeUserId)}/overview`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      state.overviewErrors.set(safeUserId, payload?.error ?? "No se pudieron cargar los datos del usuario.");
+      return;
+    }
+    state.overviewByUserId.set(safeUserId, payload);
+  } finally {
+    state.overviewLoadingIds.delete(safeUserId);
+    if (state.selectedId === safeUserId) renderDetail(getSelectedUser());
+  }
+};
+
+const refreshSelectedOverview = () => {
+  const selectedUser = getSelectedUser();
+  if (!selectedUser) return;
+  loadUserOverview(selectedUser.id, { force: true }).catch(() => {
+    state.overviewLoadingIds.delete(selectedUser.id);
+    state.overviewErrors.set(selectedUser.id, "No se pudieron actualizar los datos del usuario.");
+    renderDetail(getSelectedUser());
+  });
+};
+
 const readProfileForm = (form) => {
   const formData = new FormData(form);
   const profile = {};
@@ -593,6 +968,7 @@ const saveSelectedProfile = async (form) => {
     }
 
     updateSelectedUserProfile(result?.profile ?? payload.profile);
+    state.overviewByUserId.delete(selectedUser.id);
     state.isEditing = false;
     setStatus(result?.changed === false ? "No habia cambios para guardar." : "Perfil actualizado.");
     renderUsers();
@@ -708,10 +1084,24 @@ listElement?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-user-id]");
   if (!button) return;
   state.selectedId = button.getAttribute("data-user-id") ?? "";
+  state.overviewTab = "summary";
   state.isEditing = false;
   renderUsers();
 });
 detailElement?.addEventListener("click", (event) => {
+  const overviewTab = event.target.closest("[data-admin-overview-tab]");
+  if (overviewTab) {
+    state.overviewTab = overviewTab.getAttribute("data-admin-overview-tab") ?? "summary";
+    renderDetail(getSelectedUser());
+    return;
+  }
+
+  const overviewRefresh = event.target.closest("[data-admin-overview-refresh]");
+  if (overviewRefresh) {
+    refreshSelectedOverview();
+    return;
+  }
+
   const accessButton = event.target.closest("[data-admin-access-action]");
   if (accessButton && !state.isUpdatingAccess) {
     const action = accessButton.getAttribute("data-admin-access-action") ?? "";
@@ -755,6 +1145,20 @@ detailElement?.addEventListener("submit", (event) => {
     setStatus("No se pudo guardar el perfil.");
     renderDetail(getSelectedUser());
   });
+});
+
+document.querySelectorAll("[data-admin-summary-modal]").forEach((button) => {
+  button.addEventListener("click", () => {
+    openSummaryModal(button.getAttribute("data-admin-summary-modal") ?? "audit");
+  });
+});
+
+overviewRefreshButton?.addEventListener("click", refreshSelectedOverview);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && summaryModal && !summaryModal.classList.contains("ab-is-hidden")) {
+    closeSummaryModal();
+  }
 });
 
 fetchUsers().catch(() => setStatus("No se pudieron cargar los usuarios."));

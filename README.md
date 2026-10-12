@@ -42,7 +42,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
-- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase, Vercel Analytics y control de usuarios. La Etapa 2A agrega alta/baja de roles persistidos en base, suspensión/restauración sin borrar cuentas, administradores activos y auditoría reciente; cada mutación exige motivo y se ejecuta sólo desde APIs server-side.
+- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase, Vercel Analytics y control de usuarios. La Etapa 2A agrega alta/baja de roles persistidos en base, suspensión/restauración sin borrar cuentas, administradores activos y auditoría reciente; cada mutación exige motivo y se ejecuta sólo desde APIs server-side. La Etapa 2B suma una ficha 360 por usuario, cargada bajo demanda, con publicaciones, compras, ventas, entregas, cronología y diagnóstico en vivo de Mercado Pago e identidad.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, temas claro y oscuro, y navegación responsive.
 - En mobile, las cards de productos usan imágenes de tamaño uniforme y el carrusel de destacados oculta las flechas laterales para conservar espacio.
@@ -255,8 +255,9 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 
 - `node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\purchaseDetail.test.mjs tests\serverRequest.test.mjs tests\mercadopagoOAuthState.test.mjs tests\purchaseProvider.test.mjs`: regresiones de estados de pago, indicador de ventas, detalle de compra, lectura JSON limitada y OAuth state.
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
+- `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 11 de octubre de 2026: 115 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 12 de octubre de 2026: 119 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.
