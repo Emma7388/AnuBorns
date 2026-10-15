@@ -980,11 +980,20 @@ const renderMyProducts = (products) => {
       status: product.publication_status,
       expiresAt: product.publication_expires_at,
     });
-    const pendingMonthly = monthly && !monthlyTiming.active;
     const monthlyExpired = monthly && monthlyTiming.expired;
     const canRenewMonthly = monthly && monthlyTiming.renewalAvailable;
     const expiryLabel = product.publication_expires_at ? formatDate(product.publication_expires_at) : "";
     const remainingLabel = monthlyTiming.active ? formatPublicationRemaining(monthlyTiming.remainingMs) : "";
+    const publicationStatus = String(product.publication_status ?? "").trim().toLowerCase();
+    const contractStatusLabel = monthlyExpired
+      ? "Vencido"
+      : publicationStatus === "active"
+        ? "Activo"
+        : publicationStatus === "cancelled"
+          ? "Cancelado"
+          : publicationStatus === "pending_payment"
+            ? "Pago pendiente"
+            : "Pendiente";
     card.innerHTML = `
       <img
         class="ab-provider-product-card__image"
@@ -1010,9 +1019,9 @@ const renderMyProducts = (products) => {
         ${safePickupAddress ? `<li>Dirección: <strong>${safePickupAddress}</strong></li>` : ""}
         <li>Entrega: <strong>${formatDelivery(product.delivery_methods)}</strong></li>
         <li>Stock: <strong>${Math.max(0, Number(product.stock ?? 0))}</strong></li>
-        <li>Publicación: <strong>${monthly ? `Mensual${expiryLabel ? ` · vence ${expiryLabel}` : ""}` : "Permanente"}</strong></li>
+        <li>Contrato de publicación: <strong>${monthly ? `Mensual${expiryLabel ? ` · vence ${expiryLabel}` : ""}` : "Permanente"}</strong></li>
+        <li>Estado del contrato: <strong class="ab-card-status-highlight">${contractStatusLabel}</strong></li>
         ${monthlyTiming.active ? `<li>Tiempo restante: <strong>${remainingLabel}</strong></li>` : ""}
-        ${pendingMonthly ? `<li>Estado: <strong class="ab-card-status-highlight">${monthlyExpired ? "Publicación vencida" : "Pago pendiente"}</strong></li>` : ""}
       </ul>
       <div class="ab-provider-product-card__actions ab-provider-product-card__actions--split">
         <a

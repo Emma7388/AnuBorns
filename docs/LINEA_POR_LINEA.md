@@ -51,7 +51,7 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/userProfile.js`: perfil privado del usuario, perfil pendiente de registro y caché corta de lecturas a `profiles`.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
 - `src/lib/atomicOrders.js`: crea órdenes mediante la RPC de reserva atómica y traduce conflictos de PostgreSQL a respuestas controladas.
-- `src/lib/checkoutPendingOrders.js`: cancela checkouts pendientes abandonados y contempla aprobaciones tardías.
+- `src/lib/checkoutPendingOrders.js`: define el TTL común, genera la vigencia explícita de la preferencia y cancela por actividad checkouts abandonados; el webhook conserva la recuperación controlada de aprobaciones tardías.
 - `src/lib/marketplaceFee.js`: calcula importe fijo o porcentaje sobre la base comisionable que checkout limita a publicaciones permanentes, con redondeo al peso entero.
 - `src/lib/productLocation.js`: normaliza la ciudad de publicación y la opción conjunta Campana, Zárate y Lima.
 - `src/lib/shippingPreference.js`: persiste la preferencia de entrega por vendedor y resuelve retiro/envío como modalidades excluyentes.
@@ -79,7 +79,7 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/scripts/confirmation.js`: estado visual del pago, sincronización de respaldo con Mercado Pago, estados de reembolso y limpieza del carrito aprobado.
 - `src/scripts/orders.js`: historial de compras, render por orden, estados de pago/reembolso, acciones de entrega sólo cuando corresponden y borrado con modal.
 - `src/scripts/product-create.js`: formulario de publicación, categorías dinámicas, ubicación única o cobertura de tres ciudades, retiro predeterminado/envío excluyente, optimización de imagen y alta en Supabase.
-- `src/scripts/mis-ventas.js`: carga ventas y publicaciones del usuario autenticado; muestra estados de pago/reembolso y habilita despacho sólo para pagos aprobados.
+- `src/scripts/mis-ventas.js`: carga ventas y publicaciones del usuario autenticado; distingue el tipo y estado del contrato de publicación, muestra estados de pago/reembolso y habilita despacho sólo para pagos aprobados.
 - `src/scripts/mercadopago-connect.js`: consulta, conecta, reconecta y desconecta la cuenta Mercado Pago del vendedor.
 - `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador, usando lectura por POST y antirráfaga para navegación/realtime.
 - `src/scripts/audit.js`: cliente liviano para enviar eventos a `/api/audit` con token de sesión.
@@ -88,7 +88,7 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 ## API routes
 
 - `src/pages/api/audit.js`: recibe eventos de auditoría autenticados y los inserta en `audit_logs`.
-- `src/pages/api/checkout.js`: valida un checkout de vendedor único, crea orden + `order_items` y genera la preferencia con el token OAuth del vendedor y la comisión de AnuBorns.
+- `src/pages/api/checkout.js`: valida un checkout de vendedor único, crea orden + `order_items` y genera una preferencia con token OAuth, comisión de AnuBorns y vencimiento alineado al TTL local.
 - `src/pages/api/checkout-manual.js`: crea una orden manual para escenarios controlados de desarrollo o respaldo.
 - `src/pages/api/checkout-pending-cleanup.js`: solicita la limpieza de órdenes pendientes abandonadas.
 - `src/pages/api/products.js` y `src/pages/api/products/[id].js`: CRUD seguro de publicaciones propias.
@@ -113,6 +113,12 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/api/admin/users/profile.js`: edición profunda de perfil y metadata Auth con motivo y auditoría de solicitud/resultado.
 - `src/pages/api/admin/users/password-reset.js`: recuperación de contraseña con motivo obligatorio y auditoría antes/después del envío.
 - `src/pages/api/admin/users/[userId]/overview.js`: lectura admin de actividad comercial e identidad Mercado Pago de un usuario; limita resultados, oculta tokens y no ejecuta mutaciones.
+
+## SQL operativo nuevo
+
+- `docs/supabase-abandoned-checkouts-cron.sql`: instala una función sin permisos de navegador, agenda su ejecución horaria con `pg_cron`, cancela de inmediato intentos vencidos y devuelve auditoría. Fue aplicado y auditado remotamente el 12 de octubre.
+- `docs/supabase-abandoned-checkouts.sql`: respaldo manual con el mismo plazo de 24 horas; no reemplaza el cron.
+- `tests/checkoutPendingOrders.test.mjs`: comprueba que el vencimiento de Mercado Pago y el TTL local permanezcan alineados.
 
 ## Páginas
 
@@ -145,6 +151,8 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 
 - `docs/supabase-admin-users.sql`: creación inicial de `public.admin_users`.
 - `docs/supabase-admin-control.sql`: Etapa 2A; suspensiones server-only, permisos endurecidos, RPC serializadas para coordinar rol/estado y auditoría de instalación. Fue ejecutado y auditado remotamente el 11 de octubre de 2026; falta desplegar y validar los botones nuevos.
+- `docs/supabase-checkout-ordinality-hotfix.sql`: hotfix idempotente de la RPC atómica tras el error PostgreSQL 42601 observado en producción; no modifica datos existentes y audita sintaxis y permisos. Aplicado y auditado remotamente el 12 de octubre de 2026.
+- `tests/supabaseCheckoutSql.test.mjs`: regresión estática que impide volver a combinar directamente una lista tipada con `WITH ORDINALITY`.
 
 
 ## Estilos

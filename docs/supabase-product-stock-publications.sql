@@ -463,8 +463,12 @@ begin
   )
   select created_order.id,products.id::text,products.id,products.user_id,products.title,
     requested.qty,products.price,null,nullif(btrim(products.seller_name),''),nullif(btrim(products.image_url),'')
-  from jsonb_to_recordset(p_items) with ordinality as requested(
-    product_id uuid, qty integer, unit_price numeric, currency text, provider_user_id uuid, position bigint
+  from rows from (
+    jsonb_to_recordset(p_items) as (
+      product_id uuid, qty integer, unit_price numeric, currency text, provider_user_id uuid
+    )
+  ) with ordinality as requested(
+    product_id, qty, unit_price, currency, provider_user_id, position
   )
   join public.products as products on products.id = requested.product_id
   order by requested.position;

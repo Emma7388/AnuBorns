@@ -1,12 +1,12 @@
 # Guía de arquitectura
 
-Actualizado el 11 de octubre de 2026.
+Actualizado el 15 de octubre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
 ## Estado de evolución
 
-La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66` y 101 pruebas aprobadas. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A de control administrativo base está implementada localmente y su migración fue aplicada y auditada remotamente. La subetapa 2B de ficha 360 por usuario quedó implementada localmente el 12 de octubre y llevó la suite a 119 pruebas; no requiere una migración adicional. Falta desplegar y validar ambas superficies con cuentas de prueba. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción. Esta clasificación registra el avance del proyecto y no reemplaza las verificaciones técnicas detalladas de cada subsistema.
+La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66` y 101 pruebas aprobadas. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A de control administrativo base está implementada y su migración fue aplicada y auditada remotamente. La subetapa 2B de ficha 360 por usuario fue desplegada el 12 de octubre. Una prueba posterior descubrió un error de sintaxis diferido en la RPC atómica remota; el hotfix fue aplicado y auditado ese mismo día, y la suite local pasó a 120 pruebas. Falta repetir una compra controlada para validar la ejecución completa. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción. Esta clasificación registra el avance del proyecto y no reemplaza las verificaciones técnicas detalladas de cada subsistema.
 
 ## Stack acordado
 
@@ -23,6 +23,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 - `src/lib/serverAuth.js` consulta `public.admin_user_controls` después de validar el Bearer token y rechaza cuentas suspendidas antes de ejecutar la operación solicitada. La ausencia temporal de la tabla se tolera sólo para permitir el despliegue gradual; los botones administrativos permanecen bloqueados hasta aplicar la migración.
 - `src/lib/adminAuth.js`, `src/lib/adminAccess.js` y `src/lib/adminAudit.js` separan autenticación, reglas de rol/suspensión y escritura auditada. Los permisos pueden venir de `admin_users` o Vercel, pero sólo los roles persistidos en base son removibles desde el panel.
 - El checkout permite un vendedor por orden y la preferencia se crea con su conexión Mercado Pago.
+- La preferencia recibe una vigencia explícita igual al TTL local de la reserva. La migración `supabase-abandoned-checkouts-cron.sql`, aplicada y auditada el 12 de octubre, programa una cancelación horaria de órdenes vencidas sin `payment_id`; el cambio de estado libera stock mediante los triggers existentes y conserva el historial.
 - `src/pages/api/my-sales-list.js` usa la RPC `get_seller_sales_page(...)` si existe en Supabase para paginar ventas desde Postgres, con fallback al camino anterior.
 - El webhook firmado y la sincronización de retorno actualizan el pago de forma idempotente, incluyendo reembolsos y cancelaciones informados por Mercado Pago.
 
@@ -54,10 +55,14 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 - `src/lib/publicationPayments.js`, `src/lib/publicationTiming.js`, `/api/publication-checkout` y `/api/publication-payment-sync`: cobro directo a plataforma, contador, renovación sólo en los últimos 7 días, idempotencia y extensión por 30 días después del vencimiento vigente.
 - `docs/supabase-product-stock-publications.sql`: stock 1–100, reservas atómicas por cantidad, reposición, contratos de publicación, snapshots de vendedor, RLS y carrito único.
 - `docs/supabase-admin-control.sql`: tabla server-only de suspensiones, endurecimiento de permisos de `admin_users`, trigger de actualización, RPC serializadas para coordinar roles/suspensiones y no eliminar concurrentemente al último admin, más la auditoría final de la Etapa 2A.
+- `docs/supabase-profiles-search-path-hardening.sql`: endurecimiento idempotente de `set_profiles_updated_at()` con `search_path` vacío. Fue aplicado y auditado remotamente el 15 de octubre de 2026 sin modificar perfiles.
+- `docs/supabase-checkout-ordinality-hotfix.sql`: reemplazo idempotente de `create_checkout_order_atomic(...)` que corrige la combinación de `jsonb_to_recordset` y `WITH ORDINALITY`, restaura permisos server-only y devuelve una auditoría sin escribir datos comerciales.
+- `docs/supabase-abandoned-checkouts-cron.sql`: función server-only y tarea `pg_cron` horaria para regularizar checkouts vencidos sin borrar órdenes; aplicada y auditada con `jobid=1`, cero vencidas restantes y permisos exclusivos de `service_role`.
 - `src/lib/adminUserOverview.js` y `/api/admin/users/[userId]/overview`: agregación read-only de publicaciones, pagos mensuales, compras, ventas, cumplimiento, actividad e identidad Mercado Pago para la Etapa 2B. La API se consulta sólo al seleccionar o actualizar una ficha y nunca devuelve tokens OAuth.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
+- `src/lib/checkoutPendingOrders.js`: TTL compartido, vencimiento explícito de la preferencia y limpieza por actividad como respaldo del cron.
 - `src/lib/atomicOrders.js`: invoca la RPC transaccional que vuelve a validar snapshots del servidor y crea la orden con sus ítems bajo una reserva única por producto.
 - `src/lib/marketplaceFee.js`: calcula la comisión sobre la base recibida; checkout le pasa únicamente el subtotal de publicaciones permanentes. Prioriza importe fijo cuando es positivo y, en caso contrario, aplica el porcentaje con redondeo al peso entero.
 - `src/lib/productLocation.js`: normaliza Campana, Zárate, Lima y la cobertura conjunta de las tres ciudades.
@@ -75,7 +80,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 
 ### Verificación
 
-`node --test .\tests\*.test.mjs` valida la suite completa; la última ejecución observada el 12 de octubre de 2026 aprobó 119 pruebas sin fallos. La migración administrativa 2A quedó auditada con RLS activo, datos consistentes y RPC exclusivas de `service_role`; 2B reutiliza ese acceso server-side y no agrega SQL. El build, el despliegue, la revisión visual, el pago mensual y el reembolso con MP requieren verificaciones adicionales.
+`node --test` valida la suite completa; la última ejecución observada el 12 de octubre de 2026 aprobó 124 pruebas sin fallos. Las regresiones cubren la sintaxis correcta de `WITH ORDINALITY`, el TTL de preferencias y la ausencia de borrado en el cron de abandonos. La migración administrativa 2A quedó auditada con RLS activo, datos consistentes y RPC exclusivas de `service_role`; 2B reutiliza ese acceso server-side. El hotfix de la RPC de checkout quedó aplicado con `service_role=true`, `authenticated=false` y `anon=false`; falta repetir una compra y el reembolso con Mercado Pago continúa pendiente.
 
 ### Flujos visibles
 

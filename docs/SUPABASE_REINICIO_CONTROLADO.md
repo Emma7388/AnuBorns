@@ -1,6 +1,6 @@
 # Supabase: reinicio controlado y revision de carga
 
-Actualizado el 27 de septiembre de 2026.
+Actualizado el 12 de octubre de 2026. La revisión original de procesos corresponde al 27 de septiembre.
 
 Este documento prepara un reinicio manual de Supabase para observar si el swap vuelve a cero y si la presion de memoria reaparece. No propone cambios de schema, SQL ni acciones destructivas.
 
@@ -25,7 +25,7 @@ Resultado:
 - `src/lib/serverRequest.js` usa un `while (true)` acotado a leer el cuerpo del request y corta por `done` o limite de bytes.
 - `src/lib/supabaseMetrics.js` usa timeout de 8 segundos para Metrics API.
 - `src/lib/featuredProducts.js` usa timeout de 6 segundos para consultas de destacados.
-- La limpieza de checkouts pendientes no corre sola: se ejecuta al validar compras o desde `/api/checkout-pending-cleanup`, con rate limit.
+- En la revisión original, la limpieza de checkouts pendientes no corría sola: se ejecutaba al validar compras o desde `/api/checkout-pending-cleanup`, con rate limit. El 12 de octubre se aplicó y auditó `docs/supabase-abandoned-checkouts-cron.sql`, que ahora ejecuta la misma regularización cada hora dentro de PostgreSQL.
 
 Suscripciones Realtime detectadas:
 

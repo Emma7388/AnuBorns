@@ -18,10 +18,10 @@ create table if not exists public.profiles (
 create or replace function public.set_profiles_updated_at()
 returns trigger
 language plpgsql
-set search_path = public
+set search_path = ''
 as $$
 begin
-  new.updated_at = now();
+  new.updated_at = pg_catalog.now();
   return new;
 end;
 $$;

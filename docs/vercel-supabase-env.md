@@ -46,7 +46,7 @@ La comision comercial objetivo es el 1,5% sobre las publicaciones permanentes. L
 
 El cálculo vigente redondea al peso entero más cercano. Por eso ARS 7,50 se convierten en ARS 8. Mantener ese redondeo o admitir centavos es una decisión pendiente; no cambiarla sin volver a validar el desglose en Mercado Pago.
 
-`CHECKOUT_PENDING_ORDER_TTL_MINUTES` es opcional y vale 1440 minutos por defecto. Una orden local `pending` sin `payment_id` puede cancelarse después de ese plazo cuando el checkout o el historial disparan la limpieza; no es un cron ni demuestra que exista un pago pendiente en Mercado Pago.
+`CHECKOUT_PENDING_ORDER_TTL_MINUTES` es opcional y vale 1440 minutos por defecto. Ese plazo define la vigencia explícita de las preferencias nuevas de Mercado Pago y la limpieza por actividad. `docs/supabase-abandoned-checkouts-cron.sql` programa en Supabase la cancelación global con un intervalo fijo de 24 horas; si se modifica la variable de Vercel, también debe modificarse el intervalo de ese SQL para evitar reglas distintas. Una orden local `pending` sin `payment_id` no demuestra que exista un pago pendiente en Mercado Pago.
 
 Despues de guardar las variables, hacer un redeploy. Las variables `PUBLIC_*` se incrustan durante `astro build`, asi que un despliegue anterior seguira fallando aunque las variables se agreguen despues.
 

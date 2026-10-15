@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 11 de octubre de 2026 — rama `V0.8`.
+Actualizado al 15 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
@@ -33,7 +33,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Órdenes, items, historial de compras y panel de ventas persistidos en Supabase.
 - Envío o retiro, estados de preparación, despacho, entrega y retiro confirmado.
 - Prevención de compra de productos propios y de productos ya vendidos.
-- Limpieza y recuperación de checkouts pendientes abandonados.
+- Limpieza y recuperación de checkouts pendientes abandonados: las preferencias nuevas vencen junto con el TTL local y la migración programada cancela órdenes huérfanas sin borrar su historial.
 - Conexión OAuth de la cuenta Mercado Pago del vendedor.
 - Checkout Pro creado con el token del vendedor y comisión configurable para AnuBorns.
 - Comisión objetivo del 1,5% comprobada en una compra real posterior al reinicio: sobre ARS 500 el redondeo vigente envió ARS 8 y Mercado Pago mostró ese importe acreditado a AnuBorns.
@@ -64,7 +64,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 - La compra, el split y la comisión se comprobaron después del reinicio; falta completar una prueba real de reembolso total o parcial con Mercado Pago y conservar la vista del comprador.
 - El stock de 1 a 100, las cantidades de carrito y la reserva/devolución atómica están implementados localmente; su migración fue aplicada y auditada remotamente el 11 de octubre de 2026. Falta validar el circuito con el código desplegado.
 - El rate limit actual vive en memoria y es de mejor esfuerzo entre instancias serverless.
-- La limpieza de checkouts abandonados se dispara por actividad del sistema y no mediante una tarea programada permanente.
+- El cron de checkouts abandonados fue aplicado y auditado en Supabase: canceló los dos intentos vencidos, dejó cero pendientes antiguos y quedó activo cada hora con acceso exclusivo de `service_role`. La expiración explícita de preferencias nuevas está implementada localmente y requiere el próximo despliegue.
 
 ## Stack
 
@@ -129,6 +129,10 @@ CHECKOUT_PENDING_ORDER_TTL_MINUTES=1440
 
 La comisión objetivo vigente es el 1,5% del subtotal de productos con publicación permanente. Las publicaciones mensuales abonan ARS 2.000 por 30 días y no vuelven a pagar el porcentaje al vender. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe permanecer en `0`, porque cualquier importe fijo mayor que cero tiene prioridad y anula el porcentaje. El cálculo actual redondea la comisión al peso entero más cercano y verifica que no supere el total. `MERCADOPAGO_SEND_MARKETPLACE_FIELD` se mantiene en `false` salvo que Mercado Pago indique expresamente que la operación debe enviar el campo `marketplace`; la comisión se envía mediante `marketplace_fee`.
 
+`CHECKOUT_PENDING_ORDER_TTL_MINUTES` vale 1440 minutos por defecto. El checkout usa ese mismo plazo para `expiration_date_to` de la preferencia de Mercado Pago. El cron SQL queda fijado en 24 horas, por lo que ambos valores deben modificarse juntos si cambia la política. La cancelación conserva la orden como auditoría y los triggers devuelven el stock; no elimina filas.
+
+La migración sólo regulariza el estado local. Las preferencias históricas creadas antes de incorporar `expires` no se modifican retroactivamente en Mercado Pago; si alguno de esos enlaces antiguos todavía circula, debe vencerse mediante la API de preferencias con el token OAuth del vendedor. El webhook conserva la validación defensiva ante una aprobación tardía.
+
 Las publicaciones mensuales muestran el tiempo restante en días y horas después de aprobarse el pago, calculado al ingresar o recargar `Mis ventas` sin consultas periódicas. La renovación se habilita únicamente durante los últimos 7 días. Si se paga antes del vencimiento, los nuevos 30 días comienzan después de la fecha vigente, de modo que el vendedor no pierde el tiempo restante. Al vencer, el producto no se elimina: deja de ser público y comprable, pero permanece en la base y en el panel de su vendedor para poder renovarlo.
 
 Ese redondeo debe considerarse una decisión comercial pendiente: ARS 500 × 1,5% produce ARS 7,50, pero el código envía ARS 8. La operación real confirmó que Mercado Pago aplicó ARS 8. Si se necesita un 1,5% exacto para importes pequeños, primero hay que confirmar que el flujo admite decimales y luego cambiar y volver a probar el cálculo.
@@ -173,11 +177,14 @@ Archivos principales:
 - `src/data/categories.js` funciona como catálogo/fallback local.
 - No existe `src/data/providers.js`; la referencia anterior era obsoleta. El módulo de servicios/profesionales permanece retirado según `docs/SERVICIOS_PENDIENTES.md`.
 - Los scripts SQL de `docs/` documentan el esquema y sus ampliaciones incrementales.
+- `docs/supabase-checkout-ordinality-hotfix.sql` corrige la RPC atómica de checkout instalada el 11 de octubre; fue aplicado y auditado en Supabase el 12 de octubre antes de repetir la compra en producción.
+- `docs/supabase-abandoned-checkouts-cron.sql` instala la cancelación horaria de órdenes `pending` sin `payment_id`, regulariza las vencidas y audita permisos; fue aplicado y verificado remotamente el 12 de octubre de 2026.
 - `docs/supabase-performance-indexes.sql` agrega índices alineados a las consultas reales del marketplace.
 - `docs/supabase-seller-sales-rpc.sql` crea `get_seller_sales_page(...)` para que `Mis ventas` filtre, cuente y pagine en Postgres.
 - `docs/supabase-atomic-product-reservations.sql` crea la reserva única por producto, sus triggers y la RPC transaccional requerida por ambos checkouts.
 - `docs/supabase-product-stock-publications.sql` migra esa reserva a cantidades, agrega stock, contratos permanentes/mensuales, snapshots de vendedor, carrito único por usuario y endurece las escrituras de productos para que pasen por APIs autenticadas.
 - `docs/supabase-admin-control.sql` agrega suspensión sin borrado, endurece los permisos de roles administrativos y devuelve su propia auditoría de instalación para la Etapa 2A.
+- `docs/supabase-profiles-search-path-hardening.sql` fija un `search_path` vacío en el trigger de actualización de perfiles. Fue aplicado y auditado remotamente el 15 de octubre de 2026: función y trigger existentes, y configuración segura confirmada.
 
 ## Documentación
 
@@ -214,7 +221,7 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 3. Incorporar diagnóstico OAuth, pagos incompletos/sin auditoría y estado de validación de identidad Mercado Pago con su excepción documentada.
 4. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
 5. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
-6. Sustituir el rate limit en memoria por uno distribuido, decidir el redondeo del 1,5% y automatizar o monitorear la limpieza de órdenes abandonadas.
+6. Desplegar la expiración de preferencias nuevas, vencer de forma segura los enlaces históricos si todavía circulan, sustituir el rate limit en memoria por uno distribuido y decidir el redondeo del 1,5%. El cron local ya fue aplicado y auditado.
 7. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
 
 ### Registro de la etapa 1 — Producto y operación funcional
@@ -257,7 +264,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 12 de octubre de 2026: 119 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 12 de octubre de 2026: 124 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.

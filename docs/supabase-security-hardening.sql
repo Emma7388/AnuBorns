@@ -12,10 +12,10 @@ revoke execute on function public.rls_auto_enable() from authenticated;
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
-set search_path = public
+set search_path = ''
 as $$
 begin
-  new.updated_at = now();
+  new.updated_at = pg_catalog.now();
   return new;
 end;
 $$;
@@ -44,4 +44,6 @@ commit;
 -- order by p.policyname;
 --
 -- 4. Leaked password protection:
--- Not available on the current Supabase plan.
+-- Supabase only offers this control on Pro plans and above. If the project is
+-- still on Free, the warning is expected and cannot be closed with SQL.
+-- On Pro, enable it from Authentication > Attack Protection in the Dashboard.

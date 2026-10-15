@@ -1,26 +1,38 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 12 de octubre de 2026.
+Documento de traspaso del chat, actualizado el 15 de octubre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
 
 ### Transición de etapa — 11 de octubre de 2026
 
-- **Etapa 1, implementación funcional: cerrada en código.** Los diez puntos funcionales y sus ampliaciones posteriores quedaron en `V0.8`, commit `e7b9f66`, ya sincronizado con `origin/V0.8`. La suite completa observada aprobó 101 pruebas sin fallos. Las migraciones principales de stock, publicaciones, reservas, índices y permisos fueron ejecutadas y auditadas remotamente.
+- **Etapa 1, implementación funcional: cerrada en código.** Los diez puntos funcionales y sus ampliaciones posteriores quedaron en `V0.8`, commit `e7b9f66`, ya sincronizado con `origin/V0.8`. Las migraciones principales de stock, publicaciones, reservas, índices y permisos fueron ejecutadas y auditadas remotamente; una prueba real del 12 de octubre reveló un error diferido dentro de la RPC de checkout, documentado y corregido localmente más abajo.
 - El usuario ejecutó la sincronización histórica de nombres de Auth y mostró nueve cuentas con `display_name` y teléfono de contacto recuperados desde `public.profiles`. `telefono_auth=null` es correcto para cuentas que autentican por email. La excepción de identidad continúa asociada al MP User ID `1157622469`, no al nombre visible.
-- **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: iniciada.** La subetapa 2A de control administrativo base quedó implementada localmente el 11 de octubre: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; falta desplegar y validar con cuentas de prueba. Hasta completar esas verificaciones, “implementado” no significa activo ni certificado en producción.
-- **Etapa 2B, ficha 360 por usuario: implementada localmente el 12 de octubre.** `/admin/usuarios` carga bajo demanda publicaciones, pagos mensuales, compras, ventas, cumplimiento, cronología y diagnóstico en vivo OAuth/identidad. La respuesta no contiene tokens, no ejecuta mutaciones y queda cacheada por usuario durante la visita. No requiere SQL nuevo. Falta desplegar y validar visualmente con datos reales.
+- **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: iniciada.** La subetapa 2A de control administrativo base quedó implementada y desplegada: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; falta completar pruebas controladas de todas las mutaciones. Hasta completar esas verificaciones, “implementado” no significa certificado en producción.
+- **Etapa 2B, ficha 360 por usuario: desplegada el 12 de octubre.** `/admin/usuarios` carga bajo demanda publicaciones, pagos mensuales, compras, ventas, cumplimiento, cronología y diagnóstico en vivo OAuth/identidad. La respuesta no contiene tokens, no ejecuta mutaciones y queda cacheada por usuario durante la visita. La disposición visual fue revisada en producción; falta contrastar todas las variantes de cuenta y estados operativos.
 - **Etapa 3, madurez comercial: pendiente y todavía no iniciada.** El embudo, las políticas, reclamos, logística probatoria, cuotas y crecimiento se mantienen fuera del trabajo actual.
 
 #### Orden de trabajo de la etapa 2
 
-1. Desplegar y validar la Etapa 2A en `/admin/usuarios` con cuentas de prueba: roles, suspensión, restauración, bloqueo server-side y trazas `requested/completed/failed`. La migración ya fue aplicada y auditada.
-2. Desplegar y validar la Etapa 2B con perfiles de comprador, vendedor, cuenta sin MP y cuenta exceptuada; contrastar contadores sin crear cobros.
-3. Construir la siguiente subetapa: vista global y paginada de órdenes, anomalías operativas, OAuth y pagos incompletos. La ficha individual no reemplaza esa centralización.
-4. Confirmar el build y revisar en navegador los flujos funcionales anteriores, permisos, vencimientos y responsive sin crear cobros.
+1. Repetir una compra con comprador, vendedor e integrador distintos; confirmar orden, preferencia, pago y reserva atómica después del hotfix.
+2. Validar la Etapa 2A en `/admin/usuarios` con cuentas de prueba: roles, suspensión, restauración, bloqueo server-side y trazas `requested/completed/failed`. La migración ya fue aplicada y auditada.
+3. Completar la validación de la Etapa 2B con perfiles de comprador, vendedor, cuenta sin MP y cuenta exceptuada; contrastar contadores sin crear cobros adicionales.
+4. Construir la siguiente subetapa: vista global y paginada de órdenes, anomalías operativas, OAuth y pagos incompletos. La ficha individual no reemplaza esa centralización.
 5. Ejecutar pruebas controladas de pago mensual, comisión aplicable, concurrencia de stock, pendiente/rechazado y reembolso.
 6. Conservar evidencia de comprador, vendedor, plataforma, base y `audit_logs`; documentar cada resultado antes de cerrar la etapa.
+
+#### Regularización de checkouts abandonados — 12 de octubre
+
+- Las órdenes locales `pending` sin `payment_id` son intentos de checkout no completados; no prueban que exista dinero pendiente en Mercado Pago.
+- El problema era que el TTL de 24 horas sólo se aplicaba cuando otra actividad disparaba la limpieza. Por eso dos intentos antiguos podían seguir visibles y mantener reservas aunque ya hubieran superado el plazo.
+- El checkout local ahora crea preferencias con `expires=true` y fechas de vigencia alineadas con `CHECKOUT_PENDING_ORDER_TTL_MINUTES`.
+- `docs/supabase-abandoned-checkouts-cron.sql` crea una función sin acceso para `anon` ni `authenticated`, agenda una ejecución horaria con `pg_cron` y regulariza de inmediato las órdenes vencidas. Cambia el estado a `cancelled`, conserva la fila y deja que los triggers liberen stock.
+- No se usa el cierre o abandono de la pestaña como señal de cancelación porque no es un evento confiable y puede existir una aprobación tardía. El webhook mantiene una recuperación validada para ese caso.
+- Estado remoto: migración aplicada y auditada. Canceló dos intentos vencidos, la lectura independiente confirmó `stale_pending_remaining=0` y `cancelled_as_abandoned=2`, y el cron quedó activo. Falta desplegar el código para que las preferencias nuevas incluyan vencimiento también del lado de Mercado Pago.
+- Verificación local posterior: 124 pruebas aprobadas, chequeo de sintaxis de los dos módulos modificados y `git diff --check` sin errores. No se ejecutó build ni despliegue.
+- El SQL no puede editar retroactivamente las preferencias viejas en Mercado Pago. Después de regularizar las filas locales, los dos enlaces históricos deben considerarse legado: si continúan accesibles, corresponde vencerlos una vez mediante `PUT /checkout/preferences/{id}` usando el OAuth del vendedor, sin exponer tokens. Las preferencias nuevas ya nacen con vigencia definida.
+- Primera ejecución remota: el cron quedó activo como `jobid=1`, horario `17 * * * *`, con ejecución exclusiva para `service_role`, y la función informó `cancelled_now=2`. El campo `stale_pending_remaining=2` de esa misma respuesta provenía de la fotografía anterior al `UPDATE`, porque ambos cálculos compartían sentencia; el SQL local se corrigió para auditar en una sentencia posterior. La lectura independiente confirmó luego cero vencidas pendientes y dos canceladas como abandono. No requiere reinstalar el cron.
 
 ### Reserva atómica de productos — 10 de octubre
 
@@ -36,6 +48,22 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
 - Verificación completa más reciente del árbol de trabajo, después de implementar la ficha 360 de la Etapa 2B: 119 pruebas aprobadas y 0 fallos. La migración administrativa 2A fue ejecutada remotamente y devolvió dos administradores, cero suspensiones inválidas, RLS activo, ausencia de privilegios para `authenticated` y ambas RPC limitadas a `service_role`. La Etapa 2B no agrega SQL. El usuario conserva a su cargo build y despliegue.
 
+#### Incidente de checkout y hotfix — 12 de octubre
+
+- Una compra en producción llamó a `POST /api/checkout` a las 16:59 y recibió HTTP 500 antes de crear la orden o contactar a Mercado Pago.
+- El log de Vercel mostró PostgreSQL `42601`: `WITH ORDINALITY cannot be used with a column definition list` dentro de `create_checkout_order_atomic(...)`.
+- La causa estaba en la versión ampliada por stock de `docs/supabase-product-stock-publications.sql`: combinaba directamente `jsonb_to_recordset(...)`, `WITH ORDINALITY` y una lista tipada. La instalación podía completarse porque PL/pgSQL analizaba esa sentencia al ejecutarla; las auditorías anteriores sólo comprobaban estructura y permisos.
+- Se corrigió el archivo principal con `ROWS FROM (...) WITH ORDINALITY` y se preparó `docs/supabase-checkout-ordinality-hotfix.sql`, que reemplaza únicamente la función, conserva `service_role` como ejecutor y no altera datos comerciales existentes.
+- Se agregó `tests/supabaseCheckoutSql.test.mjs` para rechazar la forma inválida. Verificación local: 120 pruebas aprobadas y `git diff --check` sin errores.
+- Estado remoto: **hotfix aplicado y auditado el 12 de octubre**. Supabase devolvió `ordinality_syntax_ok=true`, `rpc_existe=true`, ejecución habilitada únicamente para `service_role=true` y denegada para `authenticated=false` y `anon=false`. Falta repetir una compra controlada para validar que la RPC completa la orden, reserva y preferencia.
+
+#### Hardening del trigger de perfiles — 15 de octubre
+
+- Se ejecutó `docs/supabase-profiles-search-path-hardening.sql` para fijar un `search_path` vacío en `public.set_profiles_updated_at()` y evitar que la resolución de nombres dependa del rol de ejecución.
+- La auditoría remota confirmó `function_exists=true`, `trigger_attached=true`, `search_path_fixed=true` y `search_path_config=["search_path=\"\""]`.
+- La advertencia `function_search_path_mutable` queda cerrada. No se modificaron filas de perfiles ni datos de autenticación.
+- La advertencia independiente sobre protección de contraseñas filtradas no describe una filtración: el control sólo puede activarse desde Auth en planes Supabase Pro o superiores; no tiene solución SQL en Free.
+
 - Los registros nuevos vuelven a enviar nombre y apellido como metadata de Auth, y guardar `Mis datos` vuelve a sincronizarlos sin borrar avatar ni otra metadata. El teléfono de contacto sigue en `public.profiles`: no debe copiarse a `auth.users.phone`, ya que esa columna corresponde a autenticación telefónica. Las cuentas históricas sin nombre visible requieren volver a guardar su perfil o sincronizarlas desde Administración después de desplegar este cambio.
 
 ### Evidencia real posterior al reinicio — 10 de octubre
@@ -47,7 +75,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - La captura de la cuenta del vendedor muestra la misma operación y referencia, ARS 500 brutos, estado aprobado y ARS 470,49 programados para acreditación. La diferencia entre ARS 492 y ARS 470,49 es un costo adicional de Mercado Pago de ARS 21,51; el concepto exacto debe verificarse en el desglose de esa cuenta y no atribuirse a la comisión de AnuBorns.
 - Las capturas de Mercado Pago y la fila de Supabase concuerdan en importe, fecha aproximada, referencia y estado. En conjunto confirman pago, OAuth, persistencia, split y acreditación de la comisión en una operación posterior al reinicio.
 - Falta conservar la vista del comprador. Esa captura completaría el expediente de las tres partes y la experiencia postpago, pero no es necesaria para demostrar que AnuBorns recibió ARS 8.
-- También aparecen dos órdenes locales `pending` sin `payment_id`. Son preferencias/checkouts no completados, no pagos pendientes confirmados por Mercado Pago. El código puede cancelarlos después de 24 horas cuando se dispara la limpieza por actividad; no existe todavía un cron permanente.
+- También aparecieron dos órdenes locales `pending` sin `payment_id`. Eran preferencias/checkouts no completados, no pagos pendientes confirmados por Mercado Pago. El cron aplicado el 12 de octubre las regularizó como `cancelled` y la auditoría independiente dejó cero vencidas pendientes.
 - El pendiente principal de Mercado Pago pasa a ser el reembolso total o parcial de punta a punta. También quedan como pruebas complementarias un pago realmente pendiente/rechazado y determinar por `audit_logs` si la aprobación entró primero por webhook o sincronización de retorno.
 
 ### Evidencia histórica de pago, split y comisión — 10 de octubre
@@ -233,6 +261,7 @@ El usuario respondió «listo» a las instrucciones de migrar y publicar y el ca
 ## Interfaz y alcance previo
 
 - Mis ventas: vendidos y publicados con controles de fecha, Buscar, Limpiar y Mostrar todos; carga diferida por acción del usuario.
+- En las tarjetas propias de productos publicados, `Contrato de publicación` identifica si es permanente o mensual y `Estado del contrato` muestra Activo, Pago pendiente, Vencido o Cancelado. Este estado no representa una compra del producto.
 - Mis compras: mismo patrón de carga diferida.
 - Componente compartido: `src/components/DeferredListControls.astro`.
 - Scripts: `src/scripts/mis-ventas.js` y `src/scripts/orders.js`.
@@ -271,4 +300,4 @@ No declararlos cerrados en producción hasta desplegar el código compatible, pr
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada. Las Etapas 2A y 2B están implementadas localmente con 119 pruebas aprobadas: control administrativo base más ficha 360 por usuario; sólo 2A necesitó SQL y ya fue aplicado/auditado. Falta desplegar y validar ambas con cuentas de prueba. Después seguimos con la vista global de órdenes, anomalías y pagos incompletos. Yo manejo los despliegues y todavía no hay que borrar MVP ni Anubis-Reborn.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada y las Etapas 2A/2B están desplegadas, aunque faltan variantes controladas. El hotfix atómico y el cron de checkouts abandonados ya fueron aplicados y auditados; canceló dos intentos y dejó cero vencidos pendientes. La expiración explícita de preferencias nuevas está en el código local y falta desplegarla. La suite tiene 124 pruebas aprobadas. Después seguimos con la vista global de órdenes, anomalías y pagos incompletos. Yo manejo SQL, build, commit, push y despliegue; no hay que borrar MVP ni Anubis-Reborn.»

@@ -1,6 +1,9 @@
 /* API: crea orden y preferencia de pago en Mercado Pago. */
 import { MercadoPagoConfig, Preference } from "mercadopago";
-import { cancelAbandonedCheckoutOrders } from "../../lib/checkoutPendingOrders.js";
+import {
+  cancelAbandonedCheckoutOrders,
+  getCheckoutPreferenceExpiration,
+} from "../../lib/checkoutPendingOrders.js";
 import { buildCheckoutContext } from "../../lib/checkoutServer.js";
 import { createAtomicCheckoutOrder } from "../../lib/atomicOrders.js";
 import { jsonResponse } from "../../lib/apiResponse.js";
@@ -284,6 +287,7 @@ const buildPreferenceBody = ({
     currency_id: checkout.orderCurrency,
   })),
   external_reference: orderId,
+  ...getCheckoutPreferenceExpiration(),
   back_urls: {
     success: `${siteUrl}/compra-confirmada?status=approved&orderId=${orderId}`,
     failure: `${siteUrl}/compra-confirmada?status=rejected&orderId=${orderId}`,

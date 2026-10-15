@@ -39,7 +39,13 @@ La regla intencional es descontar y reservar la cantidad solicitada mientras el 
 
 La garantía final vive en PostgreSQL. La reserva usa la clave compuesta `(product_id, order_id)` y guarda `qty`; los triggers descuentan o reponen unidades al cambiar órdenes o ítems. `create_checkout_order_atomic(...)` bloquea las filas de producto, revalida stock, vigencia, vendedor, moneda y precio, y persiste orden + ítems en una misma transacción. La validación previa de JavaScript mejora el mensaje al usuario, pero no es la autoridad de concurrencia.
 
-Antes de validar disponibilidad, el checkout cancela reservas `pending` antiguas sin `payment_id` para que un intento abandonado no bloquee indefinidamente una nueva compra. El TTL predeterminado es de 24 horas. La limpieza se dispara desde el checkout o el historial del comprador; no existe todavía una tarea programada permanente.
+El 12 de octubre de 2026 una prueba real detectó que la versión remota de esa RPC fallaba al insertar ítems por una combinación inválida de `jsonb_to_recordset(...)` y `WITH ORDINALITY`. El intento terminó con HTTP 500 antes de crear orden o preferencia de Mercado Pago. `docs/supabase-checkout-ordinality-hotfix.sql` corrigió únicamente esa función mediante `ROWS FROM (...) WITH ORDINALITY`; fue aplicado y auditado con ejecución exclusiva de `service_role`. Falta repetir una compra para certificar el circuito completo.
+
+Antes de validar disponibilidad, el checkout cancela reservas `pending` antiguas sin `payment_id` para que un intento abandonado no bloquee indefinidamente una nueva compra. El TTL predeterminado es de 24 horas y ahora también se envía a Mercado Pago como vigencia explícita de la preferencia. `docs/supabase-abandoned-checkouts-cron.sql` agrega una tarea horaria global en PostgreSQL y regulariza las filas vencidas al instalarse. Fue aplicado y auditado: canceló dos intentos, dejó cero vencidos pendientes y sólo `service_role` puede ejecutar la función. La limpieza por checkout o historial se conserva como defensa adicional.
+
+No se cancela una orden simplemente porque el navegador se cierre o el comprador no vuelva por una `back_url`: ese evento no es confiable y el pago puede aprobarse de forma tardía. Al vencer, la orden se marca `cancelled` con `payment_detail=checkout_abandoned`; no se borra. El trigger de reservas repone el stock. Si Mercado Pago informa después una aprobación válida, el webhook sólo intenta recuperarla bajo las validaciones de monto, moneda y disponibilidad existentes.
+
+El vencimiento agregado al código se aplica a preferencias nuevas. PostgreSQL no puede alterar por sí solo una preferencia histórica ya creada en Mercado Pago; esos enlaces deben vencerse una vez mediante la API autenticada del vendedor si todavía pueden circular. Nunca se copian tokens OAuth a SQL, documentación ni navegador para resolver ese legado.
 
 ## Reembolsos y botón de arrepentimiento
 

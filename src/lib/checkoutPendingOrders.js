@@ -1,9 +1,27 @@
 const DEFAULT_PENDING_ORDER_TTL_MINUTES = 24 * 60;
 
-const getPendingOrderTtlMinutes = () => {
+export const getPendingOrderTtlMinutes = () => {
   const raw = Number(process.env.CHECKOUT_PENDING_ORDER_TTL_MINUTES ?? DEFAULT_PENDING_ORDER_TTL_MINUTES);
   if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_PENDING_ORDER_TTL_MINUTES;
   return raw;
+};
+
+export const getCheckoutPreferenceExpiration = ({
+  now = Date.now(),
+  ttlMinutes = getPendingOrderTtlMinutes(),
+} = {}) => {
+  const startMs = Number(now);
+  const safeStartMs = Number.isFinite(startMs) ? startMs : Date.now();
+  const parsedTtl = Number(ttlMinutes);
+  const safeTtlMinutes = Number.isFinite(parsedTtl) && parsedTtl > 0
+    ? parsedTtl
+    : DEFAULT_PENDING_ORDER_TTL_MINUTES;
+
+  return {
+    expires: true,
+    expiration_date_from: new Date(safeStartMs).toISOString(),
+    expiration_date_to: new Date(safeStartMs + safeTtlMinutes * 60 * 1000).toISOString(),
+  };
 };
 
 export const cancelAbandonedCheckoutOrders = async (supabaseAdmin, { userId, olderThanMinutes } = {}) => {
