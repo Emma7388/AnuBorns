@@ -15,18 +15,33 @@ const makeSupabaseAdmin = ({
   tableError = null,
   controlData = null,
   controlError = null,
+  auditError = null,
+  auditThrow = false,
 }) => {
   const queriedTables = [];
+  const auditRows = [];
   return {
     get queriedTables() {
       return queriedTables;
+    },
+    get auditRows() {
+      return auditRows;
     },
     auth: {
       getUser: async () => ({ data: { user }, error: null }),
     },
     from: (table) => {
       queriedTables.push(table);
-      assert.ok(["admin_users", "admin_user_controls"].includes(table));
+      assert.ok(["admin_users", "admin_user_controls", "audit_logs"].includes(table));
+      if (table === "audit_logs") {
+        return {
+          insert: async (row) => {
+            if (auditThrow) throw new Error("audit unavailable");
+            auditRows.push(row);
+            return { error: auditError };
+          },
+        };
+      }
       return {
         select() {
           return this;
@@ -82,6 +97,35 @@ test("rechaza usuarios sin permiso admin", async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.status, 403);
+  assert.equal(supabaseAdmin.auditRows.length, 1);
+  assert.equal(supabaseAdmin.auditRows[0].event, "admin_permission_denied");
+  assert.equal(supabaseAdmin.auditRows[0].metadata.path, "/api/admin/users");
+  assert.equal(supabaseAdmin.auditRows[0].metadata.status, "rejected");
+});
+
+test("mantiene el rechazo aunque falle la auditoría de permisos", async () => {
+  const supabaseAdmin = makeSupabaseAdmin({
+    user: { id: "user-normal-audit-failure", email: "user2@anuborns.test" },
+    auditThrow: true,
+  });
+
+  const result = await requireAdmin(supabaseAdmin, makeRequest());
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+});
+
+test("deduplica temporalmente el mismo acceso administrativo rechazado", async () => {
+  const supabaseAdmin = makeSupabaseAdmin({
+    user: { id: "user-normal-deduplicated", email: "dedupe@anuborns.test" },
+  });
+
+  const first = await requireAdmin(supabaseAdmin, makeRequest());
+  const second = await requireAdmin(supabaseAdmin, makeRequest());
+
+  assert.equal(first.status, 403);
+  assert.equal(second.status, 403);
+  assert.equal(supabaseAdmin.auditRows.length, 1);
 });
 
 test("rechaza una cuenta suspendida antes de validar su rol", async () => {

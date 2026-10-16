@@ -1,6 +1,10 @@
 import { getAuthenticatedUser } from "./serverAuth.js";
+import { writeAdminAudit } from "./adminAudit.js";
 
 const ADMIN_TABLE = "admin_users";
+const DENIED_AUDIT_TTL_MS = 5 * 60 * 1000;
+const MAX_DENIED_AUDIT_KEYS = 500;
+const deniedAuditCache = new Map();
 
 const splitEnvList = (value) =>
   String(value ?? "")
@@ -37,6 +41,44 @@ const isMissingAdminTableError = (error) => {
   return code === "42P01" || code === "PGRST205" || message.includes(ADMIN_TABLE);
 };
 
+const getRequestPath = (request) => {
+  try {
+    return new URL(request?.url ?? "http://localhost/").pathname.slice(0, 160);
+  } catch {
+    return "/api/admin";
+  }
+};
+
+const recordDeniedAdminAccess = async (supabaseAdmin, user, request) => {
+  const userId = String(user?.id ?? "").trim();
+  if (!userId) return;
+  const path = getRequestPath(request);
+  const cacheKey = `${userId}::${path}`;
+  const now = Date.now();
+  const previous = deniedAuditCache.get(cacheKey) ?? 0;
+  if (now - previous < DENIED_AUDIT_TTL_MS) return;
+  deniedAuditCache.set(cacheKey, now);
+  if (deniedAuditCache.size > MAX_DENIED_AUDIT_KEYS) {
+    for (const [key, timestamp] of deniedAuditCache) {
+      if (now - timestamp >= DENIED_AUDIT_TTL_MS) deniedAuditCache.delete(key);
+    }
+  }
+
+  try {
+    await writeAdminAudit(supabaseAdmin, {
+      actorUserId: userId,
+      event: "admin_permission_denied",
+      action: "access_admin_panel",
+      reason: "missing_admin_role",
+      status: "rejected",
+      metadata: { path },
+      request,
+    });
+  } catch {
+    // La auditoría es best-effort y nunca debe cambiar el rechazo 403.
+  }
+};
+
 export const requireAdmin = async (supabaseAdmin, request) => {
   const auth = await getAuthenticatedUser(supabaseAdmin, request);
   if (!auth.ok) return auth;
@@ -62,6 +104,7 @@ export const requireAdmin = async (supabaseAdmin, request) => {
   }
 
   if (!data?.user_id) {
+    await recordDeniedAdminAccess(supabaseAdmin, auth.user, request);
     return { ok: false, status: 403, error: "No tenés permiso para administrar usuarios." };
   }
 

@@ -328,6 +328,7 @@ const formatAuditRows = ({ rows, usersById, profilesById }) => rows.map((row) =>
     action: String(metadata.action ?? ""),
     reason: String(metadata.reason ?? ""),
     status: String(metadata.status ?? ""),
+    path: String(metadata.path ?? "").slice(0, 160),
   };
 });
 

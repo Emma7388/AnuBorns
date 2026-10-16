@@ -37,7 +37,7 @@ Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
 - `src/lib/vercelAnalytics.js`: lectura server-side de Vercel Web Analytics para visitas, page views y rankings del panel admin.
-- `src/lib/adminAuth.js`: valida administradores persistidos en `admin_users` o configurados por Vercel.
+- `src/lib/adminAuth.js`: valida administradores persistidos en `admin_users` o configurados por Vercel; registra de mejor esfuerzo y con deduplicación temporal los accesos rechazados de usuarios autenticados sin rol.
 - `src/lib/adminAccess.js`: normaliza y valida cambios de rol, suspensión y restauración; protege la propia cuenta, administradores de Vercel y el último admin persistido.
 - `src/lib/adminAudit.js`: escritura server-side común de solicitudes y resultados administrativos en `audit_logs`.
 - `src/lib/adminUserOverview.js`: reglas puras para visibilidad, diagnóstico OAuth/identidad, contadores y cronología de la ficha 360 administrativa.

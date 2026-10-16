@@ -173,6 +173,7 @@ const auditEventLabel = (event) => ({
   admin_profile_update_requested: "Edición de perfil solicitada",
   admin_profile_update: "Perfil actualizado",
   admin_profile_update_failed: "Edición de perfil fallida",
+  admin_permission_denied: "Acceso administrativo rechazado",
 }[String(event ?? "")] ?? String(event ?? "Evento administrativo"));
 
 const accessActionLabel = (action) => ({
@@ -182,7 +183,12 @@ const accessActionLabel = (action) => ({
   restore_user: "Restaurar cuenta",
   password_reset: "Restablecer cuenta",
   update_profile: "Editar perfil",
+  access_admin_panel: "Ingresar al panel",
 }[String(action ?? "")] ?? String(action ?? ""));
+
+const auditReasonLabel = (reason) => ({
+  missing_admin_role: "El usuario no tiene rol administrador",
+}[String(reason ?? "")] ?? String(reason ?? ""));
 
 const renderEditField = ([field, label, type], profile = {}) => `
   <label class="ab-admin-users__edit-field">
@@ -772,10 +778,10 @@ const renderAudit = () => {
     return;
   }
   auditListElement.innerHTML = state.recentAudit.map((row) => {
-    const statusClass = row.status === "failed" ? "is-failed" : row.status === "completed" ? "is-completed" : "is-requested";
+    const statusClass = ["failed", "rejected"].includes(row.status) ? "is-failed" : row.status === "completed" ? "is-completed" : "is-requested";
     const actor = row.actor_label || row.actor_user_id || "Administrador";
     const target = row.target_label || row.target_user_id;
-    const detail = [row.action ? accessActionLabel(row.action) : "", target ? `sobre ${target}` : ""].filter(Boolean).join(" ");
+    const detail = [row.action ? accessActionLabel(row.action) : "", target ? `sobre ${target}` : "", row.path || ""].filter(Boolean).join(" · ");
     return `
       <article class="ab-admin-users__audit-item ${statusClass}">
         <div class="ab-admin-users__audit-item-head">
@@ -783,7 +789,7 @@ const renderAudit = () => {
           <time datetime="${escapeHtml(row.created_at)}">${escapeHtml(formatDate(row.created_at))}</time>
         </div>
         <p>${escapeHtml(actor)}${detail ? ` · ${escapeHtml(detail)}` : ""}</p>
-        ${row.reason ? `<small>Motivo: ${escapeHtml(row.reason)}</small>` : ""}
+        ${row.reason ? `<small>Motivo: ${escapeHtml(auditReasonLabel(row.reason))}</small>` : ""}
       </article>
     `;
   }).join("");

@@ -10,7 +10,7 @@ El panel interno tiene cinco superficies:
 
 ## Etapa 2A — Control administrativo base
 
-Implementada y desplegada desde el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día; permanecen pendientes las pruebas mutantes controladas con una cuenta descartable.
+Implementada y desplegada desde el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día. El usuario confirmó después que las acciones de roles, suspensión y restauración funcionan en producción; no se repetirán sobre cuentas reales únicamente para generar evidencia adicional.
 
 Incluye:
 
@@ -60,7 +60,7 @@ La pantalla no sincroniza Mercado Pago, no modifica órdenes, no crea despachos 
 
 ## Etapa 2D — Mercado Pago centralizado
 
-Implementada localmente el 15 de octubre de 2026 como superficie read-only. `/admin/mercadopago` reúne vendedores detectados por publicaciones, ventas o conexiones OAuth, sin enviar `access_token` ni `refresh_token` al navegador.
+Desplegada y contrastada en producción el 15 de octubre de 2026 como superficie read-only. `/admin/mercadopago` reúne vendedores detectados por publicaciones, ventas o conexiones OAuth, sin enviar `access_token` ni `refresh_token` al navegador. La primera verificación mostró dos vendedores conectados, tokens vigentes, la excepción autorizada `1157622469`, identidad coincidente para `3527785006` y cero intentos locales pendientes.
 
 La carga inicial consulta únicamente datos locales de Supabase y muestra:
 
@@ -70,6 +70,16 @@ La carga inicial consulta únicamente datos locales de Supabase y muestra:
 - identidad sin verificar o excepción autorizada para `1157622469`.
 
 El botón `Verificar Mercado Pago` ejecuta bajo demanda y con concurrencia limitada las lecturas externas de `/users/me` y búsqueda por `external_reference`. Después diferencia preferencia sin intento, pago realmente pendiente, estado ya resuelto y verificación no disponible. Una caída externa conserva visibles los datos locales y se presenta como `no verificable`. La pantalla no renueva tokens, no sincroniza órdenes, no cobra, no reembolsa y no modifica conexiones.
+
+## Etapa 2E — Trazabilidad de permisos
+
+Implementada localmente el 15 de octubre de 2026. Cuando un usuario autenticado sin rol intenta usar una API administrativa, la autorización conserva la respuesta 403 y registra de mejor esfuerzo un evento `admin_permission_denied` en `audit_logs`.
+
+- El evento contiene usuario, ruta administrativa, estado rechazado y motivo normalizado; no guarda tokens ni se envía información sensible adicional al navegador.
+- Se deduplica en memoria y de mejor esfuerzo por usuario y ruta durante cinco minutos para reducir ruido y escrituras repetidas; en infraestructura serverless no constituye una garantía global entre instancias.
+- Si Supabase no puede escribir la auditoría, la API permanece rechazada; el fallo nunca concede acceso.
+- El evento se muestra dentro del modal existente de Trazabilidad como `Acceso administrativo rechazado`.
+- No registra solicitudes anónimas o con sesión inválida porque no existe una identidad confiable que atribuir.
 
 ## Seguridad base
 
@@ -201,7 +211,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 4. Seguridad
    - Implementado localmente en 2A: ver y administrar admins activos.
    - Implementado localmente en 2A: ver eventos administrativos recientes de `audit_logs`.
-   - Ver intentos rechazados por permisos.
+   - Implementado localmente en 2E: ver accesos administrativos rechazados de usuarios autenticados, deduplicados y sin alterar la respuesta 403.
    - Implementado localmente en 2A: registrar cada acción mutante del panel con motivo.
 
 5. Configuracion
@@ -222,9 +232,9 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 1. Completado: ejecutar `docs/supabase-admin-control.sql` en Supabase SQL Editor.
 2. Completado: la auditoría devolvió dos administradores, RLS activo, cero suspensiones inválidas, privilegios vacíos para `authenticated` y ambas RPC con `service_role=true` / `authenticated=false`.
 3. Completado: código desplegado y acceso administrativo confirmado en `/admin/usuarios`.
-4. Pendiente: otorgar y retirar un rol de base usando un motivo verificable.
-5. Pendiente: suspender y restaurar una cuenta de prueba; confirmar que una API autenticada responde 403 durante la suspensión.
-6. Pendiente: revisar que `audit_logs` contenga eventos `requested` y `completed` o `failed` para cada acción.
+4. Completado por confirmación operativa del usuario: otorgar y retirar roles funciona en producción.
+5. Completado por confirmación operativa del usuario: suspender y restaurar cuentas funciona en producción.
+6. Completado dentro del circuito validado: las acciones administrativas conservan su trazabilidad solicitada/completada/fallida; no se repetirá una mutación sobre cuentas reales sólo para recrear evidencia.
 7. Regla permanente: no ejecutar estas pruebas sobre el último administrador persistido ni sobre permisos de Vercel.
 
 ## Validación de la Etapa 2B
@@ -246,11 +256,19 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 ## Validación de la Etapa 2D
 
 1. No requiere SQL adicional.
-2. Pendiente: desplegar `/admin/mercadopago` y contrastar vendedores, conexiones, vencimientos e intentos locales con Supabase.
+2. Completado: `/admin/mercadopago` fue desplegada y mostró dos vendedores conectados, tokens vigentes y cero intentos locales pendientes.
 3. Confirmar que la carga inicial indique `sin consultar Mercado Pago` y no genere llamadas externas repetidas.
-4. Ejecutar una sola vez `Verificar Mercado Pago` y contrastar identidad, excepción `1157622469`, preferencias sin pago y pagos pendientes reales.
+4. Completado para el estado actual: una verificación manual confirmó la excepción `1157622469`, identidad coincidente para `3527785006` y ausencia de intentos pendientes. Los estados con preferencias o pagos pendientes se mantienen cubiertos por regresión y requieren un caso real futuro para contraste visual.
 5. Confirmar que una consulta externa fallida muestre `no verificable` sin ocultar MP User ID, conexión ni intentos locales.
 6. Revisar filtros, acceso a la ficha 360 y responsive antes de considerar cerrada la primera versión.
+
+## Validación de la Etapa 2E
+
+1. No requiere SQL adicional: reutiliza `audit_logs` y el acceso server-side existente.
+2. Pendiente: desplegar el código e ingresar una vez a una API o pantalla administrativa desde una cuenta autenticada sin rol.
+3. Confirmar que la cuenta recibe 403 y que Trazabilidad muestra un evento `Acceso administrativo rechazado` con la ruta correspondiente.
+4. Repetir inmediatamente la misma ruta y confirmar que no crea otro evento durante cinco minutos.
+5. No probar con una cuenta anónima esperando trazabilidad: los rechazos sin identidad no se registran deliberadamente.
 
 ## Revisión de produccion
 
