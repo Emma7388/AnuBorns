@@ -1,0 +1,75 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import "../../styles/admin.css";
+---
+
+<MainLayout title="Operaciones" headerTitle="Operaciones" backHref="/admin/">
+  <section class="ab-dark-panel ab-admin-operations">
+    <div class="ab-admin-dashboard__head">
+      <div>
+        <p class="ab-admin-dashboard__eyebrow">Etapa 2C</p>
+        <h2>Control global de operaciones</h2>
+      </div>
+      <div class="ab-admin-dashboard__actions">
+        <a class="ab-secondary-button" href="/admin/usuarios"><span>Usuarios</span></a>
+        <a class="ab-secondary-button" href="/admin/administracion"><span>Fee</span></a>
+        <button class="ab-secondary-button" id="admin-operations-refresh" type="button"><span>Actualizar</span></button>
+      </div>
+    </div>
+
+    <p class="ab-muted-text" id="admin-operations-status" aria-live="polite">Cargando operaciones...</p>
+
+    <div class="ab-admin-operations__summary" aria-label="Resumen operativo">
+      <article><strong id="admin-operations-total">0</strong><span>Órdenes revisadas</span></article>
+      <article><strong id="admin-operations-approved">0</strong><span>Aprobadas</span></article>
+      <article><strong id="admin-operations-pending">0</strong><span>Pendientes</span></article>
+      <article class="is-warning"><strong id="admin-operations-alerts">0</strong><span>Registros a revisar</span></article>
+      <article class="is-danger"><strong id="admin-operations-critical">0</strong><span>Alertas críticas</span></article>
+    </div>
+
+    <div class="ab-admin-operations__filters">
+      <label>
+        <span>Estado de pago</span>
+        <select id="admin-operations-state-filter">
+          <option value="all">Todos</option>
+          <option value="approved">Aprobado</option>
+          <option value="pending">Pendiente</option>
+          <option value="rejected">Rechazado</option>
+          <option value="cancelled">Cancelado</option>
+          <option value="refunded">Reembolsado</option>
+          <option value="refund_pending">Reembolso pendiente</option>
+          <option value="partially_refunded">Reembolso parcial</option>
+        </select>
+      </label>
+      <label>
+        <span>Control</span>
+        <select id="admin-operations-focus-filter">
+          <option value="all">Todas las órdenes</option>
+          <option value="alerts">Sólo alertas</option>
+          <option value="payment">Pagos incompletos</option>
+          <option value="fulfillment">Entregas pendientes</option>
+          <option value="catalog">Publicaciones incorrectas</option>
+        </select>
+      </label>
+      <label class="ab-admin-operations__search">
+        <span>Buscar</span>
+        <input id="admin-operations-search" type="search" autocomplete="off" placeholder="Orden, Payment ID o producto" />
+      </label>
+    </div>
+
+    <div class="ab-admin-operations__content">
+      <div class="ab-admin-operations__section-head">
+        <div>
+          <p class="ab-admin-dashboard__eyebrow">Lectura administrativa</p>
+          <h3 id="admin-operations-list-title">Órdenes recientes</h3>
+        </div>
+        <span id="admin-operations-visible-count">0 registros</span>
+      </div>
+      <div class="ab-admin-operations__list" id="admin-operations-list"></div>
+    </div>
+  </section>
+</MainLayout>
+
+<script>
+  import "../../scripts/admin-operations.js";
+</script>

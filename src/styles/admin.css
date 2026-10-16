@@ -1,14 +1,16 @@
 main[data-ab-pathname="/admin"],
 main[data-ab-pathname="/admin/"],
 main[data-ab-pathname="/admin/administracion"],
-main[data-ab-pathname="/admin/usuarios"] {
+main[data-ab-pathname="/admin/usuarios"],
+main[data-ab-pathname="/admin/operaciones"] {
   padding-inline: max(10px, 1vw);
 }
 
 main[data-ab-pathname="/admin"] .ab-dark-panel,
 main[data-ab-pathname="/admin/"] .ab-dark-panel,
 main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
-main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
+main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel,
+main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
   box-sizing: border-box;
   width: min(96vw, 1180px);
   max-width: none;
@@ -43,6 +45,205 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 .ab-admin-finance {
   display: grid;
   gap: 10px;
+}
+
+.ab-admin-operations {
+  display: grid;
+  gap: 10px;
+  overflow-x: clip;
+}
+
+.ab-admin-operations__summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.ab-admin-operations__summary article {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-left: 5px solid #2d6f91;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+
+.ab-admin-operations__summary article.is-warning {
+  border-left-color: #c78515;
+}
+
+.ab-admin-operations__summary article.is-danger {
+  border-left-color: #c83b3b;
+}
+
+.ab-admin-operations__summary strong {
+  font-size: 25px;
+  line-height: 1;
+}
+
+.ab-admin-operations__summary span {
+  color: rgba(23, 35, 31, 0.65);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ab-admin-operations__filters {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 0.9fr) minmax(220px, 1.4fr);
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(23, 35, 31, 0.11);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.ab-admin-operations__filters label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ab-admin-operations__filters label > span {
+  color: rgba(23, 35, 31, 0.65);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ab-admin-operations__filters select,
+.ab-admin-operations__filters input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid rgba(23, 35, 31, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ab-text, #17231f);
+  font: inherit;
+  font-size: 12px;
+}
+
+.ab-admin-operations__content {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ab-admin-operations__section-head,
+.ab-admin-operation__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ab-admin-operations__section-head h3,
+.ab-admin-operations__section-head p,
+.ab-admin-operation__head h4,
+.ab-admin-operation__head p {
+  margin: 0;
+}
+
+.ab-admin-operations__section-head > span {
+  color: rgba(23, 35, 31, 0.6);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ab-admin-operations__list {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  max-height: 680px;
+  overflow: auto;
+}
+
+.ab-admin-operation {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-left: 5px solid #159a69;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.ab-admin-operation.has-alerts {
+  border-left-color: #c78515;
+}
+
+.ab-admin-operation__head > div {
+  min-width: 0;
+}
+
+.ab-admin-operation__head h4 {
+  min-width: 0;
+  color: rgba(23, 35, 31, 0.86);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-operation__facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ab-admin-operation__facts span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px;
+  border-radius: 7px;
+  background: rgba(23, 35, 31, 0.045);
+}
+
+.ab-admin-operation__facts small {
+  color: rgba(23, 35, 31, 0.56);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ab-admin-operation__facts strong {
+  min-width: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-operation__alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ab-admin-operation__alert,
+.ab-admin-operation__ok {
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.ab-admin-operation__alert.is-warning {
+  color: #805711;
+  background: rgba(199, 133, 21, 0.15);
+}
+
+.ab-admin-operation__alert.is-danger {
+  color: #8a2f2f;
+  background: rgba(200, 59, 59, 0.12);
+}
+
+.ab-admin-operation__ok {
+  color: #126f4e;
+  background: rgba(21, 154, 105, 0.13);
 }
 
 .ab-admin-dashboard__head {
@@ -2061,14 +2262,16 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
   main[data-ab-pathname="/admin"],
   main[data-ab-pathname="/admin/"],
   main[data-ab-pathname="/admin/administracion"],
-  main[data-ab-pathname="/admin/usuarios"] {
+  main[data-ab-pathname="/admin/usuarios"],
+  main[data-ab-pathname="/admin/operaciones"] {
     padding-inline: 8px;
   }
 
   main[data-ab-pathname="/admin"] .ab-dark-panel,
   main[data-ab-pathname="/admin/"] .ab-dark-panel,
   main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
-  main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
+  main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel,
+  main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
     width: 100%;
     margin: 8px auto;
     padding: 10px;
@@ -2085,8 +2288,20 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel {
 
   .ab-admin-dashboard__actions,
   .ab-admin-finance__summary,
-  .ab-admin-finance__grid {
+  .ab-admin-finance__grid,
+  .ab-admin-operations__summary,
+  .ab-admin-operations__filters {
     grid-template-columns: 1fr;
+  }
+
+  .ab-admin-operation__head,
+  .ab-admin-operations__section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ab-admin-operation__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ab-admin-metrics__head {

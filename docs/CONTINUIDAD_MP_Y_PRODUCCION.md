@@ -11,14 +11,15 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - El usuario ejecutó la sincronización histórica de nombres de Auth y mostró nueve cuentas con `display_name` y teléfono de contacto recuperados desde `public.profiles`. `telefono_auth=null` es correcto para cuentas que autentican por email. La excepción de identidad continúa asociada al MP User ID `1157622469`, no al nombre visible.
 - **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: iniciada.** La subetapa 2A de control administrativo base quedó implementada y desplegada: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; falta completar pruebas controladas de todas las mutaciones. Hasta completar esas verificaciones, “implementado” no significa certificado en producción.
 - **Etapa 2B, ficha 360 por usuario: desplegada el 12 de octubre.** `/admin/usuarios` carga bajo demanda publicaciones, pagos mensuales, compras, ventas, cumplimiento, cronología y diagnóstico en vivo OAuth/identidad. La respuesta no contiene tokens, no ejecuta mutaciones y queda cacheada por usuario durante la visita. La disposición visual fue revisada en producción; falta contrastar todas las variantes de cuenta y estados operativos.
+- **Etapa 2C, control global: implementada localmente el 15 de octubre.** `/admin/operaciones` centraliza hasta 500 órdenes recientes y cruza despachos, catálogo y auditoría para señalar pendientes viejas, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Es exclusivamente read-only y todavía debe desplegarse y contrastarse con Supabase.
 - **Etapa 3, madurez comercial: pendiente y todavía no iniciada.** El embudo, las políticas, reclamos, logística probatoria, cuotas y crecimiento se mantienen fuera del trabajo actual.
 
 #### Orden de trabajo de la etapa 2
 
-1. Repetir una compra con comprador, vendedor e integrador distintos; confirmar orden, preferencia, pago y reserva atómica después del hotfix.
-2. Validar la Etapa 2A en `/admin/usuarios` con cuentas de prueba: roles, suspensión, restauración, bloqueo server-side y trazas `requested/completed/failed`. La migración ya fue aplicada y auditada.
-3. Completar la validación de la Etapa 2B con perfiles de comprador, vendedor, cuenta sin MP y cuenta exceptuada; contrastar contadores sin crear cobros adicionales.
-4. Construir la siguiente subetapa: vista global y paginada de órdenes, anomalías operativas, OAuth y pagos incompletos. La ficha individual no reemplaza esa centralización.
+1. Desplegar y validar `/admin/operaciones`; revisar cada alerta contra Supabase antes de corregir datos.
+2. Repetir una compra con comprador, vendedor e integrador distintos; confirmar orden, preferencia, pago y reserva atómica después del hotfix.
+3. Validar la Etapa 2A en `/admin/usuarios` con cuentas de prueba: roles, suspensión, restauración, bloqueo server-side y trazas `requested/completed/failed`.
+4. Completar las variantes de 2B con cuenta sin MP, cuenta exceptuada y Mercado Pago temporalmente no verificable.
 5. Ejecutar pruebas controladas de pago mensual, comisión aplicable, concurrencia de stock, pendiente/rechazado y reembolso.
 6. Conservar evidencia de comprador, vendedor, plataforma, base y `audit_logs`; documentar cada resultado antes de cerrar la etapa.
 
@@ -46,7 +47,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - En `orders` y `order_items` sólo aparecen políticas de lectura del propietario; en `product_checkout_reservations` no aparece ninguna política de navegador. Las políticas de escritura directa retiradas no reaparecieron. `rls_forced=false` es el estado esperado para permitir la operación controlada del backend con `service_role` y no se considera un fallo.
 - Los índices de performance documentados aparecen en el ambiente remoto. `get_seller_sales_page(...)` y `create_checkout_order_atomic(...)` existen y permiten ejecución a `service_role`; `anon` y `authenticated` quedaron sin permiso. Los tres triggers de reserva aparecen habilitados con estado `O`.
 - Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
-- Verificación completa más reciente del árbol de trabajo, después de implementar la ficha 360 de la Etapa 2B: 119 pruebas aprobadas y 0 fallos. La migración administrativa 2A fue ejecutada remotamente y devolvió dos administradores, cero suspensiones inválidas, RLS activo, ausencia de privilegios para `authenticated` y ambas RPC limitadas a `service_role`. La Etapa 2B no agrega SQL. El usuario conserva a su cargo build y despliegue.
+- Verificación completa más reciente del árbol de trabajo, después de implementar el control global 2C: 129 pruebas aprobadas y 0 fallos el 15 de octubre. La migración administrativa 2A fue ejecutada remotamente y devolvió dos administradores, cero suspensiones inválidas, RLS activo, ausencia de privilegios para `authenticated` y ambas RPC limitadas a `service_role`. Las Etapas 2B y 2C no agregan SQL. El usuario conserva a su cargo build y despliegue.
 
 #### Incidente de checkout y hotfix — 12 de octubre
 
@@ -300,4 +301,4 @@ No declararlos cerrados en producción hasta desplegar el código compatible, pr
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada y las Etapas 2A/2B están desplegadas, aunque faltan variantes controladas. El hotfix atómico y el cron de checkouts abandonados ya fueron aplicados y auditados; canceló dos intentos y dejó cero vencidos pendientes. La expiración explícita de preferencias nuevas está en el código local y falta desplegarla. La suite tiene 124 pruebas aprobadas. Después seguimos con la vista global de órdenes, anomalías y pagos incompletos. Yo manejo SQL, build, commit, push y despliegue; no hay que borrar MVP ni Anubis-Reborn.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada; 2A/2B están desplegadas y la validación principal de Usuario 360 fue correcta. La primera versión local de 2C agrega `/admin/operaciones`, una vista global read-only de órdenes, anomalías, entregas y pagos incompletos. El hotfix atómico y el cron ya fueron aplicados y auditados. La suite tiene 129 pruebas aprobadas. Falta desplegar 2C, contrastar sus alertas y repetir una compra controlada. Yo manejo SQL, build, commit, push y despliegue; no hay que borrar MVP ni Anubis-Reborn.»

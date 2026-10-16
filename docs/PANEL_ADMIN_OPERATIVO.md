@@ -8,7 +8,7 @@ El panel interno tiene tres superficies:
 
 ## Etapa 2A — Control administrativo base
 
-Implementada localmente el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día; para activarla en producción todavía hay que desplegar el código y validar las acciones con cuentas de prueba.
+Implementada y desplegada desde el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día; permanecen pendientes las pruebas mutantes controladas con una cuenta descartable.
 
 Incluye:
 
@@ -21,7 +21,7 @@ Incluye:
 
 ## Etapa 2B — Ficha 360 por usuario
 
-Implementada localmente el 12 de octubre de 2026. No agrega tablas, políticas ni RPC: usa desde una API exclusivamente administrativa las estructuras comerciales ya aplicadas. Falta desplegarla y verificarla en navegador contra usuarios con y sin actividad.
+Desplegada el 12 de octubre de 2026. No agrega tablas, políticas ni RPC: usa desde una API exclusivamente administrativa las estructuras comerciales ya aplicadas. La validación principal en producción fue confirmada el 15 de octubre desde una cuenta administradora: acceso, ficha, solapas, actualización y disposición visual funcionaron correctamente. Las variantes de cuentas sin actividad o con Mercado Pago temporalmente no verificable permanecen como regresiones complementarias.
 
 Al seleccionar un usuario, `/admin/usuarios` consulta una sola vez sus datos y los conserva en memoria durante esa visita. Sólo vuelve a consultarlos si se pulsa `Actualizar datos`, ubicado en la cabecera después de `Operación`; cambiar de solapa no genera requests adicionales.
 
@@ -38,6 +38,23 @@ Incluye:
 - exposición explícita de la excepción autorizada para MP User ID `1157622469`, sin presentarla como una coincidencia ordinaria.
 
 La ficha es de sólo lectura. No sincroniza órdenes, no crea preferencias, no cobra, no reembolsa y no modifica conexiones OAuth. Los tokens se usan únicamente en el servidor para consultar `/users/me` y nunca se incluyen en la respuesta. Cada lista se limita a los 200 registros recientes para mantener acotada la consulta; la próxima etapa deberá resolver vistas globales y paginadas de anomalías.
+
+## Etapa 2C — Control global de operaciones
+
+Implementada localmente el 15 de octubre de 2026 como una primera superficie exclusivamente de lectura. `/admin/operaciones` consulta desde una API administrativa hasta 500 órdenes recientes y cruza despachos, publicaciones y movimientos de pago auditados sin exponer direcciones, teléfonos, tokens OAuth ni secretos.
+
+Incluye:
+
+- filtros globales por estado de pago, texto y tipo de control;
+- órdenes pendientes, aprobadas, rechazadas, canceladas y reembolsadas;
+- detección de pendientes mayores a 24 horas;
+- aprobaciones sin Payment ID, detalle de pago o movimiento en `audit_logs`;
+- estados locales de orden y pago contradictorios;
+- ventas aprobadas mayores a 24 horas sin seguimiento o sin avance de entrega;
+- publicaciones activas sin stock y contratos mensuales activos sin vencimiento;
+- actualización manual, sin polling ni consultas repetidas en segundo plano.
+
+La pantalla no sincroniza Mercado Pago, no modifica órdenes, no crea despachos y no ejecuta cobros o reembolsos. Una mensual vencida no se marca como anomalía sólo porque conserve `publication_status=active`: su fecha de expiración ya la excluye correctamente de las lecturas públicas.
 
 ## Seguridad base
 
@@ -153,16 +170,16 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
    - Implementado localmente en 2A: bloquear acciones de usuario sin borrar cuenta.
 
 2. Operacion
-   - Ver ordenes pendientes, aprobadas, rechazadas y reembolsadas.
-   - Detectar ordenes pendientes viejas.
-   - Detectar productos vendidos que siguen visibles.
-   - Detectar despachos faltantes despues de pagos aprobados.
+   - Implementado localmente en 2C: ver ordenes pendientes, aprobadas, rechazadas y reembolsadas.
+   - Implementado localmente en 2C: detectar ordenes pendientes viejas.
+   - Implementado localmente en 2C: detectar publicaciones activas sin stock y mensuales activas sin vencimiento.
+   - Implementado localmente en 2C: detectar despachos faltantes despues de pagos aprobados.
 
 3. Mercado Pago
    - Ver vendedores conectados/desconectados.
    - Implementado localmente en 2B por usuario: detectar token OAuth vencido y mostrar vencimiento.
-   - Ver compras con `payment_detail` incompleto.
-   - Ver pagos aprobados sin movimiento en `audit_logs`.
+   - Implementado localmente en 2C: ver compras con `payment_detail` incompleto.
+   - Implementado localmente en 2C: ver pagos aprobados sin movimiento en `audit_logs`.
    - La vista del propio vendedor ya consulta sus pagos pendientes con OAuth y diferencia preferencias sin intento. Sigue pendiente una vista central equivalente para administradores.
    - Implementado localmente en 2B: exponer la coincidencia de nombre/apellido, email y DNI, el MP User ID real y la excepción `1157622469`.
 
@@ -189,7 +206,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 
 1. Completado: ejecutar `docs/supabase-admin-control.sql` en Supabase SQL Editor.
 2. Completado: la auditoría devolvió dos administradores, RLS activo, cero suspensiones inválidas, privilegios vacíos para `authenticated` y ambas RPC con `service_role=true` / `authenticated=false`.
-3. Pendiente: desplegar el código y entrar a `/admin/usuarios` con un administrador que no sea la cuenta elegida para la prueba.
+3. Completado: código desplegado y acceso administrativo confirmado en `/admin/usuarios`.
 4. Pendiente: otorgar y retirar un rol de base usando un motivo verificable.
 5. Pendiente: suspender y restaurar una cuenta de prueba; confirmar que una API autenticada responde 403 durante la suspensión.
 6. Pendiente: revisar que `audit_logs` contenga eventos `requested` y `completed` o `failed` para cada acción.
@@ -202,6 +219,14 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 3. Pendiente: contrastar contadores y estados contra Supabase sin realizar cobros ni sincronizaciones.
 4. Pendiente: revisar las cinco solapas y su adaptación mobile; confirmar que volver a una ficha ya cargada no repite la consulta.
 5. Pendiente: comprobar que `Actualizar ficha` renueva los datos y que una caída de Mercado Pago sólo marca el diagnóstico como no verificable, sin ocultar la actividad local.
+
+## Validación de la Etapa 2C
+
+1. No requiere SQL adicional.
+2. Pendiente: desplegar `/admin/operaciones` y comparar sus contadores con Supabase.
+3. Revisar por separado los filtros de pagos, entregas y catálogo; una alerta es un diagnóstico local, no una autorización para mutar datos.
+4. Confirmar responsive en escritorio y mobile, y que `Actualizar` sea la única recarga manual de la vista.
+5. Contrastar cada alerta real antes de corregir datos o contactar a un usuario.
 
 ## Revisión de produccion
 

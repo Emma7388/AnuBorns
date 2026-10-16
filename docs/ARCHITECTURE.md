@@ -6,7 +6,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ## Estado de evolución
 
-La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66` y 101 pruebas aprobadas. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A de control administrativo base está implementada y su migración fue aplicada y auditada remotamente. La subetapa 2B de ficha 360 por usuario fue desplegada el 12 de octubre. Una prueba posterior descubrió un error de sintaxis diferido en la RPC atómica remota; el hotfix fue aplicado y auditado ese mismo día, y la suite local pasó a 120 pruebas. Falta repetir una compra controlada para validar la ejecución completa. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción. Esta clasificación registra el avance del proyecto y no reemplaza las verificaciones técnicas detalladas de cada subsistema.
+La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66`. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A está desplegada y su migración fue aplicada y auditada; la subetapa 2B fue validada visualmente en producción el 15 de octubre. La primera entrega local de 2C agrega una vista global read-only de órdenes y anomalías. El hotfix de la RPC atómica fue aplicado y auditado el 12 de octubre, aunque falta repetir una compra controlada. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción.
 
 ## Stack acordado
 
@@ -59,6 +59,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 - `docs/supabase-checkout-ordinality-hotfix.sql`: reemplazo idempotente de `create_checkout_order_atomic(...)` que corrige la combinación de `jsonb_to_recordset` y `WITH ORDINALITY`, restaura permisos server-only y devuelve una auditoría sin escribir datos comerciales.
 - `docs/supabase-abandoned-checkouts-cron.sql`: función server-only y tarea `pg_cron` horaria para regularizar checkouts vencidos sin borrar órdenes; aplicada y auditada con `jobid=1`, cero vencidas restantes y permisos exclusivos de `service_role`.
 - `src/lib/adminUserOverview.js` y `/api/admin/users/[userId]/overview`: agregación read-only de publicaciones, pagos mensuales, compras, ventas, cumplimiento, actividad e identidad Mercado Pago para la Etapa 2B. La API se consulta sólo al seleccionar o actualizar una ficha y nunca devuelve tokens OAuth.
+- `src/lib/adminOperations.js`, `/api/admin/operations` y `/admin/operaciones`: clasificación global read-only de órdenes, pagos incompletos, movimientos auditados, entregas demoradas y publicaciones inconsistentes para la Etapa 2C.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
@@ -80,7 +81,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 
 ### Verificación
 
-`node --test` valida la suite completa; la última ejecución observada el 12 de octubre de 2026 aprobó 124 pruebas sin fallos. Las regresiones cubren la sintaxis correcta de `WITH ORDINALITY`, el TTL de preferencias y la ausencia de borrado en el cron de abandonos. La migración administrativa 2A quedó auditada con RLS activo, datos consistentes y RPC exclusivas de `service_role`; 2B reutiliza ese acceso server-side. El hotfix de la RPC de checkout quedó aplicado con `service_role=true`, `authenticated=false` y `anon=false`; falta repetir una compra y el reembolso con Mercado Pago continúa pendiente.
+`node --test` valida la suite completa; la última ejecución observada el 15 de octubre de 2026 aprobó 129 pruebas sin fallos. Las regresiones cubren la sintaxis correcta de `WITH ORDINALITY`, el TTL de preferencias, la ausencia de borrado en el cron y la clasificación de anomalías 2C. La migración administrativa 2A quedó auditada con RLS activo y RPC exclusivas de `service_role`; 2B y 2C reutilizan acceso exclusivamente server-side. Falta repetir una compra y el reembolso con Mercado Pago continúa pendiente.
 
 ### Flujos visibles
 

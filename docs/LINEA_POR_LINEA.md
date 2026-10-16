@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
+Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -42,6 +42,8 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/adminAudit.js`: escritura server-side común de solicitudes y resultados administrativos en `audit_logs`.
 - `src/lib/adminUserOverview.js`: reglas puras para visibilidad, diagnóstico OAuth/identidad, contadores y cronología de la ficha 360 administrativa.
 - `tests/adminUserOverview.test.mjs`: regresiones de visibilidad, excepción de identidad, resumen de actividad y orden cronológico de la Etapa 2B.
+- `src/lib/adminOperations.js`: clasificación global read-only de órdenes, pagos incompletos, entregas demoradas y publicaciones inconsistentes para la Etapa 2C.
+- `tests/adminOperations.test.mjs`: regresiones de estados globales, pagos incompletos, seguimiento faltante y publicaciones inconsistentes.
 - `src/lib/serverAuth.js`: autenticación Bearer compartida y bloqueo inmediato de rutas de aplicación para cuentas suspendidas.
 - `src/lib/cart.js`: carrito híbrido, sincronización al login, deduplicación, cantidades 1–100 limitadas por stock, conteo por unidades y un único registro por producto.
 - `src/lib/productInput.js`: normalización server-side de producto, stock, ubicación, entrega y contrato.
@@ -84,6 +86,7 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador, usando lectura por POST y antirráfaga para navegación/realtime.
 - `src/scripts/audit.js`: cliente liviano para enviar eventos a `/api/audit` con token de sesión.
 - `src/scripts/admin-users.js`: búsqueda, perfil, roles, suspensión/restauración, restablecimiento auditado, administradores activos, eventos recientes y ficha 360 bajo demanda con caché por usuario.
+- `src/scripts/admin-operations.js`: carga manual, filtros y render seguro del control global de operaciones 2C.
 
 ## API routes
 
@@ -113,6 +116,7 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/api/admin/users/profile.js`: edición profunda de perfil y metadata Auth con motivo y auditoría de solicitud/resultado.
 - `src/pages/api/admin/users/password-reset.js`: recuperación de contraseña con motivo obligatorio y auditoría antes/después del envío.
 - `src/pages/api/admin/users/[userId]/overview.js`: lectura admin de actividad comercial e identidad Mercado Pago de un usuario; limita resultados, oculta tokens y no ejecuta mutaciones.
+- `src/pages/api/admin/operations.js`: cruza órdenes, despachos, publicaciones y movimientos auditados desde el servidor; no devuelve datos logísticos personales ni ejecuta mutaciones.
 
 ## SQL operativo nuevo
 
@@ -146,6 +150,7 @@ Actualizado al 12 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/oferta/productos.astro`: placeholder de flujo de oferta de productos.
 - `src/pages/admin/index.astro`: tablero operativo interno con chequeos por proceso, mediciones read-only de Supabase y analitica manual de Vercel.
 - `src/pages/admin/usuarios.astro`: control administrativo de usuarios, roles, estado de cuenta y ficha 360 de la Etapa 2B; Mercado Pago, Accesos y Trazabilidad comparten una franja compacta de tres tarjetas con altura uniforme, modal de detalle y adaptación mobile.
+- `src/pages/admin/operaciones.astro`: control global read-only de la Etapa 2C con resumen, filtros y registros adaptables a mobile.
 
 ## SQL administrativo
 
