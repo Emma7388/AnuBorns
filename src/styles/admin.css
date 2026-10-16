@@ -817,7 +817,8 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
 
 .ab-admin-users .ab-secondary-button,
 .ab-admin-finance .ab-secondary-button,
-.ab-admin-dashboard .ab-secondary-button {
+.ab-admin-dashboard .ab-secondary-button,
+.ab-admin-operations .ab-secondary-button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -838,9 +839,16 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
 .ab-admin-finance .ab-secondary-button:hover,
 .ab-admin-finance .ab-secondary-button:focus-visible,
 .ab-admin-dashboard .ab-secondary-button:hover,
-.ab-admin-dashboard .ab-secondary-button:focus-visible {
+.ab-admin-dashboard .ab-secondary-button:focus-visible,
+.ab-admin-operations .ab-secondary-button:hover,
+.ab-admin-operations .ab-secondary-button:focus-visible {
   border-color: rgba(45, 166, 138, 0.65);
   box-shadow: 0 8px 18px rgba(18, 28, 25, 0.11);
+}
+
+.ab-admin-operations .ab-secondary-button:disabled {
+  opacity: 0.58;
+  cursor: wait;
 }
 
 .ab-admin-finance__summary {
