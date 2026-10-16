@@ -11,7 +11,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 ### Registro de etapas de actualización
 
 - **Etapa 1 — implementación funcional: cerrada en código el 11 de octubre de 2026.** Incluyó los diez pendientes funcionales, reserva y stock atómicos, publicaciones permanentes y mensuales, renovación anticipada, estados resaltados, carrito deduplicado, identidad Mercado Pago y sincronización visual de nombres con Auth. El cierre está respaldado por el commit `e7b9f66`, rama `V0.8` sincronizada con `origin/V0.8`, 101 pruebas aprobadas y las migraciones principales ejecutadas y auditadas. Este cierre no equivale a afirmar que todos los casos ya fueron probados en producción.
-- **Etapa 2 — base de datos, panel administrativo, seguridad operativa y validación: en curso desde el 11 de octubre de 2026.** Las subetapas 2A y 2B están desplegadas; la validación principal de Usuario 360 fue confirmada en producción el 15 de octubre. La primera versión de 2C quedó implementada localmente como una vista global y de sólo lectura para órdenes, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Falta desplegarla y validar sus diagnósticos contra Supabase antes de incorporar acciones controladas.
+- **Etapa 2 — base de datos, panel administrativo, seguridad operativa y validación: en curso desde el 11 de octubre de 2026.** Las subetapas 2A y 2B están desplegadas; la validación principal de Usuario 360 fue confirmada en producción el 15 de octubre. La primera versión de 2C también quedó desplegada ese día como una vista global y de sólo lectura para órdenes, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Su primer contraste revisó cuatro órdenes y corrigió un falso positivo de stock agotado; después del ajuste, producción mostró cero registros a revisar y cero alertas críticas. La Etapa 2D quedó implementada localmente como control central read-only de conexiones OAuth, identidad e intentos pendientes, con consulta externa de Mercado Pago únicamente bajo acción manual.
 - **Etapa 3 — madurez comercial: no iniciada.** Comprende embudo de conversión, políticas públicas, reclamos y contracargos, evidencia logística, cuotas, recuperación consentida de carrito, reseñas y promociones. No debe adelantarse a la estabilización de la etapa 2.
 
 ### Estado del historial comercial
@@ -42,7 +42,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Estados de pago normalizados para aprobado, pendiente, rechazado, cancelado, reembolsado, reembolso pendiente y reembolso parcial.
 - Registro de movimientos de pago en `audit_logs` cuando Mercado Pago cambia el estado de una orden.
 - Endurecimiento de APIs con límite de cuerpo JSON, respuestas `no-store`, rate limit en endpoints sensibles y OAuth state firmado sin fallback fijo.
-- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase, Vercel Analytics y control de usuarios. La Etapa 2A agrega alta/baja de roles persistidos en base, suspensión/restauración sin borrar cuentas, administradores activos y auditoría reciente; cada mutación exige motivo y se ejecuta sólo desde APIs server-side. La Etapa 2B suma una ficha 360 por usuario. La primera entrega de 2C agrega `/admin/operaciones`, con clasificación global y alertas read-only para pagos, auditoría, cumplimiento y catálogo.
+- Panel admin con chequeos operativos, consulta manual de mediciones read-only de Supabase, Vercel Analytics y control de usuarios. La Etapa 2A agrega alta/baja de roles persistidos en base, suspensión/restauración sin borrar cuentas, administradores activos y auditoría reciente; cada mutación exige motivo y se ejecuta sólo desde APIs server-side. La Etapa 2B suma una ficha 360 por usuario. La primera entrega de 2C agrega `/admin/operaciones`, con clasificación global y alertas read-only para pagos, auditoría, cumplimiento y catálogo. La Etapa 2D incorpora `/admin/mercadopago`, que diferencia datos locales, preferencias sin pago, pagos realmente pendientes, OAuth e identidad sin exponer tokens.
 - Índices de performance documentados para Supabase y RPC opcional para paginar `Mis ventas` desde Postgres.
 - Productos destacados, notificaciones, temas claro y oscuro, y navegación responsive.
 - En mobile, las cards de productos usan imágenes de tamaño uniforme y el carrusel de destacados oculta las flechas laterales para conservar espacio.
@@ -217,12 +217,13 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 ### Etapa 2 actual — Administración, base de datos y validación
 
 1. Desplegar y validar `/admin/usuarios`: otorgar y quitar un rol de base, suspender/restaurar una cuenta de prueba, confirmar bloqueo server-side y revisar los eventos en `audit_logs`. No probar sobre el último administrador ni sobre una cuenta real sin respaldo. La migración requerida ya fue aplicada y auditada.
-2. Validar la primera versión de `/admin/operaciones`: centraliza estados de órdenes y detecta pendientes antiguas, pagos incompletos o sin auditoría, entregas sin avance y contratos mensuales activos sin vencimiento. El primer contraste en producción permitió retirar un falso positivo de stock agotado.
-3. Completar las variantes pendientes de diagnóstico OAuth en producción y conservar la excepción de identidad Mercado Pago documentada.
-4. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
-5. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
-6. Desplegar la expiración de preferencias nuevas, vencer de forma segura los enlaces históricos si todavía circulan, sustituir el rate limit en memoria por uno distribuido y decidir el redondeo del 1,5%. El cron local ya fue aplicado y auditado.
-7. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
+2. Completar la validación responsive y de filtros de `/admin/operaciones`. La vista ya fue desplegada y contrastada: revisó cuatro órdenes, retiró un falso positivo de stock agotado y, después del ajuste, informó cero registros a revisar y cero alertas críticas.
+3. Desplegar y validar `/admin/mercadopago`: contrastar vendedores, conexión OAuth y vencimientos contra Supabase; después usar una sola vez `Verificar Mercado Pago` para diferenciar preferencias sin pago, pagos pendientes reales, estados resueltos e identidad no verificable. No requiere SQL nuevo.
+4. Completar las variantes pendientes de diagnóstico OAuth en producción y conservar la excepción de identidad Mercado Pago documentada.
+5. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
+6. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
+7. Desplegar la expiración de preferencias nuevas, vencer de forma segura los enlaces históricos si todavía circulan, sustituir el rate limit en memoria por uno distribuido y decidir el redondeo del 1,5%. El cron local ya fue aplicado y auditado.
+8. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
 
 ### Registro de la etapa 1 — Producto y operación funcional
 
@@ -264,7 +265,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 15 de octubre de 2026: 129 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 15 de octubre de 2026: 135 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.

@@ -2,7 +2,8 @@ main[data-ab-pathname="/admin"],
 main[data-ab-pathname="/admin/"],
 main[data-ab-pathname="/admin/administracion"],
 main[data-ab-pathname="/admin/usuarios"],
-main[data-ab-pathname="/admin/operaciones"] {
+main[data-ab-pathname="/admin/operaciones"],
+main[data-ab-pathname="/admin/mercadopago"] {
   padding-inline: max(10px, 1vw);
 }
 
@@ -10,7 +11,8 @@ main[data-ab-pathname="/admin"] .ab-dark-panel,
 main[data-ab-pathname="/admin/"] .ab-dark-panel,
 main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
 main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel,
-main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
+main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel,
+main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   box-sizing: border-box;
   width: min(96vw, 1180px);
   max-width: none;
@@ -48,6 +50,12 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
 }
 
 .ab-admin-operations {
+  display: grid;
+  gap: 10px;
+  overflow-x: clip;
+}
+
+.ab-admin-mercadopago {
   display: grid;
   gap: 10px;
   overflow-x: clip;
@@ -244,6 +252,219 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
 .ab-admin-operation__ok {
   color: #126f4e;
   background: rgba(21, 154, 105, 0.13);
+}
+
+.ab-admin-mercadopago__notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 4px solid #2d6f91;
+  border-radius: 7px;
+  background: rgba(45, 111, 145, 0.08);
+  color: rgba(23, 35, 31, 0.72);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ab-admin-mercadopago__summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.ab-admin-mercadopago__summary article {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-left: 5px solid #2d6f91;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+
+.ab-admin-mercadopago__summary article.is-warning {
+  border-left-color: #c78515;
+}
+
+.ab-admin-mercadopago__summary article.is-danger {
+  border-left-color: #c83b3b;
+}
+
+.ab-admin-mercadopago__summary strong {
+  font-size: 25px;
+  line-height: 1;
+}
+
+.ab-admin-mercadopago__summary span {
+  color: rgba(23, 35, 31, 0.65);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.ab-admin-mercadopago__filters {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(190px, 0.9fr) minmax(240px, 1.4fr);
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(23, 35, 31, 0.11);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.ab-admin-mercadopago__filters label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ab-admin-mercadopago__filters label > span {
+  color: rgba(23, 35, 31, 0.65);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ab-admin-mercadopago__filters select,
+.ab-admin-mercadopago__filters input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid rgba(23, 35, 31, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ab-text, #17231f);
+  font: inherit;
+  font-size: 12px;
+}
+
+.ab-admin-mercadopago__content,
+.ab-admin-mercadopago__list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ab-admin-mercadopago__list {
+  max-height: 680px;
+  overflow: auto;
+}
+
+.ab-admin-mp-seller {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-left: 5px solid #159a69;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.ab-admin-mp-seller.has-alerts {
+  border-left-color: #c78515;
+}
+
+.ab-admin-mp-seller.has-critical {
+  border-left-color: #c83b3b;
+}
+
+.ab-admin-mp-seller__head,
+.ab-admin-mp-seller__head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ab-admin-mp-seller__head > div:first-child {
+  min-width: 0;
+}
+
+.ab-admin-mp-seller__head h4,
+.ab-admin-mp-seller__head p,
+.ab-admin-mp-seller__head small {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-mp-seller__head h4 {
+  font-size: 14px;
+}
+
+.ab-admin-mp-seller__head small {
+  color: rgba(23, 35, 31, 0.6);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.ab-admin-mp-seller__head-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.ab-admin-mercadopago .ab-admin-mp-seller__head-actions .ab-secondary-button {
+  min-height: 34px;
+  padding-inline: 12px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.ab-admin-mp-seller__facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ab-admin-mp-seller__facts > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px;
+  border-radius: 7px;
+  background: rgba(23, 35, 31, 0.045);
+}
+
+.ab-admin-mp-seller__facts small,
+.ab-admin-mp-payment small {
+  color: rgba(23, 35, 31, 0.56);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.ab-admin-mp-seller__facts strong,
+.ab-admin-mp-payment strong {
+  min-width: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-mp-seller__payments {
+  display: grid;
+  gap: 5px;
+}
+
+.ab-admin-mp-seller__payments > p {
+  margin: 0;
+}
+
+.ab-admin-mp-payment {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(180px, 1fr) minmax(130px, 0.7fr);
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid rgba(23, 35, 31, 0.09);
+  border-radius: 7px;
+  background: rgba(23, 35, 31, 0.035);
+}
+
+.ab-admin-mp-payment > div {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
 }
 
 .ab-admin-dashboard__head {
@@ -818,7 +1039,8 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
 .ab-admin-users .ab-secondary-button,
 .ab-admin-finance .ab-secondary-button,
 .ab-admin-dashboard .ab-secondary-button,
-.ab-admin-operations .ab-secondary-button {
+.ab-admin-operations .ab-secondary-button,
+.ab-admin-mercadopago .ab-secondary-button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -841,12 +1063,15 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
 .ab-admin-dashboard .ab-secondary-button:hover,
 .ab-admin-dashboard .ab-secondary-button:focus-visible,
 .ab-admin-operations .ab-secondary-button:hover,
-.ab-admin-operations .ab-secondary-button:focus-visible {
+.ab-admin-operations .ab-secondary-button:focus-visible,
+.ab-admin-mercadopago .ab-secondary-button:hover,
+.ab-admin-mercadopago .ab-secondary-button:focus-visible {
   border-color: rgba(45, 166, 138, 0.65);
   box-shadow: 0 8px 18px rgba(18, 28, 25, 0.11);
 }
 
-.ab-admin-operations .ab-secondary-button:disabled {
+.ab-admin-operations .ab-secondary-button:disabled,
+.ab-admin-mercadopago .ab-secondary-button:disabled {
   opacity: 0.58;
   cursor: wait;
 }
@@ -2271,7 +2496,8 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
   main[data-ab-pathname="/admin/"],
   main[data-ab-pathname="/admin/administracion"],
   main[data-ab-pathname="/admin/usuarios"],
-  main[data-ab-pathname="/admin/operaciones"] {
+  main[data-ab-pathname="/admin/operaciones"],
+  main[data-ab-pathname="/admin/mercadopago"] {
     padding-inline: 8px;
   }
 
@@ -2279,7 +2505,8 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
   main[data-ab-pathname="/admin/"] .ab-dark-panel,
   main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
   main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel,
-  main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
+  main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel,
+  main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
     width: 100%;
     margin: 8px auto;
     padding: 10px;
@@ -2298,18 +2525,30 @@ main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel {
   .ab-admin-finance__summary,
   .ab-admin-finance__grid,
   .ab-admin-operations__summary,
-  .ab-admin-operations__filters {
+  .ab-admin-operations__filters,
+  .ab-admin-mercadopago__summary,
+  .ab-admin-mercadopago__filters {
     grid-template-columns: 1fr;
   }
 
   .ab-admin-operation__head,
-  .ab-admin-operations__section-head {
+  .ab-admin-operations__section-head,
+  .ab-admin-mp-seller__head {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .ab-admin-operation__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ab-admin-mp-seller__head-actions {
+    justify-content: flex-start;
+  }
+
+  .ab-admin-mp-seller__facts,
+  .ab-admin-mp-payment {
+    grid-template-columns: 1fr;
   }
 
   .ab-admin-metrics__head {

@@ -1,10 +1,12 @@
 # Panel admin operativo
 
-El panel interno tiene tres superficies:
+El panel interno tiene cinco superficies:
 
 - `/admin`: tablero operativo read-only con estados OK, Revisar y Error.
 - `/admin/administracion`: resumen administrativo del `marketplace_fee` registrado localmente.
 - `/admin/usuarios`: administración de usuarios, perfiles, roles, suspensiones, administradores activos, auditoría reciente y ficha 360 comercial con estado Mercado Pago.
+- `/admin/operaciones`: control global read-only de órdenes, entregas, auditoría de pagos y publicaciones inconsistentes.
+- `/admin/mercadopago`: control central read-only de vendedores, OAuth, identidad e intentos de pago con verificación externa manual.
 
 ## Etapa 2A — Control administrativo base
 
@@ -41,7 +43,7 @@ La ficha es de sólo lectura. No sincroniza órdenes, no crea preferencias, no c
 
 ## Etapa 2C — Control global de operaciones
 
-Implementada localmente el 15 de octubre de 2026 como una primera superficie exclusivamente de lectura. `/admin/operaciones` consulta desde una API administrativa hasta 500 órdenes recientes y cruza despachos, publicaciones y movimientos de pago auditados sin exponer direcciones, teléfonos, tokens OAuth ni secretos.
+Desplegada y contrastada en producción el 15 de octubre de 2026 como una primera superficie exclusivamente de lectura. `/admin/operaciones` consulta desde una API administrativa hasta 500 órdenes recientes y cruza despachos, publicaciones y movimientos de pago auditados sin exponer direcciones, teléfonos, tokens OAuth ni secretos. El primer contraste revisó cuatro órdenes; después de retirar un falso positivo de stock agotado, la vista confirmó cero registros a revisar y cero alertas críticas.
 
 Incluye:
 
@@ -55,6 +57,19 @@ Incluye:
 - actualización manual, sin polling ni consultas repetidas en segundo plano.
 
 La pantalla no sincroniza Mercado Pago, no modifica órdenes, no crea despachos y no ejecuta cobros o reembolsos. Una mensual vencida no se marca como anomalía sólo porque conserve `publication_status=active`: su fecha de expiración ya la excluye correctamente de las lecturas públicas.
+
+## Etapa 2D — Mercado Pago centralizado
+
+Implementada localmente el 15 de octubre de 2026 como superficie read-only. `/admin/mercadopago` reúne vendedores detectados por publicaciones, ventas o conexiones OAuth, sin enviar `access_token` ni `refresh_token` al navegador.
+
+La carga inicial consulta únicamente datos locales de Supabase y muestra:
+
+- conexión activa, incompleta, ausente, vencida renovable o con reconexión obligatoria;
+- MP User ID, vencimiento, cantidad de publicaciones y ventas;
+- intentos locales pendientes sin afirmar que exista dinero pendiente en Mercado Pago;
+- identidad sin verificar o excepción autorizada para `1157622469`.
+
+El botón `Verificar Mercado Pago` ejecuta bajo demanda y con concurrencia limitada las lecturas externas de `/users/me` y búsqueda por `external_reference`. Después diferencia preferencia sin intento, pago realmente pendiente, estado ya resuelto y verificación no disponible. Una caída externa conserva visibles los datos locales y se presenta como `no verificable`. La pantalla no renueva tokens, no sincroniza órdenes, no cobra, no reembolsa y no modifica conexiones.
 
 ## Seguridad base
 
@@ -176,11 +191,11 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
    - Implementado localmente en 2C: detectar despachos faltantes despues de pagos aprobados.
 
 3. Mercado Pago
-   - Ver vendedores conectados/desconectados.
+   - Implementado localmente en 2D: ver vendedores conectados/desconectados y distinguir token vencido renovable de reconexión obligatoria.
    - Implementado localmente en 2B por usuario: detectar token OAuth vencido y mostrar vencimiento.
    - Implementado localmente en 2C: ver compras con `payment_detail` incompleto.
    - Implementado localmente en 2C: ver pagos aprobados sin movimiento en `audit_logs`.
-   - La vista del propio vendedor ya consulta sus pagos pendientes con OAuth y diferencia preferencias sin intento. Sigue pendiente una vista central equivalente para administradores.
+   - Implementado localmente en 2D: vista central administrativa que diferencia preferencias sin intento, pagos realmente pendientes, estados resueltos y verificaciones no disponibles mediante una consulta externa manual.
    - Implementado localmente en 2B: exponer la coincidencia de nombre/apellido, email y DNI, el MP User ID real y la excepción `1157622469`.
 
 4. Seguridad
@@ -223,10 +238,19 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 ## Validación de la Etapa 2C
 
 1. No requiere SQL adicional.
-2. Pendiente: desplegar `/admin/operaciones` y comparar sus contadores con Supabase.
+2. Completado: `/admin/operaciones` fue desplegada y su primer contraste mostró 4 órdenes revisadas, 2 aprobadas, 0 pendientes, 0 registros a revisar y 0 alertas críticas después del ajuste de diagnóstico.
 3. Revisar por separado los filtros de pagos, entregas y catálogo; una alerta es un diagnóstico local, no una autorización para mutar datos.
 4. Confirmar responsive en escritorio y mobile, y que `Actualizar` sea la única recarga manual de la vista.
 5. Contrastar cada alerta real antes de corregir datos o contactar a un usuario.
+
+## Validación de la Etapa 2D
+
+1. No requiere SQL adicional.
+2. Pendiente: desplegar `/admin/mercadopago` y contrastar vendedores, conexiones, vencimientos e intentos locales con Supabase.
+3. Confirmar que la carga inicial indique `sin consultar Mercado Pago` y no genere llamadas externas repetidas.
+4. Ejecutar una sola vez `Verificar Mercado Pago` y contrastar identidad, excepción `1157622469`, preferencias sin pago y pagos pendientes reales.
+5. Confirmar que una consulta externa fallida muestre `no verificable` sin ocultar MP User ID, conexión ni intentos locales.
+6. Revisar filtros, acceso a la ficha 360 y responsive antes de considerar cerrada la primera versión.
 
 ## Revisión de produccion
 

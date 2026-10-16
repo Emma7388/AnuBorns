@@ -41,6 +41,12 @@ const state = {
   overviewTab: "summary",
 };
 
+const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+if (initialQuery) {
+  state.query = initialQuery;
+  if (searchInput) searchInput.value = initialQuery;
+}
+
 const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
 };

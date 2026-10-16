@@ -1,0 +1,78 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import "../../styles/admin.css";
+---
+
+<MainLayout title="Mercado Pago" headerTitle="Mercado Pago" backHref="/admin/">
+  <section class="ab-dark-panel ab-admin-mercadopago">
+    <div class="ab-admin-dashboard__head">
+      <div>
+        <p class="ab-admin-dashboard__eyebrow">Etapa 2D</p>
+        <h2>Control central de Mercado Pago</h2>
+      </div>
+      <div class="ab-admin-dashboard__actions">
+        <a class="ab-secondary-button" href="/admin/usuarios"><span>Usuarios</span></a>
+        <a class="ab-secondary-button" href="/admin/operaciones"><span>Operaciones</span></a>
+        <a class="ab-secondary-button" href="/admin/administracion"><span>Fee</span></a>
+        <button class="ab-secondary-button" id="admin-mp-refresh" type="button"><span>Actualizar datos</span></button>
+        <button class="ab-secondary-button" id="admin-mp-verify" type="button"><span>Verificar Mercado Pago</span></button>
+      </div>
+    </div>
+
+    <p class="ab-muted-text" id="admin-mp-status" aria-live="polite">Cargando conexiones...</p>
+    <p class="ab-admin-mercadopago__notice">
+      La carga inicial usa datos locales. La verificación externa sólo se ejecuta al pulsar “Verificar Mercado Pago”.
+    </p>
+
+    <div class="ab-admin-mercadopago__summary" aria-label="Resumen de Mercado Pago">
+      <article><strong id="admin-mp-sellers">0</strong><span>Vendedores</span></article>
+      <article><strong id="admin-mp-connected">0</strong><span>Conectados</span></article>
+      <article class="is-warning"><strong id="admin-mp-reconnect">0</strong><span>Requieren conexión</span></article>
+      <article><strong id="admin-mp-local-pending">0</strong><span>Intentos locales</span></article>
+      <article class="is-warning"><strong id="admin-mp-real-pending">—</strong><span>Pendientes MP</span></article>
+      <article class="is-danger"><strong id="admin-mp-review">0</strong><span>Registros a revisar</span></article>
+    </div>
+
+    <div class="ab-admin-mercadopago__filters">
+      <label>
+        <span>Conexión</span>
+        <select id="admin-mp-connection-filter">
+          <option value="all">Todas</option>
+          <option value="connected">Conectadas</option>
+          <option value="attention">Requieren atención</option>
+          <option value="not_connected">Sin conexión</option>
+        </select>
+      </label>
+      <label>
+        <span>Pagos</span>
+        <select id="admin-mp-payment-filter">
+          <option value="all">Todos</option>
+          <option value="local">Con intento local</option>
+          <option value="preference_only">Preferencia sin pago</option>
+          <option value="mercadopago_pending">Pendiente real en MP</option>
+          <option value="mercadopago_resolved">Resuelto en MP</option>
+          <option value="verification_unavailable">No verificable</option>
+        </select>
+      </label>
+      <label class="ab-admin-mercadopago__search">
+        <span>Buscar</span>
+        <input id="admin-mp-search" type="search" autocomplete="off" placeholder="Vendedor, email, MP User ID u orden" />
+      </label>
+    </div>
+
+    <div class="ab-admin-mercadopago__content">
+      <div class="ab-admin-operations__section-head">
+        <div>
+          <p class="ab-admin-dashboard__eyebrow">Lectura administrativa</p>
+          <h3>Vendedores y cobros</h3>
+        </div>
+        <span id="admin-mp-visible-count">0 registros</span>
+      </div>
+      <div class="ab-admin-mercadopago__list" id="admin-mp-list"></div>
+    </div>
+  </section>
+</MainLayout>
+
+<script>
+  import "../../scripts/admin-mercadopago.js";
+</script>
