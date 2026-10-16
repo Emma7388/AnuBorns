@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
+import { renderAdminAccessState } from "../lib/adminPageAccess.js";
 
+const adminRoot = document.querySelector(".ab-admin-users");
 const searchInput = document.getElementById("admin-user-search");
 const searchButton = document.getElementById("admin-user-search-button");
 const clearButton = document.getElementById("admin-user-clear-button");
@@ -801,8 +803,7 @@ const fetchUsers = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) {
-    setStatus("Tenés que iniciar sesión para entrar al panel.");
-    if (listElement) listElement.innerHTML = "";
+    renderAdminAccessState({ root: adminRoot, response: { status: 401 } });
     return;
   }
 
@@ -816,6 +817,7 @@ const fetchUsers = async () => {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (renderAdminAccessState({ root: adminRoot, response, payload })) return;
     setStatus(payload?.error ?? "No se pudieron cargar los usuarios.");
     state.users = [];
     state.total = 0;

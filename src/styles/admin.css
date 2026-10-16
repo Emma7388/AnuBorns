@@ -61,6 +61,33 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   overflow-x: clip;
 }
 
+.ab-dark-panel.is-access-restricted {
+  min-height: 280px;
+  place-items: center;
+}
+
+.ab-admin-access-state {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 620px);
+  gap: 10px;
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-left: 5px solid #c83b3b;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.84);
+  text-align: center;
+}
+
+.ab-admin-access-state h2,
+.ab-admin-access-state p {
+  margin: 0;
+}
+
+.ab-admin-access-state__action {
+  margin-top: 8px;
+}
+
 .ab-admin-operations__summary {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
+import { renderAdminAccessState } from "../lib/adminPageAccess.js";
 
+const adminRoot = document.querySelector(".ab-admin-operations");
 const statusElement = document.getElementById("admin-operations-status");
 const totalElement = document.getElementById("admin-operations-total");
 const approvedElement = document.getElementById("admin-operations-approved");
@@ -142,7 +144,7 @@ const loadOperations = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) {
-    if (statusElement) statusElement.textContent = "Tenés que iniciar sesión para entrar al panel.";
+    renderAdminAccessState({ root: adminRoot, response: { status: 401 } });
     if (refreshButton) refreshButton.disabled = false;
     return;
   }
@@ -152,6 +154,7 @@ const loadOperations = async () => {
       cache: "no-store",
     });
     const payload = await response.json().catch(() => ({}));
+    if (renderAdminAccessState({ root: adminRoot, response, payload })) return;
     if (!response.ok) throw new Error(payload?.error || "No se pudo cargar el control global.");
     snapshot = payload;
     renderSummary();

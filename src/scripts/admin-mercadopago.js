@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
+import { renderAdminAccessState } from "../lib/adminPageAccess.js";
 
+const adminRoot = document.querySelector(".ab-admin-mercadopago");
 const statusElement = document.getElementById("admin-mp-status");
 const sellersElement = document.getElementById("admin-mp-sellers");
 const connectedElement = document.getElementById("admin-mp-connected");
@@ -175,7 +177,7 @@ const loadMercadoPago = async ({ verify = false } = {}) => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) {
-    if (statusElement) statusElement.textContent = "Tenés que iniciar sesión para entrar al panel.";
+    renderAdminAccessState({ root: adminRoot, response: { status: 401 } });
     if (refreshButton) refreshButton.disabled = false;
     if (verifyButton) verifyButton.disabled = false;
     return;
@@ -187,6 +189,7 @@ const loadMercadoPago = async ({ verify = false } = {}) => {
       cache: "no-store",
     });
     const payload = await response.json().catch(() => ({}));
+    if (renderAdminAccessState({ root: adminRoot, response, payload })) return;
     if (!response.ok) throw new Error(payload?.error || "No se pudo cargar Mercado Pago.");
     snapshot = payload;
     renderSummary();

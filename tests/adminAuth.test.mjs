@@ -97,6 +97,7 @@ test("rechaza usuarios sin permiso admin", async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.status, 403);
+  assert.equal(result.error, "No tenés permiso para acceder al panel administrativo.");
   assert.equal(supabaseAdmin.auditRows.length, 1);
   assert.equal(supabaseAdmin.auditRows[0].event, "admin_permission_denied");
   assert.equal(supabaseAdmin.auditRows[0].metadata.path, "/api/admin/users");

@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
+import { renderAdminAccessState } from "../lib/adminPageAccess.js";
 
+const adminRoot = document.querySelector(".ab-admin-finance");
 const statusElement = document.getElementById("admin-finance-status");
 const approvedFeeElement = document.getElementById("admin-fee-approved");
 const registeredFeeElement = document.getElementById("admin-fee-registered");
@@ -177,7 +179,7 @@ const loadAdministration = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) {
-    setStatus("Tenés que iniciar sesión para entrar al panel.");
+    renderAdminAccessState({ root: adminRoot, response: { status: 401 } });
     return;
   }
 
@@ -188,6 +190,7 @@ const loadAdministration = async () => {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (renderAdminAccessState({ root: adminRoot, response, payload })) return;
     setStatus(payload?.error ?? "No se pudo cargar la administración.");
     renderSummary({ summary: {}, recent: [] });
     renderChart({ recent: [] });

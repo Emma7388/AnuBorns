@@ -105,7 +105,7 @@ export const requireAdmin = async (supabaseAdmin, request) => {
 
   if (!data?.user_id) {
     await recordDeniedAdminAccess(supabaseAdmin, auth.user, request);
-    return { ok: false, status: 403, error: "No tenés permiso para administrar usuarios." };
+    return { ok: false, status: 403, error: "No tenés permiso para acceder al panel administrativo." };
   }
 
   return { ok: true, user: auth.user, source: "table" };

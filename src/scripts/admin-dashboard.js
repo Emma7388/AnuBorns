@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
+import { renderAdminAccessState } from "../lib/adminPageAccess.js";
 
+const adminRoot = document.querySelector(".ab-admin-dashboard");
 const statusElement = document.getElementById("admin-health-status");
 const tabsElement = document.getElementById("admin-health-tabs");
 const listElement = document.getElementById("admin-health-list");
@@ -331,7 +333,7 @@ const loadHealth = async () => {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) {
-    setStatus("Tenés que iniciar sesión para entrar al panel.");
+    renderAdminAccessState({ root: adminRoot, response: { status: 401 } });
     return;
   }
 
@@ -342,6 +344,7 @@ const loadHealth = async () => {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (renderAdminAccessState({ root: adminRoot, response, payload })) return;
     setStatus(payload?.error ?? "No se pudo cargar el estado operativo.");
     renderSummary({ ok: 0, warnings: 0, errors: 1 });
     renderChecks([]);

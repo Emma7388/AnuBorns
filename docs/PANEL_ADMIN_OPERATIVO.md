@@ -80,6 +80,7 @@ Implementada localmente el 15 de octubre de 2026. Cuando un usuario autenticado 
 - Si Supabase no puede escribir la auditoría, la API permanece rechazada; el fallo nunca concede acceso.
 - El evento se muestra dentro del modal existente de Trazabilidad como `Acceso administrativo rechazado`.
 - No registra solicitudes anónimas o con sesión inválida porque no existe una identidad confiable que atribuir.
+- Las cinco superficies administrativas comparten un estado visual de acceso restringido: ante 401 o 403 reemplazan controles, métricas y listados por un mensaje único y una salida segura. La API usa el texto general `No tenés permiso para acceder al panel administrativo`, sin atribuir el rechazo únicamente a Gestión de usuarios.
 
 ## Seguridad base
 
