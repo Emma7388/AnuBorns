@@ -51,7 +51,7 @@ Incluye:
 - aprobaciones sin Payment ID, detalle de pago o movimiento en `audit_logs`;
 - estados locales de orden y pago contradictorios;
 - ventas aprobadas mayores a 24 horas sin seguimiento o sin avance de entrega;
-- publicaciones activas sin stock y contratos mensuales activos sin vencimiento;
+- contratos mensuales activos sin vencimiento; el stock agotado no es anomalía porque la publicación queda correctamente fuera del catálogo y del checkout;
 - actualización manual, sin polling ni consultas repetidas en segundo plano.
 
 La pantalla no sincroniza Mercado Pago, no modifica órdenes, no crea despachos y no ejecuta cobros o reembolsos. Una mensual vencida no se marca como anomalía sólo porque conserve `publication_status=active`: su fecha de expiración ya la excluye correctamente de las lecturas públicas.
@@ -172,7 +172,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 2. Operacion
    - Implementado localmente en 2C: ver ordenes pendientes, aprobadas, rechazadas y reembolsadas.
    - Implementado localmente en 2C: detectar ordenes pendientes viejas.
-   - Implementado localmente en 2C: detectar publicaciones activas sin stock y mensuales activas sin vencimiento.
+   - Implementado localmente en 2C: detectar mensuales activas sin vencimiento sin confundir stock agotado con visibilidad pública.
    - Implementado localmente en 2C: detectar despachos faltantes despues de pagos aprobados.
 
 3. Mercado Pago

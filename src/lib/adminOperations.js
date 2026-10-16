@@ -9,7 +9,7 @@ const PAYMENT_ANOMALIES = new Set([
   "stale_pending",
 ]);
 const FULFILLMENT_ANOMALIES = new Set(["missing_dispatch", "fulfillment_delayed"]);
-const CATALOG_ANOMALIES = new Set(["active_without_stock", "monthly_active_without_expiry"]);
+const CATALOG_ANOMALIES = new Set(["monthly_active_without_expiry"]);
 const PASSIVE_FULFILLMENT_STATES = new Set(["", "pending", "requested", "pickup_pending"]);
 
 const clean = (value) => String(value ?? "").trim();
@@ -125,9 +125,6 @@ export const buildAdminOperationsSnapshot = ({
     const stock = toNumber(product?.stock);
     const expiresAtMs = toTimestamp(product?.publication_expires_at);
     const anomalies = [];
-    if (status === "active" && stock <= 0) {
-      anomalies.push(anomaly("active_without_stock", "Publicación activa sin stock"));
-    }
     if (status === "active" && type === "monthly" && !expiresAtMs) {
       anomalies.push(anomaly("monthly_active_without_expiry", "Mensual activa sin vencimiento", "critical"));
     }

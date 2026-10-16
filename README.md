@@ -177,7 +177,7 @@ Archivos principales:
 - `src/data/categories.js` funciona como catálogo/fallback local.
 - No existe `src/data/providers.js`; la referencia anterior era obsoleta. El módulo de servicios/profesionales permanece retirado según `docs/SERVICIOS_PENDIENTES.md`.
 - Los scripts SQL de `docs/` documentan el esquema y sus ampliaciones incrementales.
-- `docs/supabase-checkout-ordinality-hotfix.sql` corrige la RPC atómica de checkout instalada el 11 de octubre; fue aplicado y auditado en Supabase el 12 de octubre antes de repetir la compra en producción.
+- `docs/supabase-checkout-ordinality-hotfix.sql` corrige la RPC atómica de checkout instalada el 11 de octubre; fue aplicado y auditado en Supabase el 12 de octubre. Una compra posterior quedó aprobada con Payment ID, detalle y movimiento auditado, confirmando nuevamente la ejecución remota.
 - `docs/supabase-abandoned-checkouts-cron.sql` instala la cancelación horaria de órdenes `pending` sin `payment_id`, regulariza las vencidas y audita permisos; fue aplicado y verificado remotamente el 12 de octubre de 2026.
 - `docs/supabase-performance-indexes.sql` agrega índices alineados a las consultas reales del marketplace.
 - `docs/supabase-seller-sales-rpc.sql` crea `get_seller_sales_page(...)` para que `Mis ventas` filtre, cuente y pagine en Postgres.
@@ -217,7 +217,7 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 ### Etapa 2 actual — Administración, base de datos y validación
 
 1. Desplegar y validar `/admin/usuarios`: otorgar y quitar un rol de base, suspender/restaurar una cuenta de prueba, confirmar bloqueo server-side y revisar los eventos en `audit_logs`. No probar sobre el último administrador ni sobre una cuenta real sin respaldo. La migración requerida ya fue aplicada y auditada.
-2. Desplegar y validar la primera versión de `/admin/operaciones`: centraliza estados de órdenes y detecta pendientes antiguas, pagos incompletos o sin auditoría, entregas sin avance y publicaciones activas inconsistentes.
+2. Validar la primera versión de `/admin/operaciones`: centraliza estados de órdenes y detecta pendientes antiguas, pagos incompletos o sin auditoría, entregas sin avance y contratos mensuales activos sin vencimiento. El primer contraste en producción permitió retirar un falso positivo de stock agotado.
 3. Completar las variantes pendientes de diagnóstico OAuth en producción y conservar la excepción de identidad Mercado Pago documentada.
 4. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
 5. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.

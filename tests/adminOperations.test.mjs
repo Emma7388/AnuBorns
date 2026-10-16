@@ -86,7 +86,7 @@ test("señala seguimiento faltante sólo para ventas aprobadas antiguas", () => 
   assert.ok(old.orders[0].anomalies.some((item) => item.code === "missing_dispatch"));
 });
 
-test("detecta publicaciones activas inconsistentes sin alertar por el vencimiento esperado", () => {
+test("detecta mensuales activas sin vencimiento sin alertar por stock agotado o expiración esperada", () => {
   const snapshot = buildAdminOperationsSnapshot({
     now,
     products: [
@@ -96,8 +96,9 @@ test("detecta publicaciones activas inconsistentes sin alertar por el vencimient
     ],
   });
 
-  assert.equal(snapshot.catalog_alerts.length, 2);
-  assert.equal(snapshot.summary.catalog_alerts, 2);
+  assert.equal(snapshot.catalog_alerts.length, 1);
+  assert.equal(snapshot.summary.catalog_alerts, 1);
+  assert.equal(snapshot.catalog_alerts.some((row) => row.id === "no-stock"), false);
   assert.equal(snapshot.catalog_alerts.some((row) => row.id === "expired"), false);
   assert.ok(snapshot.catalog_alerts.some((row) => row.anomalies[0].severity === "critical"));
 });

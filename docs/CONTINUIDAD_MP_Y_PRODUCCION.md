@@ -12,12 +12,13 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: iniciada.** La subetapa 2A de control administrativo base quedó implementada y desplegada: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; falta completar pruebas controladas de todas las mutaciones. Hasta completar esas verificaciones, “implementado” no significa certificado en producción.
 - **Etapa 2B, ficha 360 por usuario: desplegada el 12 de octubre.** `/admin/usuarios` carga bajo demanda publicaciones, pagos mensuales, compras, ventas, cumplimiento, cronología y diagnóstico en vivo OAuth/identidad. La respuesta no contiene tokens, no ejecuta mutaciones y queda cacheada por usuario durante la visita. La disposición visual fue revisada en producción; falta contrastar todas las variantes de cuenta y estados operativos.
 - **Etapa 2C, control global: implementada localmente el 15 de octubre.** `/admin/operaciones` centraliza hasta 500 órdenes recientes y cruza despachos, catálogo y auditoría para señalar pendientes viejas, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Es exclusivamente read-only y todavía debe desplegarse y contrastarse con Supabase.
+- Primer contraste en producción: 4 órdenes revisadas, 2 aprobadas, 0 pendientes y 0 críticas. El único aviso provenía de un producto con stock agotado correctamente oculto; se retiró esa clasificación para no generar un falso positivo.
 - **Etapa 3, madurez comercial: pendiente y todavía no iniciada.** El embudo, las políticas, reclamos, logística probatoria, cuotas y crecimiento se mantienen fuera del trabajo actual.
 
 #### Orden de trabajo de la etapa 2
 
 1. Desplegar y validar `/admin/operaciones`; revisar cada alerta contra Supabase antes de corregir datos.
-2. Repetir una compra con comprador, vendedor e integrador distintos; confirmar orden, preferencia, pago y reserva atómica después del hotfix.
+2. Completado: una compra posterior al hotfix quedó aprobada, persistida y sin alertas locales en 2C. Conservar la evidencia externa de Mercado Pago si se necesita volver a certificar el fee de esa operación.
 3. Validar la Etapa 2A en `/admin/usuarios` con cuentas de prueba: roles, suspensión, restauración, bloqueo server-side y trazas `requested/completed/failed`.
 4. Completar las variantes de 2B con cuenta sin MP, cuenta exceptuada y Mercado Pago temporalmente no verificable.
 5. Ejecutar pruebas controladas de pago mensual, comisión aplicable, concurrencia de stock, pendiente/rechazado y reembolso.
@@ -56,7 +57,8 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - La causa estaba en la versión ampliada por stock de `docs/supabase-product-stock-publications.sql`: combinaba directamente `jsonb_to_recordset(...)`, `WITH ORDINALITY` y una lista tipada. La instalación podía completarse porque PL/pgSQL analizaba esa sentencia al ejecutarla; las auditorías anteriores sólo comprobaban estructura y permisos.
 - Se corrigió el archivo principal con `ROWS FROM (...) WITH ORDINALITY` y se preparó `docs/supabase-checkout-ordinality-hotfix.sql`, que reemplaza únicamente la función, conserva `service_role` como ejecutor y no altera datos comerciales existentes.
 - Se agregó `tests/supabaseCheckoutSql.test.mjs` para rechazar la forma inválida. Verificación local: 120 pruebas aprobadas y `git diff --check` sin errores.
-- Estado remoto: **hotfix aplicado y auditado el 12 de octubre**. Supabase devolvió `ordinality_syntax_ok=true`, `rpc_existe=true`, ejecución habilitada únicamente para `service_role=true` y denegada para `authenticated=false` y `anon=false`. Falta repetir una compra controlada para validar que la RPC completa la orden, reserva y preferencia.
+- Estado remoto: **hotfix aplicado y auditado el 12 de octubre**. Supabase devolvió `ordinality_syntax_ok=true`, `rpc_existe=true`, ejecución habilitada únicamente para `service_role=true` y denegada para `authenticated=false` y `anon=false`.
+- Validación posterior: la orden corta `E54882FD`, creada después del hotfix, figura aprobada con Payment ID y sin alertas locales de detalle o auditoría en `/admin/operaciones`. Esto confirma que el checkout volvió a crear y persistir la operación; no sustituye la validación externa del fee ni el reembolso pendiente.
 
 #### Hardening del trigger de perfiles — 15 de octubre
 
@@ -301,4 +303,4 @@ No declararlos cerrados en producción hasta desplegar el código compatible, pr
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada; 2A/2B están desplegadas y la validación principal de Usuario 360 fue correcta. La primera versión local de 2C agrega `/admin/operaciones`, una vista global read-only de órdenes, anomalías, entregas y pagos incompletos. El hotfix atómico y el cron ya fueron aplicados y auditados. La suite tiene 129 pruebas aprobadas. Falta desplegar 2C, contrastar sus alertas y repetir una compra controlada. Yo manejo SQL, build, commit, push y despliegue; no hay que borrar MVP ni Anubis-Reborn.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada; 2A/2B están desplegadas y Usuario 360 fue validado. 2C agrega `/admin/operaciones`, una vista global read-only. El primer contraste mostró 4 órdenes, 2 aprobadas, 0 pendientes y 0 críticas; se retiró un falso positivo de stock agotado. El hotfix atómico quedó validado por una compra posterior aprobada. La suite tiene 129 pruebas aprobadas. Falta desplegar el ajuste de diagnóstico, revisar las variantes controladas de 2A/2B y completar el reembolso real. Yo manejo SQL, build, commit, push y despliegue.»

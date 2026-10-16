@@ -16,7 +16,7 @@ const visibleCount = document.getElementById("admin-operations-visible-count");
 
 const PAYMENT_CODES = new Set(["approved_without_payment_id", "approved_without_audit", "payment_detail_missing", "payment_state_mismatch", "stale_pending"]);
 const FULFILLMENT_CODES = new Set(["missing_dispatch", "fulfillment_delayed"]);
-const CATALOG_CODES = new Set(["active_without_stock", "monthly_active_without_expiry"]);
+const CATALOG_CODES = new Set(["monthly_active_without_expiry"]);
 let snapshot = { summary: {}, orders: [], catalog_alerts: [] };
 
 const clean = (value) => String(value ?? "").trim();

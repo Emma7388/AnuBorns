@@ -6,7 +6,7 @@ AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autent
 
 ## Estado de evolución
 
-La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66`. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A está desplegada y su migración fue aplicada y auditada; la subetapa 2B fue validada visualmente en producción el 15 de octubre. La primera entrega local de 2C agrega una vista global read-only de órdenes y anomalías. El hotfix de la RPC atómica fue aplicado y auditado el 12 de octubre, aunque falta repetir una compra controlada. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción.
+La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66`. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A está desplegada y su migración fue aplicada y auditada; la subetapa 2B fue validada visualmente en producción el 15 de octubre. La primera entrega de 2C agrega una vista global read-only de órdenes y anomalías. El hotfix de la RPC atómica fue aplicado y auditado el 12 de octubre y una compra posterior quedó aprobada, persistida y sin alertas locales. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción.
 
 ## Stack acordado
 
@@ -81,7 +81,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 
 ### Verificación
 
-`node --test` valida la suite completa; la última ejecución observada el 15 de octubre de 2026 aprobó 129 pruebas sin fallos. Las regresiones cubren la sintaxis correcta de `WITH ORDINALITY`, el TTL de preferencias, la ausencia de borrado en el cron y la clasificación de anomalías 2C. La migración administrativa 2A quedó auditada con RLS activo y RPC exclusivas de `service_role`; 2B y 2C reutilizan acceso exclusivamente server-side. Falta repetir una compra y el reembolso con Mercado Pago continúa pendiente.
+`node --test` valida la suite completa; la última ejecución observada el 15 de octubre de 2026 aprobó 129 pruebas sin fallos. Las regresiones cubren la sintaxis correcta de `WITH ORDINALITY`, el TTL de preferencias, la ausencia de borrado en el cron y la clasificación de anomalías 2C. La migración administrativa 2A quedó auditada con RLS activo y RPC exclusivas de `service_role`; 2B y 2C reutilizan acceso exclusivamente server-side. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
 
 ### Flujos visibles
 
