@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { readStorageJson, removeStorageValue, writeStorageJson } from "./browserStorage.js";
 
 export const PENDING_PROFILE_KEY = "ab_pending_profile";
 const PENDING_PROFILE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2;
@@ -52,25 +53,21 @@ export const getMetadataProfile = (user) => {
 };
 
 export const clearPendingRegistrationProfile = () => {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(PENDING_PROFILE_KEY);
+  removeStorageValue(PENDING_PROFILE_KEY);
 };
 
 export const savePendingRegistrationProfile = (values) => {
-  if (typeof window === "undefined") return;
   const payload = {
     values: normalizeUserProfile(values),
     savedAt: Date.now(),
   };
-  window.localStorage.setItem(PENDING_PROFILE_KEY, JSON.stringify(payload));
+  writeStorageJson(PENDING_PROFILE_KEY, payload);
 };
 
 const readPendingRegistrationProfile = () => {
-  if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(PENDING_PROFILE_KEY);
-    if (!raw) return null;
-    const pending = JSON.parse(raw);
+    const pending = readStorageJson(PENDING_PROFILE_KEY);
+    if (!pending) return null;
     const savedAt = Number(pending?.savedAt ?? 0);
     if (!savedAt || Date.now() - savedAt > PENDING_PROFILE_MAX_AGE_MS) {
       clearPendingRegistrationProfile();

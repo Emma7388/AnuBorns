@@ -138,7 +138,7 @@ const findPaymentByExternalReference = async (paymentAccessTokens, orderId) => {
 
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "mp-payment-sync",
       windowMs: 60_000,

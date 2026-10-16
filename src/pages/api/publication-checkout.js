@@ -15,7 +15,7 @@ const getSiteUrl = () => {
 };
 
 export const POST = async ({ request }) => {
-  const rate = checkRateLimit({ request, routeKey: "publication-checkout", windowMs: 60_000, max: 10 });
+  const rate = await checkRateLimit({ request, routeKey: "publication-checkout", windowMs: 60_000, max: 10 });
   if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes." }, 429);
   const supabaseAdmin = getSupabaseAdmin();
   const accessToken = String(process.env.MERCADOPAGO_ACCESS_TOKEN ?? "").trim();

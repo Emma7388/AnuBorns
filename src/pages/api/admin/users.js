@@ -335,7 +335,7 @@ const formatAuditRows = ({ rows, usersById, profilesById }) => rows.map((row) =>
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request, url }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "admin-users",
       windowMs: 60_000,

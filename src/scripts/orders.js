@@ -3,6 +3,7 @@ import { buildPurchaseDetailHtml, formatOrderPaymentStatus } from "../lib/purcha
 import { normalizePaymentStatus } from "../lib/paymentStatus.js";
 /* Historial de compras: local o remoto. */
 import { supabase } from "../lib/supabaseClient";
+import { readStorageJson, readStorageValue, writeStorageJson, writeStorageValue } from "../lib/browserStorage.js";
 import {
   getPurchaseStatusMessage,
   getPurchaseStatusToastStorageKey,
@@ -285,11 +286,11 @@ const ensurePurchaseStatusToast = () => {
 
 const showRenderedPurchaseStatusToast = (items = []) => {
   const notifiableItems = (Array.isArray(items) ? items : []).filter(shouldNotifyPurchaseStatus);
-  const unannouncedItems = notifiableItems.filter((item) => !window.sessionStorage.getItem(getPurchaseStatusToastStorageKey(item)));
+  const unannouncedItems = notifiableItems.filter((item) => !readStorageValue(getPurchaseStatusToastStorageKey(item), { kind: "session" }));
   if (unannouncedItems.length === 0) return;
 
   unannouncedItems.forEach((item) => {
-    window.sessionStorage.setItem(getPurchaseStatusToastStorageKey(item), "1");
+    writeStorageValue(getPurchaseStatusToastStorageKey(item), "1", { kind: "session" });
   });
   ensurePurchaseStatusToast();
   if (!purchaseStatusToast) return;
@@ -548,8 +549,7 @@ const syncLocalOrdersToServer = async (userId) => {
   if (!userId || syncInFlight) return { syncedCount: 0, remainingCount: 0, conflictCount: 0 };
   syncInFlight = true;
   try {
-    const raw = window.localStorage.getItem(ORDERS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
+    const parsed = readStorageJson(ORDERS_KEY, { fallback: {} });
     const localOrders = Array.isArray(parsed[userId]) ? parsed[userId] : [];
     if (localOrders.length === 0) {
       return { syncedCount: 0, remainingCount: 0, conflictCount: 0 };
@@ -602,7 +602,7 @@ const syncLocalOrdersToServer = async (userId) => {
     }
 
     parsed[userId] = remaining;
-    window.localStorage.setItem(ORDERS_KEY, JSON.stringify(parsed));
+    writeStorageJson(ORDERS_KEY, parsed);
     return { syncedCount, remainingCount: remaining.length, conflictCount };
   } catch {
     return { syncedCount: 0, remainingCount: 0, conflictCount: 0 };
@@ -761,7 +761,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
         : `<span class="ab-order-card__provider-link ab-order-card__provider-link--disabled">${escapeHtml(provider)}</span>`;
 
       card.innerHTML = `
-        <img class="ab-provider-product-card__image" src="${coverImage}" alt="${escapeHtml(provider)}" loading="lazy" />
+        <img class="ab-provider-product-card__image" src="${coverImage}" alt="${escapeHtml(provider)}" loading="lazy" decoding="async" />
         <div class="ab-category-product-heading">
           <h2>${providerNameMarkup}</h2>
           <div class="ab-provider-product-card__meta">
@@ -896,8 +896,7 @@ const loadOrders = async () => {
   const syncMessage = getLocalSyncStatusMessage(syncResult);
 
   try {
-    const raw = window.localStorage.getItem(ORDERS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
+    const parsed = readStorageJson(ORDERS_KEY, { fallback: {} });
     const localOrders = (Array.isArray(parsed[userId]) ? parsed[userId] : [])
       .filter((order) => isOrderWithinDateRange(order, from, to));
     if (localOrders.length > 0) {

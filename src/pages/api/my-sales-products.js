@@ -37,7 +37,7 @@ const normalizeFulfillmentStatus = (value, shippingRequested) => {
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "my-sales-products",
       windowMs: 60_000,

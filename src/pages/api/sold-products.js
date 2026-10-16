@@ -11,7 +11,7 @@ const normalizeIds = (value) => getUniqueStringIds(value).slice(0, 100);
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "sold-products",
       windowMs: 60_000,

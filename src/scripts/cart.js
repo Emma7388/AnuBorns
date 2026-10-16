@@ -275,7 +275,7 @@ const renderCart = async () => {
       row.className = "ab-cart-item";
       row.dataset.id = item.product_id;
       row.innerHTML = `
-        <img class="ab-cart-item__image" src="${safeImage}" alt="${safeTitle}" loading="lazy" />
+        <img class="ab-cart-item__image" src="${safeImage}" alt="${safeTitle}" loading="lazy" decoding="async" />
         <div class="ab-cart-item__info">
           <h2 class="ab-cart-item__title">${safeTitle}</h2>
           <ul class="ab-cart-item__details">

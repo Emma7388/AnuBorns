@@ -22,7 +22,7 @@ const safeJsonSize = (value) => {
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "audit",
       windowMs: 60_000,

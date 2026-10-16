@@ -176,7 +176,7 @@ const fetchAudit = async (supabaseAdmin, userId) => {
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request, params }) => {
   try {
-    const rate = checkRateLimit({ request, routeKey: "admin-user-overview", windowMs: 60_000, max: 45 });
+    const rate = await checkRateLimit({ request, routeKey: "admin-user-overview", windowMs: 60_000, max: 45 });
     if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes. Intentá nuevamente en un minuto." }, 429);
 
     const userId = clean(params.userId);

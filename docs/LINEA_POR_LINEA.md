@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
+Actualizado al 16 de octubre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -53,6 +53,9 @@ Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/publicationPayments.js`: ciclo idempotente del pago mensual y activación/vencimiento.
 - `src/lib/sessionToken.js`: helper de cliente para no consultar endpoints privados con sesiones sin token o próximas a vencer.
 - `src/lib/userProfile.js`: perfil privado del usuario, perfil pendiente de registro y caché corta de lecturas a `profiles`.
+- `src/lib/browserStorage.js`: lectura, escritura y JSON seguros para storage local o de sesión; tolera SSR, acceso bloqueado y cuota agotada.
+- `src/lib/displayFormat.js`: texto limpio, escape HTML, fecha, moneda y referencias breves compartidos por las vistas administrativas.
+- `tests/browserStorage.test.mjs` y `tests/displayFormat.test.mjs`: regresiones de las utilidades transversales incorporadas en la estabilización.
 - `src/lib/checkoutServer.js`: valida productos, vendedor, moneda, disponibilidad y entrega con datos del servidor; calcula el total final.
 - `src/lib/atomicOrders.js`: crea órdenes mediante la RPC de reserva atómica y traduce conflictos de PostgreSQL a respuestas controladas.
 - `src/lib/checkoutPendingOrders.js`: define el TTL común, genera la vigencia explícita de la preferencia y cancela por actividad checkouts abandonados; el webhook conserva la recuperación controlada de aprobaciones tardías.
@@ -127,6 +130,9 @@ Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
 - `docs/supabase-abandoned-checkouts-cron.sql`: instala una función sin permisos de navegador, agenda su ejecución horaria con `pg_cron`, cancela de inmediato intentos vencidos y devuelve auditoría. Fue aplicado y auditado remotamente el 12 de octubre.
 - `docs/supabase-abandoned-checkouts.sql`: respaldo manual con el mismo plazo de 24 horas; no reemplaza el cron.
 - `tests/checkoutPendingOrders.test.mjs`: comprueba que el vencimiento de Mercado Pago y el TTL local permanezcan alineados.
+- `docs/supabase-distributed-rate-limit.sql`: crea el contador atómico compartido, restringe tabla y funciones a `service_role`, agenda limpieza diaria y devuelve auditoría. Fue ejecutado y auditado remotamente el 16 de octubre de 2026.
+- `src/lib/serverRateLimit.js`: genera claves HMAC/SHA-256 opacas, consume la RPC compartida y mantiene un fallback local acotado durante indisponibilidad.
+- `tests/serverRateLimit.test.mjs` y `tests/distributedRateLimitSql.test.mjs`: cubren privacidad de la clave, consumo/bloqueo distribuido, degradación local, permisos SQL y uso asíncrono en todos los endpoints.
 
 ## Páginas
 
@@ -153,6 +159,7 @@ Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/oferta.astro`: entrada de segundo nivel para ofertar.
 - `src/pages/oferta/productos.astro`: placeholder de flujo de oferta de productos.
 - `src/pages/admin/index.astro`: tablero operativo interno con chequeos por proceso, mediciones read-only de Supabase y analitica manual de Vercel.
+- `src/pages/admin/administracion.astro`: resumen read-only del fee registrado localmente y operaciones recientes.
 - `src/pages/admin/usuarios.astro`: control administrativo de usuarios, roles, estado de cuenta y ficha 360 de la Etapa 2B; Mercado Pago, Accesos y Trazabilidad comparten una franja compacta de tres tarjetas con altura uniforme, modal de detalle y adaptación mobile.
 - `src/pages/admin/operaciones.astro`: control global read-only de la Etapa 2C con resumen, filtros y registros adaptables a mobile.
 - `src/pages/admin/mercadopago.astro`: control central read-only de la Etapa 2D con resumen, filtros y verificación externa manual.
@@ -168,5 +175,11 @@ Actualizado al 15 de octubre de 2026 para la rama `V0.8`.
 ## Estilos
 
 - `src/styles/global.css`: tokens visuales, resets y estilos compartidos (`ab-*`) para paneles, cards, formularios y estados. En mobile normaliza las imágenes de cards de producto a 190px de alto.
+- `src/styles/admin.css`: sistema visual de las cinco superficies administrativas, con reglas compartidas de resúmenes, filtros, estados restringidos, modales y responsive.
 - `src/styles/featured-products.css`: presentación del carrusel de productos destacados; en mobile reutiliza el tamaño uniforme de imagen y oculta las flechas laterales.
 - `src/styles/commerce-flow.css`: estilos de carrito y checkout; en mobile alinea las imágenes de carrito con el tamaño de las cards de producto.
+
+## Configuración de despliegue
+
+- `vercel.json`: redirección histórica vigente y encabezados HTTP defensivos globales (`nosniff`, anti-iframe, referrer y permisos de hardware).
+- `.env.example`: inventario sin secretos de variables públicas, server-side, administrativas y de Mercado Pago.

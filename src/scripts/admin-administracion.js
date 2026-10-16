@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { renderAdminAccessState } from "../lib/adminPageAccess.js";
+import { escapeHtml, formatCurrency, formatDateTime } from "../lib/displayFormat.js";
 
 const adminRoot = document.querySelector(".ab-admin-finance");
 const statusElement = document.getElementById("admin-finance-status");
@@ -14,30 +15,13 @@ const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
 };
 
-const escapeHtml = (value) =>
-  String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
 const formatMoney = (value, currency = "ARS") =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
+  formatCurrency(value, {
     currency,
     maximumFractionDigits: 0,
-  }).format(Number(value) || 0);
+  });
 
-const formatDate = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
-};
+const formatDate = (value) => formatDateTime(value);
 
 const statusLabel = (order) => {
   if (order?.mp_without_fee_trace) return "Sin traza fee";

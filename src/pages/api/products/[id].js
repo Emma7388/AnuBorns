@@ -22,7 +22,7 @@ export const GET = async ({ request, params }) => {
 };
 
 export const PATCH = async ({ request, params }) => {
-  const rate = checkRateLimit({ request, routeKey: "products-update", windowMs: 60_000, max: 20 });
+  const rate = await checkRateLimit({ request, routeKey: "products-update", windowMs: 60_000, max: 20 });
   if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes." }, 429);
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return jsonResponse({ error: "Servicio no disponible." }, 503);
@@ -69,7 +69,7 @@ export const PATCH = async ({ request, params }) => {
 };
 
 export const DELETE = async ({ request, params }) => {
-  const rate = checkRateLimit({ request, routeKey: "products-delete", windowMs: 60_000, max: 20 });
+  const rate = await checkRateLimit({ request, routeKey: "products-delete", windowMs: 60_000, max: 20 });
   if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes." }, 429);
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return jsonResponse({ error: "Servicio no disponible." }, 503);

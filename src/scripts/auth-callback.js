@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { writeStorageValue } from "../lib/browserStorage.js";
 import { isSafeInternalPath } from "../lib/internalNavigation";
 import { resolvePendingRegistrationProfile } from "../lib/userProfile";
 
@@ -64,7 +65,7 @@ const completeAuthCallback = async () => {
     await resolvePendingRegistrationProfile(data.session).catch(() => ({ ok: false }));
 
     /* Señal para refrescar sesión en otras pestañas activas. */
-    window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
+    writeStorageValue("ab_auth_refresh", Date.now());
     setFeedback("Cuenta verificada. Redirigiendo...");
     window.location.replace(getReturnTo());
   } finally {

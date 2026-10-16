@@ -6,7 +6,7 @@ import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 
 export const POST = async ({ request }) => {
-  const rate = checkRateLimit({ request, routeKey: "publication-sync", windowMs: 60_000, max: 20 });
+  const rate = await checkRateLimit({ request, routeKey: "publication-sync", windowMs: 60_000, max: 20 });
   if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes." }, 429);
   const supabaseAdmin = getSupabaseAdmin();
   const accessToken = String(process.env.MERCADOPAGO_ACCESS_TOKEN ?? "").trim();

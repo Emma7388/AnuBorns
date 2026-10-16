@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { readStorageValue, removeStorageValue, writeStorageValue } from "../lib/browserStorage.js";
 
 const RECOVERY_PENDING_KEY = "ab_password_recovery_pending";
 const RECOVERY_PATH = "/nueva-contrasena";
@@ -31,28 +32,16 @@ const hasRecoveryUrlSignal = () => {
 };
 
 const markRecoveryPending = () => {
-  try {
-    window.localStorage.setItem(RECOVERY_PENDING_KEY, "1");
-  } catch {
-    /* Sin almacenamiento, el guard sigue funcionando con la URL actual. */
-  }
+  writeStorageValue(RECOVERY_PENDING_KEY, "1");
 };
 
 const clearRecoveryPending = () => {
-  try {
-    window.localStorage.removeItem(RECOVERY_PENDING_KEY);
-  } catch {
-    /* No-op. */
-  }
+  removeStorageValue(RECOVERY_PENDING_KEY);
 };
 
 const hasRecoveryPending = () => {
   if (hasRecoveryUrlSignal()) return true;
-  try {
-    return window.localStorage.getItem(RECOVERY_PENDING_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return readStorageValue(RECOVERY_PENDING_KEY) === "1";
 };
 
 const getRecoveryRedirectUrl = () => {

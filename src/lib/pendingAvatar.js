@@ -1,6 +1,11 @@
 /* Avatar pendiente: conserva una imagen elegida antes de confirmar/iniciar sesión. */
 import { supabase } from "./supabaseClient";
 import { resizeAvatarImage } from "./imageResize";
+import {
+  readStorageJson,
+  removeStorageValue,
+  writeStorageValue,
+} from "./browserStorage.js";
 
 export const PENDING_AVATAR_KEY = "ab_pending_avatar";
 const PENDING_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 2; // 48 horas
@@ -9,7 +14,7 @@ const ALLOWED_PENDING_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/
 let pendingAvatarPromise = null;
 
 const clearPendingAvatar = () => {
-  window.localStorage.removeItem(PENDING_AVATAR_KEY);
+  removeStorageValue(PENDING_AVATAR_KEY);
 };
 
 const getImageExtension = (type) => {
@@ -35,9 +40,8 @@ const dataUrlToBlob = (dataUrl) => {
 /* Lee y descarta avatares pendientes vencidos o corruptos. */
 const readPendingAvatar = () => {
   try {
-    const raw = window.localStorage.getItem(PENDING_AVATAR_KEY);
-    if (!raw) return null;
-    const pending = JSON.parse(raw);
+    const pending = readStorageJson(PENDING_AVATAR_KEY);
+    if (!pending) return null;
     const savedAt = Number(pending?.savedAt ?? 0);
     if (!savedAt || Date.now() - savedAt > PENDING_AVATAR_MAX_AGE_MS) {
       clearPendingAvatar();
@@ -101,7 +105,7 @@ export const uploadPendingAvatar = async (session, { onAvatarUrl } = {}) => {
 
     clearPendingAvatar();
     /* Señal para que otras pestañas refresquen metadata de auth. */
-    window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
+    writeStorageValue("ab_auth_refresh", Date.now());
     onAvatarUrl?.(avatarUrl);
     return { ok: true, avatarUrl };
   })();

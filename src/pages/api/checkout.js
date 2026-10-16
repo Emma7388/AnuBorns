@@ -305,7 +305,7 @@ const buildPreferenceBody = ({
 
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "checkout",
       windowMs: 60_000,

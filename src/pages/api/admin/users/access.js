@@ -52,7 +52,7 @@ const getOperationErrorMessage = (error) => {
 /** @type {import("astro").APIRoute} */
 export const PATCH = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "admin-users-access",
       windowMs: 60_000,

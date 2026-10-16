@@ -226,6 +226,7 @@ const providerCategoryFilters = [...categoryFilterMap.values()]
                 src={product.image_url || "/logo2.svg"}
                 alt={product.title || "Producto"}
                 loading="lazy"
+                decoding="async"
               />
               <div class="ab-category-product-heading">
                 <h2>{product.title || "Sin título"}</h2>

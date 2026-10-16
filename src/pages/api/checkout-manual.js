@@ -12,7 +12,7 @@ import { createInitialSaleDispatches } from "../../lib/saleDispatches.js";
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "checkout-manual",
       windowMs: 60_000,

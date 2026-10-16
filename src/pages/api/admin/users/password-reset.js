@@ -34,7 +34,7 @@ const buildRecoveryRedirectUrl = () => {
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "admin-users-password-reset",
       windowMs: 60_000,

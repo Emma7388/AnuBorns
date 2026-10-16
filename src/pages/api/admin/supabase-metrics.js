@@ -20,7 +20,7 @@ const metricToHealthCheck = (metric, prefix = "metric") => buildHealthCheck({
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "admin-supabase-metrics",
       windowMs: 60_000,

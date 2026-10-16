@@ -10,7 +10,7 @@ const MAX_RELATED_ROWS = 1000;
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({ request, routeKey: "admin-operations", windowMs: 60_000, max: 30 });
+    const rate = await checkRateLimit({ request, routeKey: "admin-operations", windowMs: 60_000, max: 30 });
     if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes. Intentá nuevamente en un minuto." }, 429);
 
     const supabaseAdmin = getSupabaseAdmin();

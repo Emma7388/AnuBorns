@@ -1,5 +1,6 @@
 /* Dependencias: cliente Supabase para persistir carrito cuando hay sesión. */
 import { supabase } from "./supabaseClient";
+import { readStorageJson, removeStorageValue, writeStorageJson } from "./browserStorage.js";
 
 /* Clave localStorage para carrito anónimo. */
 const CART_KEY = "ab_cart_v1";
@@ -131,8 +132,7 @@ const splitSoldProductsFromItems = async (items = []) => {
 /* Lee el carrito local y lo limpia de datos inválidos. */
 const loadLocalCart = () => {
   try {
-    const raw = window.localStorage.getItem(CART_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
+    const parsed = readStorageJson(CART_KEY, { fallback: [] });
     let items = [];
     let updatedAt = 0;
 
@@ -149,7 +149,7 @@ const loadLocalCart = () => {
     }
 
     if (updatedAt > 0 && Date.now() - updatedAt > CART_LOCAL_TTL_MS) {
-      window.localStorage.removeItem(CART_KEY);
+      removeStorageValue(CART_KEY);
       return [];
     }
 
@@ -209,14 +209,13 @@ export const getCartCount = async (knownUserId = null) => {
 
 /* Guarda el carrito local y notifica a la UI. */
 const saveLocalCart = (items) => {
-  window.localStorage.setItem(
-    CART_KEY,
-    JSON.stringify({
-      updatedAt: Date.now(),
-      items,
-    }),
-  );
+  const saved = writeStorageJson(CART_KEY, {
+    updatedAt: Date.now(),
+    items,
+  });
+  if (!saved) throw new Error("No se pudo guardar el carrito local.");
   emitCartUpdate();
+  return true;
 };
 
 /* Obtiene el usuario actual si existe sesión. */
@@ -380,8 +379,7 @@ const addProductToCart = async ({ product, productId, userId }) => {
         product_snapshot: productSnapshot,
       });
     }
-    saveLocalCart(items);
-    return true;
+    return saveLocalCart(items);
   }
 
   /* Si hay sesión, se actualiza el carrito en base de datos. */

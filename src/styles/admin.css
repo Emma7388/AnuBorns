@@ -32,32 +32,18 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   initial-value: 0deg;
 }
 
-.ab-admin-users {
-  display: grid;
-  gap: 10px;
-  overflow-x: clip;
-}
-
-.ab-admin-dashboard {
-  display: grid;
-  gap: 10px;
-  overflow-x: clip;
-}
-
-.ab-admin-finance {
+:is(
+  .ab-admin-users,
+  .ab-admin-dashboard,
+  .ab-admin-finance,
+  .ab-admin-operations,
+  .ab-admin-mercadopago
+) {
   display: grid;
   gap: 10px;
 }
 
-.ab-admin-operations {
-  display: grid;
-  gap: 10px;
-  overflow-x: clip;
-}
-
-.ab-admin-mercadopago {
-  display: grid;
-  gap: 10px;
+:is(.ab-admin-users, .ab-admin-dashboard, .ab-admin-operations, .ab-admin-mercadopago) {
   overflow-x: clip;
 }
 
@@ -94,7 +80,7 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   gap: 7px;
 }
 
-.ab-admin-operations__summary article {
+:is(.ab-admin-operations__summary, .ab-admin-mercadopago__summary) article {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -106,15 +92,15 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   text-align: center;
 }
 
-.ab-admin-operations__summary article.is-warning {
+:is(.ab-admin-operations__summary, .ab-admin-mercadopago__summary) article.is-warning {
   border-left-color: #c78515;
 }
 
-.ab-admin-operations__summary article.is-danger {
+:is(.ab-admin-operations__summary, .ab-admin-mercadopago__summary) article.is-danger {
   border-left-color: #c83b3b;
 }
 
-.ab-admin-operations__summary strong {
+:is(.ab-admin-operations__summary, .ab-admin-mercadopago__summary) strong {
   font-size: 25px;
   line-height: 1;
 }
@@ -126,8 +112,11 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
 }
 
 .ab-admin-operations__filters {
-  display: grid;
   grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 0.9fr) minmax(220px, 1.4fr);
+}
+
+:is(.ab-admin-operations__filters, .ab-admin-mercadopago__filters) {
+  display: grid;
   gap: 8px;
   padding: 9px;
   border: 1px solid rgba(23, 35, 31, 0.11);
@@ -135,21 +124,20 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   background: rgba(255, 255, 255, 0.66);
 }
 
-.ab-admin-operations__filters label {
+:is(.ab-admin-operations__filters, .ab-admin-mercadopago__filters) label {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.ab-admin-operations__filters label > span {
+:is(.ab-admin-operations__filters, .ab-admin-mercadopago__filters) label > span {
   color: rgba(23, 35, 31, 0.65);
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.ab-admin-operations__filters select,
-.ab-admin-operations__filters input {
+:is(.ab-admin-operations__filters, .ab-admin-mercadopago__filters) :is(select, input) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -298,31 +286,6 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   gap: 7px;
 }
 
-.ab-admin-mercadopago__summary article {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid rgba(23, 35, 31, 0.12);
-  border-left: 5px solid #2d6f91;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.82);
-  text-align: center;
-}
-
-.ab-admin-mercadopago__summary article.is-warning {
-  border-left-color: #c78515;
-}
-
-.ab-admin-mercadopago__summary article.is-danger {
-  border-left-color: #c83b3b;
-}
-
-.ab-admin-mercadopago__summary strong {
-  font-size: 25px;
-  line-height: 1;
-}
-
 .ab-admin-mercadopago__summary span {
   color: rgba(23, 35, 31, 0.65);
   font-size: 10px;
@@ -330,41 +293,7 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
 }
 
 .ab-admin-mercadopago__filters {
-  display: grid;
   grid-template-columns: minmax(160px, 0.7fr) minmax(190px, 0.9fr) minmax(240px, 1.4fr);
-  gap: 8px;
-  padding: 9px;
-  border: 1px solid rgba(23, 35, 31, 0.11);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.66);
-}
-
-.ab-admin-mercadopago__filters label {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.ab-admin-mercadopago__filters label > span {
-  color: rgba(23, 35, 31, 0.65);
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.ab-admin-mercadopago__filters select,
-.ab-admin-mercadopago__filters input {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px 9px;
-  border: 1px solid rgba(23, 35, 31, 0.16);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--ab-text, #17231f);
-  font: inherit;
-  font-size: 12px;
 }
 
 .ab-admin-mercadopago__content,

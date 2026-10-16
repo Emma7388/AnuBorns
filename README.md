@@ -4,15 +4,19 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 15 de octubre de 2026 — rama `V0.8`.
+Actualizado al 16 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
 ### Registro de etapas de actualización
 
 - **Etapa 1 — implementación funcional: cerrada en código el 11 de octubre de 2026.** Incluyó los diez pendientes funcionales, reserva y stock atómicos, publicaciones permanentes y mensuales, renovación anticipada, estados resaltados, carrito deduplicado, identidad Mercado Pago y sincronización visual de nombres con Auth. El cierre está respaldado por el commit `e7b9f66`, rama `V0.8` sincronizada con `origin/V0.8`, 101 pruebas aprobadas y las migraciones principales ejecutadas y auditadas. Este cierre no equivale a afirmar que todos los casos ya fueron probados en producción.
-- **Etapa 2 — base de datos, panel administrativo, seguridad operativa y validación: en curso desde el 11 de octubre de 2026.** Las subetapas 2A y 2B están desplegadas; la validación principal de Usuario 360 fue confirmada en producción el 15 de octubre. La primera versión de 2C también quedó desplegada ese día como una vista global y de sólo lectura para órdenes, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Su primer contraste revisó cuatro órdenes y corrigió un falso positivo de stock agotado; después del ajuste, producción mostró cero registros a revisar y cero alertas críticas. La Etapa 2D también fue desplegada y contrastada: detectó dos vendedores conectados, confirmó la excepción autorizada `1157622469`, la identidad coincidente de `3527785006`, tokens vigentes y cero intentos locales pendientes. La primera entrega de 2E quedó implementada localmente para auditar accesos administrativos rechazados sin alterar el resultado 403.
+- **Etapa 2 — base de datos, panel administrativo, seguridad operativa y validación: en curso desde el 11 de octubre de 2026.** Las subetapas 2A y 2B están desplegadas; la validación principal de Usuario 360 fue confirmada en producción el 15 de octubre. La primera versión de 2C también quedó desplegada ese día como una vista global y de sólo lectura para órdenes, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Su primer contraste revisó cuatro órdenes y corrigió un falso positivo de stock agotado; después del ajuste, producción mostró cero registros a revisar y cero alertas críticas. La Etapa 2D también fue desplegada y contrastada: detectó dos vendedores conectados, confirmó la excepción autorizada `1157622469`, la identidad coincidente de `3527785006`, tokens vigentes y cero intentos locales pendientes. La Etapa 2E quedó desplegada y validada: una cuenta autenticada sin rol recibió el estado visual restringido, no vio controles administrativos y el intento apareció correctamente en Trazabilidad.
 - **Etapa 3 — madurez comercial: no iniciada.** Comprende embudo de conversión, políticas públicas, reclamos y contracargos, evidencia logística, cuotas, recuperación consentida de carrito, reseñas y promociones. No debe adelantarse a la estabilización de la etapa 2.
+
+El 16 de octubre se completó una pasada local de estabilización transversal: utilidades compartidas de formato y almacenamiento seguro, menor duplicación en scripts y estilos administrativos, navegación fresca entre superficies admin, dimensiones y decodificación de imágenes, tipografía sin `@import`, respeto de movimiento reducido y encabezados HTTP defensivos. La suite completa quedó en 146 pruebas aprobadas y el build Astro/Vercel terminó correctamente. Estos resultados son locales; no implican despliegue.
+
+Después de esa pasada se reemplazó localmente el rate limit por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La suite completa pasó con 152 pruebas y el build Astro/Vercel volvió a finalizar correctamente. La migración `docs/supabase-distributed-rate-limit.sql` fue ejecutada y auditada remotamente el 16 de octubre; todavía falta desplegar el código compatible y confirmar la fuente `distributed` en `/admin`.
 
 ### Estado del historial comercial
 
@@ -47,6 +51,8 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Productos destacados, notificaciones, temas claro y oscuro, y navegación responsive.
 - En mobile, las cards de productos usan imágenes de tamaño uniforme y el carrusel de destacados oculta las flechas laterales para conservar espacio.
 - Tipografía base Montserrat semibold y controles/botones en Montserrat regular.
+- Acceso seguro a almacenamiento del navegador para que carrito, tema, perfil y avisos degraden sin romper la interfaz cuando `localStorage` o `sessionStorage` están bloqueados.
+- Encabezados globales `nosniff`, anti-iframe, política de referencia y restricción de cámara, micrófono y geolocalización configurados en Vercel.
 - Publicación con retiro en el domicilio como modalidad predeterminada; seleccionar envío lo reemplaza, no agrega ARS 5.000 al comprador y deja la logística a cargo del vendedor.
 - Ubicación de publicación en Campana, Zárate, Lima o las tres ciudades mediante la opción Todas.
 
@@ -63,7 +69,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 - Los flujos de oferta y contratación de servicios continúan como MVP/placeholder.
 - La compra, el split y la comisión se comprobaron después del reinicio; falta completar una prueba real de reembolso total o parcial con Mercado Pago y conservar la vista del comprador.
 - El stock de 1 a 100, las cantidades de carrito y la reserva/devolución atómica están implementados localmente; su migración fue aplicada y auditada remotamente el 11 de octubre de 2026. Falta validar el circuito con el código desplegado.
-- El rate limit actual vive en memoria y es de mejor esfuerzo entre instancias serverless.
+- El rate limit distribuido está implementado localmente y su RPC fue instalada y auditada en Supabase. Producción continuará con el comportamiento anterior hasta desplegar el código compatible; después deberá confirmarse en `/admin` que la fuente sea `distributed`. El nuevo código conserva un respaldo temporal en memoria ante incidentes de Supabase.
 - El cron de checkouts abandonados fue aplicado y auditado en Supabase: canceló los dos intentos vencidos, dejó cero pendientes antiguos y quedó activo cada hora con acceso exclusivo de `service_role`. La expiración explícita de preferencias nuevas está implementada localmente y requiere el próximo despliegue.
 
 ## Stack
@@ -98,6 +104,7 @@ PUBLIC_SUPABASE_URL=
 PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+RATE_LIMIT_HASH_SECRET=
 SUPABASE_PROJECT_REF=
 SUPABASE_METRICS_SECRET_KEY=
 VERCEL_ANALYTICS_TOKEN=
@@ -107,9 +114,20 @@ VERCEL_ANALYTICS_TEAM_ID=
 
 `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` son opcionales para compilar, pero habilitan el boton manual de mediciones del servidor Supabase en `/admin`. La clave debe ser privada/server-side, idealmente una Secret API key `sb_secret_...`.
 
+`RATE_LIMIT_HASH_SECRET` es privada, opcional pero recomendada. Debe ser un valor aleatorio largo y estable entre despliegues; se usa sólo para convertir ruta e identidad de red en una clave HMAC irreversible. Si falta, el servidor deriva esa clave con `SUPABASE_SERVICE_ROLE_KEY` sin exponerla al navegador.
+
 Cuando un admin toca `Consultar`, el panel intenta leer lo liviano disponible, como database size, Storage y usuarios activos aproximados. Egress, Log ingestion y Log Query quedan indicados como datos de dashboard porque no conviene consultarlos desde la app.
 
 `VERCEL_ANALYTICS_TOKEN` y `VERCEL_ANALYTICS_PROJECT_ID` habilitan el boton manual de Vercel Analytics en `/admin`. `VERCEL_ANALYTICS_TEAM_ID` es opcional y solo hace falta si el proyecto pertenece a un team. El token es privado/server-side; no debe tener prefijo `PUBLIC_`.
+
+Administradores de respaldo configurados en Vercel:
+
+```env
+ADMIN_USER_IDS=
+ADMIN_EMAILS=
+```
+
+Ambas variables son privadas, opcionales y aceptan listas separadas por comas. `ADMIN_USER_IDS` es la referencia estable recomendada; `ADMIN_EMAILS` queda como respaldo operativo. Los roles administrables desde la web viven en `public.admin_users`, por lo que estas variables no deben usarse para reemplazar la gestión auditada ordinaria.
 
 Variables requeridas para Mercado Pago:
 
@@ -185,6 +203,7 @@ Archivos principales:
 - `docs/supabase-product-stock-publications.sql` migra esa reserva a cantidades, agrega stock, contratos permanentes/mensuales, snapshots de vendedor, carrito único por usuario y endurece las escrituras de productos para que pasen por APIs autenticadas.
 - `docs/supabase-admin-control.sql` agrega suspensión sin borrado, endurece los permisos de roles administrativos y devuelve su propia auditoría de instalación para la Etapa 2A.
 - `docs/supabase-profiles-search-path-hardening.sql` fija un `search_path` vacío en el trigger de actualización de perfiles. Fue aplicado y auditado remotamente el 15 de octubre de 2026: función y trigger existentes, y configuración segura confirmada.
+- `docs/supabase-distributed-rate-limit.sql` crea el contador atómico compartido, restringe tabla y RPC a `service_role`, agenda la limpieza de claves antiguas y devuelve una auditoría de instalación. Fue ejecutado y auditado remotamente el 16 de octubre de 2026: tabla existente, RLS activo, cron diario activo y RPC exclusiva de `service_role`.
 
 ## Documentación
 
@@ -219,11 +238,11 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 1. Completado por validación operativa del usuario: `/admin/usuarios` permite otorgar/quitar roles y suspender/restaurar cuentas con auditoría. No se repetirá sobre cuentas reales sólo para generar evidencia adicional.
 2. Completar la validación responsive y de filtros de `/admin/operaciones`. La vista ya fue desplegada y contrastada: revisó cuatro órdenes, retiró un falso positivo de stock agotado y, después del ajuste, informó cero registros a revisar y cero alertas críticas.
 3. Completar la revisión responsive y las variantes de contingencia de `/admin/mercadopago`. Su primera validación en producción confirmó dos vendedores conectados, identidades correcta/exceptuada, tokens vigentes y cero intentos locales pendientes. La pantalla no requiere SQL nuevo.
-4. Desplegar y validar la primera entrega de 2E: un acceso de una cuenta autenticada sin rol debe responder 403 y aparecer una sola vez en Trazabilidad como `Acceso administrativo rechazado`. No requiere SQL nuevo.
+4. Completado: 2E fue desplegada y validada con una cuenta autenticada sin rol. El panel ocultó controles y datos administrativos, mantuvo el rechazo 403 y Trazabilidad registró `Acceso administrativo rechazado`. No requirió SQL nuevo.
 5. Completar las variantes pendientes de diagnóstico OAuth en producción y conservar la excepción de identidad Mercado Pago documentada.
 6. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
 7. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
-8. Desplegar la expiración de preferencias nuevas, vencer de forma segura los enlaces históricos si todavía circulan, sustituir el rate limit en memoria por uno distribuido y decidir el redondeo del 1,5%. El cron local ya fue aplicado y auditado.
+8. Configurar opcionalmente `RATE_LIMIT_HASH_SECRET`, desplegar el código compatible y confirmar en `/admin` la fuente `distributed`. El SQL ya fue ejecutado y auditado; también quedan por decidir el redondeo del 1,5% y el tratamiento de enlaces históricos si todavía circulan.
 9. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
 
 ### Registro de la etapa 1 — Producto y operación funcional
@@ -266,10 +285,10 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 15 de octubre de 2026: 137 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 16 de octubre de 2026: 152 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
-- En Windows se observó `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel, después de compilar Astro. Revisar permisos de enlaces simbólicos; no confundir ese fallo con un error de la integración MP. `.nvmrc` fija Node 22.12.0.
-- La última compilación completa y el despliegue remoto no fueron verificados por el asistente. Un chequeo de sintaxis no sustituye el build ni una prueba en navegador.
+- En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.
+- El build local fue verificado; el despliegue remoto continúa bajo control del usuario y no fue ejecutado durante esta revisión.
 
 El contexto de Mercado Pago y las verificaciones pendientes se mantienen en [docs/CONTINUIDAD_MP_Y_PRODUCCION.md](docs/CONTINUIDAD_MP_Y_PRODUCCION.md).

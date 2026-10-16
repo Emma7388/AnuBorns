@@ -35,7 +35,7 @@ const fetchMercadoPagoAccount = async (accessToken) => {
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "mp-oauth-status",
       windowMs: 60_000,

@@ -42,7 +42,7 @@ const exchangeCodeForToken = async (code) => {
 };
 
 export const GET = async ({ request }) => {
-  const rate = checkRateLimit({
+  const rate = await checkRateLimit({
     request,
     routeKey: "mp-oauth-callback",
     windowMs: 60_000,

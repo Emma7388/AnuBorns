@@ -209,7 +209,11 @@ Se reforzaron límites por endpoint sensible:
 
 Los límites existentes en otros endpoints se mantienen.
 
-La implementación actual guarda los contadores en memoria. Reduce ráfagas dentro de una instancia, pero no constituye un límite global entre múltiples instancias serverless de Vercel. Sigue pendiente migrarla a almacenamiento distribuido.
+`src/lib/serverRateLimit.js` usa la RPC atómica `consume_api_rate_limit(...)` para compartir cada ventana entre todas las instancias serverless. La clave persistida es un HMAC/SHA-256 de ruta e identidad de red: no se guardan IPs, emails ni tokens en texto plano. `anon` y `authenticated` no pueden leer la tabla ni ejecutar la RPC; sólo el backend con `service_role` puede consumirla.
+
+`docs/supabase-distributed-rate-limit.sql` crea la tabla con RLS, la RPC, permisos server-only, limpieza diaria con `pg_cron` y auditoría final. El código conserva durante incidentes o despliegues graduales un respaldo local en memoria y vuelve a intentar Supabase después de 30 segundos. Ese respaldo evita inutilizar las APIs, pero el panel de salud lo marca como “Revisar” porque no es un límite global.
+
+Estado al 16 de octubre de 2026: la migración fue ejecutada y auditada. Supabase confirmó tabla existente, RLS activo, cron `jobid=2` activo con horario `37 3 * * *`, ejecución de la RPC para `service_role=true` y denegación para `authenticated=false` y `anon=false`. Falta desplegar el código y confirmar en `/admin` que la fuente informada sea `distributed`.
 
 ### OAuth Mercado Pago
 

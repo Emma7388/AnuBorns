@@ -8,6 +8,8 @@ El panel interno tiene cinco superficies:
 - `/admin/operaciones`: control global read-only de órdenes, entregas, auditoría de pagos y publicaciones inconsistentes.
 - `/admin/mercadopago`: control central read-only de vendedores, OAuth, identidad e intentos de pago con verificación externa manual.
 
+Desde la estabilización local del 16 de octubre de 2026, las entradas y los enlaces entre estas cinco superficies fuerzan una recarga completa. Es intencional: evita reutilizar referencias DOM de una visita anterior y hace que cada ingreso vuelva a consultar la autorización server-side. No agrega polling ni cambia la caché interna de una ficha 360 mientras el usuario permanece en `/admin/usuarios`.
+
 ## Etapa 2A — Control administrativo base
 
 Implementada y desplegada desde el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día. El usuario confirmó después que las acciones de roles, suspensión y restauración funcionan en producción; no se repetirán sobre cuentas reales únicamente para generar evidencia adicional.
@@ -73,7 +75,7 @@ El botón `Verificar Mercado Pago` ejecuta bajo demanda y con concurrencia limit
 
 ## Etapa 2E — Trazabilidad de permisos
 
-Implementada localmente el 15 de octubre de 2026. Cuando un usuario autenticado sin rol intenta usar una API administrativa, la autorización conserva la respuesta 403 y registra de mejor esfuerzo un evento `admin_permission_denied` en `audit_logs`.
+Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario autenticado sin rol intenta usar una API administrativa, la autorización conserva la respuesta 403 y registra de mejor esfuerzo un evento `admin_permission_denied` en `audit_logs`.
 
 - El evento contiene usuario, ruta administrativa, estado rechazado y motivo normalizado; no guarda tokens ni se envía información sensible adicional al navegador.
 - Se deduplica en memoria y de mejor esfuerzo por usuario y ruta durante cinco minutos para reducir ruido y escrituras repetidas; en infraestructura serverless no constituye una garantía global entre instancias.
@@ -90,6 +92,15 @@ Implementada localmente el 15 de octubre de 2026. Cuando un usuario autenticado 
 - No se permite auto-suspensión ni auto-remoción de rol, suspender administradores, quitar el último administrador persistido ni retirar desde el panel un rol que proviene de Vercel. Las RPC `set_admin_user_role_controlled(...)` y `set_admin_user_suspension_controlled(...)` comparten un bloqueo transaccional: dos remociones simultáneas no pueden dejar la tabla sin administradores y tampoco se puede otorgar un rol mientras otra operación suspende la misma cuenta.
 - Una suspensión se comprueba en las APIs antes de autorizar cualquier operación. También aplica un `ban_duration` en Supabase Auth para impedir nuevos ingresos o renovaciones; un access token ya emitido sólo queda inmediatamente bloqueado en las rutas de la aplicación que usan la guarda server-side.
 - Las acciones peligrosas quedan fuera del alcance: no borrar usuarios, no reembolsar, no tocar pagos, no editar tokens.
+- La configuración de Vercel impide embeber el panel en iframes, evita inferencia MIME, restringe el referrer y deshabilita cámara, micrófono y geolocalización para toda la aplicación.
+- El tablero de salud comprueba la tabla del rate limit y la fuente usada por la propia solicitud. `distributed` confirma el contador global; `memory-fallback` muestra “Revisar” sin ocultar que la protección quedó temporalmente limitada a una instancia.
+
+## Verificación local de estabilización — 16 de octubre de 2026
+
+- 152 pruebas aprobadas y 0 fallos después de incorporar las regresiones del rate limit distribuido.
+- Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
+- Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
+- No se ejecutaron despliegues, mutaciones remotas, cobros, reembolsos ni SQL durante esta pasada.
 
 ## Estados
 
@@ -115,6 +126,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - `SUPABASE_URL`.
 - `SUPABASE_SERVICE_ROLE_KEY`.
 - Cliente server disponible.
+- Tabla y operación de rate limit distribuido. `docs/supabase-distributed-rate-limit.sql` fue aplicado el 16 de octubre y auditado con RLS activo, cron diario y ejecución exclusiva de `service_role`; resta confirmarlo con el código desplegado.
 - Mediciones read-only del servidor via Metrics API cuando estan configuradas `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY`.
 - La lectura de mediciones es manual desde el boton `Consultar`; la carga inicial del panel no llama a Metrics API.
 - Las mediciones visibles incluyen memoria, swap, disco, carga, I/O en curso, conexiones reportadas y reinicios de Postgres. El navegador no recibe la clave de metricas.
@@ -212,7 +224,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 4. Seguridad
    - Implementado localmente en 2A: ver y administrar admins activos.
    - Implementado localmente en 2A: ver eventos administrativos recientes de `audit_logs`.
-   - Implementado localmente en 2E: ver accesos administrativos rechazados de usuarios autenticados, deduplicados y sin alterar la respuesta 403.
+   - Desplegado y validado en 2E: ver accesos administrativos rechazados de usuarios autenticados, deduplicados y sin alterar la respuesta 403.
    - Implementado localmente en 2A: registrar cada acción mutante del panel con motivo.
 
 5. Configuracion
@@ -266,9 +278,9 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 ## Validación de la Etapa 2E
 
 1. No requiere SQL adicional: reutiliza `audit_logs` y el acceso server-side existente.
-2. Pendiente: desplegar el código e ingresar una vez a una API o pantalla administrativa desde una cuenta autenticada sin rol.
-3. Confirmar que la cuenta recibe 403 y que Trazabilidad muestra un evento `Acceso administrativo rechazado` con la ruta correspondiente.
-4. Repetir inmediatamente la misma ruta y confirmar que no crea otro evento durante cinco minutos.
+2. Completado: el código fue desplegado y una cuenta autenticada sin rol ingresó a `/admin/mercadopago`.
+3. Completado: la cuenta recibió el estado restringido sin controles ni datos administrativos y Trazabilidad mostró el evento `Acceso administrativo rechazado`.
+4. La deduplicación inmediata permanece cubierta por regresión automatizada y es de mejor esfuerzo entre instancias serverless.
 5. No probar con una cuenta anónima esperando trazabilidad: los rechazos sin identidad no se registran deliberadamente.
 
 ## Revisión de produccion

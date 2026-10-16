@@ -7,6 +7,7 @@ PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=<anon-public-key>
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+RATE_LIMIT_HASH_SECRET=<secreto-aleatorio-largo>
 SUPABASE_PROJECT_REF=<project-ref>
 SUPABASE_METRICS_SECRET_KEY=<secret-api-key-sb_secret>
 ```
@@ -20,6 +21,15 @@ VERCEL_ANALYTICS_TEAM_ID=<team-id-si-el-proyecto-es-de-un-team>
 ```
 
 `VERCEL_ANALYTICS_TOKEN` es privado y server-side. No usar prefijo `PUBLIC_`. `VERCEL_ANALYTICS_PROJECT_ID` puede omitirse solo si el runtime de Vercel expone `VERCEL_PROJECT_ID`, pero es mas claro cargarlo explicitamente. `VERCEL_ANALYTICS_TEAM_ID` es opcional; usarlo si el token consulta un proyecto dentro de un team.
+
+Para administradores de respaldo definidos en el entorno:
+
+```text
+ADMIN_USER_IDS=<uuid-1,uuid-2>
+ADMIN_EMAILS=<correo-1,correo-2>
+```
+
+Son variables privadas y opcionales. `ADMIN_USER_IDS` es preferible porque no cambia si se edita el correo. `ADMIN_EMAILS` sirve como respaldo operativo. Los roles cotidianos se administran de forma auditada en `public.admin_users`; una cuenta otorgada por Vercel no puede perder ese acceso desde el panel hasta retirar también la variable y redesplegar.
 
 Para que el checkout pueda crear preferencias validas de Mercado Pago, configurar tambien:
 
@@ -51,6 +61,8 @@ El cálculo vigente redondea al peso entero más cercano. Por eso ARS 7,50 se co
 Despues de guardar las variables, hacer un redeploy. Las variables `PUBLIC_*` se incrustan durante `astro build`, asi que un despliegue anterior seguira fallando aunque las variables se agreguen despues.
 
 La `SUPABASE_SERVICE_ROLE_KEY` es solo para APIs server-side en Vercel. No debe exponerse en codigo del navegador ni en variables con prefijo `PUBLIC_`.
+
+`RATE_LIMIT_HASH_SECRET` es privada y recomendada para el contador distribuido. Debe ser aleatoria, larga y estable entre despliegues; nunca debe usar prefijo `PUBLIC_`. Si no está configurada, el backend usa `SUPABASE_SERVICE_ROLE_KEY` como material criptográfico de respaldo. `docs/supabase-distributed-rate-limit.sql` fue ejecutado y auditado el 16 de octubre de 2026; después del despliegue compatible, `/admin` permite confirmar si el límite está realmente operando como distribuido o si cayó al respaldo temporal en memoria.
 
 `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` habilitan la consulta manual read-only del servidor Supabase en `/admin`. La clave recomendada es una Secret API key de Supabase (`sb_secret_...`) guardada como Secret en Vercel. No usar prefijo `PUBLIC_` ni imprimir su valor.
 

@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { renderAdminAccessState } from "../lib/adminPageAccess.js";
+import { escapeHtml } from "../lib/displayFormat.js";
 
 const adminRoot = document.querySelector(".ab-admin-dashboard");
 const statusElement = document.getElementById("admin-health-status");
@@ -29,14 +30,6 @@ const state = {
   checks: [],
   selectedProcess: "",
 };
-
-const escapeHtml = (value) =>
-  String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 
 const statusLabel = (status) => {
   if (status === "ok") return "Correcto";

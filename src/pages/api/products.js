@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { validateSellerMercadoPagoIdentity } from "../../lib/mercadopagoIdentity.js";
 
 export const POST = async ({ request }) => {
-  const rate = checkRateLimit({ request, routeKey: "products-create", windowMs: 60_000, max: 10 });
+  const rate = await checkRateLimit({ request, routeKey: "products-create", windowMs: 60_000, max: 10 });
   if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes." }, 429);
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return jsonResponse({ error: "Servicio no disponible." }, 503);

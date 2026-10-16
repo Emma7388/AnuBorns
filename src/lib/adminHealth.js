@@ -147,6 +147,13 @@ export const ADMIN_HEALTH_TABLE_CHECKS = [
     select: "user_id",
     detail: "Traza eventos de seguridad, perfil y cambios de pago.",
   },
+  {
+    table: "api_rate_limits",
+    area: "Seguridad",
+    label: "Rate limit distribuido",
+    select: "key_hash",
+    detail: "Comparte limites entre instancias serverless sin guardar IPs en texto plano.",
+  },
 ];
 
 export const ADMIN_HEALTH_OPERATION_CHECKS = [
@@ -209,6 +216,12 @@ export const ADMIN_HEALTH_OPERATION_CHECKS = [
     area: "Auditoria",
     label: "Trazabilidad",
     detail: "Los eventos criticos tienen tabla disponible para registro.",
+  },
+  {
+    id: "distributed-rate-limit",
+    area: "Seguridad",
+    label: "Rate limit distribuido",
+    detail: "Los limites de las APIs se comparten entre todas las instancias serverless.",
   },
   {
     id: "vercel-analytics",

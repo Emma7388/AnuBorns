@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 const PENDING_STATUSES = new Set(["pending", "in_process", "in_mediation", "authorized"]);
 
 export const GET = async ({ request }) => {
-  const rate = checkRateLimit({ request, routeKey: "seller-pending-payments", windowMs: 60_000, max: 20 });
+  const rate = await checkRateLimit({ request, routeKey: "seller-pending-payments", windowMs: 60_000, max: 20 });
   if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes." }, 429);
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return jsonResponse({ error: "Servicio no disponible." }, 503);

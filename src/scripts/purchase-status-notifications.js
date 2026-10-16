@@ -1,6 +1,7 @@
 /* Notificaciones globales para cambios de estado en compras del usuario. */
 import { supabase } from "../lib/supabaseClient";
 import { hasUsableAccessToken } from "../lib/sessionToken";
+import { readStorageValue, writeStorageValue } from "../lib/browserStorage.js";
 import {
   getPurchaseStatusMessage,
   getPurchaseStatusReadKey,
@@ -183,13 +184,13 @@ const refreshPurchaseStatusToast = async (session, { force = false } = {}) => {
   const unannouncedItems = notifiableUnreadItems.filter((item) => {
     const key = getPurchaseStatusReadKey(item);
     const storageKey = getPurchaseStatusToastStorageKey(item);
-    return key && !announcedPurchaseStatusKeys.has(key) && !window.sessionStorage.getItem(storageKey);
+    return key && !announcedPurchaseStatusKeys.has(key) && !readStorageValue(storageKey, { kind: "session" });
   });
   if (unannouncedItems.length === 0) return;
 
   unannouncedItems.forEach((item) => {
     announcedPurchaseStatusKeys.add(getPurchaseStatusReadKey(item));
-    window.sessionStorage.setItem(getPurchaseStatusToastStorageKey(item), "1");
+    writeStorageValue(getPurchaseStatusToastStorageKey(item), "1", { kind: "session" });
   });
   await markPurchaseStatusesReadOnServer(token, unannouncedItems);
   const latest = unannouncedItems[unannouncedItems.length - 1];

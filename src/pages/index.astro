@@ -9,7 +9,16 @@ import MainLayout from "../layouts/MainLayout.astro";
     <div class="hero-content">
       <div class="hero-brand">
         <div class="hero-logo-wrap">
-          <img class="hero-logo" src="/Logo_Final.webp" alt="Desoluciones.com" loading="eager" />
+          <img
+            class="hero-logo"
+            src="/Logo_Final.webp"
+            alt="Desoluciones.com"
+            width="1200"
+            height="1200"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+          />
         </div>
         <div class="hero-copy">
           <h1 class="hero-title--standard">Comprá y vendé en un solo lugar</h1>

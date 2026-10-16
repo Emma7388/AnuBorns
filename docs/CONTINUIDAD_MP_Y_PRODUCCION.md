@@ -1,6 +1,6 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 15 de octubre de 2026.
+Documento de traspaso del chat, actualizado el 16 de octubre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
@@ -14,7 +14,9 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - **Etapa 2C, control global: desplegada y contrastada en producción el 15 de octubre.** `/admin/operaciones` centraliza hasta 500 órdenes recientes y cruza despachos, catálogo y auditoría para señalar pendientes viejas, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Es exclusivamente read-only.
 - Primer contraste en producción: 4 órdenes revisadas, 2 aprobadas, 0 pendientes y 0 críticas. El único aviso provenía de un producto con stock agotado correctamente oculto; se retiró esa clasificación para no generar un falso positivo. El ajuste se desplegó con el commit `4e601d8` y la vista confirmó después 0 registros a revisar y 0 alertas críticas.
 - **Etapa 2D, Mercado Pago centralizado: desplegada y contrastada en producción el 15 de octubre.** `/admin/mercadopago` reúne vendedores, conexiones OAuth, vencimientos, identidad e intentos pendientes. La carga inicial usa sólo Supabase; `Verificar Mercado Pago` es una acción manual, limitada y read-only que diferencia preferencias sin pago, pagos pendientes reales, estados ya resueltos y caídas externas sin exponer tokens. La primera verificación mostró dos vendedores conectados: `1157622469` con excepción autorizada y `3527785006` con identidad coincidente; ambos tokens estaban vigentes y no había intentos locales pendientes ni alertas locales.
-- **Etapa 2E, trazabilidad de permisos: implementada localmente el 15 de octubre.** Los accesos a APIs administrativas de usuarios autenticados sin rol siguen respondiendo 403 y generan un evento sanitizado `admin_permission_denied`, con deduplicación de mejor esfuerzo por usuario/ruta durante cinco minutos en cada instancia. El evento aparece en Trazabilidad; un fallo al escribirlo nunca modifica el rechazo ni habilita acceso.
+- **Etapa 2E, trazabilidad de permisos: desplegada y validada el 15 de octubre.** Una cuenta autenticada sin rol recibió el estado visual de acceso restringido sin controles ni datos administrativos; la API conservó el rechazo 403 y el evento sanitizado `admin_permission_denied` apareció correctamente en Trazabilidad. La deduplicación sigue siendo de mejor esfuerzo por usuario/ruta durante cinco minutos en cada instancia, y un fallo al escribirla nunca modifica el rechazo ni habilita acceso.
+- **Estabilización transversal local — 16 de octubre.** Se centralizaron formateo y storage seguro, se consolidó CSS administrativo, se reservaron recargas completas para las rutas admin, se mejoraron carga y estabilidad visual de imágenes y se agregaron encabezados HTTP defensivos. Pasaron 146 pruebas, los chequeos de sintaxis/CSS/JSON y el build completo Astro/Vercel. No se hizo deploy ni se modificó Supabase.
+- **Rate limit distribuido — SQL aplicado el 16 de octubre.** Las APIs usan una RPC atómica compartida con claves HMAC/SHA-256 opacas, fallback local de 30 segundos y diagnóstico en `/admin`. La auditoría remota confirmó tabla y RLS activos, cron diario `jobid=2`, `service_role=true`, `authenticated=false` y `anon=false`. La suite completa pasó con 152 pruebas y el build Astro/Vercel finalizó correctamente. Falta desplegar el código compatible y confirmar la fuente `distributed`; esto aún no certifica producción.
 - **Etapa 3, madurez comercial: pendiente y todavía no iniciada.** El embudo, las políticas, reclamos, logística probatoria, cuotas y crecimiento se mantienen fuera del trabajo actual.
 
 #### Orden de trabajo de la etapa 2
@@ -22,11 +24,11 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 1. Desplegar y validar `/admin/operaciones`; revisar cada alerta contra Supabase antes de corregir datos.
 2. Completado: una compra posterior al hotfix quedó aprobada, persistida y sin alertas locales en 2C. Conservar la evidencia externa de Mercado Pago si se necesita volver a certificar el fee de esa operación.
 3. Completar la revisión responsive y los escenarios de contingencia de la Etapa 2D; su despliegue y primer contraste limpio ya fueron confirmados.
-4. Desplegar y validar 2E con una cuenta autenticada sin rol: debe obtener 403 y producir un único evento visible en Trazabilidad.
+4. Completado: 2E fue desplegada y validada con una cuenta autenticada sin rol; el rechazo ocultó la superficie administrativa y produjo el evento esperado en Trazabilidad.
 5. Completado por confirmación operativa del usuario: roles, suspensión y restauración de 2A funcionan en producción. No repetir sobre cuentas reales sólo para generar evidencia.
 6. Completar las variantes de 2B con cuenta sin MP, cuenta exceptuada y Mercado Pago temporalmente no verificable.
 7. Ejecutar pruebas controladas de pago mensual, comisión aplicable, concurrencia de stock, pendiente/rechazado y reembolso.
-6. Conservar evidencia de comprador, vendedor, plataforma, base y `audit_logs`; documentar cada resultado antes de cerrar la etapa.
+8. Conservar evidencia de comprador, vendedor, plataforma, base y `audit_logs`; documentar cada resultado antes de cerrar la etapa.
 
 #### Regularización de checkouts abandonados — 12 de octubre
 
@@ -52,7 +54,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - En `orders` y `order_items` sólo aparecen políticas de lectura del propietario; en `product_checkout_reservations` no aparece ninguna política de navegador. Las políticas de escritura directa retiradas no reaparecieron. `rls_forced=false` es el estado esperado para permitir la operación controlada del backend con `service_role` y no se considera un fallo.
 - Los índices de performance documentados aparecen en el ambiente remoto. `get_seller_sales_page(...)` y `create_checkout_order_atomic(...)` existen y permiten ejecución a `service_role`; `anon` y `authenticated` quedaron sin permiso. Los tres triggers de reserva aparecen habilitados con estado `O`.
 - Verificación local posterior al cambio: 64 pruebas aprobadas, chequeos de sintaxis JavaScript aprobados y `git diff --check` sin errores. Esto no reemplaza la prueba de concurrencia contra PostgreSQL remoto.
-- Verificación completa más reciente del árbol de trabajo, después de implementar la trazabilidad 2E: 137 pruebas aprobadas y 0 fallos el 15 de octubre. La migración administrativa 2A fue ejecutada remotamente y devolvió dos administradores, cero suspensiones inválidas, RLS activo, ausencia de privilegios para `authenticated` y ambas RPC limitadas a `service_role`. Las Etapas 2B, 2C, 2D y 2E no agregan SQL. El usuario conserva a su cargo build y despliegue.
+- Verificación completa más reciente del árbol de trabajo: 152 pruebas aprobadas y 0 fallos el 16 de octubre. Las migraciones administrativa 2A y del rate limit fueron ejecutadas remotamente y auditadas con RLS activo y RPC limitadas a `service_role`. El usuario conserva a su cargo commit, push, SQL y despliegue.
 
 #### Incidente de checkout y hotfix — 12 de octubre
 
@@ -166,6 +168,7 @@ Clasificación orientativa de los valores (no es un relevamiento actual de Verce
 | PUBLIC_SUPABASE_ANON_KEY | Config: clave pública anon/publishable, nunca secret/service role |
 | SUPABASE_URL | Config: URL |
 | SUPABASE_SERVICE_ROLE_KEY | Secret: sólo backend |
+| RATE_LIMIT_HASH_SECRET | Secret opcional recomendado: HMAC estable del rate limit distribuido |
 | SITE_URL | Config: URL |
 | MERCADOPAGO_CLIENT_ID | Config: identificador de aplicación |
 | MERCADOPAGO_CLIENT_SECRET | Secret |
@@ -307,4 +310,4 @@ No declararlos cerrados en producción hasta desplegar el código compatible, pr
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada; 2A fue validada por el usuario y 2B/2C/2D están desplegadas. 2C quedó en 0 registros a revisar; 2D confirmó dos vendedores conectados, identidad correcta/exceptuada, tokens vigentes y cero intentos locales pendientes. 2E implementó localmente auditoría deduplicada de mejor esfuerzo para accesos admin rechazados sin alterar el 403. El hotfix atómico quedó validado por una compra posterior aprobada. La suite tiene 137 pruebas aprobadas. Falta desplegar y validar 2E, completar variantes de contingencia, revisar responsive y ejecutar el reembolso real. Yo manejo SQL, build, commit, push y despliegue.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md. La etapa funcional quedó cerrada; 2A fue validada por el usuario y 2B/2C/2D están desplegadas. 2C quedó en 0 registros a revisar; 2D confirmó dos vendedores conectados, identidad correcta/exceptuada, tokens vigentes y cero intentos locales pendientes. 2E quedó desplegada y validada: una cuenta sin rol recibió 403, no vio controles administrativos y su intento apareció en Trazabilidad. El hotfix atómico quedó validado por una compra posterior aprobada. El rate limit distribuido quedó preparado, su SQL fue auditado y la suite pasó 152 pruebas; falta desplegarlo y confirmar la fuente `distributed`. También faltan variantes de contingencia, responsive y el reembolso real. El usuario controla SQL, commit, push y despliegue.»

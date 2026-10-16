@@ -1,12 +1,16 @@
 # Guía de arquitectura
 
-Actualizado el 15 de octubre de 2026.
+Actualizado el 16 de octubre de 2026.
 
 AnuBorns es una aplicación Astro 6 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
 ## Estado de evolución
 
-La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66`. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A está desplegada y su migración fue aplicada y auditada; la subetapa 2B fue validada visualmente en producción el 15 de octubre. La primera entrega de 2C también fue desplegada y contrastada ese día: su vista global read-only revisó cuatro órdenes y quedó en cero registros a revisar después de retirar un falso positivo de stock agotado. La Etapa 2D fue desplegada y su primer contraste confirmó dos vendedores conectados, la excepción `1157622469`, una identidad coincidente, tokens vigentes y ausencia de intentos locales pendientes. La primera entrega de 2E agrega localmente auditoría best-effort y deduplicada de accesos administrativos rechazados. El hotfix de la RPC atómica fue aplicado y auditado el 12 de octubre y una compra posterior quedó aprobada, persistida y sin alertas locales. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción.
+La etapa 1 de implementación funcional se cerró en código el 11 de octubre de 2026 con el commit `e7b9f66`. El proyecto se encuentra actualmente en la etapa 2: base de datos, panel administrativo, seguridad operativa y validación de producción. La subetapa 2A está desplegada y su migración fue aplicada y auditada; la subetapa 2B fue validada visualmente en producción el 15 de octubre. La primera entrega de 2C también fue desplegada y contrastada ese día: su vista global read-only revisó cuatro órdenes y quedó en cero registros a revisar después de retirar un falso positivo de stock agotado. La Etapa 2D fue desplegada y su primer contraste confirmó dos vendedores conectados, la excepción `1157622469`, una identidad coincidente, tokens vigentes y ausencia de intentos locales pendientes. La Etapa 2E fue desplegada y validada el 15 de octubre: el rechazo visual ocultó controles y datos administrativos, conservó el 403 y el evento deduplicado de mejor esfuerzo quedó visible en Trazabilidad. El hotfix de la RPC atómica fue aplicado y auditado el 12 de octubre y una compra posterior quedó aprobada, persistida y sin alertas locales. La etapa 3 de madurez comercial permanece aplazada hasta estabilizar producción.
+
+El 16 de octubre se realizó una estabilización local transversal sin despliegue: se centralizaron formato de datos y acceso tolerante a storage, se consolidaron reglas CSS administrativas, se reforzó la navegación del panel contra módulos ligados a DOM obsoleto y se añadieron defensas HTTP globales. La suite completa aprobó 146 pruebas y el build Astro/Vercel finalizó correctamente.
+
+La siguiente mejora local reemplazó el rate limit por una RPC atómica compartida entre instancias. El backend persiste sólo claves HMAC/SHA-256, reintenta después de una indisponibilidad y usa memoria únicamente como modo degradado. La migración y el despliegue siguen a cargo del usuario; hasta entonces no debe describirse como activa en producción.
 
 ## Stack acordado
 
@@ -20,6 +24,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 - Supabase Database guarda categorías, productos, carritos, órdenes, ventas y despachos.
 - Supabase Storage almacena imágenes de productos y avatares.
 - Las rutas de `src/pages/api/` autentican al usuario y usan el cliente admin sólo en el servidor.
+- `src/lib/serverRateLimit.js` protege las APIs mediante `consume_api_rate_limit(...)`, una RPC atómica de Supabase. La tabla no guarda identificadores en claro y sólo `service_role` puede leerla o consumir la función. Un fallback local de 30 segundos mantiene disponibilidad durante una caída, pero el panel administrativo lo expone como estado degradado.
 - `src/lib/serverAuth.js` consulta `public.admin_user_controls` después de validar el Bearer token y rechaza cuentas suspendidas antes de ejecutar la operación solicitada. La ausencia temporal de la tabla se tolera sólo para permitir el despliegue gradual; los botones administrativos permanecen bloqueados hasta aplicar la migración.
 - `src/lib/adminAuth.js`, `src/lib/adminAccess.js` y `src/lib/adminAudit.js` separan autenticación, reglas de rol/suspensión y escritura auditada. Los permisos pueden venir de `admin_users` o Vercel, pero sólo los roles persistidos en base son removibles desde el panel. Un usuario autenticado sin rol conserva la respuesta 403; cada instancia intenta generar como máximo un evento `admin_permission_denied` por ruta cada cinco minutos, y un fallo de auditoría nunca habilita el acceso. `src/lib/adminPageAccess.js` unifica la respuesta visual de las cinco vistas administrativas y retira sus controles y datos vacíos cuando la sesión no existe o el rol es insuficiente.
 - El checkout permite un vendedor por orden y la preferencia se crea con su conexión Mercado Pago.
@@ -58,10 +63,13 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 - `docs/supabase-profiles-search-path-hardening.sql`: endurecimiento idempotente de `set_profiles_updated_at()` con `search_path` vacío. Fue aplicado y auditado remotamente el 15 de octubre de 2026 sin modificar perfiles.
 - `docs/supabase-checkout-ordinality-hotfix.sql`: reemplazo idempotente de `create_checkout_order_atomic(...)` que corrige la combinación de `jsonb_to_recordset` y `WITH ORDINALITY`, restaura permisos server-only y devuelve una auditoría sin escribir datos comerciales.
 - `docs/supabase-abandoned-checkouts-cron.sql`: función server-only y tarea `pg_cron` horaria para regularizar checkouts vencidos sin borrar órdenes; aplicada y auditada con `jobid=1`, cero vencidas restantes y permisos exclusivos de `service_role`.
+- `docs/supabase-distributed-rate-limit.sql`: tabla RLS, RPC atómica server-only y limpieza diaria de claves opacas del rate limit. Fue ejecutada y auditada remotamente el 16 de octubre de 2026.
 - `src/lib/adminUserOverview.js` y `/api/admin/users/[userId]/overview`: agregación read-only de publicaciones, pagos mensuales, compras, ventas, cumplimiento, actividad e identidad Mercado Pago para la Etapa 2B. La API se consulta sólo al seleccionar o actualizar una ficha y nunca devuelve tokens OAuth.
 - `src/lib/adminOperations.js`, `/api/admin/operations` y `/admin/operaciones`: clasificación global read-only de órdenes, pagos incompletos, movimientos auditados, entregas demoradas y publicaciones inconsistentes para la Etapa 2C.
 - `src/lib/adminMercadoPago.js`, `/api/admin/mercadopago` y `/admin/mercadopago`: control central read-only de vendedores, OAuth, identidad e intentos pendientes para la Etapa 2D. La carga inicial no consulta Mercado Pago; la verificación en vivo requiere una acción manual y nunca devuelve tokens.
 - `src/lib/userProfile.js`: perfil privado del usuario con caché corta e invalidación al editar para evitar lecturas repetidas de `profiles` en navegación Astro.
+- `src/lib/browserStorage.js`: acceso compartido y tolerante a `localStorage`/`sessionStorage`, con fallbacks para SSR, modo privado, cuotas agotadas y JSON inválido.
+- `src/lib/displayFormat.js`: escape HTML, referencias cortas y formateadores `Intl` cacheados para evitar implementaciones duplicadas en el panel.
 - `src/lib/sessionToken.js`: validación liviana de tokens de sesión antes de lanzar consultas privadas de fondo.
 - `src/lib/checkoutServer.js`: validación de productos, vendedor, entrega y total antes de cobrar.
 - `src/lib/checkoutPendingOrders.js`: TTL compartido, vencimiento explícito de la preferencia y limpieza por actividad como respaldo del cron.
@@ -82,7 +90,7 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 
 ### Verificación
 
-`node --test` valida la suite completa; la última ejecución observada el 15 de octubre de 2026 aprobó 137 pruebas sin fallos. Las regresiones cubren la sintaxis correcta de `WITH ORDINALITY`, el TTL de preferencias, la ausencia de borrado en el cron, la clasificación de anomalías 2C, la separación entre datos locales y verificación externa de Mercado Pago en 2D, el rechazo 403 aun si falla su auditoría y la deduplicación local de 2E. La migración administrativa 2A quedó auditada con RLS activo y RPC exclusivas de `service_role`; 2B, 2C, 2D y 2E reutilizan acceso exclusivamente server-side. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
+`node --test` valida la suite completa; la última ejecución observada el 16 de octubre de 2026 aprobó 152 pruebas sin fallos y el build Astro/Vercel finalizó correctamente. Las regresiones cubren además los formateadores compartidos, el comportamiento seguro de storage bloqueado o corrupto, los encabezados de despliegue, la recarga segura del panel y el rate limit distribuido/fallback. Las migraciones administrativa 2A y del limitador quedaron auditadas con RLS activo y RPC exclusivas de `service_role`. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
 
 ### Flujos visibles
 
@@ -96,6 +104,8 @@ La etapa 1 de implementación funcional se cerró en código el 11 de octubre de
 
 Las pantallas de detalle preservan la ruta de origen mediante el parámetro interno `from`. `MainLayout` valida que sea una ruta local antes de usarla. Las rutas antiguas de funciones retiradas redirigen a una pantalla vigente, sin mostrar contenido ni formularios obsoletos.
 
+Las entradas y enlaces internos de `/admin` usan recarga completa de forma deliberada. Así cada superficie vuelve a enlazar sus referencias DOM y revalida sesión, suspensión y rol en el servidor, evitando conservar controles o datos de una visita administrativa anterior. La navegación pública mantiene las transiciones de Astro.
+
 ## Seguridad
 
 - Las claves con privilegios se mantienen sólo en variables privadas de Vercel y en el servidor.
@@ -103,7 +113,8 @@ Las pantallas de detalle preservan la ruta de origen mediante el parámetro inte
 - Las operaciones sensibles validan sesión y propietario en API antes de modificar datos.
 - Las APIs que reciben JSON usan límite de cuerpo y errores controlados para evitar cargas excesivas.
 - Las respuestas JSON comunes salen con `Cache-Control: no-store` y `X-Content-Type-Options: nosniff`.
+- `vercel.json` aplica además `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` y una `Permissions-Policy` que deshabilita cámara, micrófono y geolocalización.
 - El estado OAuth de Mercado Pago se firma con secreto privado y no tiene fallback fijo de desarrollo.
-- El rate limit actual es en memoria y sólo mitiga ráfagas por instancia; su reemplazo distribuido sigue pendiente para una garantía global en Vercel.
+- El reemplazo distribuido del rate limit está terminado localmente y su SQL fue auditado remotamente. Falta desplegar el código y confirmar en el panel que no está usando `memory-fallback`.
 - Las configuraciones y políticas de Supabase se documentan en los scripts de seguridad bajo `docs/`.
 - El detalle operativo de pagos y reembolsos está en `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`.

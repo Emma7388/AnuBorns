@@ -92,7 +92,8 @@ const autoHideChrome = pathname === "/";
         footerBack.setAttribute("tabindex", showBack ? "0" : "-1");
         footerBack.setAttribute("href", useHistoryBack ? "/" : backHref);
         footerBack.setAttribute("data-ab-back", useHistoryBack ? "history" : "link");
-        footerBack.removeAttribute("data-astro-reload");
+        const requiresFullReload = currentPath.startsWith("/admin") || backHref.startsWith("/admin");
+        footerBack.toggleAttribute("data-astro-reload", requiresFullReload);
       }
 
       bindBackLinks();

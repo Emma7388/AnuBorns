@@ -5,6 +5,7 @@ import { postAudit } from "./audit.js";
 import { getCartCount, syncCartOnLogin } from "../lib/cart";
 import { fetchSalesSummary, invalidateSalesSummaryCache } from "../lib/salesSummaryClient";
 import { hasUsableAccessToken } from "../lib/sessionToken";
+import { readStorageValue, writeStorageValue } from "../lib/browserStorage.js";
 import { uploadPendingAvatar, withAvatarUrl } from "../lib/pendingAvatar";
 import {
   fetchUserProfile,
@@ -295,8 +296,8 @@ const showSalesNoticeToast = ({ userId, cursor, message }) => {
   const safeCursor = String(cursor ?? "").trim();
   if (!userId || !safeCursor || window.location.pathname === "/mis-ventas") return;
   const storageKey = getSalesNoticeShownStorageKey(userId, safeCursor);
-  if (window.sessionStorage.getItem(storageKey)) return;
-  window.sessionStorage.setItem(storageKey, "1");
+  if (readStorageValue(storageKey, { kind: "session" })) return;
+  writeStorageValue(storageKey, "1", { kind: "session" });
 
   ensureSalesNoticeToast();
   if (!salesNoticeToast) return;
@@ -340,7 +341,7 @@ const refreshSalesNotification = async (session) => {
     }
 
     const storageKey = getLastSeenSaleStorageKey(userId);
-    const previousCursor = window.localStorage.getItem(storageKey);
+    const previousCursor = readStorageValue(storageKey);
     if (!previousCursor) {
       setSalesNotificationVisible(true);
       showSalesNoticeToast({

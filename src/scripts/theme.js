@@ -1,4 +1,5 @@
 /* Tema global: claro u oscuro. */
+import { readStorageValue, writeStorageValue } from "../lib/browserStorage.js";
 const THEME_STORAGE_KEY = "ab_theme";
 const THEMES = ["light", "dark"];
 
@@ -9,19 +10,11 @@ const getCurrentTheme = () => {
 };
 
 const getSavedTheme = () => {
-  try {
-    return normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY));
-  } catch {
-    return getCurrentTheme();
-  }
+  return normalizeTheme(readStorageValue(THEME_STORAGE_KEY, { fallback: getCurrentTheme() }));
 };
 
 const saveTheme = (theme) => {
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {
-    // Ignora errores de almacenamiento privado o bloqueado.
-  }
+  writeStorageValue(THEME_STORAGE_KEY, theme);
 };
 
 const applyTheme = (theme) => {

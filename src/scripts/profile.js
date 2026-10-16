@@ -1,6 +1,7 @@
 import { getPendingSaleItems } from "../lib/salePendingAction.js";
 /* Perfil de usuario: lectura, edición y avatar. */
 import { supabase } from "../lib/supabaseClient";
+import { readStorageValue, writeStorageValue } from "../lib/browserStorage.js";
 import { postAudit } from "./audit.js";
 import { fetchSalesSummary } from "../lib/salesSummaryClient";
 import { shouldNotifyPurchaseStatus } from "../lib/purchaseStatusMessages";
@@ -565,7 +566,7 @@ const refreshSalesNotification = async (session) => {
       return;
     }
     const key = `${LAST_SEEN_SALE_KEY}:${userId}`;
-    const previousCursor = window.localStorage.getItem(key);
+    const previousCursor = readStorageValue(key);
     if (!previousCursor) {
       setSalesDotVisible(true);
       return;
@@ -664,7 +665,7 @@ async function handleProfileFormSubmit(event) {
         ? "Datos guardados, pero no se pudo sincronizar el nombre con Auth."
         : "Datos actualizados.";
     }
-    if (!metadataError) window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
+    if (!metadataError) writeStorageValue("ab_auth_refresh", Date.now());
     postAudit("profile_update").catch(() => {});
     setFormVisible(false);
     loadProfile();
@@ -724,7 +725,7 @@ async function handleAvatarChange(event) {
       await supabase.auth.updateUser({
         data: { avatar_url: avatarUrl },
       });
-      window.localStorage.setItem("ab_auth_refresh", String(Date.now()));
+      writeStorageValue("ab_auth_refresh", Date.now());
       clearAvatarPreviewUrl();
       if (avatarImg) {
         avatarImg.src = avatarUrl;

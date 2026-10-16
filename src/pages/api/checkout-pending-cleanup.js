@@ -8,7 +8,7 @@ import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "checkout-pending-cleanup",
       windowMs: 60_000,

@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { readStorageJson, writeStorageJson } from "../lib/browserStorage.js";
 
 const STORAGE_KEY = "ab_seen_products_by_category_v1";
 let notificationSyncId = 0;
@@ -22,24 +23,13 @@ const getStorageKey = (userId) => `${STORAGE_KEY}:${userId}`;
 
 const readSeenMap = (userId) => {
   if (!userId) return {};
-  try {
-    const key = getStorageKey(userId);
-    const raw = window.localStorage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = readStorageJson(getStorageKey(userId), { fallback: {} });
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
 };
 
 const writeSeenMap = (userId, value) => {
   if (!userId) return;
-  try {
-    const key = getStorageKey(userId);
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Ignora errores de storage para no interrumpir la navegación.
-  }
+  writeStorageJson(getStorageKey(userId), value);
 };
 
 const extractCategorySlug = (product) => {

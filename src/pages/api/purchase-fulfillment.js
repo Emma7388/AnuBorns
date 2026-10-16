@@ -49,7 +49,7 @@ const fallbackFulfillmentStatus = (order) => {
 };
 
 const getRouteContext = async ({ request, routeKey, max }) => {
-  const rate = checkRateLimit({
+  const rate = await checkRateLimit({
     request,
     routeKey,
     windowMs: 60_000,

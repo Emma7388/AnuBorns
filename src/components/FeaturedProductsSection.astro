@@ -90,6 +90,7 @@ const serializeDelivery = (value) =>
             src={item.imageUrl}
             alt={item.title || "Producto"}
             loading="lazy"
+            decoding="async"
           />
           <div class="ab-category-product-heading">
             <h2>{item.title || "Producto"}</h2>

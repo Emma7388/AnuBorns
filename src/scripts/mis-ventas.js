@@ -7,6 +7,7 @@ import { fetchSalesList } from "../lib/salesListClient";
 import { purchaseDetailStyles } from "../lib/purchaseDetailStyles.js";
 import { formatProductLocation } from "../lib/productLocation.js";
 import { formatPublicationRemaining, getMonthlyPublicationTiming } from "../lib/publicationTiming.js";
+import { writeStorageValue } from "../lib/browserStorage.js";
 
 /* Referencias DOM. */
 let soldProductsList = document.getElementById("my-sold-products-list");
@@ -460,7 +461,7 @@ const markLatestSaleSeen = (soldItems) => {
   if (!latestSale) return;
   const latestCursor = buildSalesNotificationCursor(soldItems, latestSale);
   if (!latestCursor) return;
-  window.localStorage.setItem(getLastSeenSaleStorageKey(), latestCursor);
+  writeStorageValue(getLastSeenSaleStorageKey(), latestCursor);
 };
 
 const isSalesPageActive = () => {
@@ -804,6 +805,7 @@ const renderSoldProducts = (products) => {
           src="${sale.image}"
           alt="${sale.title}"
           loading="lazy"
+          decoding="async"
         />
         <div class="ab-category-product-heading">
           <h2>${sale.title}</h2>
@@ -1000,6 +1002,7 @@ const renderMyProducts = (products) => {
         src="${safeImageUrl}"
         alt="${safeTitle}"
         loading="lazy"
+        decoding="async"
       />
       <div class="ab-category-product-heading">
         <h2>${safeTitle}</h2>

@@ -1,5 +1,12 @@
 import { supabase } from "../lib/supabaseClient";
 import { renderAdminAccessState } from "../lib/adminPageAccess.js";
+import {
+  cleanText,
+  escapeHtml as escapeText,
+  formatCurrency,
+  formatDateTime,
+  shortId,
+} from "../lib/displayFormat.js";
 
 const adminRoot = document.querySelector(".ab-admin-mercadopago");
 const statusElement = document.getElementById("admin-mp-status");
@@ -19,25 +26,10 @@ const visibleCount = document.getElementById("admin-mp-visible-count");
 
 let snapshot = { verification_mode: "local", summary: {}, sellers: [] };
 
-const clean = (value) => String(value ?? "").trim();
-const escapeHtml = (value) => clean(value)
-  .replaceAll("&", "&amp;")
-  .replaceAll("<", "&lt;")
-  .replaceAll(">", "&gt;")
-  .replaceAll('"', "&quot;")
-  .replaceAll("'", "&#039;");
-const formatDate = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(date);
-};
-const formatMoney = (value, currency = "ARS") => new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: clean(currency) || "ARS",
-  maximumFractionDigits: 2,
-}).format(Number(value) || 0);
-const shortId = (value) => clean(value).slice(0, 8).toUpperCase() || "SIN ID";
+const clean = cleanText;
+const escapeHtml = (value) => escapeText(clean(value));
+const formatDate = (value) => formatDateTime(value);
+const formatMoney = (value, currency = "ARS") => formatCurrency(value, { currency });
 
 const connectionLabel = (state) => ({
   active: "Conectado",

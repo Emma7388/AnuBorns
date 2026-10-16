@@ -14,7 +14,7 @@ const redirectUri = process.env.MERCADOPAGO_OAUTH_REDIRECT_URI;
 /** @type {import("astro").APIRoute} */
 export const POST = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "mp-oauth-connect",
       windowMs: 60_000,

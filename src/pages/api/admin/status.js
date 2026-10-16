@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "admin-status",
       windowMs: 60_000,

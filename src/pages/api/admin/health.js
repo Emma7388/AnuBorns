@@ -57,7 +57,13 @@ const getCheck = (checks, id) => checks.find((check) => check.id === id);
 const isOk = (checks, id) => getCheck(checks, id)?.status === "ok";
 const tableOk = (checks, table) => isOk(checks, `table-${table}`);
 
-const buildOperationChecks = ({ envChecks, tableChecks, supabaseConfigured, supabaseAdmin }) => {
+const buildOperationChecks = ({
+  envChecks,
+  tableChecks,
+  supabaseConfigured,
+  supabaseAdmin,
+  rateLimitSource,
+}) => {
   const operationChecks = [];
   const envOk = (key) => isOk(envChecks, `env-${key.toLowerCase()}`);
 
@@ -161,6 +167,20 @@ const buildOperationChecks = ({ envChecks, tableChecks, supabaseConfigured, supa
     action: tableOk(tableChecks, "audit_logs") ? "" : "Ejecutar/revisar docs/audit-log.sql.",
   }));
 
+  const distributedRateLimitReady =
+    rateLimitSource === "distributed" && tableOk(tableChecks, "api_rate_limits");
+  operationChecks.push(buildHealthCheck({
+    ...ADMIN_HEALTH_OPERATION_CHECKS.find((check) => check.id === "distributed-rate-limit"),
+    status: distributedRateLimitReady ? "ok" : "warning",
+    detail: distributedRateLimitReady
+      ? "El limite de solicitudes se esta aplicando de forma atomica y compartida en Supabase."
+      : "Las APIs estan usando el respaldo temporal en memoria; el limite aun no es global.",
+    action: distributedRateLimitReady
+      ? ""
+      : "Ejecutar/revisar docs/supabase-distributed-rate-limit.sql y volver a consultar el panel.",
+    meta: { source: rateLimitSource },
+  }));
+
   operationChecks.push(evaluateVercelAnalyticsConfig());
 
   return operationChecks;
@@ -169,7 +189,7 @@ const buildOperationChecks = ({ envChecks, tableChecks, supabaseConfigured, supa
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "admin-health",
       windowMs: 60_000,
@@ -195,6 +215,7 @@ export const GET = async ({ request }) => {
       tableChecks,
       supabaseConfigured: config.missing.length === 0,
       supabaseAdmin,
+      rateLimitSource: rate.source,
     });
     const checks = [...operationChecks, ...tableChecks, ...envChecks];
 

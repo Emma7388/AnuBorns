@@ -192,6 +192,7 @@ const resolveCategoryName = (product) => {
                     src={product.image_url || "/logo2.svg"}
                     alt={product.title}
                     loading="lazy"
+                    decoding="async"
                   />
                   <div class="ab-category-product-heading">
                     <h2>{product.title}</h2>

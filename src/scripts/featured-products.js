@@ -260,6 +260,7 @@ const renderFeaturedSection = (section, items) => {
         src="${escapeHtml(item?.imageUrl ?? "/logo2.svg")}"
         alt="${escapeHtml(item?.title ?? "Producto")}"
         loading="lazy"
+        decoding="async"
       />
       <div class="ab-category-product-heading">
         <h2>${escapeHtml(item?.title ?? "Producto")}</h2>

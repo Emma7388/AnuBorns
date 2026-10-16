@@ -13,7 +13,7 @@ const loginHref = `/login?returnTo=${encodeURIComponent(currentPath)}`;
     <div class="brand-row header-zone header-zone--brand">
       <!-- Marca / logo -->
       <a href="/" class="logo" data-astro-reload aria-label="Ir al inicio">
-        <img src="/Logo_Final.webp" alt="Desoluciones.com" />
+        <img src="/Logo_Final.webp" alt="Desoluciones.com" width="1200" height="1200" decoding="async" />
       </a>
     </div>
 
@@ -82,6 +82,7 @@ const loginHref = `/login?returnTo=${encodeURIComponent(currentPath)}`;
           class="nav-login nav-login--ghost nav-login--icon ab-is-hidden"
           href="/admin/"
           id="admin-platform-link"
+          data-astro-reload
           aria-label="Ir al panel admin"
           title="Panel admin"
           aria-disabled="true"

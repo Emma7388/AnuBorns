@@ -96,7 +96,7 @@ const verifyPayment = async (order, accountMap) => {
 export const GET = async ({ request, url }) => {
   try {
     const verifyLive = url.searchParams.get("verify") === "1";
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: verifyLive ? "admin-mercadopago-live" : "admin-mercadopago",
       windowMs: 60_000,

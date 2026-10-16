@@ -1,4 +1,10 @@
 /* Preferencias locales de envío por proveedor para carrito y checkout. */
+import {
+  readStorageJson,
+  readStorageValue,
+  removeStorageValue,
+  writeStorageJson,
+} from "./browserStorage.js";
 
 const SHIPPING_KEY = "ab_shipping_preference_v1";
 
@@ -14,13 +20,8 @@ const normalizePreference = (value) => ({
 
 /* Lee el storage tolerando JSON corrupto o entornos sin window. */
 const readRawPreference = () => {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(SHIPPING_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  const parsed = readStorageJson(SHIPPING_KEY, { fallback: {} });
+  return parsed && typeof parsed === "object" ? parsed : {};
 };
 
 /* Notifica cambios una sola vez por window para evitar renders duplicados. */
@@ -37,10 +38,8 @@ export const getShippingPreference = () => {
 
 /* Guarda preferencia simple y avisa a la UI. */
 export const setShippingPreference = (preference) => {
-  if (typeof window === "undefined") return;
   const next = normalizePreference(preference);
-  window.localStorage.setItem(SHIPPING_KEY, JSON.stringify(next));
-  emitShippingPreferenceUpdate(next);
+  if (writeStorageJson(SHIPPING_KEY, next)) emitShippingPreferenceUpdate(next);
 };
 
 /* Devuelve preferencias agrupadas por proveedor. */
@@ -75,8 +74,7 @@ export const setProviderShippingPreference = (providerKey, preference) => {
       },
     },
   };
-  window.localStorage.setItem(SHIPPING_KEY, JSON.stringify(next));
-  emitShippingPreferenceUpdate(next);
+  if (writeStorageJson(SHIPPING_KEY, next)) emitShippingPreferenceUpdate(next);
 };
 
 /* Elimina preferencias de proveedores que ya no están en el carrito. */
@@ -85,7 +83,7 @@ export const clearUnavailableProviderShippingPreferences = (activeProviderKeys) 
   const active = new Set(activeProviderKeys);
   const groups = getProviderShippingPreferences();
   const nextGroups = Object.fromEntries(Object.entries(groups).filter(([key]) => active.has(key)));
-  window.localStorage.setItem(SHIPPING_KEY, JSON.stringify({ groups: nextGroups }));
+  writeStorageJson(SHIPPING_KEY, { groups: nextGroups });
 };
 
 /* Lista solo los proveedores que solicitaron envío. */
@@ -96,10 +94,8 @@ export const getRequestedProviderShippingPreferences = () =>
 
 /* Limpia preferencias de forma idempotente para no disparar loops de render. */
 export const clearShippingPreference = () => {
-  if (typeof window === "undefined") return;
-  if (!window.localStorage.getItem(SHIPPING_KEY)) return;
-  window.localStorage.removeItem(SHIPPING_KEY);
-  emitShippingPreferenceUpdate();
+  if (readStorageValue(SHIPPING_KEY) === null) return;
+  if (removeStorageValue(SHIPPING_KEY)) emitShippingPreferenceUpdate();
 };
 
 /* Normaliza métodos de entrega para comparar retiro/envío. */

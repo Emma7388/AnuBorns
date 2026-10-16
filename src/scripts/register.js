@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
 import { PENDING_AVATAR_KEY } from "../lib/pendingAvatar";
 import { buildProfileAuthMetadata } from "../lib/profileAuthMetadata.js";
+import { writeStorageJson } from "../lib/browserStorage.js";
 import {
   clearPendingRegistrationProfile,
   savePendingRegistrationProfile,
@@ -193,7 +194,9 @@ const savePendingAvatar = async (file) => {
     dataUrl,
     savedAt: Date.now(),
   };
-  window.localStorage.setItem(PENDING_AVATAR_KEY, JSON.stringify(payload));
+  if (!writeStorageJson(PENDING_AVATAR_KEY, payload)) {
+    throw new Error("pending_avatar_storage_unavailable");
+  }
 };
 
 const clearAvatarPreview = () => {

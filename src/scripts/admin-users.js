@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { renderAdminAccessState } from "../lib/adminPageAccess.js";
+import { escapeHtml, formatCurrency, formatDateTime } from "../lib/displayFormat.js";
 
 const adminRoot = document.querySelector(".ab-admin-users");
 const searchInput = document.getElementById("admin-user-search");
@@ -53,23 +54,7 @@ const setStatus = (message) => {
   if (statusElement) statusElement.textContent = message;
 };
 
-const escapeHtml = (value) =>
-  String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
-const formatDate = (value) => {
-  if (!value) return "Sin dato";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Sin dato";
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
-};
+const formatDate = (value) => formatDateTime(value, { fallback: "Sin dato" });
 
 const fullName = (user) => {
   const profile = user?.profile ?? {};
@@ -82,13 +67,11 @@ const valueOrDash = (value) => {
 };
 
 const formatMoney = (value, currency = "ARS") => {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return "-";
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
+  return formatCurrency(value, {
     currency: String(currency || "ARS"),
+    fallback: "-",
     maximumFractionDigits: 2,
-  }).format(amount);
+  });
 };
 
 const statusLabel = (status) => ({

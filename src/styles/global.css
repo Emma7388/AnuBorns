@@ -128,6 +128,11 @@ body {
   background-color: var(--color-bg);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-base);
   font-weight: 600;
@@ -154,6 +159,22 @@ body {
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 :root[data-theme="dark"] body {

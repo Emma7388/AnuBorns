@@ -5,7 +5,7 @@ import { checkRateLimit } from "../../lib/serverRateLimit.js";
 
 export const GET = async ({ request }) => {
   try {
-    const rate = checkRateLimit({
+    const rate = await checkRateLimit({
       request,
       routeKey: "featured-products",
       windowMs: 60_000,

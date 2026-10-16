@@ -260,7 +260,7 @@ const getSellerSalesViaQueries = async (supabaseAdmin, { sellerId, from, to, pen
 /** @type {import("astro").APIRoute} */
 export const GET = async ({ request, url }) => {
   try {
-    const rate = checkRateLimit({ request, routeKey: "my-sales-list", windowMs: 60_000, max: 60 });
+    const rate = await checkRateLimit({ request, routeKey: "my-sales-list", windowMs: 60_000, max: 60 });
     if (!rate.allowed) return jsonResponse({ error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." }, 429);
 
     const supabaseAdmin = getSupabaseAdmin();
