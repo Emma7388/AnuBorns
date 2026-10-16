@@ -1,28 +1,16 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import AdminNavigation from "../../components/AdminNavigation.astro";
 import "../../styles/admin.css";
 ---
 
 <MainLayout title="Panel operativo" headerTitle="Panel operativo" backHref="/mis-datos">
+  <AdminNavigation>
   <section class="ab-dark-panel ab-admin-dashboard">
     <div class="ab-admin-dashboard__head">
       <div>
         <p class="ab-admin-dashboard__eyebrow">Estado interno</p>
         <h2>Operación AnuBorns</h2>
-      </div>
-      <div class="ab-admin-dashboard__actions">
-        <a class="ab-secondary-button" href="/admin/operaciones" data-astro-reload>
-          <span>Órdenes</span>
-        </a>
-        <a class="ab-secondary-button" href="/admin/mercadopago" data-astro-reload>
-          <span>Mercado Pago</span>
-        </a>
-        <a class="ab-secondary-button" href="/admin/administracion" data-astro-reload>
-          <span>Administración</span>
-        </a>
-        <a class="ab-secondary-button" href="/admin/usuarios" data-astro-reload>
-          <span>Usuarios</span>
-        </a>
       </div>
     </div>
 
@@ -100,6 +88,7 @@ import "../../styles/admin.css";
       <div class="ab-admin-metrics__grid" id="admin-vercel-analytics-list"></div>
     </section>
   </section>
+  </AdminNavigation>
 </MainLayout>
 
 <script>

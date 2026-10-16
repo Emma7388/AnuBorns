@@ -7,6 +7,108 @@ main[data-ab-pathname="/admin/mercadopago"] {
   padding-inline: max(10px, 1vw);
 }
 
+.ab-admin-shell {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 178px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  width: min(96vw, 1380px);
+  margin: 10px auto;
+}
+
+.ab-admin-shell__content {
+  min-width: 0;
+}
+
+.ab-admin-navigation {
+  position: sticky;
+  top: 10px;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 30px rgba(18, 28, 25, 0.1);
+}
+
+.ab-admin-navigation__heading {
+  display: grid;
+  gap: 1px;
+  padding: 2px 4px 8px;
+  border-bottom: 1px solid rgba(23, 35, 31, 0.1);
+}
+
+.ab-admin-navigation__heading span {
+  color: rgba(23, 35, 31, 0.56);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ab-admin-navigation__heading strong {
+  color: var(--ab-text, #17231f);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.ab-admin-navigation__links {
+  display: grid;
+  gap: 6px;
+}
+
+.ab-admin-navigation__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 6px 10px 6px 13px;
+  border: 1px solid rgba(23, 35, 31, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(23, 35, 31, 0.72);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ab-admin-navigation__link::before {
+  position: absolute;
+  inset: 8px auto 8px 5px;
+  width: 4px;
+  border-radius: 999px;
+  background: transparent;
+  content: "";
+}
+
+.ab-admin-navigation__link:hover,
+.ab-admin-navigation__link:focus-visible {
+  border-color: rgba(45, 166, 138, 0.48);
+  background: rgba(45, 166, 138, 0.08);
+  color: #126f4e;
+}
+
+.ab-admin-navigation__link.is-current {
+  border-color: rgba(45, 166, 138, 0.38);
+  background: rgba(45, 166, 138, 0.13);
+  color: #126f4e;
+}
+
+.ab-admin-navigation__link.is-current::before {
+  background: #159a69;
+}
+
+.ab-admin-shell:has(.ab-dark-panel.is-access-restricted) {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(96vw, 1180px);
+}
+
+.ab-admin-shell:has(.ab-dark-panel.is-access-restricted) .ab-admin-navigation {
+  display: none;
+}
+
 main[data-ab-pathname="/admin"] .ab-dark-panel,
 main[data-ab-pathname="/admin/"] .ab-dark-panel,
 main[data-ab-pathname="/admin/administracion"] .ab-dark-panel,
@@ -14,9 +116,9 @@ main[data-ab-pathname="/admin/usuarios"] .ab-dark-panel,
 main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel,
 main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   box-sizing: border-box;
-  width: min(96vw, 1180px);
+  width: 100%;
   max-width: none;
-  margin: 10px auto;
+  margin: 0;
   padding: 14px;
 }
 
@@ -2447,6 +2549,47 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   }
 }
 
+@media (max-width: 900px) {
+  .ab-admin-shell {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(96vw, 1180px);
+  }
+
+  .ab-admin-navigation {
+    position: static;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    padding: 9px;
+  }
+
+  .ab-admin-navigation__heading {
+    padding: 2px 10px 2px 3px;
+    border-right: 1px solid rgba(23, 35, 31, 0.1);
+    border-bottom: 0;
+  }
+
+  .ab-admin-navigation__links {
+    display: flex;
+    min-width: 0;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .ab-admin-navigation__link {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding-inline: 13px;
+    white-space: nowrap;
+  }
+
+  .ab-admin-navigation__link::before {
+    inset: auto 8px 4px;
+    width: auto;
+    height: 3px;
+  }
+}
+
 @media (max-width: 760px) {
   main[data-ab-pathname="/admin"],
   main[data-ab-pathname="/admin/"],
@@ -2464,8 +2607,24 @@ main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
   main[data-ab-pathname="/admin/operaciones"] .ab-dark-panel,
   main[data-ab-pathname="/admin/mercadopago"] .ab-dark-panel {
     width: 100%;
-    margin: 8px auto;
+    margin: 0;
     padding: 10px;
+  }
+
+  .ab-admin-shell {
+    width: 100%;
+    margin: 8px auto;
+    gap: 8px;
+  }
+
+  .ab-admin-navigation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ab-admin-navigation__heading {
+    padding: 2px 3px 7px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(23, 35, 31, 0.1);
   }
 
   .ab-admin-dashboard__head {

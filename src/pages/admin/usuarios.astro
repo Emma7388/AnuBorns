@@ -1,9 +1,11 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import AdminNavigation from "../../components/AdminNavigation.astro";
 import "../../styles/admin.css";
 ---
 
 <MainLayout title="Usuarios" headerTitle="Usuarios" backHref="/admin/">
+  <AdminNavigation>
   <section class="ab-dark-panel ab-admin-users">
     <div class="ab-admin-dashboard__head">
       <div>
@@ -11,21 +13,9 @@ import "../../styles/admin.css";
         <h2>Gestión de usuarios</h2>
       </div>
       <div class="ab-admin-dashboard__actions">
-        <a class="ab-secondary-button" href="/admin/" data-astro-reload>
-          <span>Operación</span>
-        </a>
-        <a class="ab-secondary-button" href="/admin/operaciones" data-astro-reload>
-          <span>Órdenes</span>
-        </a>
-        <a class="ab-secondary-button" href="/admin/mercadopago" data-astro-reload>
-          <span>Mercado Pago</span>
-        </a>
         <button type="button" class="ab-secondary-button" id="admin-user-overview-refresh-button" disabled>
           <span>Actualizar datos</span>
         </button>
-        <a class="ab-secondary-button" href="/admin/administracion" data-astro-reload>
-          <span>Administración</span>
-        </a>
       </div>
     </div>
 
@@ -112,6 +102,7 @@ import "../../styles/admin.css";
     </div>
 
   </section>
+  </AdminNavigation>
 </MainLayout>
 
 <script>

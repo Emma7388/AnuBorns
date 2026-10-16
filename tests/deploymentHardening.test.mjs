@@ -21,6 +21,7 @@ test("Vercel conserva los encabezados defensivos globales", async () => {
 test("la navegación administrativa evita reutilizar módulos ligados a un DOM anterior", async () => {
   const files = [
     "src/components/Header.astro",
+    "src/components/AdminNavigation.astro",
     "src/pages/admin/index.astro",
     "src/pages/admin/administracion.astro",
     "src/pages/admin/mercadopago.astro",
@@ -41,4 +42,26 @@ test("la navegación administrativa evita reutilizar módulos ligados a un DOM a
   assert.ok(linkCount > 0, "No se encontraron enlaces administrativos para auditar");
   const layout = await readProjectFile("src/layouts/MainLayout.astro");
   assert.match(layout, /footerBack\.toggleAttribute\("data-astro-reload", requiresFullReload\)/);
+});
+
+test("las páginas administrativas reutilizan una única navegación lateral", async () => {
+  const pages = [
+    "src/pages/admin/index.astro",
+    "src/pages/admin/administracion.astro",
+    "src/pages/admin/mercadopago.astro",
+    "src/pages/admin/operaciones.astro",
+    "src/pages/admin/usuarios.astro",
+  ];
+
+  for (const page of pages) {
+    const source = await readProjectFile(page);
+    assert.match(source, /import AdminNavigation from/);
+    assert.match(source, /<AdminNavigation>/);
+    assert.doesNotMatch(source, /<a\b[^>]*href="\/admin/);
+  }
+
+  const navigation = await readProjectFile("src/components/AdminNavigation.astro");
+  assert.equal((navigation.match(/href:/g) ?? []).length, 5);
+  assert.match(navigation, /aria-current/);
+  assert.match(navigation, /data-astro-reload/);
 });

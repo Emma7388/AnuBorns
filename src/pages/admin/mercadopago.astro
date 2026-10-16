@@ -1,9 +1,11 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import AdminNavigation from "../../components/AdminNavigation.astro";
 import "../../styles/admin.css";
 ---
 
 <MainLayout title="Mercado Pago" headerTitle="Mercado Pago" backHref="/admin/">
+  <AdminNavigation>
   <section class="ab-dark-panel ab-admin-mercadopago">
     <div class="ab-admin-dashboard__head">
       <div>
@@ -11,9 +13,6 @@ import "../../styles/admin.css";
         <h2>Control central de Mercado Pago</h2>
       </div>
       <div class="ab-admin-dashboard__actions">
-        <a class="ab-secondary-button" href="/admin/usuarios" data-astro-reload><span>Usuarios</span></a>
-        <a class="ab-secondary-button" href="/admin/operaciones" data-astro-reload><span>Operaciones</span></a>
-        <a class="ab-secondary-button" href="/admin/administracion" data-astro-reload><span>Fee</span></a>
         <button class="ab-secondary-button" id="admin-mp-refresh" type="button"><span>Actualizar datos</span></button>
         <button class="ab-secondary-button" id="admin-mp-verify" type="button"><span>Verificar Mercado Pago</span></button>
       </div>
@@ -71,6 +70,7 @@ import "../../styles/admin.css";
       <div class="ab-admin-mercadopago__list" id="admin-mp-list"></div>
     </div>
   </section>
+  </AdminNavigation>
 </MainLayout>
 
 <script>
