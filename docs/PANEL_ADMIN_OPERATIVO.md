@@ -10,6 +10,8 @@ El panel interno tiene cinco superficies:
 
 Desde la estabilización local del 16 de octubre de 2026, las entradas y los enlaces entre estas cinco superficies fuerzan una recarga completa. Es intencional: evita reutilizar referencias DOM de una visita anterior y hace que cada ingreso vuelva a consultar la autorización server-side. No agrega polling ni cambia la caché interna de una ficha 360 mientras el usuario permanece en `/admin/usuarios`.
 
+Desde el 17 de octubre, las cinco superficies usan un único `AdminNavigation.astro`. En escritorio se presenta como un stack lateral fijo; en tablet pasa a una fila horizontal desplazable y en móvil conserva esa navegación dentro de un bloque compacto. Cada vista dejó de repetir enlaces y mantiene solamente acciones propias. Si la sesión recibe 401/403, el menú también se oculta para no conservar controles administrativos visibles.
+
 ## Etapa 2A — Control administrativo base
 
 Implementada y desplegada desde el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día. El usuario confirmó después que las acciones de roles, suspensión y restauración funcionan en producción; no se repetirán sobre cuentas reales únicamente para generar evidencia adicional.
@@ -97,7 +99,7 @@ Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario
 
 ## Verificación local de estabilización — 16 de octubre de 2026
 
-- 152 pruebas aprobadas y 0 fallos después de incorporar las regresiones del rate limit distribuido.
+- 153 pruebas aprobadas y 0 fallos después de incorporar la regresión de navegación administrativa compartida.
 - Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
 - Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
 - No se ejecutaron despliegues, mutaciones remotas, cobros, reembolsos ni SQL durante esta pasada.

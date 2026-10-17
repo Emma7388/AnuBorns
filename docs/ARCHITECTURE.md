@@ -39,6 +39,7 @@ La siguiente mejora local reemplazó el rate limit por una RPC atómica comparti
 - `src/layouts/BaseLayout.astro`: documento HTML y metadatos base.
 - `src/layouts/MainLayout.astro`: header, footer, estilos globales y navegación de regreso segura.
 - `src/components/Header.astro`: sesión, carrito, avatar y cierre de sesión.
+- `src/components/AdminNavigation.astro`: navegación única de las cinco superficies administrativas; lateral y fija en escritorio, horizontal en tablet y compacta en móvil. Marca la sección actual, fuerza recarga segura y desaparece ante acceso restringido.
 - `src/components/Footer.astro`: pie de página y navegación móvil.
 - `src/components/ActionSwitch.astro`: acceso a productos en los flujos de compra y venta.
 - `src/components/CategoryGrid.astro`: grilla dinámica de categorías de producto.
@@ -90,7 +91,7 @@ La siguiente mejora local reemplazó el rate limit por una RPC atómica comparti
 
 ### Verificación
 
-`node --test` valida la suite completa; la última ejecución observada el 16 de octubre de 2026 aprobó 152 pruebas sin fallos y el build Astro/Vercel finalizó correctamente. Las regresiones cubren además los formateadores compartidos, el comportamiento seguro de storage bloqueado o corrupto, los encabezados de despliegue, la recarga segura del panel y el rate limit distribuido/fallback. Las migraciones administrativa 2A y del limitador quedaron auditadas con RLS activo y RPC exclusivas de `service_role`. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
+`node --test` valida la suite completa; la última ejecución observada el 17 de octubre de 2026 aprobó 153 pruebas sin fallos y el build Astro/Vercel finalizó correctamente. Las regresiones cubren además los formateadores compartidos, storage seguro, encabezados, navegación administrativa centralizada, recarga segura y rate limit distribuido/fallback. Las migraciones administrativa 2A y del limitador quedaron auditadas con RLS activo y RPC exclusivas de `service_role`. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
 
 ### Flujos visibles
 

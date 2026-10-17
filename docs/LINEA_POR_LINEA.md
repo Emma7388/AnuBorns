@@ -24,6 +24,7 @@ Actualizado al 16 de octubre de 2026 para la rama `V0.8`.
 
 - `src/components/Header.astro`: barra superior con estado invitado/autenticado, carrito, avatar y modal de logout.
 - `src/components/Footer.astro`: pie global con navegación inferior mobile y CTA volver.
+- `src/components/AdminNavigation.astro`: stack compartido de navegación administrativa; elimina botoneras repetidas, identifica la sección actual y cambia de lateral a horizontal/compacto según viewport.
 - `src/components/CategoryGrid.astro`: grilla de categorías de productos con links dinámicos.
 
 ## Datos y utilidades
@@ -175,7 +176,7 @@ Actualizado al 16 de octubre de 2026 para la rama `V0.8`.
 ## Estilos
 
 - `src/styles/global.css`: tokens visuales, resets y estilos compartidos (`ab-*`) para paneles, cards, formularios y estados. En mobile normaliza las imágenes de cards de producto a 190px de alto.
-- `src/styles/admin.css`: sistema visual de las cinco superficies administrativas, con reglas compartidas de resúmenes, filtros, estados restringidos, modales y responsive.
+- `src/styles/admin.css`: sistema visual de las cinco superficies administrativas, incluido el shell con navegación lateral compartida, resúmenes, filtros, estados restringidos, modales y responsive.
 - `src/styles/featured-products.css`: presentación del carrusel de productos destacados; en mobile reutiliza el tamaño uniforme de imagen y oculta las flechas laterales.
 - `src/styles/commerce-flow.css`: estilos de carrito y checkout; en mobile alinea las imágenes de carrito con el tamaño de las cards de producto.
 

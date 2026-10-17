@@ -18,6 +18,8 @@ El 16 de octubre se completó una pasada local de estabilización transversal: u
 
 Después de esa pasada se reemplazó localmente el rate limit por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La suite completa pasó con 152 pruebas y el build Astro/Vercel volvió a finalizar correctamente. La migración `docs/supabase-distributed-rate-limit.sql` fue ejecutada y auditada remotamente el 16 de octubre; todavía falta desplegar el código compatible y confirmar la fuente `distributed` en `/admin`.
 
+El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. La suite completa quedó en 153 pruebas aprobadas y el build Astro/Vercel finalizó correctamente; el cambio aún no fue desplegado.
+
 ### Estado del historial comercial
 
 El 10 de octubre de 2026 el usuario confirmó que anteriormente se ejecutó el reinicio controlado definido en `docs/supabase-product-catalog-reset.sql`. La fecha exacta de esa ejecución no quedó registrada. Ese procedimiento eliminó intencionalmente productos, carritos, órdenes, ítems de órdenes, despachos, lecturas de estado y los eventos comerciales `manual_checkout_created` y `order_payment_status_changed` de `audit_logs`; conservó Auth, perfiles, administradores y conexiones OAuth de Mercado Pago.
@@ -285,7 +287,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 16 de octubre de 2026: 152 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 17 de octubre de 2026: 153 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.
