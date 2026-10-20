@@ -99,7 +99,7 @@ Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario
 
 ## Verificación local y contraste de producción — 17 de octubre de 2026
 
-- 154 pruebas aprobadas y 0 fallos después de incorporar la regresión de navegación administrativa compartida y la protección contra la colisión `current_time`/`CURRENT_TIME` en la RPC del limitador.
+- 161 pruebas aprobadas y 0 fallos en la verificación completa actual, incluida la navegación administrativa compartida, la protección contra la colisión `current_time`/`CURRENT_TIME` y la nueva CSP.
 - Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
 - Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
 - El usuario desplegó la versión actual y aplicó la migración incremental del limitador. `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. No se ejecutaron cobros ni reembolsos durante esta validación.

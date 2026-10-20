@@ -3,6 +3,11 @@
 @import "./account-flow.css";
 @import "./provider-profile.css";
 
+/* Transición nativa entre documentos; navegadores sin soporte hacen una carga normal. */
+@view-transition {
+  navigation: auto;
+}
+
 /* RESET BÁSICO */
 * {
   margin: 0;

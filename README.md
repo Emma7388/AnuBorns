@@ -16,7 +16,7 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 
 El 16 de octubre se completó una pasada local de estabilización transversal: utilidades compartidas de formato y almacenamiento seguro, menor duplicación en scripts y estilos administrativos, navegación fresca entre superficies admin, dimensiones y decodificación de imágenes, tipografía sin `@import`, respeto de movimiento reducido y encabezados HTTP defensivos. La suite completa quedó en 146 pruebas aprobadas y el build Astro/Vercel terminó correctamente. Estos resultados son locales; no implican despliegue.
 
-Después de esa pasada se reemplazó el rate limit local por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La migración base se ejecutó el 16 de octubre y, durante la validación real, apareció una colisión de tipos porque el identificador `current_time` era interpretado por PostgreSQL como `CURRENT_TIME` (`time with time zone`). La migración incremental `docs/supabase-distributed-rate-limit-v2.sql` corrigió la función con variables `v_`, volvió a asegurar sus permisos y ejecutó una prueba funcional transaccional. El 17 de octubre producción confirmó la fuente distribuida: `/admin` mostró 34 chequeos correctos, 0 a revisar y 0 con error. La suite completa quedó en 154 pruebas aprobadas.
+Después de esa pasada se reemplazó el rate limit local por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La migración base se ejecutó el 16 de octubre y, durante la validación real, apareció una colisión de tipos porque el identificador `current_time` era interpretado por PostgreSQL como `CURRENT_TIME` (`time with time zone`). La migración incremental `docs/supabase-distributed-rate-limit-v2.sql` corrigió la función con variables `v_`, volvió a asegurar sus permisos y ejecutó una prueba funcional transaccional. El 17 de octubre producción confirmó la fuente distribuida: `/admin` mostró 34 chequeos correctos, 0 a revisar y 0 con error. La suite completa actual quedó en 161 pruebas aprobadas.
 
 El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. El cambio fue desplegado y validado en escritorio; todavía corresponde revisar visualmente los viewports reales de tablet y móvil.
 
@@ -56,6 +56,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Tipografía base Montserrat semibold y controles/botones en Montserrat regular.
 - Acceso seguro a almacenamiento del navegador para que carrito, tema, perfil y avisos degraden sin romper la interfaz cuando `localStorage` o `sessionStorage` están bloqueados.
 - Encabezados globales `nosniff`, anti-iframe, política de referencia y restricción de cámara, micrófono y geolocalización configurados en Vercel.
+- Content Security Policy servida como encabezado HTTP por Astro: scripts y bloques de estilo autorizados por SHA-256, conexiones limitadas al mismo origen y Supabase, fuentes limitadas a Google Fonts, objetos y frames bloqueados, y atributos de estilo dinámicos aislados mediante `style-src-attr`. Para mantener esta política sin `unsafe-inline` en scripts se retiró `ClientRouter`; la navegación conserva cargas completas y usa transiciones nativas sólo cuando el navegador las soporta.
 - Publicación con retiro en el domicilio como modalidad predeterminada; seleccionar envío lo reemplaza, no agrega ARS 5.000 al comprador y deja la logística a cargo del vendedor.
 - Ubicación de publicación en Campana, Zárate, Lima o las tres ciudades mediante la opción Todas.
 
@@ -248,7 +249,7 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 6. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
 7. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
 8. Completado: `RATE_LIMIT_HASH_SECRET` está configurada en producción, las migraciones del limitador fueron aplicadas y `/admin` confirmó la fuente distribuida con 34 chequeos correctos, 0 a revisar y 0 con error. Siguen pendientes la decisión sobre el redondeo del 1,5% y el tratamiento de enlaces históricos si todavía circulan.
-9. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
+9. Ejecutar despliegue y revisión responsive con variables reales. El build local con CSP ya finalizó correctamente; el usuario gestiona commit, push, SQL y deploy.
 
 ### Registro de la etapa 1 — Producto y operación funcional
 
@@ -290,7 +291,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 19 de octubre de 2026: 160 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 19 de octubre de 2026: 161 pruebas aprobadas, 0 fallos. El artefacto SSR devolvió la CSP esperada, con hashes para scripts/estilos, sin `unsafe-inline` en `script-src` ni `style-src`, y la excepción visual acotada a `style-src-attr`.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.

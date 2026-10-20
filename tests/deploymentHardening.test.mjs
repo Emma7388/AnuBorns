@@ -18,6 +18,27 @@ test("Vercel conserva los encabezados defensivos globales", async () => {
   assert.match(headers.get("permissions-policy") ?? "", /geolocation=\(\)/);
 });
 
+test("Astro genera una CSP estricta para scripts y recursos externos conocidos", async () => {
+  const configSource = await readProjectFile("astro.config.mjs");
+  const baseLayoutSource = await readProjectFile("src/layouts/BaseLayout.astro");
+  const middlewareSource = await readProjectFile("src/middleware.js");
+
+  assert.match(configSource, /security:\s*\{[\s\S]*?csp:\s*\{/);
+  assert.match(configSource, /default-src 'self'/);
+  assert.match(configSource, /object-src 'none'/);
+  assert.match(configSource, /base-uri 'self'/);
+  assert.match(configSource, /frame-ancestors 'none'/);
+  assert.match(configSource, /connect-src 'self' https:\/\/\*\.supabase\.co wss:\/\/\*\.supabase\.co/);
+  assert.match(configSource, /https:\/\/fonts\.googleapis\.com/);
+  assert.match(configSource, /https:\/\/fonts\.gstatic\.com/);
+  assert.doesNotMatch(configSource, /scriptDirective:[\s\S]*?'unsafe-inline'/);
+  assert.doesNotMatch(configSource, /resources:\s*\[[^\]]*'unsafe-inline'/);
+  assert.match(configSource, /hashes:\s*\[purchaseDetailStyleHash\]/);
+  assert.doesNotMatch(baseLayoutSource, /ClientRouter|astro:transitions/);
+  assert.match(middlewareSource, /style-src-attr 'unsafe-inline'/);
+  assert.match(middlewareSource, /content-security-policy/);
+});
+
 test("la navegación administrativa evita reutilizar módulos ligados a un DOM anterior", async () => {
   const files = [
     "src/components/Header.astro",

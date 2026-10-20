@@ -1,6 +1,5 @@
 ---
 // Layout base: HTML, metas, transiciones y utilidades globales.
-import { ClientRouter } from "astro:transitions";
 import Analytics from "@vercel/analytics/astro";
 
 const {
@@ -52,7 +51,6 @@ const enableAnalytics = !Astro.url.pathname.startsWith("/admin");
       }
     </script>
     <title>{title}</title>
-    <ClientRouter />
     <script is:inline>
       function webAnalyticsBeforeSend(event) {
         try {

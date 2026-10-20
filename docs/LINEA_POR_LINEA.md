@@ -14,7 +14,9 @@ Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
 
 ## Layouts
 
-- `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido.
+- `astro.config.mjs`: configuración SSR/Vercel, optimización y Content Security Policy con hashes SHA-256, orígenes explícitos y bloqueo de objetos/frames.
+- `src/middleware.js`: conserva la CSP generada por Astro y agrega la excepción específica `style-src-attr` para estilos visuales calculados, sin ampliar permisos de scripts ni bloques de estilo.
+- `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido; usa navegación convencional compatible con CSP en lugar de `ClientRouter`.
 - `src/layouts/MainLayout.astro`: compone `Header` + `Footer`, carga estilos globales y resuelve `backHref` automáticamente.
 
 ## Componentes
@@ -176,6 +178,7 @@ Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
 - `tests/distributedRateLimitSql.test.mjs`: regresión estática de estructura, seguridad y permisos del limitador; impide reintroducir `current_time` como identificador ejecutable y exige la migración v2 verificable.
 - `docs/supabase-product-images-storage-hardening.sql`: migración incremental no destructiva para limitar `product-images` a 20 MB, MIME y extensiones de imagen permitidos, carpeta propietaria y metadata visible sólo para su dueño. Aplicada y auditada remotamente el 19 de octubre de 2026; los cinco objetos existentes quedaron conformes.
 - `tests/productImageStorageSql.test.mjs`: regresión estática del bucket y sus políticas; confirma además que la migración no modifica ni elimina objetos existentes.
+- `tests/deploymentHardening.test.mjs`: regresión de encabezados Vercel, CSP estricta, middleware de atributos visuales y navegación administrativa centralizada.
 
 
 ## Estilos
