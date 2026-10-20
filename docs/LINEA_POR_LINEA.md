@@ -36,6 +36,7 @@ Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 
 - `src/data/categories.js`: catálogo fuente de las diez categorías vigentes (nombre, slug, ícono).
 - `src/lib/supabaseClient.js`: cliente Supabase browser con validación de variables públicas.
+- `src/components/TurnstileWidget.astro` y `src/lib/turnstile.js`: desafío anti-bot y entrega del `captchaToken` a Supabase Auth para registro, login y recuperación.
 - `src/lib/supabaseServer.js`: helper server-side para cliente admin (`service_role`) cacheado.
 - `src/lib/supabaseMetrics.js`: lectura server-side de Supabase Metrics API, resumen read-only y tarjetas de uso del plan para el panel admin.
 - `src/lib/vercelAnalytics.js`: lectura server-side de Vercel Web Analytics para visitas, page views y rankings del panel admin.
@@ -52,6 +53,7 @@ Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 - `src/lib/cart.js`: carrito híbrido, sincronización al login, deduplicación, cantidades 1–100 limitadas por stock, conteo por unidades y un único registro por producto.
 - `src/lib/productInput.js`: normalización server-side de producto, stock, ubicación, entrega y contrato.
 - `src/lib/mercadopagoIdentity.js`: verificación de identidad vendedor/perfil con excepción controlada.
+- `src/lib/mercadopagoTokenCrypto.js`: cifrado AES-256-GCM, descifrado server-side y detección de tokens OAuth legados.
 - `src/lib/publicationPayments.js`: ciclo idempotente del pago mensual y activación/vencimiento.
 - `src/lib/sessionToken.js`: helper de cliente para no consultar endpoints privados con sesiones sin token o próximas a vencer.
 - `src/lib/userProfile.js`: perfil privado del usuario, perfil pendiente de registro y caché corta de lecturas a `profiles`.
@@ -126,6 +128,7 @@ Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 - `src/pages/api/admin/users/[userId]/overview.js`: lectura admin de actividad comercial e identidad Mercado Pago de un usuario; limita resultados, oculta tokens y no ejecuta mutaciones.
 - `src/pages/api/admin/operations.js`: cruza órdenes, despachos, publicaciones y movimientos auditados desde el servidor; no devuelve datos logísticos personales ni ejecuta mutaciones.
 - `src/pages/api/admin/mercadopago.js`: reúne vendedores, OAuth e intentos pendientes; sólo consulta Mercado Pago cuando el administrador pulsa el botón explícito y nunca devuelve tokens.
+- `src/pages/api/admin/mercadopago-token-encryption.js`: migración administrativa idempotente de tokens OAuth legados, con rate limit y auditoría.
 
 ## SQL operativo nuevo
 
@@ -177,6 +180,8 @@ Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 - `tests/distributedRateLimitSql.test.mjs`: regresión estática de estructura, seguridad y permisos del limitador; impide reintroducir `current_time` como identificador ejecutable y exige la migración v2 verificable.
 - `docs/supabase-product-images-storage-hardening.sql`: migración incremental no destructiva para limitar `product-images` a 20 MB, MIME y extensiones de imagen permitidos, carpeta propietaria y metadata visible sólo para su dueño. Aplicada y auditada remotamente el 19 de octubre de 2026; los cinco objetos existentes quedaron conformes.
 - `tests/productImageStorageSql.test.mjs`: regresión estática del bucket y sus políticas; confirma además que la migración no modifica ni elimina objetos existentes.
+- `docs/supabase-avatar-storage-hardening.sql`: endurecimiento no destructivo del bucket `avatar`, 5 MB, MIME/extensiones permitidas y carpeta propia; pendiente de ejecución remota.
+- `tests/avatarStorageSql.test.mjs`, `tests/authBotProtection.test.mjs`, `tests/mercadopagoTokenCrypto.test.mjs`, `tests/dynamicHtmlSafety.test.mjs` y `tests/sessionArchitecture.test.mjs`: regresiones del cierre de la lista de seguridad.
 - `tests/deploymentHardening.test.mjs`: regresión de encabezados Vercel, CSP nativa estricta y navegación administrativa centralizada.
 - `scripts/audit-repository-secrets.mjs`: revisa archivos versionados, bloquea `.env` reales y credenciales reconocibles sin imprimir valores.
 - `tests/repositorySecretsAudit.test.mjs`: regresiones del control preventivo de secretos, incluido JWT `service_role` y placeholders permitidos.

@@ -2,6 +2,7 @@ import { jsonResponse } from "../../../lib/apiResponse.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
 import { getAuthenticatedUser } from "../../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
+import { decryptMercadoPagoAccount } from "../../../lib/mercadopagoTokenCrypto.js";
 
 const PENDING_STATUSES = new Set(["pending", "in_process", "in_mediation", "authorized"]);
 
@@ -22,7 +23,8 @@ export const GET = async ({ request }) => {
       .limit(30),
   ]);
   if (rowsError) return jsonResponse({ error: "No se pudieron consultar los pagos pendientes." }, 500);
-  if (!account?.access_token) return jsonResponse({ items: [], connected: false });
+  const decryptedAccount = decryptMercadoPagoAccount(account);
+  if (!decryptedAccount?.access_token) return jsonResponse({ items: [], connected: false });
 
   const orders = new Map();
   (rows ?? []).forEach((row) => {
@@ -35,7 +37,7 @@ export const GET = async ({ request }) => {
   const items = await Promise.all([...orders.values()].map(async (order) => {
     try {
       const response = await fetch(`https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(order.id)}&sort=date_created&criteria=desc`, {
-        headers: { Authorization: `Bearer ${account.access_token}` },
+        headers: { Authorization: `Bearer ${decryptedAccount.access_token}` },
         signal: AbortSignal.timeout(8_000),
       });
       const payload = await response.json().catch(() => ({}));

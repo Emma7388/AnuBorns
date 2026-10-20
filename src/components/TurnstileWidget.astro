@@ -1,0 +1,40 @@
+---
+const { action = "auth" } = Astro.props;
+const siteKey = String(import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "").trim();
+const enabled = Boolean(siteKey);
+---
+
+<div
+  class:list={["ab-turnstile", { "ab-turnstile--disabled": !enabled }]}
+  data-turnstile-slot
+  data-enabled={String(enabled)}
+>
+  {enabled ? (
+    <div
+      class="cf-turnstile"
+      data-sitekey={siteKey}
+      data-action={action}
+      data-theme="auto"
+      data-language="es"
+    ></div>
+  ) : null}
+</div>
+
+{enabled ? (
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+) : null}
+
+<style>
+  .ab-turnstile {
+    min-height: 65px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .ab-turnstile--disabled {
+    display: none;
+    min-height: 0;
+  }
+</style>

@@ -2,6 +2,8 @@
 // Página: registro de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
 import TitleBadge from "../components/TitleBadge.astro";
+import TurnstileWidget from "../components/TurnstileWidget.astro";
+const turnstileEnabled = Boolean(String(import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "").trim());
 ---
 
 <MainLayout title="Crear cuenta">
@@ -10,7 +12,7 @@ import TitleBadge from "../components/TitleBadge.astro";
     <TitleBadge title="Creá tu cuenta" icon="/icons/crearcuenta.svg" tone="primary" />
 
     <!-- Formulario de registro -->
-    <form class="ab-form" id="register-form">
+    <form class="ab-form" id="register-form" data-turnstile-enabled={String(turnstileEnabled)}>
       <label for="avatar">Foto de perfil (opcional)</label>
       <div class="ab-profile-avatar ab-register-avatar-preview ab-is-hidden">
         <img id="register-avatar-preview" alt="Vista previa de la foto de perfil" />
@@ -98,6 +100,8 @@ import TitleBadge from "../components/TitleBadge.astro";
           <img src="/icons/ojo.svg" alt="" aria-hidden="true" />
         </button>
       </span>
+
+      <TurnstileWidget action="register" />
 
       <button type="submit" class="ab-cta-button" id="register-submit">
         <img src="/icons/crearcuenta.svg" alt="" aria-hidden="true" />

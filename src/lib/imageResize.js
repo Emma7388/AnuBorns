@@ -1,5 +1,10 @@
 /* Optimización de imágenes en navegador antes de subirlas a Storage. */
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+export const AVATAR_ALLOWED_MIME_TYPES = Object.freeze([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 export const PRODUCT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 export const PRODUCT_IMAGE_ALLOWED_MIME_TYPES = Object.freeze([
   "image/jpeg",
@@ -100,6 +105,7 @@ export const resizeAvatarImage = (file) =>
     quality: 0.85,
     outputType: "image/jpeg",
     alwaysConvert: true,
+    rejectInvalid: true,
   });
 
 /* Producto: más resolución para inspección visual, con compresión controlada. */
@@ -111,3 +117,5 @@ export const resizeProductImage = (file) =>
     alwaysConvert: true,
     rejectInvalid: true,
   });
+export const isAllowedAvatarType = (value) =>
+  AVATAR_ALLOWED_MIME_TYPES.includes(String(value ?? "").trim().toLowerCase());

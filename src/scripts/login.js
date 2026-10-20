@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { isSafeInternalPath } from "../lib/internalNavigation";
 import { postAudit } from "./audit.js";
+import { getCaptchaToken, resetCaptcha } from "../lib/turnstile.js";
 import {
   fetchUserProfile,
   getDisplayNameFromProfile,
@@ -123,6 +124,12 @@ const handleForgotPassword = async () => {
     return;
   }
 
+  const captcha = getCaptchaToken(loginForm);
+  if (!captcha.ok) {
+    feedback.textContent = "Completá la verificación de seguridad antes de continuar.";
+    return;
+  }
+
   if (forgotPasswordButton) forgotPasswordButton.disabled = true;
   feedback.textContent = "Enviando enlace de recuperación...";
 
@@ -130,6 +137,7 @@ const handleForgotPassword = async () => {
     const { error } = await withTimeout(
       supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getRecoveryRedirectUrl(),
+        captchaToken: captcha.token,
       }),
       12000
     );
@@ -143,6 +151,7 @@ const handleForgotPassword = async () => {
   } catch (err) {
     feedback.textContent = "No se pudo enviar el enlace. Probá de nuevo en unos segundos.";
   } finally {
+    resetCaptcha(loginForm);
     if (forgotPasswordButton) forgotPasswordButton.disabled = false;
   }
 };
@@ -151,6 +160,11 @@ const handleForgotPassword = async () => {
 const handleLoginSubmit = async (event) => {
   event.preventDefault();
   if (!emailInput || !passwordInput || !feedback) return;
+  const captcha = getCaptchaToken(loginForm);
+  if (!captcha.ok) {
+    feedback.textContent = "Completá la verificación de seguridad antes de ingresar.";
+    return;
+  }
   if (submitButton) submitButton.disabled = true;
   feedback.textContent = "Ingresando...";
 
@@ -160,6 +174,7 @@ const handleLoginSubmit = async (event) => {
       supabase.auth.signInWithPassword({
         email: emailInput.value,
         password: passwordInput.value,
+        options: { captchaToken: captcha.token },
       }),
       12000
     );
@@ -182,6 +197,7 @@ const handleLoginSubmit = async (event) => {
         : "No se pudo iniciar sesión. Probá de nuevo.";
     feedback.textContent = message;
   } finally {
+    resetCaptcha(loginForm);
     if (submitButton) submitButton.disabled = false;
   }
 };

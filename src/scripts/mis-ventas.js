@@ -777,6 +777,9 @@ const renderSoldProducts = (products) => {
       card.className = `ab-provider-product-card ab-sales-product-card ab-sale-summary-card ${isPendingDispatch ? "ab-sale-card--pending" : ""} ${dispatchable ? "" : "ab-sale-card--payment-paused"} ${paymentModifier}`.trim();
       card.dataset.salePendingDispatch = isPendingDispatch ? "true" : "false";
       const safeBuyerName = escapeHtml(sale.buyerName || "");
+      const safeSaleTitle = escapeHtml(sale.title || "Producto");
+      const safeSaleImage = escapeHtml(sale.image || "/logo2.svg");
+      const safeSaleCurrency = escapeHtml(sale.currency || "ARS");
       const safeBuyerUserId = encodeURIComponent(String(sale.buyerUserId || "").trim());
       const safeNote = escapeHtml(sale.buyerNote || "");
       const safePaymentDetail = escapeHtml(getReadablePaymentDetail(sale.paymentDetail || ""));
@@ -802,16 +805,16 @@ const renderSoldProducts = (products) => {
       card.innerHTML = `
         <img
           class="ab-provider-product-card__image"
-          src="${sale.image}"
-          alt="${sale.title}"
+          src="${safeSaleImage}"
+          alt="${safeSaleTitle}"
           loading="lazy"
           decoding="async"
         />
         <div class="ab-category-product-heading">
-          <h2>${sale.title}</h2>
+          <h2>${safeSaleTitle}</h2>
           <div class="ab-provider-product-card__meta">
             <p class="ab-provider-product-card__price">
-              $${formatPrice(sale.subtotal)} <span>${sale.currency}</span>
+              $${formatPrice(sale.subtotal)} <span>${safeSaleCurrency}</span>
             </p>
           </div>
         </div>
@@ -873,12 +876,11 @@ const renderSoldProducts = (products) => {
           if (soldProductsStatus) soldProductsStatus.textContent = "Permití ventanas emergentes para abrir el detalle de venta.";
           return;
         }
-        // title y currency ya están escapados al construir salesCards.
         const html = `<!doctype html><html lang="es"><head>
           <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
           <title>Detalle de venta #${escapeHtml(saleOrderId.slice(0, 8).toUpperCase())}</title>
           <style>${purchaseDetailStyles}</style></head><body><main>
-          <header><div><p class="brand">${sale.title}</p><h1>Detalle de venta</h1></div>
+          <header><div><p class="brand">${safeSaleTitle}</p><h1>Detalle de venta</h1></div>
             <div class="meta"><p>Venta #${escapeHtml(saleOrderId.slice(0, 8).toUpperCase())}</p>
               <p class="muted">${escapeHtml(formatDate(sale.soldAt))}</p></div></header>
           <section class="grid" aria-label="Datos de la venta">
@@ -894,15 +896,16 @@ const renderSoldProducts = (products) => {
           </section>
           <h2>Producto vendido</h2><div class="table-wrap"><table>
             <thead><tr><th>Producto</th><th class="number">Cantidad</th><th class="number">Importe</th></tr></thead>
-            <tbody><tr><td>${sale.title}</td><td class="number">${escapeHtml(sale.qty)}</td><td class="number">$${formatPrice(sale.subtotal)} ${sale.currency}</td></tr></tbody>
+            <tbody><tr><td>${safeSaleTitle}</td><td class="number">${escapeHtml(sale.qty)}</td><td class="number">$${formatPrice(sale.subtotal)} ${safeSaleCurrency}</td></tr></tbody>
           </table></div>
           ${shippingRequested ? `<p class="muted">Envío de la venta: ${shippingCostLabel}.</p>` : ""}
-          <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
+          <div class="actions"><button type="button" id="print-sale-detail">Imprimir</button></div>
           </main></body></html>`;
         detailWindow.document.open();
         detailWindow.document.write(html);
         detailWindow.document.close();
         detailWindow.opener = null;
+        detailWindow.document.getElementById("print-sale-detail")?.addEventListener("click", () => detailWindow.print());
         detailWindow.focus();
       });
       soldProductCards.push(card);

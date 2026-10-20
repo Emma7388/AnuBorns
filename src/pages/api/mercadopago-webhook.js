@@ -11,6 +11,7 @@ import { isProductReservationConflictError } from "../../lib/atomicOrders.js";
 import { recordOrderPaymentMovement } from "../../lib/paymentMovement.js";
 import { readJsonBody } from "../../lib/serverRequest.js";
 import { applyPublicationPayment } from "../../lib/publicationPayments.js";
+import { decryptMercadoPagoToken } from "../../lib/mercadopagoTokenCrypto.js";
 
 /* Tokens requeridos para consultar la API y validar firma. */
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -89,7 +90,7 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
   const snapshotSellerIds = [...new Set((orderItems ?? []).map((item) => String(item?.seller_user_id ?? "").trim()).filter(Boolean))];
   if (snapshotSellerIds.length === 1) {
     const { data: account } = await supabaseAdmin.from("seller_mercadopago_accounts").select("access_token").eq("user_id", snapshotSellerIds[0]).maybeSingle();
-    return String(account?.access_token ?? "").trim();
+    return decryptMercadoPagoToken(account?.access_token);
   }
 
   const productIds = [
@@ -126,7 +127,7 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
     return "";
   }
 
-  return String(account?.access_token ?? "").trim();
+  return decryptMercadoPagoToken(account?.access_token);
 };
 
 /* Pre-chequeo legible; el trigger de reservas sigue siendo la autoridad final. */

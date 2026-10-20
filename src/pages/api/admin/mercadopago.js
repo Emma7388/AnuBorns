@@ -4,6 +4,7 @@ import { buildAdminMercadoPagoSnapshot } from "../../../lib/adminMercadoPago.js"
 import { fetchMercadoPagoUser } from "../../../lib/mercadopagoIdentity.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../../lib/supabaseServer.js";
+import { decryptMercadoPagoAccount } from "../../../lib/mercadopagoTokenCrypto.js";
 
 const MAX_ROWS = 1000;
 const LIVE_CONCURRENCY = 3;
@@ -133,7 +134,8 @@ export const GET = async ({ request, url }) => {
       return jsonResponse({ error: "No se pudo construir el control de Mercado Pago." }, 500);
     }
 
-    const rawAccounts = accountsResult.data ?? [];
+    const storedAccounts = accountsResult.data ?? [];
+    const rawAccounts = storedAccounts.map(decryptMercadoPagoAccount);
     const products = productsResult.data ?? [];
     const sales = salesResult.data ?? [];
     const pendingOrders = buildPendingOrders(pendingResult.data ?? []);

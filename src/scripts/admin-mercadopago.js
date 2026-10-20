@@ -21,6 +21,7 @@ const paymentFilter = document.getElementById("admin-mp-payment-filter");
 const searchInput = document.getElementById("admin-mp-search");
 const refreshButton = document.getElementById("admin-mp-refresh");
 const verifyButton = document.getElementById("admin-mp-verify");
+const encryptButton = document.getElementById("admin-mp-encrypt");
 const listElement = document.getElementById("admin-mp-list");
 const visibleCount = document.getElementById("admin-mp-visible-count");
 
@@ -199,9 +200,37 @@ const loadMercadoPago = async ({ verify = false } = {}) => {
   }
 };
 
+const encryptOAuthTokens = async () => {
+  if (!encryptButton || !statusElement) return;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) {
+    renderAdminAccessState({ root: adminRoot, response: { status: 401 } });
+    return;
+  }
+
+  encryptButton.disabled = true;
+  statusElement.textContent = "Cifrando tokens OAuth guardados...";
+  try {
+    const response = await fetch("/api/admin/mercadopago-token-encryption", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (renderAdminAccessState({ root: adminRoot, response, payload })) return;
+    if (!response.ok) throw new Error(payload?.error || "No se pudieron cifrar los tokens OAuth.");
+    statusElement.textContent = `Cifrado terminado: ${payload.migrated} conexiones actualizadas y ${payload.already_encrypted} ya protegidas.`;
+  } catch (error) {
+    statusElement.textContent = error?.message || "No se pudieron cifrar los tokens OAuth.";
+  } finally {
+    encryptButton.disabled = false;
+  }
+};
+
 connectionFilter?.addEventListener("change", renderList);
 paymentFilter?.addEventListener("change", renderList);
 searchInput?.addEventListener("input", renderList);
 refreshButton?.addEventListener("click", () => loadMercadoPago({ verify: false }));
 verifyButton?.addEventListener("click", () => loadMercadoPago({ verify: true }));
+encryptButton?.addEventListener("click", encryptOAuthTokens);
 loadMercadoPago({ verify: false });

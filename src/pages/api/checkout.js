@@ -13,6 +13,10 @@ import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
 import { compareMercadoPagoIdentity } from "../../lib/mercadopagoIdentity.js";
+import {
+  decryptMercadoPagoAccount,
+  encryptMercadoPagoAccountTokens,
+} from "../../lib/mercadopagoTokenCrypto.js";
 
 /* Comisión marketplace configurable desde variables de entorno. */
 const marketplaceFeeAmount = Number(
@@ -117,7 +121,7 @@ const getSingleSellerAccount = async (supabaseAdmin, serverItems) => {
     };
   }
 
-  return { ok: true, sellerId, account: data };
+  return { ok: true, sellerId, account: decryptMercadoPagoAccount(data) };
 };
 
 const isOAuthTokenCloseToExpiry = (expiresAt) => {
@@ -197,11 +201,12 @@ const refreshSellerOAuthTokenIfNeeded = async (supabaseAdmin, account) => {
     refresh_token: String(payload?.refresh_token ?? refreshToken).trim(),
     expires_at: expiresAt,
   };
+  const encryptedTokens = encryptMercadoPagoAccountTokens(refreshedAccount);
   const { error: updateError } = await supabaseAdmin
     .from("seller_mercadopago_accounts")
     .update({
-      access_token: refreshedAccount.access_token,
-      refresh_token: refreshedAccount.refresh_token,
+      access_token: encryptedTokens.access_token,
+      refresh_token: encryptedTokens.refresh_token,
       expires_at: refreshedAccount.expires_at,
     })
     .eq("user_id", account.user_id);

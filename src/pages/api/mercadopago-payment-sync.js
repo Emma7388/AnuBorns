@@ -13,6 +13,7 @@ import { readJsonBody } from "../../lib/serverRequest.js";
 import { getAuthenticatedUser } from "../../lib/serverAuth.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { decryptMercadoPagoToken } from "../../lib/mercadopagoTokenCrypto.js";
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 const MERCADOPAGO_REQUEST_TIMEOUT_MS = 8_000;
@@ -33,7 +34,7 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
   const snapshotSellerIds = getUniqueStringIds((orderItems ?? []).map((item) => item?.seller_user_id));
   if (snapshotSellerIds.length === 1) {
     const { data: account } = await supabaseAdmin.from("seller_mercadopago_accounts").select("access_token").eq("user_id", snapshotSellerIds[0]).maybeSingle();
-    return String(account?.access_token ?? "").trim();
+    return decryptMercadoPagoToken(account?.access_token);
   }
   const productIds = getUniqueStringIds((orderItems ?? []).map((item) => item?.product_id));
   if (productIds.length === 0) return "";
@@ -55,7 +56,7 @@ const getSellerAccessTokenForOrder = async (supabaseAdmin, orderId) => {
     .maybeSingle();
 
   if (accountError) return "";
-  return String(account?.access_token ?? "").trim();
+  return decryptMercadoPagoToken(account?.access_token);
 };
 
 const ensureApprovedOrderDispatches = async (supabaseAdmin, orderId) => {

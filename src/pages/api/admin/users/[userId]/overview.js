@@ -4,6 +4,7 @@ import { buildAdminUserOverview, getAdminMercadoPagoDiagnostic } from "../../../
 import { fetchMercadoPagoUser } from "../../../../../lib/mercadopagoIdentity.js";
 import { checkRateLimit } from "../../../../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../../../../lib/supabaseServer.js";
+import { decryptMercadoPagoAccount } from "../../../../../lib/mercadopagoTokenCrypto.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ROWS = 200;
@@ -33,7 +34,7 @@ const fetchConnection = async (supabaseAdmin, userId) => {
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data ?? null;
+  return decryptMercadoPagoAccount(data ?? null);
 };
 
 const fetchProducts = async (supabaseAdmin, userId) => {

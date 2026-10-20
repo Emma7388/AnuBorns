@@ -20,7 +20,7 @@ Después de esa pasada se reemplazó el rate limit local por una RPC atómica co
 
 El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. El cambio fue desplegado y validado en escritorio; todavía corresponde revisar visualmente los viewports reales de tablet y móvil.
 
-El 20 de octubre se cerró una revisión local de dependencias y secretos. Astro, el adaptador Vercel, Supabase JS y Mercado Pago SDK se actualizaron a sus líneas corregidas; las dependencias transitivas con avisos se fijaron en versiones parcheadas compatibles desde `pnpm-workspace.yaml`. `pnpm audit --prod` pasó de 53 avisos a 0 sobre 369 dependencias. La CSP ahora usa la separación nativa de Astro 7 y ya no necesita middleware: scripts y estilos de elementos continúan basados en hashes, mientras `unsafe-inline` queda limitado a `style-src-attr`. En 122 revisiones alcanzables se auditaron 1.699 blobs de texto sin secretos reconocibles ni archivos `.env` versionados; 11 blobs binarios y 4 mayores a 2 MB se clasificaron y omitieron del análisis textual. Además, `pnpm run security:secrets` evita nuevas credenciales rastreadas sin imprimir valores. La suite local quedó en 165 pruebas aprobadas y el build Vercel finalizó sin advertencias CSP. Estos cambios todavía requieren commit, push, despliegue y recorrido visual por parte del usuario.
+El 20 de octubre se cerró una revisión local integral de seguridad. Astro, el adaptador Vercel, Supabase JS y Mercado Pago SDK se actualizaron a sus líneas corregidas; `pnpm audit --prod` pasó de 53 avisos a 0 sobre 369 dependencias y el historial alcanzable no mostró secretos reconocibles. La CSP nativa de Astro 7 conserva scripts por hash/origen, limita `unsafe-inline` a atributos visuales y habilita Cloudflare sólo para Turnstile. También se agregaron PKCE, CAPTCHA de Auth, hardening de avatar, cifrado AES-256-GCM para tokens OAuth y auditoría cerrada de HTML dinámico. La suite quedó en 179 pruebas aprobadas y el build Vercel finalizó correctamente. Commit, push, SQL, variables y despliegue permanecen bajo control del usuario.
 
 ### Estado del historial comercial
 
@@ -212,12 +212,14 @@ Archivos principales:
 - `docs/supabase-distributed-rate-limit.sql` crea el contador atómico compartido, restringe tabla y RPC a `service_role`, agenda la limpieza de claves antiguas y devuelve una auditoría de instalación. Fue ejecutado y auditado remotamente el 16 de octubre de 2026: tabla existente, RLS activo, cron diario activo y RPC exclusiva de `service_role`.
 - `docs/supabase-distributed-rate-limit-v2.sql` es la migración incremental correctiva aplicada el 17 de octubre de 2026. Reemplaza únicamente la RPC con nombres de variables no reservados, reafirma `search_path` y permisos, ejecuta una prueba funcional como `service_role` y limpia su bucket de verificación. Producción quedó confirmada con fuente distribuida.
 - `docs/supabase-product-images-storage-hardening.sql` restringe el bucket `product-images` a 20 MB, MIME JPEG/PNG/WebP, extensiones JPG/JPEG/PNG/WebP y rutas `<usuario>/<producto>/<archivo>`. Fue aplicado y auditado remotamente el 19 de octubre de 2026: cuatro políticas para `authenticated`, cinco objetos históricos y cero extensiones o estructuras inesperadas.
+- `docs/supabase-avatar-storage-hardening.sql` aplica el mismo modelo propietario al bucket `avatar`, con límite de 5 MB y validación JPG/JPEG/PNG/WebP. El código está listo; falta ejecutarlo y conservar su auditoría remota.
 
 ## Documentación
 
 - `docs/ARCHITECTURE.md`: responsabilidades generales por capa.
 - `docs/PANEL_ADMIN_OPERATIVO.md`: alcance, seguridad, activación y pendientes del panel administrativo.
 - `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`: estados de Mercado Pago, reembolsos, auditoría y defensas de API.
+- `docs/SECURITY_CHECKLIST.md`: cierre de los veinte controles de seguridad y los tres pasos remotos necesarios para activarlos completamente.
 - `docs/supabase-auth-display-name-backfill.sql`: sincronización puntual de nombres históricos desde perfiles hacia la metadata visual de Auth, sin alterar el teléfono de autenticación.
 - `docs/BUENAS_PRACTICAS_VENTAS_MERCADO_PAGO.md`: resumen del material comercial aportado, estado actual y brechas para conversión, cuotas, reclamos y crecimiento.
 - `docs/LINEA_POR_LINEA.md`: inventario funcional de archivos.
@@ -295,7 +297,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
 - `pnpm run security:secrets`: revisa archivos versionados, rechaza `.env` reales y credenciales reconocibles, y nunca imprime el valor detectado.
 - `pnpm run security:audit`: consulta avisos conocidos del árbol de producción; la última ejecución del 20 de octubre devolvió 0 vulnerabilidades sobre 369 dependencias.
-- Última ejecución local observada el 20 de octubre de 2026: 165 pruebas aprobadas, 0 fallos. El artefacto SSR devolvió la CSP esperada, con hashes para scripts y estilos de elementos, sin `unsafe-inline` en scripts y con la excepción visual acotada exclusivamente a `style-src-attr`.
+- Última ejecución local observada el 20 de octubre de 2026: 179 pruebas aprobadas, 0 fallos y build Astro/Vercel correcto. La revisión agrega Turnstile, hardening de avatar, cifrado OAuth AES-256-GCM, PKCE y una auditoría cerrada de sinks HTML.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.

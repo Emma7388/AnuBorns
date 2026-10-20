@@ -19,6 +19,13 @@ const REQUIRED_ENV = [
     secret: false,
   },
   {
+    key: "PUBLIC_TURNSTILE_SITE_KEY",
+    area: "Seguridad",
+    label: "Turnstile público",
+    detail: "Activa el desafío anti-bot en registro, ingreso y recuperación.",
+    secret: false,
+  },
+  {
     key: "SUPABASE_URL",
     area: "Supabase",
     label: "URL server de Supabase",
@@ -65,6 +72,13 @@ const REQUIRED_ENV = [
     area: "Mercado Pago OAuth",
     label: "Client secret OAuth",
     detail: "Necesario para refrescar tokens OAuth de vendedores.",
+    secret: true,
+  },
+  {
+    key: "MERCADOPAGO_TOKEN_ENCRYPTION_KEY",
+    area: "Mercado Pago OAuth",
+    label: "Clave de cifrado OAuth",
+    detail: "Cifra access y refresh tokens con AES-256-GCM antes de guardarlos.",
     secret: true,
   },
   {
@@ -186,6 +200,12 @@ export const ADMIN_HEALTH_OPERATION_CHECKS = [
     area: "Mercado Pago OAuth",
     label: "OAuth vendedores",
     detail: "La app tiene credenciales y tabla para tokens OAuth de vendedores.",
+  },
+  {
+    id: "oauth-token-encryption",
+    area: "Mercado Pago OAuth",
+    label: "Tokens OAuth cifrados",
+    detail: "Los tokens de vendedores quedan cifrados adicionalmente en la aplicación.",
   },
   {
     id: "webhook",

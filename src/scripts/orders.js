@@ -757,7 +757,7 @@ const renderHistory = (history = [], providerMetaMap = {}, fulfillmentMap = {}) 
           </button>`
         : "";
       const providerNameMarkup = providerProfileHref
-        ? `<a class="ab-order-card__provider-link" href="${providerProfileHref}">${escapeHtml(provider)}</a>`
+        ? `<a class="ab-order-card__provider-link" href="${escapeHtml(providerProfileHref)}">${escapeHtml(provider)}</a>`
         : `<span class="ab-order-card__provider-link ab-order-card__provider-link--disabled">${escapeHtml(provider)}</span>`;
 
       card.innerHTML = `

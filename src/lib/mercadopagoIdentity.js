@@ -1,3 +1,5 @@
+import { decryptMercadoPagoAccount } from "./mercadopagoTokenCrypto.js";
+
 const IDENTITY_EXCEPTION_MP_USER_IDS = new Set(["1157622469"]);
 
 const normalizeText = (value) =>
@@ -64,14 +66,15 @@ export const validateSellerMercadoPagoIdentity = async (supabaseAdmin, user) => 
       .maybeSingle(),
   ]);
 
-  if (!connection?.access_token || !connection?.mp_user_id) {
+  const decryptedConnection = decryptMercadoPagoAccount(connection);
+  if (!decryptedConnection?.access_token || !decryptedConnection?.mp_user_id) {
     return { ok: false, status: 409, error: "Conectá tu cuenta de Mercado Pago para vender." };
   }
-  const fetched = await fetchMercadoPagoUser(connection.access_token);
+  const fetched = await fetchMercadoPagoUser(decryptedConnection.access_token);
   if (!fetched.ok) {
     return { ok: false, status: 502, error: "No se pudo validar tu cuenta de Mercado Pago." };
   }
-  if (String(fetched.account.id) !== String(connection.mp_user_id)) {
+  if (String(fetched.account.id) !== String(decryptedConnection.mp_user_id)) {
     return { ok: false, status: 409, error: "La conexión no corresponde a la cuenta Mercado Pago guardada." };
   }
   const identity = compareMercadoPagoIdentity({ mpAccount: fetched.account, profile, authUser: user });
@@ -84,5 +87,6 @@ export const validateSellerMercadoPagoIdentity = async (supabaseAdmin, user) => 
       mpAccount: fetched.account,
     };
   }
-  return { ok: true, connection, profile, mpAccount: fetched.account, identity };
+  const { access_token: _accessToken, refresh_token: _refreshToken, ...safeConnection } = decryptedConnection;
+  return { ok: true, connection: safeConnection, profile, mpAccount: fetched.account, identity };
 };

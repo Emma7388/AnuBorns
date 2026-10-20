@@ -18,12 +18,12 @@ export default defineConfig({
         "default-src 'self'",
         "base-uri 'self'",
         "object-src 'none'",
-        "frame-src 'none'",
+        "frame-src https://challenges.cloudflare.com",
         "frame-ancestors 'none'",
         "form-action 'self'",
         "img-src 'self' data: blob: https://*.supabase.co",
         "font-src 'self' data: https://fonts.gstatic.com",
-        "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+        "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
         "media-src 'self' blob: https://*.supabase.co",
         "worker-src 'self' blob:",
         "manifest-src 'self'",
@@ -39,6 +39,12 @@ export default defineConfig({
         ],
         // El detalle imprimible se crea en una ventana nueva desde una cadena CSS fija.
         hashes: [{ hash: purchaseDetailStyleHash, kind: "element" }],
+      },
+      scriptDirective: {
+        resources: [
+          { resource: "'self'", kind: "element" },
+          { resource: "https://challenges.cloudflare.com", kind: "element" },
+        ],
       },
     },
   },

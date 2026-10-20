@@ -99,7 +99,7 @@ Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario
 
 ## Verificación local y contraste de producción
 
-- Verificación local del 20 de octubre: 165 pruebas aprobadas, 0 fallos, build Astro/Vercel correcto, CSP nativa comprobada en el handler compilado y 0 vulnerabilidades informadas por `pnpm audit --prod`.
+- La revisión de seguridad del 20 de octubre agrega al panel el diagnóstico de clave/cifrado OAuth y la acción idempotente `Cifrar tokens OAuth`. La ejecución final aprobó 179 pruebas sin fallos y el build Astro/Vercel terminó correctamente.
 - Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
 - Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
 - Contraste de producción del 17 de octubre: el usuario desplegó la versión entonces vigente y aplicó la migración incremental del limitador. `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. La revisión local del 20 de octubre todavía requiere despliegue; no se ejecutaron cobros ni reembolsos durante estas validaciones.

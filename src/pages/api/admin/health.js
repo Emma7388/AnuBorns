@@ -13,6 +13,50 @@ import {
 } from "../../../lib/adminHealth.js";
 import { checkRateLimit } from "../../../lib/serverRateLimit.js";
 import { getSupabaseAdmin, getSupabaseAdminConfigStatus } from "../../../lib/supabaseServer.js";
+import {
+  getMercadoPagoTokenEncryptionStatus,
+  isEncryptedMercadoPagoToken,
+} from "../../../lib/mercadopagoTokenCrypto.js";
+
+const getOAuthTokenEncryptionCheck = async (supabaseAdmin) => {
+  const definition = ADMIN_HEALTH_OPERATION_CHECKS.find((check) => check.id === "oauth-token-encryption");
+  const config = getMercadoPagoTokenEncryptionStatus();
+  if (!config.valid) {
+    return buildHealthCheck({
+      ...definition,
+      status: "error",
+      detail: "Falta una clave válida de 256 bits para cifrar tokens OAuth.",
+      action: "Configurar MERCADOPAGO_TOKEN_ENCRYPTION_KEY en Vercel.",
+      meta: { configured: config.configured },
+    });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("seller_mercadopago_accounts")
+    .select("access_token,refresh_token")
+    .limit(1000);
+  if (error) {
+    return buildHealthCheck({
+      ...definition,
+      status: "error",
+      detail: "No se pudo verificar el cifrado de las conexiones OAuth.",
+      action: "Revisar seller_mercadopago_accounts y sus permisos.",
+    });
+  }
+
+  const values = (data ?? []).flatMap((row) => [row.access_token, row.refresh_token]).filter(Boolean);
+  const encrypted = values.filter(isEncryptedMercadoPagoToken).length;
+  const legacy = values.length - encrypted;
+  return buildHealthCheck({
+    ...definition,
+    status: legacy ? "warning" : "ok",
+    detail: legacy
+      ? `Quedan ${legacy} tokens legados sin cifrado adicional.`
+      : "Todos los tokens OAuth guardados usan cifrado AES-256-GCM.",
+    action: legacy ? "Usar “Cifrar tokens OAuth” en el panel Mercado Pago." : "",
+    meta: { encrypted, legacy },
+  });
+};
 
 const tableCheckToHealth = async (supabaseAdmin, tableCheck) => {
   try {
@@ -63,6 +107,7 @@ const buildOperationChecks = ({
   supabaseConfigured,
   supabaseAdmin,
   rateLimitSource,
+  oauthTokenEncryptionCheck,
 }) => {
   const operationChecks = [];
   const envOk = (key) => isOk(envChecks, `env-${key.toLowerCase()}`);
@@ -72,6 +117,7 @@ const buildOperationChecks = ({
     status: "ok",
     detail: "La sesion actual paso la validacion server-side de administrador.",
   }));
+  operationChecks.push(oauthTokenEncryptionCheck);
 
   const adminControlReady =
     tableOk(tableChecks, "admin_users") &&
@@ -210,12 +256,14 @@ export const GET = async ({ request }) => {
     const tableChecks = await Promise.all(
       ADMIN_HEALTH_TABLE_CHECKS.map((tableCheck) => tableCheckToHealth(supabaseAdmin, tableCheck)),
     );
+    const oauthTokenEncryptionCheck = await getOAuthTokenEncryptionCheck(supabaseAdmin);
     const operationChecks = buildOperationChecks({
       envChecks,
       tableChecks,
       supabaseConfigured: config.missing.length === 0,
       supabaseAdmin,
       rateLimitSource: rate.source,
+      oauthTokenEncryptionCheck,
     });
     const checks = [...operationChecks, ...tableChecks, ...envChecks];
 

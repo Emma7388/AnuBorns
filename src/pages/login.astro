@@ -2,13 +2,15 @@
 // Página: login de usuario.
 import MainLayout from "../layouts/MainLayout.astro";
 import TitleBadge from "../components/TitleBadge.astro";
+import TurnstileWidget from "../components/TurnstileWidget.astro";
+const turnstileEnabled = Boolean(String(import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "").trim());
 ---
 
 <MainLayout title="Iniciar sesión">
   <section class="ab-dark-panel">
     <TitleBadge title="Ingresá a tu cuenta" icon="/icons/iniciarsesion.svg" tone="primary" />
 
-    <form class="ab-form" id="login-form" method="post">
+    <form class="ab-form" id="login-form" method="post" data-turnstile-enabled={String(turnstileEnabled)}>
       <label for="email">Email</label>
       <input
         id="email"
@@ -47,6 +49,7 @@ import TitleBadge from "../components/TitleBadge.astro";
       <button class="ab-login-forgot" type="button" id="forgot-password">
         ¿Olvidaste tu contraseña?
       </button>
+      <TurnstileWidget action="login" />
       <div class="ab-actions">
         <button type="submit" class="ab-cta-button" id="login-submit">
           <img src="/icons/iniciarsesion.svg" alt="" aria-hidden="true" />

@@ -4,6 +4,7 @@ import { getAuthenticatedUser } from "../../../../lib/serverAuth.js";
 import { getSupabaseAdmin } from "../../../../lib/supabaseServer.js";
 import { checkRateLimit } from "../../../../lib/serverRateLimit.js";
 import { compareMercadoPagoIdentity } from "../../../../lib/mercadopagoIdentity.js";
+import { decryptMercadoPagoAccount } from "../../../../lib/mercadopagoTokenCrypto.js";
 
 const buildAccountLabel = (account, fallbackMpUserId) => {
   const firstName = String(account?.first_name ?? "").trim();
@@ -61,8 +62,9 @@ export const GET = async ({ request }) => {
       .eq("user_id", auth.user.id)
       .maybeSingle();
 
-    const mpAccount = data?.access_token
-      ? await fetchMercadoPagoAccount(data.access_token)
+    const decryptedData = decryptMercadoPagoAccount(data);
+    const mpAccount = decryptedData?.access_token
+      ? await fetchMercadoPagoAccount(decryptedData.access_token)
       : null;
     const mpUserId = String(mpAccount?.id ?? data?.mp_user_id ?? "").trim();
     const accountLabel = buildAccountLabel(mpAccount, mpUserId);
@@ -77,8 +79,8 @@ export const GET = async ({ request }) => {
       : { matches: false, exception: false, mismatches: [] };
 
     return jsonResponse({
-        connected: Boolean(data?.mp_user_id),
-        can_sell: Boolean(data?.mp_user_id) && identity.matches,
+        connected: Boolean(decryptedData?.mp_user_id),
+        can_sell: Boolean(decryptedData?.mp_user_id) && identity.matches,
         identity_match: identity.matches,
         identity_exception: identity.exception,
         identity_mismatches: identity.mismatches,

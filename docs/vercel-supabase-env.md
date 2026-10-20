@@ -5,6 +5,7 @@ Para que el bundle del navegador tenga Supabase disponible en produccion, config
 ```text
 PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=<anon-public-key>
+PUBLIC_TURNSTILE_SITE_KEY=<site-key-publica-de-cloudflare>
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 RATE_LIMIT_HASH_SECRET=<secreto-aleatorio-largo>
@@ -39,6 +40,7 @@ MERCADOPAGO_ACCESS_TOKEN=<access-token-plataforma>
 MERCADOPAGO_WEBHOOK_SECRET=<webhook-secret>
 MERCADOPAGO_CLIENT_ID=<client-id-app>
 MERCADOPAGO_CLIENT_SECRET=<client-secret-app>
+MERCADOPAGO_TOKEN_ENCRYPTION_KEY=<32-bytes-base64url-o-64-hex>
 MERCADOPAGO_OAUTH_REDIRECT_URI=https://<dominio-publico-de-produccion>/api/mp-oauth
 MERCADOPAGO_MARKETPLACE_ID=<marketplace-id-si-corresponde>
 MERCADOPAGO_SEND_MARKETPLACE_FIELD=false
@@ -51,6 +53,10 @@ CHECKOUT_PENDING_ORDER_TTL_MINUTES=1440
 ```
 
 `SITE_URL` debe ser HTTPS y apuntar al dominio publico real. No dejarlo vacio: el checkout lo usa para `back_urls` y `notification_url`.
+
+`PUBLIC_TURNSTILE_SITE_KEY` es pública y se incrusta durante el build. La secret key correspondiente se configura directamente en Supabase Auth > protección CAPTCHA/Turnstile y nunca se guarda como `PUBLIC_*` ni se versiona.
+
+`MERCADOPAGO_TOKEN_ENCRYPTION_KEY` es privada y debe marcarse como `Sensitive`. Si Preview y Production apuntan a la misma base deben compartir la misma clave; de lo contrario una instancia no podrá descifrar los tokens escritos por la otra. Después del primer despliegue, usar `Cifrar tokens OAuth` en `/admin/mercadopago` para migrar los registros legados.
 
 La comision comercial objetivo es el 1,5% sobre las publicaciones permanentes. Las publicaciones mensuales pagan ARS 2.000 por 30 días y quedan fuera de la base porcentual al vender. `MERCADOPAGO_MARKETPLACE_FEE_AMOUNT` debe quedar en `0`: si contiene un numero positivo, el checkout aplica ese importe fijo y no utiliza `MERCADOPAGO_MARKETPLACE_FEE_PERCENT`. Después de actualizar estas variables en Vercel se necesita un redeploy. Una compra real del 10 de octubre de 2026 confirmó que el despliegue aplicó el porcentaje: ARS 500 produjeron ARS 8 para AnuBorns.
 

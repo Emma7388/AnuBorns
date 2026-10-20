@@ -226,11 +226,14 @@ Comportamiento actual:
 - `/api/mercadopago/oauth/connect` exige poder firmar el estado antes de redirigir a Mercado Pago.
 - `/api/mp-oauth` exige poder verificar el estado antes de intercambiar el código.
 - El intercambio de token con Mercado Pago tiene timeout server-side.
+- `src/lib/mercadopagoTokenCrypto.js` cifra access y refresh tokens con AES-256-GCM antes de persistir altas o renovaciones. Una lectura temporal de valores legados permite migrar sin interrumpir checkout, webhook ni sincronización.
+- `/api/admin/mercadopago-token-encryption` exige administrador, rate limit y clave válida; cifra filas legadas de forma idempotente y registra el resultado en `audit_logs` sin devolver tokens.
 
 Variables relevantes:
 
 - `MERCADOPAGO_CLIENT_SECRET`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `MERCADOPAGO_TOKEN_ENCRYPTION_KEY` (32 bytes en base64url o 64 caracteres hexadecimales)
 
 ## Pruebas agregadas o actualizadas
 
@@ -246,7 +249,7 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 22 tests passed
 ```
 
-La ejecución completa más reciente del 20 de octubre de 2026 terminó con 165 pruebas aprobadas y 0 fallos; el build Astro/Vercel finalizó correctamente y `pnpm audit --prod` devolvió 0 vulnerabilidades. Estas verificaciones locales y las pruebas administrativas no sustituyen una prueba real de reembolso. El usuario ejecutó las migraciones comerciales y la migración administrativa 2A; sus auditorías no mostraron anomalías. El despliegue de esta revisión y su recorrido visual continúan bajo control del usuario.
+La ejecución completa más reciente del 20 de octubre de 2026 terminó con 179 pruebas aprobadas y 0 fallos; el build Astro/Vercel finalizó correctamente y `pnpm audit --prod` había devuelto 0 vulnerabilidades. Estas verificaciones locales y las pruebas administrativas no sustituyen una prueba real de reembolso. El despliegue, las variables de cifrado/CAPTCHA, la migración de avatar y su recorrido visual continúan bajo control del usuario.
 
 ## Evidencia real conservada
 

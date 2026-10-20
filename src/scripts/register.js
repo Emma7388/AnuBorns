@@ -1,9 +1,10 @@
 /* Formulario de registro: validaciones y alta de usuario. */
 import { supabase } from "../lib/supabaseClient";
-import { AVATAR_MAX_BYTES, resizeAvatarImage } from "../lib/imageResize";
+import { AVATAR_MAX_BYTES, isAllowedAvatarType, resizeAvatarImage } from "../lib/imageResize";
 import { PENDING_AVATAR_KEY } from "../lib/pendingAvatar";
 import { buildProfileAuthMetadata } from "../lib/profileAuthMetadata.js";
 import { writeStorageJson } from "../lib/browserStorage.js";
+import { getCaptchaToken, resetCaptcha } from "../lib/turnstile.js";
 import {
   clearPendingRegistrationProfile,
   savePendingRegistrationProfile,
@@ -27,7 +28,6 @@ let address = document.getElementById("address");
 let city = document.getElementById("city");
 let province = document.getElementById("province");
 let postal = document.getElementById("postal-code");
-const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const REGISTER_TEXT_MAX = {
   name: 60,
   address: 120,
@@ -235,7 +235,7 @@ function handleAvatarPreviewChange(event) {
     clearAvatarPreview();
     return;
   }
-  if (!ALLOWED_AVATAR_TYPES.has(file.type) || file.size > AVATAR_MAX_BYTES) {
+  if (!isAllowedAvatarType(file.type) || file.size > AVATAR_MAX_BYTES) {
     clearAvatarPreview();
     return;
   }
@@ -254,6 +254,12 @@ const handleRegisterSubmit = async (event) => {
     const firstError = validation.errors[0];
     feedback.textContent = firstError?.message ?? "Revisá los datos ingresados.";
     firstError?.input?.focus();
+    return;
+  }
+
+  const captcha = getCaptchaToken(registerForm);
+  if (!captcha.ok) {
+    feedback.textContent = "Completá la verificación de seguridad antes de crear la cuenta.";
     return;
   }
 
@@ -288,7 +294,7 @@ const handleRegisterSubmit = async (event) => {
 
     /* Validación de avatar si se adjunta. */
     if (avatarFile) {
-      if (!ALLOWED_AVATAR_TYPES.has(avatarFile.type)) {
+      if (!isAllowedAvatarType(avatarFile.type)) {
         if (avatarInput) avatarInput.value = "";
         clearAvatarPreview();
         feedback.textContent = "La foto de perfil debe ser JPG, PNG o WEBP.";
@@ -300,8 +306,15 @@ const handleRegisterSubmit = async (event) => {
         feedback.textContent = "La foto de perfil supera el tamaño máximo de 5MB.";
         return;
       }
-      optimizedAvatarFile = await resizeAvatarImage(avatarFile);
-      if (!ALLOWED_AVATAR_TYPES.has(optimizedAvatarFile.type)) {
+      try {
+        optimizedAvatarFile = await resizeAvatarImage(avatarFile);
+      } catch {
+        if (avatarInput) avatarInput.value = "";
+        clearAvatarPreview();
+        feedback.textContent = "El archivo no se pudo validar como una imagen segura.";
+        return;
+      }
+      if (!isAllowedAvatarType(optimizedAvatarFile.type)) {
         if (avatarInput) avatarInput.value = "";
         clearAvatarPreview();
         feedback.textContent = "No se pudo preparar la foto de perfil. Probá con JPG, PNG o WEBP.";
@@ -324,6 +337,7 @@ const handleRegisterSubmit = async (event) => {
       options: {
         emailRedirectTo,
         data: buildProfileAuthMetadata(validation.values),
+        captchaToken: captcha.token,
       },
     });
 
@@ -394,6 +408,7 @@ const handleRegisterSubmit = async (event) => {
         : "Cuenta creada. Revisá tu email para confirmar el acceso.";
     isRegistrationComplete = true;
   } finally {
+    resetCaptcha(registerForm);
     isRegistering = false;
     if (submitButton) submitButton.disabled = isRegistrationComplete;
   }

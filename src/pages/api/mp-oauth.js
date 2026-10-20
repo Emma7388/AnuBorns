@@ -5,6 +5,7 @@ import {
 } from "../../lib/mercadopagoOAuthState.js";
 import { checkRateLimit } from "../../lib/serverRateLimit.js";
 import { getSupabaseAdmin } from "../../lib/supabaseServer.js";
+import { encryptMercadoPagoAccountTokens } from "../../lib/mercadopagoTokenCrypto.js";
 
 const clientId = process.env.MERCADOPAGO_CLIENT_ID;
 const clientSecret = process.env.MERCADOPAGO_CLIENT_SECRET;
@@ -86,6 +87,12 @@ export const GET = async ({ request }) => {
   }
 
   const payload = tokenResult.payload;
+  let encryptedTokens;
+  try {
+    encryptedTokens = encryptMercadoPagoAccountTokens(payload);
+  } catch {
+    return redirectToProducts(request, "config_error");
+  }
   const expiresIn = Number(payload?.expires_in ?? 0);
   const expiresAt = Number.isFinite(expiresIn) && expiresIn > 0
     ? new Date(Date.now() + expiresIn * 1000).toISOString()
@@ -97,8 +104,8 @@ export const GET = async ({ request }) => {
       {
         user_id: stateResult.userId,
         mp_user_id: payload?.user_id ? String(payload.user_id) : null,
-        access_token: String(payload?.access_token ?? ""),
-        refresh_token: payload?.refresh_token ? String(payload.refresh_token) : null,
+        access_token: encryptedTokens.access_token,
+        refresh_token: encryptedTokens.refresh_token,
         public_key: payload?.public_key ? String(payload.public_key) : null,
         token_type: payload?.token_type ? String(payload.token_type) : null,
         scope: payload?.scope ? String(payload.scope) : null,
