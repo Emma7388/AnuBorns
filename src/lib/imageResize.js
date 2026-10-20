@@ -1,6 +1,23 @@
 /* Optimización de imágenes en navegador antes de subirlas a Storage. */
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 export const PRODUCT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+export const PRODUCT_IMAGE_ALLOWED_MIME_TYPES = Object.freeze([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const PRODUCT_IMAGE_EXTENSION_BY_MIME = Object.freeze({
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+});
+
+export const isAllowedProductImageType = (value) =>
+  PRODUCT_IMAGE_ALLOWED_MIME_TYPES.includes(String(value ?? "").trim().toLowerCase());
+
+export const getProductImageExtension = (file) =>
+  PRODUCT_IMAGE_EXTENSION_BY_MIME[String(file?.type ?? "").trim().toLowerCase()] ?? "";
 
 /* Conserva el nombre base y fuerza la extensión del formato de salida. */
 const getOutputName = (file, extension = "jpg") => {
@@ -16,6 +33,7 @@ export const resizeImageFile = async (
     quality = 0.82,
     outputType = "image/jpeg",
     alwaysConvert = true,
+    rejectInvalid = false,
   } = {},
 ) => {
   /* Si no es imagen o el navegador no puede decodificarla, se usa el archivo original. */
@@ -25,6 +43,7 @@ export const resizeImageFile = async (
   try {
     bitmap = await createImageBitmap(file);
   } catch {
+    if (rejectInvalid) throw new Error("El archivo no se pudo validar como una imagen segura.");
     return file;
   }
 
@@ -46,6 +65,7 @@ export const resizeImageFile = async (
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     bitmap.close?.();
+    if (rejectInvalid) throw new Error("El archivo no se pudo procesar como imagen.");
     return file;
   }
 
@@ -53,10 +73,14 @@ export const resizeImageFile = async (
   bitmap.close?.();
 
   /* Canvas entrega Blob por callback; se envuelve en Promise para el flujo async. */
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
+          if (rejectInvalid) {
+            reject(new Error("El archivo no se pudo convertir a una imagen segura."));
+            return;
+          }
           resolve(file);
           return;
         }
@@ -85,4 +109,5 @@ export const resizeProductImage = (file) =>
     quality: 0.82,
     outputType: "image/jpeg",
     alwaysConvert: true,
+    rejectInvalid: true,
   });

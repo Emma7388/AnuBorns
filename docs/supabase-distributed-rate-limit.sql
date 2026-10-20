@@ -46,7 +46,7 @@ security definer
 set search_path = pg_catalog
 as $$
 declare
-  current_time timestamptz := pg_catalog.now();
+  v_now timestamptz := pg_catalog.now();
   current_window_started_at timestamptz;
   current_request_count integer;
   window_interval interval;
@@ -71,21 +71,21 @@ begin
   )
   values (
     p_key_hash,
-    current_time,
+    v_now,
     1,
-    current_time
+    v_now
   )
   on conflict (key_hash) do update
   set
     window_started_at = case
-      when bucket.window_started_at + window_interval <= current_time then current_time
+      when bucket.window_started_at + window_interval <= v_now then v_now
       else bucket.window_started_at
     end,
     request_count = case
-      when bucket.window_started_at + window_interval <= current_time then 1
+      when bucket.window_started_at + window_interval <= v_now then 1
       else least(bucket.request_count + 1, p_limit + 1)
     end,
-    updated_at = current_time
+    updated_at = v_now
   returning bucket.window_started_at, bucket.request_count
   into current_window_started_at, current_request_count;
 
@@ -97,7 +97,7 @@ begin
     when allowed then 0
     else greatest(
       1,
-      ceil(extract(epoch from (reset_at - current_time)))::integer
+      ceil(extract(epoch from (reset_at - v_now)))::integer
     )
   end;
   return next;

@@ -12,10 +12,26 @@ test("la migracion limita acceso y usa una RPC atomica", async () => {
   assert.match(sql, /alter table public\.api_rate_limits enable row level security/i);
   assert.match(sql, /create or replace function public\.consume_api_rate_limit/i);
   assert.match(sql, /on conflict \(key_hash\) do update/i);
+  assert.match(sql, /v_now timestamptz := pg_catalog\.now\(\)/i);
+  assert.doesNotMatch(sql, /\bcurrent_time\b/i);
   assert.match(sql, /security definer\s+set search_path = pg_catalog/i);
   assert.match(sql, /revoke all on function public\.consume_api_rate_limit[\s\S]*from public, anon, authenticated/i);
   assert.match(sql, /grant execute on function public\.consume_api_rate_limit[\s\S]*to service_role/i);
   assert.match(sql, /anuborns_cleanup_api_rate_limits/i);
+});
+
+test("la migracion incremental corrige la RPC sin tocar tabla ni cron", async () => {
+  const sql = await readFile(path.join(root, "docs", "supabase-distributed-rate-limit-v2.sql"), "utf8");
+  const executableSql = sql.replace(/--.*$/gm, "");
+
+  assert.match(sql, /create or replace function public\.consume_api_rate_limit/i);
+  assert.match(sql, /v_now timestamptz := pg_catalog\.now\(\)/i);
+  assert.doesNotMatch(executableSql, /\bcurrent_time\b/i);
+  assert.doesNotMatch(sql, /create table/i);
+  assert.doesNotMatch(sql, /cron\.schedule/i);
+  assert.match(sql, /set local role service_role/i);
+  assert.match(sql, /delete from public\.api_rate_limits[\s\S]*repeat\('0', 64\)/i);
+  assert.match(sql, /select pg_notify\('pgrst', 'reload schema'\)/i);
 });
 
 test("todos los endpoints esperan el resultado del limitador distribuido", async () => {

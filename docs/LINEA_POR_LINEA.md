@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 16 de octubre de 2026 para la rama `V0.8`.
+Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -86,7 +86,7 @@ Actualizado al 16 de octubre de 2026 para la rama `V0.8`.
 - `src/scripts/checkout.js`: resumen final, datos de retiro/envío por vendedor sin sumar costo logístico al comprador y redirección a Mercado Pago.
 - `src/scripts/confirmation.js`: estado visual del pago, sincronización de respaldo con Mercado Pago, estados de reembolso y limpieza del carrito aprobado.
 - `src/scripts/orders.js`: historial de compras, render por orden, estados de pago/reembolso, acciones de entrega sólo cuando corresponden y borrado con modal.
-- `src/scripts/product-create.js`: formulario de publicación, categorías dinámicas, ubicación única o cobertura de tres ciudades, retiro predeterminado/envío excluyente, optimización de imagen y alta en Supabase.
+- `src/scripts/product-create.js`: formulario de publicación, categorías dinámicas, ubicación única o cobertura de tres ciudades, retiro predeterminado/envío excluyente, validación JPG/JPEG/PNG/WebP, optimización de imagen, extensión normalizada y alta en Supabase.
 - `src/scripts/mis-ventas.js`: carga ventas y publicaciones del usuario autenticado; distingue el tipo y estado del contrato de publicación, muestra estados de pago/reembolso y habilita despacho sólo para pagos aprobados.
 - `src/scripts/mercadopago-connect.js`: consulta, conecta, reconecta y desconecta la cuenta Mercado Pago del vendedor.
 - `src/scripts/purchase-status-notifications.js`: notifica cambios de estado relevantes para el comprador, usando lectura por POST y antirráfaga para navegación/realtime.
@@ -171,6 +171,11 @@ Actualizado al 16 de octubre de 2026 para la rama `V0.8`.
 - `docs/supabase-admin-control.sql`: Etapa 2A; suspensiones server-only, permisos endurecidos, RPC serializadas para coordinar rol/estado y auditoría de instalación. Fue ejecutado y auditado remotamente el 11 de octubre de 2026; falta desplegar y validar los botones nuevos.
 - `docs/supabase-checkout-ordinality-hotfix.sql`: hotfix idempotente de la RPC atómica tras el error PostgreSQL 42601 observado en producción; no modifica datos existentes y audita sintaxis y permisos. Aplicado y auditado remotamente el 12 de octubre de 2026.
 - `tests/supabaseCheckoutSql.test.mjs`: regresión estática que impide volver a combinar directamente una lista tipada con `WITH ORDINALITY`.
+- `docs/supabase-distributed-rate-limit.sql`: instalación base del contador compartido con tabla RLS, RPC server-only, cron de limpieza y auditoría.
+- `docs/supabase-distributed-rate-limit-v2.sql`: migración incremental correctiva aplicada el 17 de octubre; reemplaza sólo la RPC, evita identificadores que colisionen con palabras temporales de PostgreSQL, reafirma permisos y ejecuta una prueba funcional con limpieza.
+- `tests/distributedRateLimitSql.test.mjs`: regresión estática de estructura, seguridad y permisos del limitador; impide reintroducir `current_time` como identificador ejecutable y exige la migración v2 verificable.
+- `docs/supabase-product-images-storage-hardening.sql`: migración incremental no destructiva para limitar `product-images` a 20 MB, MIME y extensiones de imagen permitidos, carpeta propietaria y metadata visible sólo para su dueño. Aplicada y auditada remotamente el 19 de octubre de 2026; los cinco objetos existentes quedaron conformes.
+- `tests/productImageStorageSql.test.mjs`: regresión estática del bucket y sus políticas; confirma además que la migración no modifica ni elimina objetos existentes.
 
 
 ## Estilos

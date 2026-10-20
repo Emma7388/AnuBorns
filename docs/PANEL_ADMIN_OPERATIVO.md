@@ -97,12 +97,12 @@ Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario
 - La configuración de Vercel impide embeber el panel en iframes, evita inferencia MIME, restringe el referrer y deshabilita cámara, micrófono y geolocalización para toda la aplicación.
 - El tablero de salud comprueba la tabla del rate limit y la fuente usada por la propia solicitud. `distributed` confirma el contador global; `memory-fallback` muestra “Revisar” sin ocultar que la protección quedó temporalmente limitada a una instancia.
 
-## Verificación local de estabilización — 16 de octubre de 2026
+## Verificación local y contraste de producción — 17 de octubre de 2026
 
-- 153 pruebas aprobadas y 0 fallos después de incorporar la regresión de navegación administrativa compartida.
+- 154 pruebas aprobadas y 0 fallos después de incorporar la regresión de navegación administrativa compartida y la protección contra la colisión `current_time`/`CURRENT_TIME` en la RPC del limitador.
 - Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
 - Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
-- No se ejecutaron despliegues, mutaciones remotas, cobros, reembolsos ni SQL durante esta pasada.
+- El usuario desplegó la versión actual y aplicó la migración incremental del limitador. `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. No se ejecutaron cobros ni reembolsos durante esta validación.
 
 ## Estados
 
@@ -128,7 +128,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - `SUPABASE_URL`.
 - `SUPABASE_SERVICE_ROLE_KEY`.
 - Cliente server disponible.
-- Tabla y operación de rate limit distribuido. `docs/supabase-distributed-rate-limit.sql` fue aplicado el 16 de octubre y auditado con RLS activo, cron diario y ejecución exclusiva de `service_role`; resta confirmarlo con el código desplegado.
+- Tabla y operación de rate limit distribuido. `docs/supabase-distributed-rate-limit.sql` fue aplicado el 16 de octubre y `docs/supabase-distributed-rate-limit-v2.sql` el 17 de octubre. RLS, cron diario, `search_path`, permisos exclusivos de `service_role` y prueba funcional quedaron auditados; el código desplegado confirmó la fuente distribuida.
 - Mediciones read-only del servidor via Metrics API cuando estan configuradas `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY`.
 - La lectura de mediciones es manual desde el boton `Consultar`; la carga inicial del panel no llama a Metrics API.
 - Las mediciones visibles incluyen memoria, swap, disco, carga, I/O en curso, conexiones reportadas y reinicios de Postgres. El navegador no recibe la clave de metricas.

@@ -1,7 +1,12 @@
 /* Formulario de publicación de producto con imágenes y validaciones. */
 import { supabase } from "../lib/supabaseClient";
 import { categories as localCategories } from "../data/categories";
-import { PRODUCT_IMAGE_MAX_BYTES, resizeProductImage } from "../lib/imageResize";
+import {
+  PRODUCT_IMAGE_MAX_BYTES,
+  getProductImageExtension,
+  isAllowedProductImageType,
+  resizeProductImage,
+} from "../lib/imageResize";
 import { ALL_PRODUCT_LOCATIONS, formatProductLocation } from "../lib/productLocation";
 import { fetchUserProfile } from "../lib/userProfile";
 
@@ -579,17 +584,20 @@ const initProductForm = () => {
   });
 };
 
-/* Obtiene solo imágenes válidas del input. */
+/* Conserva la selección para poder informar formatos no admitidos. */
 const collectImages = () => {
   const files = Array.from(imagesInput?.files ?? []);
   if (files.length === 0) return [];
-  return files.filter((file) => file && file.type.startsWith("image/"));
+  return files.filter(Boolean);
 };
 
 /* Valida cantidad y tamaño de imágenes. */
 const validateImages = (files) => {
   if (files.length > MAX_FILES) {
     return "Podés subir solo 1 foto.";
+  }
+  if (files.some((file) => !isAllowedProductImageType(file?.type))) {
+    return "La foto debe estar en formato JPG, JPEG, PNG o WebP.";
   }
   const totalSize = files.reduce((sum, file) => sum + (file.size ?? 0), 0);
   if (totalSize > MAX_TOTAL_BYTES) {
@@ -780,7 +788,8 @@ const optimizeImages = async (files) => {
 const uploadImages = async (userId, productId, files) => {
   if (files.length === 0) return [];
   const uploads = files.map(async (file, index) => {
-    const extension = file.name.split(".").pop() || "jpg";
+    const extension = getProductImageExtension(file);
+    if (!extension) return null;
     const path = `${userId}/${productId}/image-${index + 1}-${Date.now()}.${extension}`;
     const { error: uploadError } = await supabase.storage
       .from(IMAGE_BUCKET)

@@ -62,7 +62,7 @@ Despues de guardar las variables, hacer un redeploy. Las variables `PUBLIC_*` se
 
 La `SUPABASE_SERVICE_ROLE_KEY` es solo para APIs server-side en Vercel. No debe exponerse en codigo del navegador ni en variables con prefijo `PUBLIC_`.
 
-`RATE_LIMIT_HASH_SECRET` es privada y recomendada para el contador distribuido. Debe ser aleatoria, larga y estable entre despliegues; nunca debe usar prefijo `PUBLIC_`. Si no está configurada, el backend usa `SUPABASE_SERVICE_ROLE_KEY` como material criptográfico de respaldo. `docs/supabase-distributed-rate-limit.sql` fue ejecutado y auditado el 16 de octubre de 2026; después del despliegue compatible, `/admin` permite confirmar si el límite está realmente operando como distribuido o si cayó al respaldo temporal en memoria.
+`RATE_LIMIT_HASH_SECRET` es privada y recomendada para el contador distribuido. Debe ser aleatoria, larga y estable entre despliegues; nunca debe usar prefijo `PUBLIC_`. Si no está configurada, el backend usa `SUPABASE_SERVICE_ROLE_KEY` como material criptográfico de respaldo. La variable está configurada como `Sensitive` en producción y las migraciones `docs/supabase-distributed-rate-limit.sql` y `docs/supabase-distributed-rate-limit-v2.sql` ya fueron aplicadas. El 17 de octubre de 2026 `/admin` confirmó que el límite opera con la fuente distribuida; si cae al respaldo temporal en memoria, el mismo panel lo informa como advertencia.
 
 `SUPABASE_PROJECT_REF` y `SUPABASE_METRICS_SECRET_KEY` habilitan la consulta manual read-only del servidor Supabase en `/admin`. La clave recomendada es una Secret API key de Supabase (`sb_secret_...`) guardada como Secret en Vercel. No usar prefijo `PUBLIC_` ni imprimir su valor.
 

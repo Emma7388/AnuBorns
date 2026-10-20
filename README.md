@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 16 de octubre de 2026 — rama `V0.8`.
+Actualizado al 19 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
@@ -16,9 +16,9 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 
 El 16 de octubre se completó una pasada local de estabilización transversal: utilidades compartidas de formato y almacenamiento seguro, menor duplicación en scripts y estilos administrativos, navegación fresca entre superficies admin, dimensiones y decodificación de imágenes, tipografía sin `@import`, respeto de movimiento reducido y encabezados HTTP defensivos. La suite completa quedó en 146 pruebas aprobadas y el build Astro/Vercel terminó correctamente. Estos resultados son locales; no implican despliegue.
 
-Después de esa pasada se reemplazó localmente el rate limit por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La suite completa pasó con 152 pruebas y el build Astro/Vercel volvió a finalizar correctamente. La migración `docs/supabase-distributed-rate-limit.sql` fue ejecutada y auditada remotamente el 16 de octubre; todavía falta desplegar el código compatible y confirmar la fuente `distributed` en `/admin`.
+Después de esa pasada se reemplazó el rate limit local por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La migración base se ejecutó el 16 de octubre y, durante la validación real, apareció una colisión de tipos porque el identificador `current_time` era interpretado por PostgreSQL como `CURRENT_TIME` (`time with time zone`). La migración incremental `docs/supabase-distributed-rate-limit-v2.sql` corrigió la función con variables `v_`, volvió a asegurar sus permisos y ejecutó una prueba funcional transaccional. El 17 de octubre producción confirmó la fuente distribuida: `/admin` mostró 34 chequeos correctos, 0 a revisar y 0 con error. La suite completa quedó en 154 pruebas aprobadas.
 
-El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. La suite completa quedó en 153 pruebas aprobadas y el build Astro/Vercel finalizó correctamente; el cambio aún no fue desplegado.
+El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. El cambio fue desplegado y validado en escritorio; todavía corresponde revisar visualmente los viewports reales de tablet y móvil.
 
 ### Estado del historial comercial
 
@@ -32,6 +32,7 @@ Por ese motivo, `orders` y `order_items` pueden estar vacías aunque hayan exist
 - Edición de datos personales y avatar.
 - Categorías y productos dinámicos desde Supabase, con fallback local de categorías.
 - Publicación de productos con imagen, precio, categoría, contacto y métodos de entrega.
+- Carga de imágenes de producto limitada a JPG/JPEG, PNG y WebP de hasta 20 MB, con nombres normalizados y Storage restringido a la carpeta propietaria. La migración incremental fue aplicada y auditada remotamente el 19 de octubre de 2026.
 - Catálogo por categoría, búsqueda, filtros y detalle de producto.
 - Carrito híbrido: `localStorage` para visitantes, Supabase para usuarios autenticados y sincronización al iniciar sesión.
 - Checkout autenticado con precios y disponibilidad validados en el servidor.
@@ -71,7 +72,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 - Los flujos de oferta y contratación de servicios continúan como MVP/placeholder.
 - La compra, el split y la comisión se comprobaron después del reinicio; falta completar una prueba real de reembolso total o parcial con Mercado Pago y conservar la vista del comprador.
 - El stock de 1 a 100, las cantidades de carrito y la reserva/devolución atómica están implementados localmente; su migración fue aplicada y auditada remotamente el 11 de octubre de 2026. Falta validar el circuito con el código desplegado.
-- El rate limit distribuido está implementado localmente y su RPC fue instalada y auditada en Supabase. Producción continuará con el comportamiento anterior hasta desplegar el código compatible; después deberá confirmarse en `/admin` que la fuente sea `distributed`. El nuevo código conserva un respaldo temporal en memoria ante incidentes de Supabase.
+- El rate limit distribuido está activo y confirmado en producción desde el 17 de octubre de 2026. `/admin` informó la fuente distribuida y 34 chequeos correctos, sin advertencias ni errores. El respaldo temporal en memoria permanece de forma intencional para no inutilizar las APIs durante incidentes de Supabase; si se activa, el panel lo señala como degradación.
 - El cron de checkouts abandonados fue aplicado y auditado en Supabase: canceló los dos intentos vencidos, dejó cero pendientes antiguos y quedó activo cada hora con acceso exclusivo de `service_role`. La expiración explícita de preferencias nuevas está implementada localmente y requiere el próximo despliegue.
 
 ## Stack
@@ -206,6 +207,8 @@ Archivos principales:
 - `docs/supabase-admin-control.sql` agrega suspensión sin borrado, endurece los permisos de roles administrativos y devuelve su propia auditoría de instalación para la Etapa 2A.
 - `docs/supabase-profiles-search-path-hardening.sql` fija un `search_path` vacío en el trigger de actualización de perfiles. Fue aplicado y auditado remotamente el 15 de octubre de 2026: función y trigger existentes, y configuración segura confirmada.
 - `docs/supabase-distributed-rate-limit.sql` crea el contador atómico compartido, restringe tabla y RPC a `service_role`, agenda la limpieza de claves antiguas y devuelve una auditoría de instalación. Fue ejecutado y auditado remotamente el 16 de octubre de 2026: tabla existente, RLS activo, cron diario activo y RPC exclusiva de `service_role`.
+- `docs/supabase-distributed-rate-limit-v2.sql` es la migración incremental correctiva aplicada el 17 de octubre de 2026. Reemplaza únicamente la RPC con nombres de variables no reservados, reafirma `search_path` y permisos, ejecuta una prueba funcional como `service_role` y limpia su bucket de verificación. Producción quedó confirmada con fuente distribuida.
+- `docs/supabase-product-images-storage-hardening.sql` restringe el bucket `product-images` a 20 MB, MIME JPEG/PNG/WebP, extensiones JPG/JPEG/PNG/WebP y rutas `<usuario>/<producto>/<archivo>`. Fue aplicado y auditado remotamente el 19 de octubre de 2026: cuatro políticas para `authenticated`, cinco objetos históricos y cero extensiones o estructuras inesperadas.
 
 ## Documentación
 
@@ -244,7 +247,7 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 5. Completar las variantes pendientes de diagnóstico OAuth en producción y conservar la excepción de identidad Mercado Pago documentada.
 6. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
 7. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
-8. Configurar opcionalmente `RATE_LIMIT_HASH_SECRET`, desplegar el código compatible y confirmar en `/admin` la fuente `distributed`. El SQL ya fue ejecutado y auditado; también quedan por decidir el redondeo del 1,5% y el tratamiento de enlaces históricos si todavía circulan.
+8. Completado: `RATE_LIMIT_HASH_SECRET` está configurada en producción, las migraciones del limitador fueron aplicadas y `/admin` confirmó la fuente distribuida con 34 chequeos correctos, 0 a revisar y 0 con error. Siguen pendientes la decisión sobre el redondeo del 1,5% y el tratamiento de enlaces históricos si todavía circulan.
 9. Ejecutar build, despliegue y revisión responsive con variables reales. El usuario gestiona build, commit, push, SQL y deploy.
 
 ### Registro de la etapa 1 — Producto y operación funcional
@@ -264,7 +267,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 
 1. Mantener servicios, profesionales y ofertas retirados hasta definir su modelo persistente, permisos y pagos.
 2. Aclarar qué documento Word de la página principal debe localizarse; no hay un archivo Word identificado en el inventario actual.
-3. Inventariar dependencias antes de retirar los proyectos antiguos llamados “MVP” y “Anubis-Reborn”; no eliminarlos sólo por nombre.
+3. El proyecto antiguo “MVP” ya fue retirado y el directorio local quedó vinculado al proyecto Vercel `anuborns`. Si “Anubis-Reborn” todavía existe, inventariar sus dependencias antes de retirarlo; no eliminarlo sólo por nombre.
 4. Los PDF/XLSX históricos quedan archivados como material no bloqueante. Revisarlos únicamente si se necesita una auditoría documental o comercial.
 
 ## Interfaz de compras y ventas
@@ -287,10 +290,10 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 17 de octubre de 2026: 153 pruebas aprobadas, 0 fallos.
+- Última ejecución local observada el 19 de octubre de 2026: 160 pruebas aprobadas, 0 fallos.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.
-- El build local fue verificado; el despliegue remoto continúa bajo control del usuario y no fue ejecutado durante esta revisión.
+- El despliegue remoto continúa bajo control del usuario. La versión actual fue desplegada por el usuario y contrastada en `/admin` el 17 de octubre de 2026.
 
 El contexto de Mercado Pago y las verificaciones pendientes se mantienen en [docs/CONTINUIDAD_MP_Y_PRODUCCION.md](docs/CONTINUIDAD_MP_Y_PRODUCCION.md).
