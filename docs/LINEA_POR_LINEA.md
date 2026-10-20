@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
+Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -14,8 +14,7 @@ Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
 
 ## Layouts
 
-- `astro.config.mjs`: configuración SSR/Vercel, optimización y Content Security Policy con hashes SHA-256, orígenes explícitos y bloqueo de objetos/frames.
-- `src/middleware.js`: conserva la CSP generada por Astro y agrega la excepción específica `style-src-attr` para estilos visuales calculados, sin ampliar permisos de scripts ni bloques de estilo.
+- `astro.config.mjs`: configuración SSR/Vercel y Content Security Policy nativa de Astro 7, con hashes SHA-256, recursos separados por elemento/atributo, orígenes explícitos y bloqueo de objetos/frames.
 - `src/layouts/BaseLayout.astro`: documento HTML base, metadatos globales y slot de contenido; usa navegación convencional compatible con CSP en lugar de `ClientRouter`.
 - `src/layouts/MainLayout.astro`: compone `Header` + `Footer`, carga estilos globales y resuelve `backHref` automáticamente.
 
@@ -178,7 +177,9 @@ Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
 - `tests/distributedRateLimitSql.test.mjs`: regresión estática de estructura, seguridad y permisos del limitador; impide reintroducir `current_time` como identificador ejecutable y exige la migración v2 verificable.
 - `docs/supabase-product-images-storage-hardening.sql`: migración incremental no destructiva para limitar `product-images` a 20 MB, MIME y extensiones de imagen permitidos, carpeta propietaria y metadata visible sólo para su dueño. Aplicada y auditada remotamente el 19 de octubre de 2026; los cinco objetos existentes quedaron conformes.
 - `tests/productImageStorageSql.test.mjs`: regresión estática del bucket y sus políticas; confirma además que la migración no modifica ni elimina objetos existentes.
-- `tests/deploymentHardening.test.mjs`: regresión de encabezados Vercel, CSP estricta, middleware de atributos visuales y navegación administrativa centralizada.
+- `tests/deploymentHardening.test.mjs`: regresión de encabezados Vercel, CSP nativa estricta y navegación administrativa centralizada.
+- `scripts/audit-repository-secrets.mjs`: revisa archivos versionados, bloquea `.env` reales y credenciales reconocibles sin imprimir valores.
+- `tests/repositorySecretsAudit.test.mjs`: regresiones del control preventivo de secretos, incluido JWT `service_role` y placeholders permitidos.
 
 
 ## Estilos
@@ -192,3 +193,4 @@ Actualizado al 19 de octubre de 2026 para la rama `V0.8`.
 
 - `vercel.json`: redirección histórica vigente y encabezados HTTP defensivos globales (`nosniff`, anti-iframe, referrer y permisos de hardware).
 - `.env.example`: inventario sin secretos de variables públicas, server-side, administrativas y de Mercado Pago.
+- `pnpm-workspace.yaml`: permisos de builds nativos y resoluciones transitivas de seguridad dentro de sus líneas compatibles.

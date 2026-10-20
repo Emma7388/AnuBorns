@@ -246,7 +246,7 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 22 tests passed
 ```
 
-La ejecución completa más reciente del 11 de octubre de 2026 terminó con 115 pruebas aprobadas y 0 fallos; las pruebas nuevas de control administrativo no sustituyen pruebas reales de pagos. El usuario ejecutó las migraciones comerciales y la migración administrativa 2A; sus auditorías no mostraron anomalías. El build, el despliegue y las pruebas visuales todavía no fueron ejecutados.
+La ejecución completa más reciente del 20 de octubre de 2026 terminó con 165 pruebas aprobadas y 0 fallos; el build Astro/Vercel finalizó correctamente y `pnpm audit --prod` devolvió 0 vulnerabilidades. Estas verificaciones locales y las pruebas administrativas no sustituyen una prueba real de reembolso. El usuario ejecutó las migraciones comerciales y la migración administrativa 2A; sus auditorías no mostraron anomalías. El despliegue de esta revisión y su recorrido visual continúan bajo control del usuario.
 
 ## Evidencia real conservada
 

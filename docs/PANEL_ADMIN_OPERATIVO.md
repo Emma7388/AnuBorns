@@ -97,12 +97,12 @@ Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario
 - La configuración de Vercel impide embeber el panel en iframes, evita inferencia MIME, restringe el referrer y deshabilita cámara, micrófono y geolocalización para toda la aplicación.
 - El tablero de salud comprueba la tabla del rate limit y la fuente usada por la propia solicitud. `distributed` confirma el contador global; `memory-fallback` muestra “Revisar” sin ocultar que la protección quedó temporalmente limitada a una instancia.
 
-## Verificación local y contraste de producción — 17 de octubre de 2026
+## Verificación local y contraste de producción
 
-- 161 pruebas aprobadas y 0 fallos en la verificación completa actual, incluida la navegación administrativa compartida, la protección contra la colisión `current_time`/`CURRENT_TIME` y la nueva CSP.
+- Verificación local del 20 de octubre: 165 pruebas aprobadas, 0 fallos, build Astro/Vercel correcto, CSP nativa comprobada en el handler compilado y 0 vulnerabilidades informadas por `pnpm audit --prod`.
 - Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
 - Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
-- El usuario desplegó la versión actual y aplicó la migración incremental del limitador. `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. No se ejecutaron cobros ni reembolsos durante esta validación.
+- Contraste de producción del 17 de octubre: el usuario desplegó la versión entonces vigente y aplicó la migración incremental del limitador. `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. La revisión local del 20 de octubre todavía requiere despliegue; no se ejecutaron cobros ni reembolsos durante estas validaciones.
 
 ## Estados
 

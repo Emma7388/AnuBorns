@@ -1,12 +1,9 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import vercel from "@astrojs/vercel";
-import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { purchaseDetailStyles } from "./src/lib/purchaseDetailStyles.js";
 
-const require = createRequire(import.meta.url);
-const astroPrerenderEntrypoint = require.resolve("astro/entrypoints/prerender");
 const purchaseDetailStyleHash = `sha256-${createHash("sha256").update(purchaseDetailStyles).digest("base64")}`;
 
 // https://astro.build/config
@@ -33,31 +30,28 @@ export default defineConfig({
         "upgrade-insecure-requests",
       ],
       styleDirective: {
-        resources: ["'self'", "https://fonts.googleapis.com"],
+        resources: [
+          { resource: "'self'", kind: "element" },
+          { resource: "https://fonts.googleapis.com", kind: "element" },
+          // La interfaz calcula posiciones y colores mediante atributos style.
+          // La excepción no habilita bloques <style> ni scripts inline.
+          { resource: "'unsafe-inline'", kind: "attribute" },
+        ],
         // El detalle imprimible se crea en una ventana nueva desde una cadena CSS fija.
-        hashes: [purchaseDetailStyleHash],
+        hashes: [{ hash: purchaseDetailStyleHash, kind: "element" }],
       },
     },
+  },
+  markdown: {
+    // Prism evita los atributos inline generados por Shiki y mantiene la CSP estricta.
+    syntaxHighlight: "prism",
   },
   devToolbar: {
     enabled: false,
   },
   vite: {
     optimizeDeps: {
-      exclude: [
-        "@supabase/supabase-js",
-        "astro:transitions",
-        "astro:transitions/client",
-        "astro/virtual-modules/transitions-router.js",
-        "astro/virtual-modules/transitions-types.js",
-        "astro/virtual-modules/transitions-events.js",
-        "astro/virtual-modules/transitions-swap-functions.js",
-      ],
-    },
-    resolve: {
-      alias: {
-        "astro/entrypoints/prerender": astroPrerenderEntrypoint,
-      },
+      exclude: ["@supabase/supabase-js"],
     },
   },
   image: {

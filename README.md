@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 19 de octubre de 2026 — rama `V0.8`.
+Actualizado al 20 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
@@ -16,9 +16,11 @@ El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos prin
 
 El 16 de octubre se completó una pasada local de estabilización transversal: utilidades compartidas de formato y almacenamiento seguro, menor duplicación en scripts y estilos administrativos, navegación fresca entre superficies admin, dimensiones y decodificación de imágenes, tipografía sin `@import`, respeto de movimiento reducido y encabezados HTTP defensivos. La suite completa quedó en 146 pruebas aprobadas y el build Astro/Vercel terminó correctamente. Estos resultados son locales; no implican despliegue.
 
-Después de esa pasada se reemplazó el rate limit local por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La migración base se ejecutó el 16 de octubre y, durante la validación real, apareció una colisión de tipos porque el identificador `current_time` era interpretado por PostgreSQL como `CURRENT_TIME` (`time with time zone`). La migración incremental `docs/supabase-distributed-rate-limit-v2.sql` corrigió la función con variables `v_`, volvió a asegurar sus permisos y ejecutó una prueba funcional transaccional. El 17 de octubre producción confirmó la fuente distribuida: `/admin` mostró 34 chequeos correctos, 0 a revisar y 0 con error. La suite completa actual quedó en 161 pruebas aprobadas.
+Después de esa pasada se reemplazó el rate limit local por una RPC atómica compartida en Supabase. La implementación usa claves HMAC/SHA-256, no persiste IPs ni tokens en texto plano y conserva un respaldo temporal en memoria si la RPC no está disponible. La migración base se ejecutó el 16 de octubre y, durante la validación real, apareció una colisión de tipos porque el identificador `current_time` era interpretado por PostgreSQL como `CURRENT_TIME` (`time with time zone`). La migración incremental `docs/supabase-distributed-rate-limit-v2.sql` corrigió la función con variables `v_`, volvió a asegurar sus permisos y ejecutó una prueba funcional transaccional. El 17 de octubre producción confirmó la fuente distribuida: `/admin` mostró 34 chequeos correctos, 0 a revisar y 0 con error.
 
 El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. El cambio fue desplegado y validado en escritorio; todavía corresponde revisar visualmente los viewports reales de tablet y móvil.
+
+El 20 de octubre se cerró una revisión local de dependencias y secretos. Astro, el adaptador Vercel, Supabase JS y Mercado Pago SDK se actualizaron a sus líneas corregidas; las dependencias transitivas con avisos se fijaron en versiones parcheadas compatibles desde `pnpm-workspace.yaml`. `pnpm audit --prod` pasó de 53 avisos a 0 sobre 369 dependencias. La CSP ahora usa la separación nativa de Astro 7 y ya no necesita middleware: scripts y estilos de elementos continúan basados en hashes, mientras `unsafe-inline` queda limitado a `style-src-attr`. En 122 revisiones alcanzables se auditaron 1.699 blobs de texto sin secretos reconocibles ni archivos `.env` versionados; 11 blobs binarios y 4 mayores a 2 MB se clasificaron y omitieron del análisis textual. Además, `pnpm run security:secrets` evita nuevas credenciales rastreadas sin imprimir valores. La suite local quedó en 165 pruebas aprobadas y el build Vercel finalizó sin advertencias CSP. Estos cambios todavía requieren commit, push, despliegue y recorrido visual por parte del usuario.
 
 ### Estado del historial comercial
 
@@ -78,7 +80,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 
 ## Stack
 
-- Astro 6 con salida server-side y adaptador Vercel.
+- Astro 7 con salida server-side y adaptador Vercel.
 - HTML, CSS, JavaScript y Astro como base del proyecto.
 - Sin framework de cliente: no React, Vue, Svelte ni librerías UI salvo decisión explícita.
 - Supabase Auth, Database, Storage y Realtime.
@@ -291,7 +293,9 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminAccess.test.mjs tests\adminAudit.test.mjs tests\adminAuth.test.mjs`: reglas de rol/suspensión, auditoría administrativa y bloqueo de cuentas.
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
-- Última ejecución local observada el 19 de octubre de 2026: 161 pruebas aprobadas, 0 fallos. El artefacto SSR devolvió la CSP esperada, con hashes para scripts/estilos, sin `unsafe-inline` en `script-src` ni `style-src`, y la excepción visual acotada a `style-src-attr`.
+- `pnpm run security:secrets`: revisa archivos versionados, rechaza `.env` reales y credenciales reconocibles, y nunca imprime el valor detectado.
+- `pnpm run security:audit`: consulta avisos conocidos del árbol de producción; la última ejecución del 20 de octubre devolvió 0 vulnerabilidades sobre 369 dependencias.
+- Última ejecución local observada el 20 de octubre de 2026: 165 pruebas aprobadas, 0 fallos. El artefacto SSR devolvió la CSP esperada, con hashes para scripts y estilos de elementos, sin `unsafe-inline` en scripts y con la excepción visual acotada exclusivamente a `style-src-attr`.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.
