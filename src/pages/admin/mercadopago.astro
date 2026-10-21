@@ -9,18 +9,25 @@ import "../../styles/admin.css";
   <section class="ab-dark-panel ab-admin-mercadopago">
     <div class="ab-admin-dashboard__head">
       <div>
-        <p class="ab-admin-dashboard__eyebrow">Etapa 2D</p>
-        <h2>Control central de Mercado Pago</h2>
+        <p class="ab-admin-dashboard__eyebrow">Pagos</p>
+        <h2>Mercado Pago</h2>
+        <p class="ab-admin-dashboard__subtitle">Conexiones de vendedores, cobros y verificaciones externas.</p>
       </div>
       <div class="ab-admin-dashboard__actions">
-        <button class="ab-secondary-button" id="admin-mp-refresh" type="button"><span>Actualizar datos</span></button>
+        <button class="ab-admin-primary-button" id="admin-mp-refresh" type="button"><span>Actualizar datos</span></button>
         <button class="ab-secondary-button" id="admin-mp-verify" type="button"><span>Verificar Mercado Pago</span></button>
-        <button class="ab-secondary-button" id="admin-mp-encrypt" type="button"><span>Cifrar tokens OAuth</span></button>
+        <details class="ab-admin-more-actions">
+          <summary>Más acciones</summary>
+          <div class="ab-admin-more-actions__menu">
+            <p>Mantenimiento de seguridad</p>
+            <button class="ab-secondary-button" id="admin-mp-encrypt" type="button"><span>Cifrar tokens OAuth</span></button>
+          </div>
+        </details>
       </div>
     </div>
 
     <p class="ab-muted-text" id="admin-mp-status" aria-live="polite">Cargando conexiones...</p>
-    <p class="ab-admin-mercadopago__notice">
+    <p class="ab-admin-mercadopago__notice" role="note">
       La carga inicial usa datos locales. La verificación externa sólo se ejecuta al pulsar “Verificar Mercado Pago”.
     </p>
 

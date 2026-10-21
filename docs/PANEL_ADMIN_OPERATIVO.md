@@ -12,6 +12,8 @@ Desde la estabilización local del 16 de octubre de 2026, las entradas y los enl
 
 Desde el 17 de octubre, las cinco superficies usan un único `AdminNavigation.astro`. En escritorio se presenta como un stack lateral fijo; en tablet pasa a una fila horizontal desplazable y en móvil conserva esa navegación dentro de un bloque compacto. Cada vista dejó de repetir enlaces y mantiene solamente acciones propias. Si la sesión recibe 401/403, el menú también se oculta para no conservar controles administrativos visibles.
 
+El 21 de octubre se unificó la jerarquía visual del panel sin modificar consultas ni permisos. La navegación separa Operación y Finanzas, incorpora iconos y reemplaza el nombre técnico `Fee` por `Administración`. Las cinco cabeceras comparten título, descripción y acciones; los estados normales permanecen neutros y el verde, amarillo y rojo se reservan para señales semánticas. Los contadores se compactan en dos columnas en móvil, los componentes administrativos usan las variables del tema global y las acciones excepcionales —como el cifrado OAuth— quedan dentro de `Más acciones`.
+
 ## Etapa 2A — Control administrativo base
 
 Implementada y desplegada desde el 11 de octubre de 2026. `docs/supabase-admin-control.sql` fue ejecutado y auditado remotamente ese día. El usuario confirmó después que las acciones de roles, suspensión y restauración funcionan en producción; no se repetirán sobre cuentas reales únicamente para generar evidencia adicional.
@@ -31,7 +33,7 @@ Desplegada el 12 de octubre de 2026. No agrega tablas, políticas ni RPC: usa de
 
 Al seleccionar un usuario, `/admin/usuarios` consulta una sola vez sus datos y los conserva en memoria durante esa visita. Sólo vuelve a consultarlos si se pulsa `Actualizar datos`, ubicado en la cabecera después de `Operación`; cambiar de solapa no genera requests adicionales.
 
-La cabecera operativa reúne Mercado Pago, Accesos y Trazabilidad en tres tarjetas horizontales de igual altura cuando el ancho lo permite. Las tarjetas muestran únicamente el resumen centrado, sin listas ni scrollbars internos; cada botón `Ver` abre un modal amplio con administradores o eventos completos. En mobile se apilan manteniendo la misma altura y el modal adapta su contenido a una columna.
+La cabecera operativa reúne Mercado Pago, Accesos y Trazabilidad en tres tarjetas horizontales equilibradas cuando el ancho lo permite. Usan una altura mínima compartida, pero pueden crecer si el contenido lo necesita, evitando recortes por nombres o correos extensos. Las tarjetas muestran únicamente el resumen centrado, sin listas ni scrollbars internos; cada botón `Ver` abre un modal amplio con administradores o eventos completos. En mobile se apilan y el modal adapta su contenido a una columna.
 
 Incluye:
 

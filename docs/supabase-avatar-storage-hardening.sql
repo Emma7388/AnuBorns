@@ -23,6 +23,11 @@ set
 -- que permita enumerar fotos; cada usuario sólo lista sus propios objetos.
 drop policy if exists avatar_public_read on storage.objects;
 drop policy if exists "Public avatars are readable" on storage.objects;
+-- Políticas históricas reemplazadas por las reglas canónicas de este archivo.
+-- Se eliminan por nombre; no se alteran objetos ni políticas de otros buckets.
+drop policy if exists "Authenticated users can update avatars" on storage.objects;
+drop policy if exists avatar_insert_own_folder on storage.objects;
+drop policy if exists avatar_select_own_folder on storage.objects;
 drop policy if exists avatar_auth_insert on storage.objects;
 create policy avatar_auth_insert
   on storage.objects
@@ -30,7 +35,8 @@ create policy avatar_auth_insert
   to authenticated
   with check (
     bucket_id = 'avatar'
-    and array_length(storage.foldername(name), 1) = 2
+    -- Para `usuario/archivo.webp`, foldername contiene sólo `[usuario]`.
+    and array_length(storage.foldername(name), 1) = 1
     and (storage.foldername(name))[1] = (select auth.uid()::text)
     and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
   );
@@ -59,7 +65,7 @@ create policy avatar_auth_update
   with check (
     bucket_id = 'avatar'
     and owner_id = (select auth.uid()::text)
-    and array_length(storage.foldername(name), 1) = 2
+    and array_length(storage.foldername(name), 1) = 1
     and (storage.foldername(name))[1] = (select auth.uid()::text)
     and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
   );
@@ -142,7 +148,7 @@ select jsonb_build_object(
           where lower(storage.extension(o.name)) not in ('jpg', 'jpeg', 'png', 'webp')
         ),
         'unexpected_path_depth', count(*) filter (
-          where array_length(storage.foldername(o.name), 1) is distinct from 2
+          where array_length(storage.foldername(o.name), 1) is distinct from 1
         )
       )
       from storage.objects o

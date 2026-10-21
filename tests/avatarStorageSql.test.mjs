@@ -14,10 +14,14 @@ test("el bucket avatar restringe tamaño, MIME, extensión y carpeta propietaria
   assert.match(sql, /image\/png/i);
   assert.match(sql, /image\/webp/i);
   assert.match(sql, /storage\.foldername\(name\)/i);
+  assert.match(sql, /array_length\(storage\.foldername\(name\), 1\) = 1/i);
   assert.match(sql, /auth\.uid\(\)::text/i);
   assert.match(sql, /storage\.extension\(name\)[\s\S]*'jpg'[\s\S]*'jpeg'[\s\S]*'png'[\s\S]*'webp'/i);
   assert.match(sql, /owner_id\s*=\s*\(select\s+auth\.uid\(\)::text\)/i);
   assert.match(sql, /drop policy if exists "Public avatars are readable"/i);
+  assert.match(sql, /drop policy if exists "Authenticated users can update avatars"/i);
+  assert.match(sql, /drop policy if exists avatar_insert_own_folder/i);
+  assert.match(sql, /drop policy if exists avatar_select_own_folder/i);
   assert.match(sql, /unexpected_policies/i);
 });
 

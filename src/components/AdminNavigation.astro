@@ -6,11 +6,38 @@ const normalizePath = (value) => {
 
 const currentPath = normalizePath(Astro.url.pathname);
 const sections = [
-  { href: "/admin/", path: "/admin", label: "Panel" },
-  { href: "/admin/usuarios", path: "/admin/usuarios", label: "Usuarios" },
-  { href: "/admin/operaciones", path: "/admin/operaciones", label: "Operaciones" },
-  { href: "/admin/mercadopago", path: "/admin/mercadopago", label: "Mercado Pago" },
-  { href: "/admin/administracion", path: "/admin/administracion", label: "Fee" },
+  {
+    href: "/admin/",
+    path: "/admin",
+    label: "Panel general",
+    group: "Operación",
+    icon: "M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z",
+  },
+  {
+    href: "/admin/usuarios",
+    path: "/admin/usuarios",
+    label: "Usuarios",
+    icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87m-2-12a4 4 0 0 1 0 7.75",
+  },
+  {
+    href: "/admin/operaciones",
+    path: "/admin/operaciones",
+    label: "Operaciones",
+    icon: "M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01",
+  },
+  {
+    href: "/admin/mercadopago",
+    path: "/admin/mercadopago",
+    label: "Mercado Pago",
+    group: "Finanzas",
+    icon: "M3 7h18v12H3V7Zm0 4h18M7 15h3",
+  },
+  {
+    href: "/admin/administracion",
+    path: "/admin/administracion",
+    label: "Administración",
+    icon: "M4 19V9m5 10V5m5 14v-7m5 7V3",
+  },
 ];
 ---
 
@@ -24,14 +51,20 @@ const sections = [
       {sections.map((section) => {
         const isCurrent = currentPath === section.path;
         return (
-          <a
-            class:list={["ab-admin-navigation__link", { "is-current": isCurrent }]}
-            href={section.href}
-            aria-current={isCurrent ? "page" : undefined}
-            data-astro-reload
-          >
-            <span>{section.label}</span>
-          </a>
+          <>
+            {section.group && <span class="ab-admin-navigation__group">{section.group}</span>}
+            <a
+              class:list={["ab-admin-navigation__link", { "is-current": isCurrent }]}
+              href={section.href}
+              aria-current={isCurrent ? "page" : undefined}
+              data-astro-reload
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d={section.icon}></path>
+              </svg>
+              <span>{section.label}</span>
+            </a>
+          </>
         );
       })}
     </nav>
