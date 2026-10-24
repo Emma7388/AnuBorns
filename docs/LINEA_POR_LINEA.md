@@ -180,7 +180,7 @@ Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 - `tests/distributedRateLimitSql.test.mjs`: regresión estática de estructura, seguridad y permisos del limitador; impide reintroducir `current_time` como identificador ejecutable y exige la migración v2 verificable.
 - `docs/supabase-product-images-storage-hardening.sql`: migración incremental no destructiva para limitar `product-images` a 20 MB, MIME y extensiones de imagen permitidos, carpeta propietaria y metadata visible sólo para su dueño. Aplicada y auditada remotamente el 19 de octubre de 2026; los cinco objetos existentes quedaron conformes.
 - `tests/productImageStorageSql.test.mjs`: regresión estática del bucket y sus políticas; confirma además que la migración no modifica ni elimina objetos existentes.
-- `docs/supabase-avatar-storage-hardening.sql`: endurecimiento no destructivo del bucket `avatar`, 5 MB, MIME/extensiones permitidas y carpeta propia; pendiente de ejecución remota.
+- `docs/supabase-avatar-storage-hardening.sql`: endurecimiento no destructivo del bucket `avatar`, 5 MB, MIME/extensiones permitidas y carpeta propia; ejecutado y auditado remotamente con 12 objetos compatibles y cero anomalías.
 - `tests/avatarStorageSql.test.mjs`, `tests/authBotProtection.test.mjs`, `tests/mercadopagoTokenCrypto.test.mjs`, `tests/dynamicHtmlSafety.test.mjs` y `tests/sessionArchitecture.test.mjs`: regresiones del cierre de la lista de seguridad.
 - `tests/deploymentHardening.test.mjs`: regresión de encabezados Vercel, CSP nativa estricta y navegación administrativa centralizada.
 - `scripts/audit-repository-secrets.mjs`: revisa archivos versionados, bloquea `.env` reales y credenciales reconocibles sin imprimir valores.

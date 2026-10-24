@@ -1,6 +1,6 @@
 # Checklist de seguridad de la aplicación
 
-Estado consolidado al 20 de octubre de 2026. Esta lista traduce los veinte controles generales revisados a la arquitectura real de AnuBorns. “Completo en código” no reemplaza los pasos remotos indicados al final.
+Estado consolidado al 24 de octubre de 2026. Esta lista traduce los veinte controles generales revisados a la arquitectura real de AnuBorns. “Completo en código” no reemplaza la evidencia remota indicada al final.
 
 ## Estado de los 20 controles
 
@@ -15,30 +15,27 @@ Estado consolidado al 20 de octubre de 2026. Esta lista traduce los veinte contr
 9. **Proteger cookies de sesión — no aplicable como cookie propia.** La app no crea `document.cookie`. Supabase Auth usa PKCE, refresco controlado y sesión persistente del SDK. Migrar a una cookie HttpOnly exigiría una arquitectura BFF completa y retirar todas las consultas Supabase del navegador; no se simula con una cookie parcial.
 10. **Hashear contraseñas — completo mediante Supabase Auth.** La aplicación nunca guarda ni procesa hashes de contraseña propios.
 11. **Rate limiting — completo y validado remotamente.** El contador distribuido es atómico, server-only y no guarda IPs en claro; el fallback en memoria es observable como degradación.
-12. **Protección contra bots — completo en código; activación remota pendiente.** Turnstile entrega `captchaToken` a Supabase en registro, login y recuperación, y la CSP sólo habilita el dominio oficial.
+12. **Protección contra bots — completo y configurado remotamente por confirmación del usuario.** Turnstile entrega `captchaToken` a Supabase en registro, login y recuperación, y la CSP sólo habilita el dominio oficial. Conservar una prueba controlada de los tres recorridos después de cada cambio de dominio o clave.
 13. **Parametrizar consultas — completo.** Las consultas operativas usan el SDK de Supabase/RPC con parámetros; no concatenan SQL recibido del usuario.
 14. **Validar inputs — completo.** Hay validación cliente para experiencia y validación server-side para seguridad, límites de cuerpo y normalización.
 15. **Sanitizar contenido — completo.** Los valores externos usados en plantillas HTML se escapan; se corrigió el detalle de venta y una regresión inventaría todos los sinks `innerHTML`/`document.write` para impedir altas silenciosas.
-16. **Restringir archivos — completo en código; avatar pendiente de aplicar remotamente.** Productos y avatares validan MIME, tamaño, decodificación y ruta propietaria. Productos ya fue auditado en Supabase; falta ejecutar la migración de avatar.
+16. **Restringir archivos — completo y auditado remotamente.** Productos y avatares validan MIME, tamaño, decodificación y ruta propietaria. Avatar confirmó 5 MB, MIME JPEG/PNG/WebP, cuatro políticas `authenticated`, 12 objetos válidos y cero anomalías.
 17. **Devolver sólo datos necesarios — completo.** Las APIs administrativas convierten tokens en booleanos/diagnósticos y no devuelven credenciales OAuth.
 18. **Security headers — completo.** CSP por hash/origen, `frame-ancestors`, `nosniff`, política de referencia, permisos mínimos y respuestas privadas `no-store`.
 19. **Forzar HTTPS — completo en producción.** Vercel sirve HTTPS y CSP solicita upgrade de recursos inseguros; `SITE_URL` se valida como HTTPS.
 20. **Escanear dependencias — completo.** Dependencias actualizadas, overrides de seguridad, `pnpm audit --prod` sin vulnerabilidades y pruebas/build obligatorios antes de publicar.
 
-## Activación remota necesaria
+## Estado de activación remota
 
-### 1. Avatar Storage
+### 1. Avatar Storage — completado
 
-Ejecutar `docs/supabase-avatar-storage-hardening.sql` en Supabase. Debe devolver cuatro políticas `authenticated`, `unexpected_policies: 0`, límite `5242880`, MIME JPEG/PNG/WebP y cero objetos con extensión o profundidad inesperada. El script retira la antigua lectura global conocida, pero no borra ni reescribe archivos existentes.
+`docs/supabase-avatar-storage-hardening.sql` fue ejecutado. La auditoría devolvió cuatro políticas `authenticated`, `unexpected_policies: 0`, límite `5242880`, MIME JPEG/PNG/WebP, 12 objetos existentes y cero objetos con extensión o profundidad inesperada.
 
-### 2. Cloudflare Turnstile con Supabase Auth
+### 2. Cloudflare Turnstile con Supabase Auth — configurado
 
-1. Crear el widget Turnstile para los dominios de producción y preview que realmente se usen.
-2. Guardar la site key como `PUBLIC_TURNSTILE_SITE_KEY` en Vercel. Es pública y no debe marcarse como secreto.
-3. En Supabase Auth, habilitar CAPTCHA/Turnstile y guardar allí la secret key de Cloudflare. Esa secret no pertenece al repositorio ni a variables `PUBLIC_*`.
-4. Redesplegar y probar registro, credenciales inválidas, ingreso correcto y recuperación. Sin completar el desafío, ninguna de esas acciones debe avanzar.
+El usuario confirmó la creación/configuración del widget, la site key pública en Vercel y la secret key en Supabase Auth. Después de cambios de dominio, clave o Auth se deben repetir registro, credenciales inválidas, ingreso correcto y recuperación.
 
-### 3. Cifrado de tokens Mercado Pago
+### 3. Cifrado de tokens Mercado Pago — pendiente de confirmación productiva
 
 1. Generar una clave de 32 bytes fuera del repositorio:
 

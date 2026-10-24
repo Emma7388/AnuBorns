@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 20 de octubre de 2026 — rama `V0.8`.
+Actualizado al 24 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
@@ -21,6 +21,10 @@ Después de esa pasada se reemplazó el rate limit local por una RPC atómica co
 El 17 de octubre se unificó la navegación de las cinco superficies administrativas en `AdminNavigation.astro`: menú lateral único en escritorio, navegación horizontal desplazable en tablet y adaptación compacta en móvil. Las páginas dejaron de repetir enlaces entre sí y conservan únicamente sus acciones locales. La navegación se oculta junto con el contenido cuando la autorización devuelve 401/403. El cambio fue desplegado y validado en escritorio; todavía corresponde revisar visualmente los viewports reales de tablet y móvil.
 
 El 20 de octubre se cerró una revisión local integral de seguridad. Astro, el adaptador Vercel, Supabase JS y Mercado Pago SDK se actualizaron a sus líneas corregidas; `pnpm audit --prod` pasó de 53 avisos a 0 sobre 369 dependencias y el historial alcanzable no mostró secretos reconocibles. La CSP nativa de Astro 7 conserva scripts por hash/origen, limita `unsafe-inline` a atributos visuales y habilita Cloudflare sólo para Turnstile. También se agregaron PKCE, CAPTCHA de Auth, hardening de avatar, cifrado AES-256-GCM para tokens OAuth y auditoría cerrada de HTML dinámico. La suite quedó en 179 pruebas aprobadas y el build Vercel finalizó correctamente. Commit, push, SQL, variables y despliegue permanecen bajo control del usuario.
+
+El usuario confirmó después la activación de Turnstile en Vercel/Supabase y ejecutó el hardening remoto del bucket `avatar`. Su auditoría final informó límite de 5 MB, MIME JPEG/PNG/WebP, cuatro políticas propias para `authenticated`, 12 objetos históricos compatibles, cero extensiones o profundidades inesperadas y cero políticas sobrantes. El cifrado de los tokens OAuth legados continúa pendiente de confirmación inequívoca en producción.
+
+El 24 de octubre se dejó registrada, sin implementación, una posible ampliación de pagos con QR interoperable. La propuesta mantiene Checkout Pro y suma QR dinámico para escenarios presenciales o con otro dispositivo, usando Orders API, OAuth del vendedor, `marketplace_fee` y el mismo precio público. `qr_data` es una trama EMVCo que debe representarse como QR; no existe en la documentación revisada un deep link oficial para usarla directamente como botón en el mismo teléfono. Antes de programar se debe confirmar la habilitación productiva de QR en la aplicación Mercado Pago y realizar una prueba controlada.
 
 ### Estado del historial comercial
 
@@ -86,7 +90,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 - Supabase Auth, Database, Storage y Realtime.
 - Mercado Pago SDK y Checkout Pro.
 - CSS propio compartido y estilos locales.
-- pnpm y Node.js 22.12 o superior.
+- pnpm y Node.js 24; para desarrollo local, `.nvmrc` fija la versión segura 24.22.1.
 
 ## Scripts
 
@@ -97,7 +101,7 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 
 ## Configuración local
 
-1. Instalar Node.js 22.12 o superior y pnpm.
+1. Instalar Node.js 24.22.1 o una versión posterior de la línea 24, y pnpm.
 2. Ejecutar `pnpm install`.
 3. Copiar `.env.example` a `.env` y completar las variables.
 4. Revisar las migraciones ya aplicadas y ejecutar únicamente los scripts SQL pendientes que correspondan al ambiente. No ejecutar todos los archivos de `docs/` indiscriminadamente.
@@ -212,14 +216,14 @@ Archivos principales:
 - `docs/supabase-distributed-rate-limit.sql` crea el contador atómico compartido, restringe tabla y RPC a `service_role`, agenda la limpieza de claves antiguas y devuelve una auditoría de instalación. Fue ejecutado y auditado remotamente el 16 de octubre de 2026: tabla existente, RLS activo, cron diario activo y RPC exclusiva de `service_role`.
 - `docs/supabase-distributed-rate-limit-v2.sql` es la migración incremental correctiva aplicada el 17 de octubre de 2026. Reemplaza únicamente la RPC con nombres de variables no reservados, reafirma `search_path` y permisos, ejecuta una prueba funcional como `service_role` y limpia su bucket de verificación. Producción quedó confirmada con fuente distribuida.
 - `docs/supabase-product-images-storage-hardening.sql` restringe el bucket `product-images` a 20 MB, MIME JPEG/PNG/WebP, extensiones JPG/JPEG/PNG/WebP y rutas `<usuario>/<producto>/<archivo>`. Fue aplicado y auditado remotamente el 19 de octubre de 2026: cuatro políticas para `authenticated`, cinco objetos históricos y cero extensiones o estructuras inesperadas.
-- `docs/supabase-avatar-storage-hardening.sql` aplica el mismo modelo propietario al bucket `avatar`, con límite de 5 MB y validación JPG/JPEG/PNG/WebP. El código está listo; falta ejecutarlo y conservar su auditoría remota.
+- `docs/supabase-avatar-storage-hardening.sql` aplica el mismo modelo propietario al bucket `avatar`, con límite de 5 MB y validación JPG/JPEG/PNG/WebP. Fue ejecutado y auditado remotamente: cuatro políticas para `authenticated`, 12 objetos históricos válidos y cero extensiones, profundidades o políticas inesperadas.
 
 ## Documentación
 
 - `docs/ARCHITECTURE.md`: responsabilidades generales por capa.
 - `docs/PANEL_ADMIN_OPERATIVO.md`: alcance, seguridad, activación y pendientes del panel administrativo.
 - `docs/PAGOS_REEMBOLSOS_SEGURIDAD.md`: estados de Mercado Pago, reembolsos, auditoría y defensas de API.
-- `docs/SECURITY_CHECKLIST.md`: cierre de los veinte controles de seguridad y los tres pasos remotos necesarios para activarlos completamente.
+- `docs/SECURITY_CHECKLIST.md`: cierre de los veinte controles de seguridad, evidencia remota de avatar/Turnstile y activación pendiente del cifrado OAuth legado.
 - `docs/supabase-auth-display-name-backfill.sql`: sincronización puntual de nombres históricos desde perfiles hacia la metadata visual de Auth, sin alterar el teléfono de autenticación.
 - `docs/BUENAS_PRACTICAS_VENTAS_MERCADO_PAGO.md`: resumen del material comercial aportado, estado actual y brechas para conversión, cuotas, reclamos y crecimiento.
 - `docs/LINEA_POR_LINEA.md`: inventario funcional de archivos.
@@ -300,7 +304,7 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - Última ejecución local observada el 20 de octubre de 2026: 179 pruebas aprobadas, 0 fallos y build Astro/Vercel correcto. La revisión agrega Turnstile, hardening de avatar, cifrado OAuth AES-256-GCM, PKCE y una auditoría cerrada de sinks HTML.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
-- En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 22.12.0.
+- En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 24.22.1, versión LTS que incorpora las correcciones de seguridad de octubre de 2026.
 - El despliegue remoto continúa bajo control del usuario. La versión actual fue desplegada por el usuario y contrastada en `/admin` el 17 de octubre de 2026.
 
 El contexto de Mercado Pago y las verificaciones pendientes se mantienen en [docs/CONTINUIDAD_MP_Y_PRODUCCION.md](docs/CONTINUIDAD_MP_Y_PRODUCCION.md).

@@ -1,6 +1,6 @@
 # Guía de arquitectura
 
-Actualizado el 20 de octubre de 2026.
+Actualizado el 24 de octubre de 2026.
 
 AnuBorns es una aplicación Astro 7 desplegada en Vercel. Supabase provee autenticación, base de datos y almacenamiento; Mercado Pago procesa cobros de productos por medio de OAuth por vendedor.
 
@@ -22,7 +22,7 @@ La siguiente mejora reemplazó el rate limit por una RPC atómica compartida ent
 
 - Supabase Auth administra registro y sesión. Los datos privados de perfil viven en `public.profiles`; sólo nombre y apellido se sincronizan a `user_metadata` para identificación visual en Auth. El teléfono de contacto no se asigna a `auth.users.phone`, porque la aplicación autentica por email.
 - Supabase Database guarda categorías, productos, carritos, órdenes, ventas y despachos.
-- Supabase Storage almacena imágenes de productos y avatares. Ambos circuitos aceptan JPG/JPEG, PNG y WebP, validan que el navegador pueda decodificar el contenido y fuerzan rutas propietarias. Productos limita 20 MB y ya fue auditado remotamente; `docs/supabase-avatar-storage-hardening.sql` lleva al bucket `avatar` el límite de 5 MB y cuatro políticas `authenticated`, pendiente de ejecución remota.
+- Supabase Storage almacena imágenes de productos y avatares. Ambos circuitos aceptan JPG/JPEG, PNG y WebP, validan que el navegador pueda decodificar el contenido y fuerzan rutas propietarias. Productos limita 20 MB y ya fue auditado remotamente. El hardening de `avatar` también fue aplicado y auditado: límite de 5 MB, cuatro políticas `authenticated`, 12 objetos históricos compatibles y cero anomalías de extensión, profundidad o políticas.
 - Las rutas de `src/pages/api/` autentican al usuario y usan el cliente admin sólo en el servidor.
 - `src/lib/serverRateLimit.js` protege las APIs mediante `consume_api_rate_limit(...)`, una RPC atómica de Supabase. La tabla no guarda identificadores en claro y sólo `service_role` puede leerla o consumir la función. Un fallback local de 30 segundos mantiene disponibilidad durante una caída, pero el panel administrativo lo expone como estado degradado.
 - `src/lib/serverAuth.js` consulta `public.admin_user_controls` después de validar el Bearer token y rechaza cuentas suspendidas antes de ejecutar la operación solicitada. La ausencia temporal de la tabla se tolera sólo para permitir el despliegue gradual; los botones administrativos permanecen bloqueados hasta aplicar la migración.
