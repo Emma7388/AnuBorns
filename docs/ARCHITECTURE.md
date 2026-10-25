@@ -95,7 +95,7 @@ La siguiente mejora reemplazó el rate limit por una RPC atómica compartida ent
 
 ### Verificación
 
-`node --test` valida la suite completa; la ejecución final del 20 de octubre de 2026 aprobó 179 pruebas sin fallos y el build Astro/Vercel terminó correctamente. Las regresiones cubren CAPTCHA, PKCE, Storage de avatar, cifrado OAuth, persistencia segura de tokens, sinks HTML, formateadores, encabezados, navegación administrativa y rate limit distribuido. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
+`node --test` valida la suite completa; la ejecución final del 24 de octubre de 2026 aprobó 179 pruebas sin fallos, auditoría de producción sin vulnerabilidades conocidas, control de secretos limpio y build Astro/Vercel correcto. Producción quedó desplegada desde `V0.8`/`7c03326`. Las regresiones cubren CAPTCHA, PKCE, Storage de avatar, cifrado OAuth, persistencia segura de tokens, sinks HTML, formateadores, encabezados, navegación administrativa y rate limit distribuido. La compra posterior al hotfix cerró su validación de ejecución; el reembolso con Mercado Pago continúa pendiente.
 
 ### Flujos visibles
 

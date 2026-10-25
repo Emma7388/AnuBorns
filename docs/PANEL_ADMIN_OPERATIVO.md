@@ -101,10 +101,10 @@ Desplegada y validada en producción el 15 de octubre de 2026. Cuando un usuario
 
 ## Verificación local y contraste de producción
 
-- La revisión de seguridad del 20 de octubre agrega al panel el diagnóstico de clave/cifrado OAuth y la acción idempotente `Cifrar tokens OAuth`. La ejecución final aprobó 179 pruebas sin fallos y el build Astro/Vercel terminó correctamente.
+- La revisión de seguridad agrega al panel el diagnóstico de clave/cifrado OAuth y la acción idempotente `Cifrar tokens OAuth`. El 24 de octubre una comprobación agregada de producción confirmó 2 cuentas, 4 tokens cifrados y `legacy: 0`, sin devolver credenciales.
 - Sintaxis JavaScript, parseo de CSS y `vercel.json` verificados.
 - Build completo de Astro con adaptador Vercel finalizado correctamente mediante `pnpm.cmd build`.
-- Contraste de producción del 17 de octubre: el usuario desplegó la versión entonces vigente y aplicó la migración incremental del limitador. `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. La revisión local del 20 de octubre todavía requiere despliegue; no se ejecutaron cobros ni reembolsos durante estas validaciones.
+- Contraste de producción: el 17 de octubre `/admin` confirmó 34 chequeos correctos, 0 a revisar y 0 con error. El 24 de octubre se verificó el despliegue `Ready` de `V0.8`/`7c03326`, Node `24.x`, Preview sin variables y cifrado OAuth sin legados. No se ejecutaron cobros ni reembolsos durante estas validaciones.
 
 ## Estados
 
@@ -143,6 +143,7 @@ El tablero agrupa los chequeos en solapas por proceso; cada solapa contiene las 
 - `VERCEL_ANALYTICS_TEAM_ID` cuando el proyecto pertenece a un team.
 - La lectura de Web Analytics es manual desde el boton `Consultar`; la carga inicial del panel no llama a Vercel.
 - El bloque muestra visitantes y page views de 7 y 30 dias, pagina principal, origen principal y rankings compactos de paginas, origenes, paises y dispositivos.
+- El 24 de octubre de 2026 el PAT sin vencimiento fue rotado por uno con caducidad, guardado como Secret sólo en Production. La consulta manual fue comprobada después del redeploy y el token anterior fue eliminado.
 - El navegador no recibe el token de Vercel Analytics.
 
 ### Usuarios

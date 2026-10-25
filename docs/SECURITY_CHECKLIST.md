@@ -8,7 +8,7 @@ Estado consolidado al 24 de octubre de 2026. Esta lista traduce los veinte contr
 2. **Eliminar secretos de Git — completo.** Existe `pnpm run security:secrets`, su regresión automática y una revisión del historial completo sin hallazgos. Los secretos nunca deben pegarse en documentación ni commits.
 3. **Usar una clave pública para la base — completo.** El cliente usa la anon key de Supabase; `service_role` queda exclusivamente en servidor.
 4. **Row-Level Security — completo para las tablas y buckets operativos auditados.** Las migraciones dejan funciones sensibles sólo para `service_role`. Repetir auditorías después de cambios de esquema.
-5. **Cifrar datos sensibles — completo en código; activación remota pendiente.** Access y refresh tokens OAuth de Mercado Pago se cifran con AES-256-GCM y autenticación de integridad. Los registros legados se leen durante la migración y el panel ofrece una acción idempotente para cifrarlos.
+5. **Cifrar datos sensibles — completo y validado remotamente.** Access y refresh tokens OAuth de Mercado Pago se cifran con AES-256-GCM y autenticación de integridad. La verificación productiva confirmó 4 tokens cifrados y `legacy: 0`; el panel conserva una acción idempotente para futuras migraciones.
 6. **Forzar autenticación — completo.** Las APIs privadas validan el Bearer token con Supabase y las administrativas además exigen rol y cuenta no suspendida.
 7. **Restringir acceso a registros — completo.** RLS, validación de propietario y agregaciones server-side limitan lectura y escritura.
 8. **Bloquear manipulación de campos — completo.** El servidor vuelve a leer productos, precios, vendedor, stock, publicación, entrega, identidad y comisión; no confía en los importes enviados por el navegador.
@@ -35,18 +35,23 @@ Estado consolidado al 24 de octubre de 2026. Esta lista traduce los veinte contr
 
 El usuario confirmó la creación/configuración del widget, la site key pública en Vercel y la secret key en Supabase Auth. Después de cambios de dominio, clave o Auth se deben repetir registro, credenciales inválidas, ingreso correcto y recuperación.
 
-### 3. Cifrado de tokens Mercado Pago — pendiente de confirmación productiva
+### 3. Cifrado de tokens Mercado Pago — completado
 
-1. Generar una clave de 32 bytes fuera del repositorio:
+`MERCADOPAGO_TOKEN_ENCRYPTION_KEY` quedó configurada como variable Sensitive de Production y la versión que cifra altas y renovaciones fue desplegada. El 24 de octubre una consulta agregada de sólo lectura confirmó 2 cuentas OAuth, 4 tokens cifrados y `legacy: 0`; no se imprimieron ni expusieron valores. Conservar una copia segura de la clave en el gestor de secretos y no rotarla sin una migración de recifrado.
 
-   ```powershell
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-   ```
+### 4. Separación de ambientes Vercel — verificada
 
-2. Guardarla como variable **Sensitive** `MERCADOPAGO_TOKEN_ENCRYPTION_KEY`. Si Preview y Production comparten la misma base Supabase, deben usar exactamente la misma clave; perderla impide descifrar los tokens existentes.
-3. Redesplegar, abrir `/admin/mercadopago` y pulsar **Cifrar tokens OAuth** una sola vez. La acción es idempotente y queda en `audit_logs`.
-4. Volver a `/admin`: el chequeo `Tokens OAuth cifrados` debe quedar correcto con `legacy: 0`.
-5. Conservar una copia segura de la clave en el gestor de secretos. No rotarla sin implementar una migración de recifrado.
+El proyecto `anuborns` utiliza Node `24.x`. La enumeración remota confirmó que Preview no tiene variables de entorno y Production concentra la configuración operativa. El despliegue productivo inspeccionado quedó `Ready` desde la rama `V0.8`, commit `7c03326`.
+
+El usuario también reemplazó el PAT sin vencimiento usado por `VERCEL_ANALYTICS_TOKEN` por uno nuevo con caducidad, conservó la variable como Secret limitada a Production, redesplegó, comprobó la consulta de Analytics y eliminó el token anterior. Los valores no se registran en el repositorio.
+
+La cuenta propietaria ya tenía 2FA activo y el usuario habilitó su exigencia para los miembros del Team. Una solicitud HTTP anónima posterior a `https://anuborns.vercel.app/` devolvió `200 OK`, sin redirección a Vercel: la política del Team no dejó Production detrás de Vercel Authentication.
+
+La revisión manual posterior confirmó un único miembro en el Team —la cuenta propietaria— y ningún evento desconocido en Activity. No se identificaron invitaciones, accesos, cambios de roles, variables, dominios ni despliegues ajenos.
+
+GitHub conservaba `V0.7` como rama predeterminada aunque Vercel publicaba `V0.8`. El usuario cambió la referencia predeterminada a `V0.8`; una consulta remota confirmó `HEAD → refs/heads/V0.8` en el commit productivo `7c03326` y el clon local sincronizó `origin/HEAD`. Las ramas históricas no fueron eliminadas.
+
+La revisión final del Security Dashboard de Vercel informó **All recommended protections in place**. Confirmó 2FA para todos los miembros, cantidad de owners equilibrada, todos los PAT con vencimiento, OIDC en proyectos elegibles, prevención de despliegues desde forks, protección de Preview, variables marcadas Sensitive/Secret y rotadas dentro de 90 días, y ausencia de variables expuestas mediante el framework. La comprobación HTTP anónima mantiene la evidencia separada de que Production continúa pública.
 
 ## Evidencia local
 
