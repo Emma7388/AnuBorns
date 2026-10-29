@@ -1,15 +1,15 @@
 # Continuidad de AnuBorns: Mercado Pago y producción
 
-Documento de traspaso del chat, actualizado el 24 de octubre de 2026.
+Documento de traspaso del chat, actualizado el 29 de octubre de 2026.
 No contiene credenciales. Distingue resultados observados, reportes del usuario e hipótesis pendientes.
 
 ## Retomar por aquí
 
 ### Transición de etapa — 11 de octubre de 2026
 
-- **Etapa 1, implementación funcional: cerrada en código.** Los diez puntos funcionales y sus ampliaciones posteriores quedaron en `V0.8`, commit `e7b9f66`, ya sincronizado con `origin/V0.8`. Las migraciones principales de stock, publicaciones, reservas, índices y permisos fueron ejecutadas y auditadas remotamente; una prueba real del 12 de octubre reveló un error diferido dentro de la RPC de checkout, documentado y corregido localmente más abajo.
+- **Etapa 1, implementación funcional: cerrada y desplegada.** Los diez puntos funcionales y sus ampliaciones posteriores quedaron en `V0.8`. Las migraciones principales de stock, publicaciones, reservas, índices y permisos fueron ejecutadas y auditadas remotamente. Una prueba real del 12 de octubre reveló un error diferido dentro de la RPC de checkout; el hotfix fue aplicado y auditado, y una compra aprobada posterior confirmó el recorrido productivo corregido.
 - El usuario ejecutó la sincronización histórica de nombres de Auth y mostró nueve cuentas con `display_name` y teléfono de contacto recuperados desde `public.profiles`. `telefono_auth=null` es correcto para cuentas que autentican por email. La excepción de identidad continúa asociada al MP User ID `1157622469`, no al nombre visible.
-- **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: iniciada.** La subetapa 2A de control administrativo base quedó implementada y desplegada: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; falta completar pruebas controladas de todas las mutaciones. Hasta completar esas verificaciones, “implementado” no significa certificado en producción.
+- **Etapa 2, base de datos, panel administrativo, seguridad operativa y validación: en curso.** La subetapa 2A de control administrativo base quedó implementada, desplegada y validada: roles desde el panel, suspensión sin borrado, administradores activos, auditoría reciente y motivo obligatorio para mutaciones. `docs/supabase-admin-control.sql` fue aplicado y auditado remotamente; el usuario confirmó en producción alta/baja de roles y suspensión/restauración. No se repetirán mutaciones sobre cuentas reales sólo para recrear evidencia.
 - **Etapa 2B, ficha 360 por usuario: desplegada el 12 de octubre.** `/admin/usuarios` carga bajo demanda publicaciones, pagos mensuales, compras, ventas, cumplimiento, cronología y diagnóstico en vivo OAuth/identidad. La respuesta no contiene tokens, no ejecuta mutaciones y queda cacheada por usuario durante la visita. La disposición visual fue revisada en producción; falta contrastar todas las variantes de cuenta y estados operativos.
 - **Etapa 2C, control global: desplegada y contrastada en producción el 15 de octubre.** `/admin/operaciones` centraliza hasta 500 órdenes recientes y cruza despachos, catálogo y auditoría para señalar pendientes viejas, pagos incompletos, entregas sin avance y publicaciones inconsistentes. Es exclusivamente read-only.
 - Primer contraste en producción: 4 órdenes revisadas, 2 aprobadas, 0 pendientes y 0 críticas. El único aviso provenía de un producto con stock agotado correctamente oculto; se retiró esa clasificación para no generar un falso positivo. El ajuste se desplegó con el commit `4e601d8` y la vista confirmó después 0 registros a revisar y 0 alertas críticas.
@@ -34,7 +34,7 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 
 #### Orden de trabajo de la etapa 2
 
-1. Desplegar y validar `/admin/operaciones`; revisar cada alerta contra Supabase antes de corregir datos.
+1. Completado: `/admin/operaciones` fue desplegada y contrastada; revisar siempre cada alerta futura contra Supabase antes de corregir datos.
 2. Completado: una compra posterior al hotfix quedó aprobada, persistida y sin alertas locales en 2C. Conservar la evidencia externa de Mercado Pago si se necesita volver a certificar el fee de esa operación.
 3. Completar la revisión responsive y los escenarios de contingencia de la Etapa 2D; su despliegue y primer contraste limpio ya fueron confirmados.
 4. Completado: 2E fue desplegada y validada con una cuenta autenticada sin rol; el rechazo ocultó la superficie administrativa y produjo el evento esperado en Trazabilidad.
@@ -50,8 +50,8 @@ No contiene credenciales. Distingue resultados observados, reportes del usuario 
 - El checkout local ahora crea preferencias con `expires=true` y fechas de vigencia alineadas con `CHECKOUT_PENDING_ORDER_TTL_MINUTES`.
 - `docs/supabase-abandoned-checkouts-cron.sql` crea una función sin acceso para `anon` ni `authenticated`, agenda una ejecución horaria con `pg_cron` y regulariza de inmediato las órdenes vencidas. Cambia el estado a `cancelled`, conserva la fila y deja que los triggers liberen stock.
 - No se usa el cierre o abandono de la pestaña como señal de cancelación porque no es un evento confiable y puede existir una aprobación tardía. El webhook mantiene una recuperación validada para ese caso.
-- Estado remoto: migración aplicada y auditada. Canceló dos intentos vencidos, la lectura independiente confirmó `stale_pending_remaining=0` y `cancelled_as_abandoned=2`, y el cron quedó activo. Falta desplegar el código para que las preferencias nuevas incluyan vencimiento también del lado de Mercado Pago.
-- Verificación local posterior: 124 pruebas aprobadas, chequeo de sintaxis de los dos módulos modificados y `git diff --check` sin errores. No se ejecutó build ni despliegue.
+- Estado remoto: migración aplicada y auditada. Canceló dos intentos vencidos, la lectura independiente confirmó `stale_pending_remaining=0` y `cancelled_as_abandoned=2`, y el cron quedó activo. El código que agrega vencimiento a las preferencias nuevas también fue desplegado.
+- Verificación incremental de ese cambio: 124 pruebas aprobadas, chequeo de sintaxis de los dos módulos modificados y `git diff --check` sin errores. Posteriormente la suite completa, el build y el despliegue de `V0.8` también fueron confirmados.
 - El SQL no puede editar retroactivamente las preferencias viejas en Mercado Pago. Después de regularizar las filas locales, los dos enlaces históricos deben considerarse legado: si continúan accesibles, corresponde vencerlos una vez mediante `PUT /checkout/preferences/{id}` usando el OAuth del vendedor, sin exponer tokens. Las preferencias nuevas ya nacen con vigencia definida.
 - Primera ejecución remota: el cron quedó activo como `jobid=1`, horario `17 * * * *`, con ejecución exclusiva para `service_role`, y la función informó `cancelled_now=2`. El campo `stale_pending_remaining=2` de esa misma respuesta provenía de la fotografía anterior al `UPDATE`, porque ambos cálculos compartían sentencia; el SQL local se corrigió para auditar en una sentencia posterior. La lectura independiente confirmó luego cero vencidas pendientes y dos canceladas como abandono. No requiere reinstalar el cron.
 
@@ -161,7 +161,7 @@ No dar por hecho que toda la integración quedó validada por las compras observ
 - El usuario maneja commit, push, despliegues y ejecución de SQL en Supabase. Preparar archivos e instrucciones; no ejecutar esas acciones externas por cuenta propia.
 - Mensajes de commit e instrucciones en español. Explicaciones concretas, paso a paso.
 - No imprimir `.env.local`, tokens ni secretos. `.env.example` sirve para consultar nombres, no para confirmar valores desplegados.
-- Último commit local comprobado al actualizar este documento: `c886154 fix: hacer atomica la reserva de productos y ajustar comision`. El árbol contiene cambios posteriores todavía sin confirmar; no se verificó remotamente el último deploy.
+- Base local comprobada antes de esta actualización documental: rama `V0.8`, commit `b4a392d` (`docs: cerrar revision de seguridad de octubre`) y árbol limpio. La última versión funcional identificada explícitamente en un despliegue productivo verificado fue `7c03326`; no inferir que un commit documental posterior está desplegado sin comprobarlo en Vercel.
 
 ## Qué pasó con Secret y Config
 
@@ -323,4 +323,4 @@ No declararlos cerrados en producción hasta desplegar el código compatible, pr
 
 ## Mensaje para abrir el próximo chat
 
-«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md y docs/SECURITY_CHECKLIST.md. La etapa funcional y los veinte controles de seguridad quedaron cerrados en código y activación remota. Producción está desplegada desde `V0.8`/`7c03326`, el proyecto usa Node `24.x`, Preview no tiene variables y el cifrado OAuth confirmó 4 tokens cifrados con `legacy: 0`. La última verificación completa aprobó 179 pruebas, auditoría de dependencias, secretos y build Astro/Vercel. 2A/2B/2C/2D/2E siguen documentadas según su evidencia. El QR interoperable está solamente definido como propuesta: no hay implementación. Continúan pendientes el reembolso real y las variantes controladas de pago no aprobado. El usuario controla commit, push, SQL y despliegue.»
+«Leé docs/CONTINUIDAD_MP_Y_PRODUCCION.md y docs/SECURITY_CHECKLIST.md. La etapa funcional y los veinte controles de seguridad quedaron cerrados en código y activación remota. La versión funcional verificada en producción proviene de `V0.8`/`7c03326`; el estado documental local llega a `b4a392d`. El proyecto usa Node `24.x`, Preview no tiene variables y el cifrado OAuth confirmó 4 tokens cifrados con `legacy: 0`. La última verificación completa aprobó 179 pruebas, auditoría de dependencias, secretos y build Astro/Vercel. 2A/2B/2C/2D/2E siguen documentadas según su evidencia. El QR interoperable está solamente definido como propuesta: no hay implementación. Continúan pendientes el reembolso real, las variantes controladas de pago no aprobado y las revisiones responsive indicadas. El usuario controla commit, push, SQL y despliegue.»

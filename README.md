@@ -4,7 +4,7 @@ Marketplace argentino desarrollado con Astro para comprar y vender productos y g
 
 ## Estado actual
 
-Actualizado al 24 de octubre de 2026 — rama `V0.8`.
+Actualizado al 29 de octubre de 2026 — rama `V0.8`.
 
 El proyecto se encuentra en etapa de MVP avanzado/beta técnica. Los flujos principales de productos ya utilizan Supabase y el cobro se integra con Mercado Pago Checkout Pro. Una compra real posterior al reinicio comercial confirmó nuevamente la creación de la preferencia con OAuth del vendedor, el pago aprobado, la persistencia local y el split 1:1 con la comisión objetivo configurada al 1,5%. La experiencia multiproveedor quedó definida como un checkout independiente por vendedor. El principal pendiente de pagos es validar un reembolso real de punta a punta.
 
@@ -82,9 +82,9 @@ El módulo de servicios no está expuesto en la aplicación. La decisión, el es
 - Las rutas históricas de servicios/profesionales permanecen retiradas o redirigidas; no forman parte del marketplace operativo de productos.
 - Los flujos de oferta y contratación de servicios continúan como MVP/placeholder.
 - La compra, el split y la comisión se comprobaron después del reinicio; falta completar una prueba real de reembolso total o parcial con Mercado Pago y conservar la vista del comprador.
-- El stock de 1 a 100, las cantidades de carrito y la reserva/devolución atómica están implementados localmente; su migración fue aplicada y auditada remotamente el 11 de octubre de 2026. Falta validar el circuito con el código desplegado.
+- El stock de 1 a 100, las cantidades de carrito y la reserva/devolución atómica están desplegados. La migración fue aplicada y auditada remotamente el 11 de octubre de 2026; el hotfix de la RPC se aplicó el 12 de octubre y una compra aprobada posterior confirmó el recorrido completo hasta Mercado Pago. Sigue pendiente únicamente una prueba controlada de concurrencia simultánea para complementar las defensas automatizadas.
 - El rate limit distribuido está activo y confirmado en producción desde el 17 de octubre de 2026. `/admin` informó la fuente distribuida y 34 chequeos correctos, sin advertencias ni errores. El respaldo temporal en memoria permanece de forma intencional para no inutilizar las APIs durante incidentes de Supabase; si se activa, el panel lo señala como degradación.
-- El cron de checkouts abandonados fue aplicado y auditado en Supabase: canceló los dos intentos vencidos, dejó cero pendientes antiguos y quedó activo cada hora con acceso exclusivo de `service_role`. La expiración explícita de preferencias nuevas está implementada localmente y requiere el próximo despliegue.
+- El cron de checkouts abandonados fue aplicado y auditado en Supabase: canceló los dos intentos vencidos, dejó cero pendientes antiguos y quedó activo cada hora con acceso exclusivo de `service_role`. La expiración explícita de preferencias nuevas también está desplegada y usa el mismo TTL que la reserva local.
 
 ## Stack
 
@@ -245,7 +245,7 @@ Para mejorar consultas frecuentes sin cambiar datos ni policies:
 3. `get_seller_sales_page(...)` existe y quedó con ejecución exclusiva para `service_role`; `anon` y `authenticated` fueron confirmados en `false` el 11 de octubre de 2026.
 4. Si PostgREST no ve una función inmediatamente, ejecutar `select pg_notify('pgrst', 'reload schema');`.
 
-La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y auditada remotamente el 11 de octubre de 2026. Se confirmaron columnas, constraints, RLS, índices, tres triggers habilitados, datos consistentes y ejecución exclusiva de las RPC mediante `service_role`. El código compatible todavía debe desplegarse y validarse.
+La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y auditada remotamente el 11 de octubre de 2026. Se confirmaron columnas, constraints, RLS, índices, tres triggers habilitados, datos consistentes y ejecución exclusiva de las RPC mediante `service_role`. El código compatible fue desplegado; después del hotfix de ordinalidad, una compra aprobada confirmó la ejecución productiva de la RPC.
 
 `/api/my-sales-list` usa la RPC remota `get_seller_sales_page(...)` y conserva el camino anterior como fallback defensivo.
 
@@ -261,15 +261,15 @@ La ampliación `docs/supabase-product-stock-publications.sql` fue ejecutada y au
 6. Ejecutar, con autorización explícita, un reembolso total o parcial controlado y verificar Mercado Pago, `orders`, `audit_logs`, bloqueo/liberación del producto, Mis compras y Mis ventas.
 7. Conservar una captura de la vista del comprador y confirmar si la aprobación real impactó primero por webhook o sincronización de retorno; probar estados pendiente y rechazado cuando exista un escenario controlado.
 8. Completado: `RATE_LIMIT_HASH_SECRET` está configurada en producción, las migraciones del limitador fueron aplicadas y `/admin` confirmó la fuente distribuida con 34 chequeos correctos, 0 a revisar y 0 con error. Siguen pendientes la decisión sobre el redondeo del 1,5% y el tratamiento de enlaces históricos si todavía circulan.
-9. Ejecutar despliegue y revisión responsive con variables reales. El build local con CSP ya finalizó correctamente; el usuario gestiona commit, push, SQL y deploy.
+9. Completar la revisión responsive de las superficies administrativas en tablet y móvil reales. El despliegue con variables productivas, la CSP, el build y los controles de seguridad ya fueron verificados; el usuario conserva el control de commit, push, SQL y deploy.
 
 ### Registro de la etapa 1 — Producto y operación funcional
 
-Los diez pendientes funcionales quedaron implementados localmente el 11 de octubre: edición segura de publicaciones; stock 1–100 y carrito con cantidades; reserva/decremento/reposición atómicos; contrato Mensual de ARS 2.000 por 30 días; borrado propio desde Destacados; consulta por vendedor de pagos MP pendientes frente a preferencias sin pago; validación de nombre, email y DNI contra Mercado Pago con excepción para `1157622469`; enlace confiable del aviso a `/carrito`; carrito único/deduplicado sin F5; y compactación/regresión del circuito de cards, ubicación, retiro y envío.
+Los diez pendientes funcionales quedaron implementados el 11 de octubre y luego fueron desplegados: edición segura de publicaciones; stock 1–100 y carrito con cantidades; reserva/decremento/reposición atómicos; contrato Mensual de ARS 2.000 por 30 días; borrado propio desde Destacados; consulta por vendedor de pagos MP pendientes frente a preferencias sin pago; validación de nombre, email y DNI contra Mercado Pago con excepción para `1157622469`; enlace confiable del aviso a `/carrito`; carrito único/deduplicado sin F5; y compactación/regresión del circuito de cards, ubicación, retiro y envío.
 
-Estos diez puntos no se consideran validados en producción hasta:
+El despliegue y los recorridos principales ya fueron confirmados. Para cerrar también las variantes productivas todavía corresponde:
 
-1. desplegar el código compatible; las dos migraciones requeridas ya fueron ejecutadas y auditadas;
+1. completado: desplegar el código compatible y ejecutar/auditar las migraciones requeridas;
 2. probar en navegador edición, alta permanente, alta mensual, vencimiento, cantidades, dos checkouts simultáneos, borrado desde Destacados, identidad coincidente/no coincidente y carrito sin recarga;
 3. realizar un pago mensual controlado. El vencimiento oculta automáticamente la publicación por consulta y RLS; no se borra físicamente el historial;
 4. confirmar visualmente las cards en mobile y escritorio.
@@ -304,11 +304,11 @@ Después de esa validación quedan como mejoras comerciales: instrumentar un emb
 - `node --test tests\adminUserOverview.test.mjs`: visibilidad de publicaciones, diagnóstico Mercado Pago seguro, resumen comercial y cronología de la ficha 360.
 - `node --test .\tests\*.test.mjs`: variante usada en Windows para ejecutar toda la suite local.
 - `pnpm run security:secrets`: revisa archivos versionados, rechaza `.env` reales y credenciales reconocibles, y nunca imprime el valor detectado.
-- `pnpm run security:audit`: consulta avisos conocidos del árbol de producción; la última ejecución del 20 de octubre devolvió 0 vulnerabilidades sobre 369 dependencias.
+- `pnpm run security:audit`: consulta avisos conocidos del árbol de producción; la última ejecución completa documentada del 24 de octubre devolvió 0 vulnerabilidades sobre 369 dependencias.
 - Última ejecución local observada el 24 de octubre de 2026: 179 pruebas aprobadas, 0 fallos, auditoría de producción sin vulnerabilidades conocidas, control de secretos limpio y build Astro/Vercel correcto. La versión fue desplegada en producción desde `V0.8`/`7c03326`.
 - `git diff --check`: comprueba errores de formato en el diff.
 - `pnpm build`: ejecutar antes de publicar. El usuario gestiona build, commit, push, despliegues y SQL.
 - En Windows se había observado `EPERM` al crear un symlink durante el empaquetado del adaptador Vercel. El 16 de octubre `pnpm.cmd build` completó correctamente compilación, empaquetado y salida del adaptador; si reaparece, debe tratarse como un problema de permisos local y no como un fallo de Mercado Pago. `.nvmrc` fija Node 24.22.1, versión LTS que incorpora las correcciones de seguridad de octubre de 2026.
-- El despliegue remoto continúa bajo control del usuario. La versión actual fue desplegada por el usuario y contrastada en `/admin` el 17 de octubre de 2026.
+- El despliegue remoto continúa bajo control del usuario. La versión funcional reforzada fue desplegada por el usuario desde `V0.8` y quedó verificada en producción el 24 de octubre de 2026.
 
 El contexto de Mercado Pago y las verificaciones pendientes se mantienen en [docs/CONTINUIDAD_MP_Y_PRODUCCION.md](docs/CONTINUIDAD_MP_Y_PRODUCCION.md).

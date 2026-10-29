@@ -1,12 +1,14 @@
 # Flujo de Pull Requests
 
-Actualizado al 23 de abril de 2026.
+Actualizado al 29 de octubre de 2026.
 
 ## Objetivo
 
 Mantener PRs pequeños, testeables y con contexto suficiente para revisar rápido sin romper flujos clave (auth, carrito, compra y publicación).
 
 ## Convención de ramas
+
+La rama base y predeterminada vigente es `V0.8`. Las ramas de trabajo deben partir de ella y volver mediante PR; no usar `V0.7` como base salvo una tarea histórica explícita.
 
 Usar ramas cortas con prefijo:
 
@@ -36,6 +38,9 @@ Ejemplos:
 - Variables nuevas están documentadas en `.env.example` (si aplica).
 - Si cambia esquema de Supabase, incluir SQL en `docs/` y pasos de migración.
 - Documentación actualizada (`README.md`, `docs/LINEA_POR_LINEA.md`, u otra relevante).
+- Suite completa aprobada con `node --test .\tests\*.test.mjs`.
+- Build productivo aprobado con `pnpm build`.
+- `pnpm run security:audit` y `pnpm run security:secrets` sin hallazgos bloqueantes.
 
 ## Smoke tests mínimos sugeridos
 

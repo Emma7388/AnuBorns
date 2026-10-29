@@ -1,5 +1,7 @@
 # Panel admin operativo
 
+Actualizado el 29 de octubre de 2026 para la rama `V0.8`.
+
 El panel interno tiene cinco superficies:
 
 - `/admin`: tablero operativo read-only con estados OK, Revisar y Error.
@@ -204,33 +206,33 @@ Regla de diagnostico: no se deben crear preferencias de prueba usando cuentas re
 
 ## Estado del plan administrativo
 
-Estas son las funciones del panel en orden prudente. Las marcadas como implementadas todavía requieren despliegue y validación cuando así se indique:
+Estas son las funciones del panel en orden prudente. El estado de cada una distingue lo desplegado de las variantes que todavía requieren contraste:
 
 1. Usuarios
-   - Implementado: buscar por email, nombre, DNI, teléfono.
-   - Implementado localmente en 2B: ver compras, ventas, productos publicados, cumplimiento y estado MP en la ficha 360.
-   - Implementado: editar datos profundos con auditoría solicitada/completada/fallida.
-   - Implementado localmente en 2A: bloquear acciones de usuario sin borrar cuenta.
+   - Desplegado: buscar por email, nombre, DNI, teléfono.
+   - Desplegado en 2B y validado en su recorrido principal: ver compras, ventas, productos publicados, cumplimiento y estado MP en la ficha 360.
+   - Desplegado: editar datos profundos con auditoría solicitada/completada/fallida.
+   - Desplegado y validado en 2A: bloquear acciones de usuario sin borrar cuenta.
 
 2. Operacion
-   - Implementado localmente en 2C: ver ordenes pendientes, aprobadas, rechazadas y reembolsadas.
-   - Implementado localmente en 2C: detectar ordenes pendientes viejas.
-   - Implementado localmente en 2C: detectar mensuales activas sin vencimiento sin confundir stock agotado con visibilidad pública.
-   - Implementado localmente en 2C: detectar despachos faltantes despues de pagos aprobados.
+   - Desplegado y contrastado en 2C: ver ordenes pendientes, aprobadas, rechazadas y reembolsadas.
+   - Desplegado y contrastado en 2C: detectar ordenes pendientes viejas.
+   - Desplegado y contrastado en 2C: detectar mensuales activas sin vencimiento sin confundir stock agotado con visibilidad pública.
+   - Desplegado y contrastado en 2C: detectar despachos faltantes despues de pagos aprobados.
 
 3. Mercado Pago
-   - Implementado localmente en 2D: ver vendedores conectados/desconectados y distinguir token vencido renovable de reconexión obligatoria.
-   - Implementado localmente en 2B por usuario: detectar token OAuth vencido y mostrar vencimiento.
-   - Implementado localmente en 2C: ver compras con `payment_detail` incompleto.
-   - Implementado localmente en 2C: ver pagos aprobados sin movimiento en `audit_logs`.
-   - Implementado localmente en 2D: vista central administrativa que diferencia preferencias sin intento, pagos realmente pendientes, estados resueltos y verificaciones no disponibles mediante una consulta externa manual.
-   - Implementado localmente en 2B: exponer la coincidencia de nombre/apellido, email y DNI, el MP User ID real y la excepción `1157622469`.
+   - Desplegado y contrastado en 2D: ver vendedores conectados/desconectados y distinguir token vencido renovable de reconexión obligatoria.
+   - Desplegado en 2B por usuario: detectar token OAuth vencido y mostrar vencimiento.
+   - Desplegado y contrastado en 2C: ver compras con `payment_detail` incompleto.
+   - Desplegado y contrastado en 2C: ver pagos aprobados sin movimiento en `audit_logs`.
+   - Desplegado y contrastado en 2D: vista central administrativa que diferencia preferencias sin intento, pagos realmente pendientes, estados resueltos y verificaciones no disponibles mediante una consulta externa manual.
+   - Desplegado en 2B: exponer la coincidencia de nombre/apellido, email y DNI, el MP User ID real y la excepción `1157622469`.
 
 4. Seguridad
-   - Implementado localmente en 2A: ver y administrar admins activos.
-   - Implementado localmente en 2A: ver eventos administrativos recientes de `audit_logs`.
+   - Desplegado y validado en 2A: ver y administrar admins activos.
+   - Desplegado y validado en 2A: ver eventos administrativos recientes de `audit_logs`.
    - Desplegado y validado en 2E: ver accesos administrativos rechazados de usuarios autenticados, deduplicados y sin alterar la respuesta 403.
-   - Implementado localmente en 2A: registrar cada acción mutante del panel con motivo.
+   - Desplegado y validado en 2A: registrar cada acción mutante del panel con motivo.
 
 5. Configuracion
    - Mostrar variables presentes/ausentes sin revelar valores.
@@ -242,7 +244,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 6. Acciones controladas
    - Reprocesar sincronizacion de una orden puntual.
    - Marcar seguimiento de entrega.
-   - Implementado: editar perfil de usuario con diff y auditoría.
+   - Desplegado: editar perfil de usuario con diff y auditoría.
    - Nunca ejecutar cobros, reembolsos o despliegues sin confirmacion explicita.
 
 ## Activación de la Etapa 2A
@@ -258,7 +260,7 @@ Estas son las funciones del panel en orden prudente. Las marcadas como implement
 ## Validación de la Etapa 2B
 
 1. No hay SQL adicional para ejecutar.
-2. Pendiente: desplegar y abrir fichas de un comprador, un vendedor, una cuenta sin Mercado Pago y la cuenta exceptuada.
+2. Despliegue completado; queda pendiente abrir y contrastar las variantes de comprador, vendedor, cuenta sin Mercado Pago y cuenta exceptuada.
 3. Pendiente: contrastar contadores y estados contra Supabase sin realizar cobros ni sincronizaciones.
 4. Pendiente: revisar las cinco solapas y su adaptación mobile; confirmar que volver a una ficha ya cargada no repite la consulta.
 5. Pendiente: comprobar que `Actualizar ficha` renueva los datos y que una caída de Mercado Pago sólo marca el diagnóstico como no verificable, sin ocultar la actividad local.

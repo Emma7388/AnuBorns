@@ -1,6 +1,6 @@
 # Línea por línea (estado vigente)
 
-Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
+Actualizado al 29 de octubre de 2026 para la rama `V0.8`.
 
 > Este inventario describe responsabilidades funcionales. El estado general, las limitaciones y la configuración se mantienen en `README.md`.
 
@@ -172,7 +172,7 @@ Actualizado al 20 de octubre de 2026 para la rama `V0.8`.
 ## SQL administrativo
 
 - `docs/supabase-admin-users.sql`: creación inicial de `public.admin_users`.
-- `docs/supabase-admin-control.sql`: Etapa 2A; suspensiones server-only, permisos endurecidos, RPC serializadas para coordinar rol/estado y auditoría de instalación. Fue ejecutado y auditado remotamente el 11 de octubre de 2026; falta desplegar y validar los botones nuevos.
+- `docs/supabase-admin-control.sql`: Etapa 2A; suspensiones server-only, permisos endurecidos, RPC serializadas para coordinar rol/estado y auditoría de instalación. Fue ejecutado y auditado remotamente el 11 de octubre de 2026; los controles de roles, suspensión y restauración fueron después desplegados y validados en producción.
 - `docs/supabase-checkout-ordinality-hotfix.sql`: hotfix idempotente de la RPC atómica tras el error PostgreSQL 42601 observado en producción; no modifica datos existentes y audita sintaxis y permisos. Aplicado y auditado remotamente el 12 de octubre de 2026.
 - `tests/supabaseCheckoutSql.test.mjs`: regresión estática que impide volver a combinar directamente una lista tipada con `WITH ORDINALITY`.
 - `docs/supabase-distributed-rate-limit.sql`: instalación base del contador compartido con tabla RLS, RPC server-only, cron de limpieza y auditoría.

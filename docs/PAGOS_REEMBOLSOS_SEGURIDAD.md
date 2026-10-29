@@ -1,12 +1,12 @@
 # Pagos, reembolsos y seguridad
 
-Actualizado el 11 de octubre de 2026.
+Actualizado el 29 de octubre de 2026.
 
 Este documento describe el comportamiento vigente del checkout de productos, la sincronización con Mercado Pago, los estados internos de pago, el bloqueo de productos, la visibilidad en compras/ventas y las defensas agregadas en las APIs. No contiene credenciales.
 
 ## Alcance
 
-El checkout admite varios productos y cantidades del mismo vendedor; cada orden continúa perteneciendo a un único vendedor. La preferencia de Mercado Pago se crea con el token OAuth del vendedor conectado y la comisión de AnuBorns se informa como `marketplace_fee` cuando corresponde. El 1,5% se calcula sólo sobre publicaciones permanentes; una publicación mensual ya abonó ARS 2.000 por sus 30 días y no integra esa base. El soporte de cantidades requiere aplicar la migración de stock en coordinación con el despliegue.
+El checkout admite varios productos y cantidades del mismo vendedor; cada orden continúa perteneciendo a un único vendedor. La preferencia de Mercado Pago se crea con el token OAuth del vendedor conectado y la comisión de AnuBorns se informa como `marketplace_fee` cuando corresponde. El 1,5% se calcula sólo sobre publicaciones permanentes; una publicación mensual ya abonó ARS 2.000 por sus 30 días y no integra esa base. El soporte de cantidades, su migración de stock y el código compatible ya fueron aplicados y desplegados.
 
 El cobro mensual usa una preferencia separada de la plataforma, una única preferencia pendiente por producto y una referencia interna `publication:<uuid>`. La activación se ancla al instante aprobado y una repetición del webhook repara estados incompletos sin extender los 30 días. Mientras ese cobro está pendiente no se permite borrar el producto. Después, el producto puede eliminarse sin borrar el registro del pago: la relación usa `ON DELETE SET NULL` para conservar importe, estado y trazabilidad.
 
@@ -35,7 +35,7 @@ La normalización vive en `src/lib/paymentStatus.js`. El sistema traduce la resp
 | `status_detail=refund_in_progress` o refund `processing/pending/in_process` | `refund_pending` | Sí | Sí | No | Reembolso pendiente |
 | `status_detail=partially_refunded` | `partially_refunded` | Sí | Sí | No | Reembolso parcial |
 
-La regla intencional es descontar y reservar la cantidad solicitada mientras el pago está pendiente. La ampliación local admite stock 1–100 y row locks de PostgreSQL; repone la cantidad al cancelar, rechazar o reembolsar completamente. `refund_pending` y `partially_refunded` mantienen la reserva. Esta ampliación requiere ejecutar `docs/supabase-product-stock-publications.sql` remotamente.
+La regla intencional es descontar y reservar la cantidad solicitada mientras el pago está pendiente. La ampliación desplegada admite stock 1–100 y row locks de PostgreSQL; repone la cantidad al cancelar, rechazar o reembolsar completamente. `refund_pending` y `partially_refunded` mantienen la reserva. `docs/supabase-product-stock-publications.sql` fue ejecutado y auditado remotamente el 11 de octubre de 2026.
 
 La garantía final vive en PostgreSQL. La reserva usa la clave compuesta `(product_id, order_id)` y guarda `qty`; los triggers descuentan o reponen unidades al cambiar órdenes o ítems. `create_checkout_order_atomic(...)` bloquea las filas de producto, revalida stock, vigencia, vendedor, moneda y precio, y persiste orden + ítems en una misma transacción. La validación previa de JavaScript mejora el mensaje al usuario, pero no es la autoridad de concurrencia.
 
@@ -249,7 +249,7 @@ node --test tests\paymentStatus.test.mjs tests\salePendingAction.test.mjs tests\
 22 tests passed
 ```
 
-La ejecución completa más reciente del 20 de octubre de 2026 terminó con 179 pruebas aprobadas y 0 fallos; el build Astro/Vercel finalizó correctamente y `pnpm audit --prod` había devuelto 0 vulnerabilidades. Estas verificaciones locales y las pruebas administrativas no sustituyen una prueba real de reembolso. El despliegue, las variables de cifrado/CAPTCHA, la migración de avatar y su recorrido visual continúan bajo control del usuario.
+La ejecución completa documentada el 24 de octubre de 2026 terminó con 179 pruebas aprobadas y 0 fallos; el build Astro/Vercel finalizó correctamente, `pnpm audit --prod` devolvió 0 vulnerabilidades y el control de secretos quedó limpio. La versión reforzada fue desplegada, Turnstile quedó activado, el bucket de avatar fue auditado y el cifrado OAuth informó 4 tokens cifrados con `legacy: 0`. Estas verificaciones no sustituyen una prueba real de reembolso.
 
 ## Evidencia real conservada
 
@@ -271,7 +271,7 @@ Además existe evidencia concordante de una compra real posterior al reinicio, d
 
 La base actual no permite reconstruir el orden exacto de los eventos de la compra histórica porque después se ejecutó el reinicio controlado. La operación nueva sí conserva la fila local, pero todavía falta revisar su `audit_logs` para saber si la aprobación entró primero por webhook o sincronización de retorno. Tampoco existe evidencia de un reembolso real total o parcial procesado de punta a punta.
 
-## Validación pendiente antes de producción
+## Validaciones productivas pendientes
 
 La compra posterior al reinicio confirma la repetibilidad del pago, split y comisión. Queda pendiente cerrar el circuito de reembolso y las variantes no aprobadas:
 
